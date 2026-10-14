@@ -375,3 +375,12 @@ test('every renderer API call has a preload bridge and every IPC channel has a m
   assert.deepEqual([...bridgeChannels].filter(channel => !mainChannels.has(channel)), [], 'preload channels must have main handlers');
   assert.deepEqual([...mainChannels].filter(channel => !bridgeChannels.has(channel)), [], 'main handlers must be reachable through preload');
 });
+
+
+test('schedule forecast uses empirical quantiles and avoids zero-day automatic payroll', () => {
+  const calculator = fs.readFileSync(path.join(__dirname, '../src/estimate-calculator.js'), 'utf8');
+  assert.doesNotMatch(calculator, /daysForCrew \* 0\.85/);
+  assert.match(calculator, /statistical interval is only shown when every included work has at least five/i);
+  assert.match(renderer, /Math\.max\(1, Math\.ceil\(estimateGetDurationForecast\(\)\.daysForCrew \?\? Number\(\$\('estimateCrewDays'\)\.value \|\| 1\)\)\)/);
+  assert.match(renderer, /статистический диапазон пока недоступен/);
+});
