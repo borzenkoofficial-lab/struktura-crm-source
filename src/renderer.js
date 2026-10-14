@@ -16,11 +16,43 @@ function showView(name) {
   const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', plans: 'Тариф и интеграции' };
   $('pageTitle').textContent = titles[name] || 'GRUZLI CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
-  if (loaders[name]) loaders[name]().catch(e => toast(`Ошибка загрузки: ${e.message}`, true));
+  const view = $(`view-${name}`);
+  if (loaders[name] && view) {
+    view.setAttribute('aria-busy', 'true');
+    loaders[name]()
+      .catch(error => {
+        renderSectionLoadError(name);
+        toast(`Ошибка загрузки: ${error.message}`, true);
+      })
+      .finally(() => view.removeAttribute('aria-busy'));
+  }
   if (name === 'projects') refreshEstimateLearningRates().catch(e => toast(`Не удалось обновить нормы по практике: ${e.message}`, true));
   if (name === 'browser') { showIntegratedBrowser().catch(e => toast(`Не удалось открыть браузер: ${e.message}`, true)); }
   else { window.crm.setBrowserVisibility({ visible: false }).catch(() => {}); }
 }
+function renderSectionLoadError(name) {
+  const targets = {
+    dashboard: ['recentLeads'],
+    leads: ['leadsTable'],
+    clients: ['clientsTable'],
+    projects: ['projectsTable'],
+    production: ['productionProjectCards'],
+    finance: ['paymentsTable', 'expensesTable'],
+    prospects: ['prospectsTable'],
+    tasks: ['tasksTable'],
+    reports: ['sourceReport']
+  };
+  const targetIds = targets[name] || [];
+  for (const id of targetIds) {
+    const target = $(id);
+    if (!target) continue;
+    target.innerHTML = `<div class="section-load-error" role="alert"><span class="section-load-error-icon" aria-hidden="true">!</span><div><strong>Не удалось загрузить раздел</strong><p>Данные не удалены. Проверь локальную базу и повтори загрузку.</p><button class="button subtle" type="button" data-retry-view="${esc(name)}">Повторить загрузку</button></div></div>`;
+  }
+}
+document.addEventListener('click', event => {
+  const retry = event.target.closest('[data-retry-view]');
+  if (retry) showView(retry.dataset.retryView);
+});
 let browserResizeObserver;
 let browserStateCache = { url: '', title: '', loading: false, canGoBack: false, canGoForward: false };
 function browserBounds() {
