@@ -222,33 +222,63 @@
     const lines = (Array.isArray(input.lines) ? input.lines : []).filter(line => Number(line.quantity) > 0).map(line => {
       const quantity = number(line.quantity, `Количество: ${line.name || 'работа'}`);
       const productivity = number(line.productivity ?? defaultProductivity(line), `Производительность: ${line.name || 'работа'}`);
-      if (productivity <= 0) return { name: line.name || 'Работа', unit: line.unit || '', quantity, productivity: 0, personShifts: null, daysForCrew: null, missingRate: true };
-      // Observed rates already include real-world losses. Starter rates need a visible efficiency adjustment.
-      const hasReliableHistory = Number(line.learningObservations || 0) >= 4;
-      const effectiveEfficiency = hasReliableHistory ? 100 : efficiencyPercent;
-      const effectiveProductivity = productivity / difficulty * effectiveEfficiency / 100;
+      const baselineProductivity = number(line.baselineProductivity ?? productivity, `Стартовая производительность: ${line.name || 'работа'}`);
+      const learningObservations = Math.max(0, Number(line.learningObservations) || 0);
+      const observedMedian = Number(line.observedMedian);
+      const hasObservedRate = learningObservations > 0 && Number.isFinite(observedMedian) && observedMedian > 0;
+      const observedWeight = hasObservedRate ? (learningObservations >= 5 ? 0.75 : learningObservations >= 3 ? 0.5 : 0.25) : 0;
+      if (!(productivity > 0) || (hasObservedRate && !(baselineProductivity > 0))) {
+        return { name: line.name || 'Работа', unit: line.unit || '', quantity, productivity: 0, personShifts: null, daysForCrew: null, missingRate: true, hasEmpiricalRange: false };
+      }
+      const starterPart = hasObservedRate ? baselineProductivity * (1 - observedWeight) : productivity;
+      const observedPart = hasObservedRate ? observedMedian * observedWeight : 0;
+      // Measured output already includes real losses; apply the efficiency discount only to the catalog-derived part.
+      const effectiveProductivity = (starterPart * efficiencyPercent / 100 + observedPart) / difficulty;
+      if (!(effectiveProductivity > 0)) {
+        return { name: line.name || 'Работа', unit: line.unit || '', quantity, productivity, personShifts: null, daysForCrew: null, missingRate: true, hasEmpiricalRange: false };
+      }
       const personShifts = quantity / effectiveProductivity;
-      return { name: line.name || 'Работа', unit: line.unit || '', quantity, productivity, effectiveProductivity, effectiveEfficiency, personShifts, daysForCrew: people > 0 ? personShifts / people : null, missingRate: false, hasReliableHistory };
+      const q25 = Number(line.observedQ25);
+      const q75 = Number(line.observedQ75);
+      const hasEmpiricalRange = learningObservations >= 5 && Number.isFinite(q25) && q25 > 0 && Number.isFinite(q75) && q75 > 0 && hasObservedRate;
+      const slowProductivity = hasEmpiricalRange ? (starterPart * efficiencyPercent / 100 + q25 * observedWeight) / difficulty : null;
+      const fastProductivity = hasEmpiricalRange ? (starterPart * efficiencyPercent / 100 + q75 * observedWeight) / difficulty : null;
+      return {
+        name: line.name || 'Работа', unit: line.unit || '', quantity, productivity,
+        baselineProductivity, observedMedian: hasObservedRate ? observedMedian : null,
+        learningObservations, observedWeight, effectiveProductivity, effectiveEfficiency: efficiencyPercent,
+        personShifts, daysForCrew: people > 0 ? personShifts / people : null,
+        missingRate: false, hasObservedRate, hasEmpiricalRange, slowProductivity, fastProductivity,
+        hasReliableHistory: learningObservations >= 5
+      };
     });
     const known = lines.filter(x => !x.missingRate);
     const missingRates = lines.filter(x => x.missingRate).length;
-    // Catalog norms and learned rates are normalized to an 8-hour worker-shift.
-    // Convert them to the actual shift length, then add a visible schedule reserve
-    // for setup, cleanup, handoffs, supply waits and non-parallel work stages.
     const personShifts = known.reduce((sum, x) => sum + x.personShifts, 0);
     const baseDaysForCrew = people > 0 && hoursPerDay > 0 ? personShifts * 8 / (people * hoursPerDay) : null;
     const partialDaysForCrew = baseDaysForCrew === null ? null : baseDaysForCrew * (1 + reservePercent / 100);
-    // Never present a partial sum as the total duration of the whole object.
     const isComplete = lines.length > 0 && missingRates === 0;
-    const daysForCrew = isComplete ? partialDaysForCrew : null;
+    const hasValidSchedule = hoursPerDay > 0;
+    const daysForCrew = isComplete && hasValidSchedule ? partialDaysForCrew : null;
     const workHours = personShifts * 8;
     const requiredPeople = isComplete && hoursPerDay > 0 ? Math.ceil(personShifts * 8 * (1 + reservePercent / 100) / (targetDays * hoursPerDay)) : null;
-    const lowDaysForCrew = daysForCrew === null ? null : daysForCrew * 0.85;
-    const highDaysForCrew = daysForCrew === null ? null : daysForCrew / 0.85;
-    return { lines, people, hoursPerDay, difficulty, targetDays, reservePercent, efficiencyPercent, requiredPeople, personShifts, baseDaysForCrew, partialDaysForCrew, daysForCrew, lowDaysForCrew, highDaysForCrew, calendarHours: daysForCrew === null ? null : daysForCrew * hoursPerDay, workHours, missingRates, reliableHistoryLines: lines.filter(x => x.hasReliableHistory).length, isComplete, forecastStatus: isComplete ? 'complete' : lines.length ? 'partial' : 'empty', isApproximate: true };
+    // A statistical interval is only shown when every included work has at least five usable observations.
+    const hasEmpiricalRange = isComplete && hasValidSchedule && people > 0 && known.length > 0 && known.every(x => x.hasEmpiricalRange && x.slowProductivity > 0 && x.fastProductivity > 0);
+    const slowPersonShifts = hasEmpiricalRange ? known.reduce((sum, x) => sum + x.quantity / x.slowProductivity, 0) : null;
+    const fastPersonShifts = hasEmpiricalRange ? known.reduce((sum, x) => sum + x.quantity / x.fastProductivity, 0) : null;
+    const lowDaysForCrew = hasEmpiricalRange ? fastPersonShifts * 8 / (people * hoursPerDay) * (1 + reservePercent / 100) : null;
+    const highDaysForCrew = hasEmpiricalRange ? slowPersonShifts * 8 / (people * hoursPerDay) * (1 + reservePercent / 100) : null;
+    return {
+      lines, people, hoursPerDay, difficulty, targetDays, reservePercent, efficiencyPercent,
+      requiredPeople, personShifts, baseDaysForCrew, partialDaysForCrew, daysForCrew,
+      lowDaysForCrew, highDaysForCrew, hasEmpiricalRange, calendarHours: daysForCrew === null ? null : daysForCrew * hoursPerDay,
+      workHours, missingRates, reliableHistoryLines: lines.filter(x => x.hasReliableHistory).length,
+      isComplete, forecastStatus: isComplete ? 'complete' : lines.length ? 'partial' : 'empty',
+      isApproximate: true
+    };
   }
 
-  function calculateObservedProductivity(input = {}) {
+    function calculateObservedProductivity(input = {}) {
     const quantity = number(input.quantity, 'Фактический объём');
     const people = number(input.people, 'Количество рабочих');
     const shifts = number(input.shifts, 'Фактические смены');
