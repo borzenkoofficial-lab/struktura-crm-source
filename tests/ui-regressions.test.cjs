@@ -321,3 +321,17 @@ test('payment and expense records can be corrected with validated updates', () =
   assert.match(payment[0], /validDate\(date\)/); assert.match(payment[0], /UPDATE payments SET/);
   assert.match(expense[0], /validDate\(date\)/); assert.match(expense[0], /UPDATE expenses SET/);
 });
+
+
+test('production shift reports can be corrected transactionally without stale work rows', () => {
+  assert.match(html, /id="productionShiftDialogTitle"/);
+  assert.match(renderer, /data-edit-production-shift=/);
+  assert.match(renderer, /window\.crm\.getWorkShift/); assert.match(renderer, /window\.crm\.updateWorkShift\(data\)/);
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  assert.match(preload, /getWorkShift: \(id\) => ipcRenderer\.invoke\('production:getShift', id\)/);
+  assert.match(preload, /updateWorkShift: \(data\) => ipcRenderer\.invoke\('production:updateShift', data\)/);
+  const handler = main.match(/ipcMain\.handle\('production:updateShift',[\s\S]*?\n\}\);/);
+  assert.ok(handler); assert.match(handler[0], /db\.transaction/);
+  assert.match(handler[0], /DELETE FROM work_shift_items WHERE shift_id=\?/);
+  assert.match(handler[0], /UPDATE work_shifts SET/);
+});
