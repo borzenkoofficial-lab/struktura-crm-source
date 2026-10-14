@@ -1037,8 +1037,8 @@ async function productionLoadPlanForSelected() {
 async function openProductionShift(projectId = '') {
   const data = await window.crm.productionOverview();
   if (!data.projects.length) { toast('Нет активных объектов. Переведи объект в статус «В работе» и повтори.'); showView('projects'); return; }
-  $('shiftProjectSelect').innerHTML = productionCurrentProjectOptions(data.projects, projectId || (data.projects.length === 1 ? data.projects[0].id : ''));
   $('productionShiftForm').reset(); $('productionShiftForm').elements.id.value = ''; $('productionShiftDialogTitle').textContent = 'Закрыть смену';
+  $('shiftProjectSelect').innerHTML = productionCurrentProjectOptions(data.projects, projectId || (data.projects.length === 1 ? data.projects[0].id : ''));
   $('shiftDate').value = dateToday(); $('shiftHours').value = '8'; $('shiftDowntime').value = '0'; $('shiftNotes').value = '';
   await productionLoadShiftRows();
   openDialog('productionShiftDialog');
