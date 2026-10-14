@@ -1124,7 +1124,7 @@ $('productionShiftForm').addEventListener('submit', async e => {
   try {
     const saved = data.id ? await window.crm.updateWorkShift(data) : await window.crm.saveWorkShift(data);
     closeDialog('productionShiftDialog');
-    toast(data.id ? \`Отчёт смены №\${saved.shift_id} исправлен.\` : \`Смена №\${saved.shift_id} закрыта. Факт сохранён; производственная модель и прогноз обновлены.\`);
+    toast(data.id ? `Отчёт смены №${saved.shift_id} исправлен.` : `Смена №${saved.shift_id} закрыта. Факт сохранён; производственная модель и прогноз обновлены.`);
     await Promise.all([refreshProduction(), refreshEstimateLearningRates()]);
   } catch (error) { toast(error.message,true); }
 });
@@ -1179,8 +1179,8 @@ $('productionHistory').addEventListener('click', async e => {
     }
     if (!deleteButton) return;
     const id = Number(deleteButton.dataset.deleteProductionShift);
-    if (!confirm(\`Удалить отчёт смены №\${id}? Объём исчезнет из истории и будет исключён из расчёта производительности. Это действие нельзя отменить.\`)) return;
-    await window.crm.deleteWorkShift(id); toast(\`Отчёт смены №\${id} удалён.\`);
+    if (!confirm(`Удалить отчёт смены №${id}? Объём исчезнет из истории и будет исключён из расчёта производительности. Это действие нельзя отменить.`)) return;
+    await window.crm.deleteWorkShift(id); toast(`Отчёт смены №${id} удалён.`);
     await Promise.all([refreshProduction(), refreshEstimateLearningRates()]);
   } catch (error) { toast(error.message,true); }
 });
