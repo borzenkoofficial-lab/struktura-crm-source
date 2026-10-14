@@ -433,9 +433,9 @@ th{background:#f7f9fc;color:#758297;font-size:10px;letter-spacing:.45px;text-tra
 td,th{border-bottom:1px solid #edf1f6;padding:12px 11px}
 tbody tr{transition:background .15s ease}
 tbody tr:hover{background:#f8fafc}
-input,select,textarea,.form-control{border:1px solid #d9e2ec!important;border-radius:10px!important;background:#fff;color:#243348;box-shadow:0 1px 2px #12223805;transition:border-color .16s ease,box-shadow .16s ease}
-input:hover,select:hover,textarea:hover{border-color:#b9c7d8!important}
-input:focus,select:focus,textarea:focus{border-color:#ed7958!important;box-shadow:0 0 0 4px #f0643b18!important;outline:0}
+input:not([type="checkbox"]):not([type="radio"]),select,textarea,.form-control{border:1px solid #d9e2ec!important;border-radius:10px!important;background:#fff;color:#243348;box-shadow:0 1px 2px #12223805;transition:border-color .16s ease,box-shadow .16s ease}
+input:not([type="checkbox"]):not([type="radio"]):hover,select:hover,textarea:hover{border-color:#b9c7d8!important}
+input:not([type="checkbox"]):not([type="radio"]):focus,select:focus,textarea:focus{border-color:#ed7958!important;box-shadow:0 0 0 4px #f0643b18!important;outline:0}
 label{color:#5f6d81}
 .modal{border:1px solid #dce4ed;border-radius:18px;box-shadow:0 28px 90px #0d1a2c40}
 .modal::backdrop{background:#0b1728a6;backdrop-filter:blur(5px)}
