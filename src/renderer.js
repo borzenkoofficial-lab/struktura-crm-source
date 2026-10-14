@@ -196,7 +196,14 @@ async function refreshClients() {
   $('clientsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Клиент</th><th>Телефон</th><th>Email</th><th>Тип</th><th>Добавлен</th><th>Действия</th></tr></thead><tbody>${filtered.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.phone || '—')}</td><td>${esc(c.email || '—')}</td><td>${c.client_type === 'company' ? 'Компания' : 'Частное лицо'}</td><td>${esc(String(c.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-client="${c.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Клиентов пока нет','Добавь первый контакт в свою базу.');
 }
 async function refreshProjects() {
-  const rows = await window.crm.listProjects(); const q = ($('projectSearch')?.value || '').toLowerCase();
+  const [rows, clients] = await Promise.all([window.crm.listProjects(), window.crm.listClients()]);
+  const clientSelect = $('projectClient');
+  if (clientSelect) {
+    const selectedClient = clientSelect.value;
+    clientSelect.innerHTML = `<option value="">Без привязки к клиенту</option>${clients.map(c => `<option value="${c.id}">${esc(c.name)}${c.phone ? ` · ${esc(c.phone)}` : ''}</option>`).join('')}`;
+    if (clients.some(c => String(c.id) === selectedClient)) clientSelect.value = selectedClient;
+  }
+  const q = ($('projectSearch')?.value || '').toLowerCase();
   const filtered = rows.filter(p => `${p.title} ${p.address} ${p.client_name || ''}`.toLowerCase().includes(q));
   $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th><th>Действия</th></tr></thead><tbody>${filtered.map(p => `<tr><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><select class="project-status-select" data-project-status="${p.id}" aria-label="Статус объекта: ${esc(p.title)}">${Object.entries(projectStatusLabels).map(([value,label]) => `<option value="${value}" ${p.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Number(p.received_rub)))}</td><td><button type="button" class="button subtle compact" data-edit-project="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
   const options = rows.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
@@ -825,7 +832,7 @@ $('clientForm').addEventListener('submit', async e => {
     if (data.id) await window.crm.updateClient(data); else await window.crm.createClient(data);
     form.reset(); $('clientDialogTitle').textContent = 'Новый клиент'; closeDialog('clientDialog');
     toast(data.id ? 'Карточка клиента обновлена.' : 'Клиент сохранён.');
-    await Promise.all([refreshClients(), refreshLeads(), refreshDashboard()]);
+    await Promise.all([refreshClients(), refreshLeads(), refreshProjects(), refreshDashboard()]);
   } catch (err) { toast(err.message, true); }
 });
 $('clientsTable').addEventListener('click', async event => {
@@ -867,7 +874,7 @@ $('projectsTable').addEventListener('click', async event => {
     const rows = await window.crm.listProjects(), project = rows.find(item => item.id === Number(button.dataset.editProject));
     if (!project) throw new Error('Объект не найден. Обнови список.');
     const form = $('projectForm');
-    for (const key of ['id','title','service','status','contract_rub','address','start_date','end_date','planned_people','complexity_factor','notes']) form.elements[key].value = project[key] ?? '';
+    for (const key of ['id','title','client_id','service','status','contract_rub','address','start_date','end_date','planned_people','complexity_factor','notes']) form.elements[key].value = project[key] ?? '';
     $('projectDialogTitle').textContent = 'Изменить объект'; openDialog('projectDialog');
   } catch (error) { toast(error.message, true); }
 });
