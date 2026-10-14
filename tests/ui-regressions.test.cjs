@@ -396,6 +396,7 @@ test('duration breakdown labels and displays the effective productivity used by 
 
 
 test('embedded browser bounds stay aligned during scroll and are not measured through a transform animation', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
   assert.match(renderer, /window\.addEventListener\('scroll', syncBrowserBounds, true\)/);
   assert.match(css, /\.view#view-browser\.active\s*\{\s*animation:\s*none;\s*transform:\s*none;/);
 });
