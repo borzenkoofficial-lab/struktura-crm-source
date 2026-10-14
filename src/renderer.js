@@ -190,7 +190,7 @@ async function refreshClients() {
 async function refreshProjects() {
   const rows = await window.crm.listProjects(); const q = ($('projectSearch')?.value || '').toLowerCase();
   const filtered = rows.filter(p => `${p.title} ${p.address} ${p.client_name || ''}`.toLowerCase().includes(q));
-  $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th></tr></thead><tbody>${filtered.map(p => `<tr><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><select class="project-status-select" data-project-status="${p.id}" aria-label="Статус объекта: ${esc(p.title)}">${Object.entries(projectStatusLabels).map(([value,label]) => `<option value="${value}" ${p.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Number(p.received_rub)))}</td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
+  $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th><th>Действия</th></tr></thead><tbody>${filtered.map(p => `<tr><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><select class="project-status-select" data-project-status="${p.id}" aria-label="Статус объекта: ${esc(p.title)}">${Object.entries(projectStatusLabels).map(([value,label]) => `<option value="${value}" ${p.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Number(p.received_rub)))}</td><td><button type="button" class="button subtle compact" data-edit-project="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
   const options = rows.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
   $('paymentProject').innerHTML = `<option value="">Выбери объект</option>${options}`;
   $('expenseProject').innerHTML = `<option value="">Общий расход без объекта</option>${options}`;
@@ -632,7 +632,7 @@ document.addEventListener('click', e => {
 $('quickLead').addEventListener('click', () => { $('leadForm').reset(); $('leadDialogTitle').textContent = 'Добавить заявку'; showView('leads'); openDialog('leadDialog'); });
 $('addLeadBtn').addEventListener('click', () => { $('leadForm').reset(); $('leadDialogTitle').textContent = 'Добавить заявку'; openDialog('leadDialog'); });
 $('addClientBtn').addEventListener('click', () => { $('clientForm').reset(); $('clientDialogTitle').textContent = 'Новый клиент'; openDialog('clientDialog'); });
-$('addProjectBtn').addEventListener('click', () => { pendingProjectPlan = null; $('projectForm').reset(); $('projectForm').elements.planned_people.value = '5'; openDialog('projectDialog'); });
+$('addProjectBtn').addEventListener('click', () => { pendingProjectPlan = null; $('projectForm').reset(); $('projectForm').elements.planned_people.value = '5'; $('projectDialogTitle').textContent = 'Новый объект'; openDialog('projectDialog'); });
 $('projectForm').elements.start_date.addEventListener('change', e => { $('projectForm').elements.end_date.min = e.target.value || ''; if ($('projectForm').elements.end_date.value && e.target.value && $('projectForm').elements.end_date.value < e.target.value) $('projectForm').elements.end_date.value = ''; $('projectForm').elements.end_date.setCustomValidity(''); });
 $('projectForm').elements.end_date.addEventListener('change', e => { const start = $('projectForm').elements.start_date.value; if (start && e.target.value && e.target.value < start) { e.target.setCustomValidity('Дата окончания не может быть раньше даты начала.'); e.target.reportValidity(); } else e.target.setCustomValidity(''); });
 const estimateInputIds = ['estimateTitle','estimateCustomer','estimateAddress','estimateContact','estimateValidity','estimateService','estimateWorkArea','estimateCrewPeople','estimateCrewMode','estimateCrewRate','estimateCrewHours','estimateCrewDays','estimateMaterialsCost','estimateDisposalCost','estimateTransportCost','estimateEquipmentCost','estimateOtherCost','estimateOverheadPercent','estimateTaxPercent','estimateDiscountPercent','estimateTargetMargin','estimateDifficulty','estimateTargetDays','estimateScheduleReserve','estimateEfficiency'];
@@ -806,14 +806,25 @@ $('projectsTable').addEventListener('change', async event => {
 });
 $('projectForm').addEventListener('submit', async e => {
   e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form));
-  const planToAttach = pendingProjectPlan; pendingProjectPlan = null;
+  const editing = Boolean(data.id), planToAttach = editing ? null : pendingProjectPlan; pendingProjectPlan = null;
   try {
-    if (planToAttach?.lines?.length) await window.crm.createProjectWithPlan({ project: data, plan: planToAttach });
+    if (editing) await window.crm.updateProject(data);
+    else if (planToAttach?.lines?.length) await window.crm.createProjectWithPlan({ project: data, plan: planToAttach });
     else await window.crm.createProject(data);
   } catch (err) { pendingProjectPlan = planToAttach; toast(err.message,true); return; }
-  form.reset(); closeDialog('projectDialog');
-  toast(planToAttach?.lines?.length ? 'Объект и производственный план сохранены одной операцией.' : 'Объект сохранён. План работ можно добавить в разделе «Производство».');
-  await Promise.all([refreshProjects(),refreshDashboard(),refreshProduction()]).catch(err => toast(`Объект сохранён, но обновление списка завершилось ошибкой: ${err.message}`, true));
+  form.reset(); $('projectDialogTitle').textContent = 'Новый объект'; closeDialog('projectDialog');
+  toast(editing ? 'Карточка объекта обновлена.' : (planToAttach?.lines?.length ? 'Объект и производственный план сохранены одной операцией.' : 'Объект сохранён. План работ можно добавить в разделе «Производство».'));
+  await Promise.all([refreshProjects(), refreshDashboard(), refreshProduction(), refreshFinance()]).catch(err => toast(`Объект сохранён, но обновление списков завершилось ошибкой: ${err.message}`, true));
+});
+$('projectsTable').addEventListener('click', async event => {
+  const button = event.target.closest('[data-edit-project]'); if (!button) return;
+  try {
+    const rows = await window.crm.listProjects(), project = rows.find(item => item.id === Number(button.dataset.editProject));
+    if (!project) throw new Error('Объект не найден. Обнови список.');
+    const form = $('projectForm');
+    for (const key of ['id','title','service','status','contract_rub','address','start_date','end_date','planned_people','complexity_factor','notes']) form.elements[key].value = project[key] ?? '';
+    $('projectDialogTitle').textContent = 'Изменить объект'; openDialog('projectDialog');
+  } catch (error) { toast(error.message, true); }
 });
 $('paymentForm').addEventListener('submit', async e => { e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form)); try { await window.crm.createPayment(data); form.reset(); closeDialog('paymentDialog'); toast('Платёж записан.'); await refreshFinance(); await refreshDashboard(); } catch (err) { toast(err.message,true); } });
 $('expenseForm').addEventListener('submit', async e => { e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form)); try { await window.crm.createExpense(data); form.reset(); closeDialog('expenseDialog'); toast('Расход сохранён.'); await refreshFinance(); await refreshDashboard(); } catch (err) { toast(err.message,true); } });
