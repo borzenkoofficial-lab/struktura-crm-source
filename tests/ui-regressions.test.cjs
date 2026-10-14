@@ -424,7 +424,7 @@ test('expense form has exactly one submit handler so editing cannot create a dup
 
 test('renderer does not register duplicate direct DOM event handlers on the same element', () => {
   const registrations = new Map();
-  const pattern = /\\$\\('([^']+)'\\)\\.addEventListener\\('([^']+)'/g;
+  const pattern = /\$\('([^']+)'\)\.addEventListener\('([^']+)'/g;
   for (const match of renderer.matchAll(pattern)) {
     const key = match[1] + '::' + match[2];
     registrations.set(key, (registrations.get(key) || 0) + 1);
