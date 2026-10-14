@@ -13,7 +13,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-windows:
@@ -35,7 +35,9 @@ jobs:
         run: npm test
 
       - name: Build Windows installer
-        run: npm run dist:win -- --publish never
+        run: npm run dist:win -- --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
