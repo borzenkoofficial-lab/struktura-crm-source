@@ -13,7 +13,7 @@ function dateToday() { return new Date().toISOString().slice(0,10); }
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', plans: 'Тариф и интеграции' };
+  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', plans: 'Тариф и интеграции', updates: 'Обновления и журнал изменений', settings: 'Настройки программы' };
   $('pageTitle').textContent = titles[name] || 'GRUZLI CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
   const view = $(`view-${name}`);
@@ -1251,11 +1251,56 @@ function renderUpdateStatus(status = {}) {
   $('downloadUpdateBtn').disabled = downloading;
   $('installUpdateBtn').hidden = status.state !== 'downloaded';
 }
-$('openUpdatesBtn').addEventListener('click', async () => {
+$('openUpdatesBtn').addEventListener('click', () => showView('updates'));
+$('manageUpdatesBtn').addEventListener('click', async () => {
   openDialog('updatesDialog');
   try { renderUpdateStatus(await window.crm.updateStatus()); }
   catch (error) { renderUpdateStatus({ state: 'error', message: error.message }); }
 });
+$('settingsOpenUpdatesBtn').addEventListener('click', () => showView('updates'));
+$('settingsNotificationsBtn').addEventListener('click', async () => {
+  try { await refreshNotificationSettings(); openDialog('notificationSettingsDialog'); }
+  catch (error) { toast(`Не удалось загрузить настройки уведомлений: ${error.message}`, true); }
+});
+$('settingsBackupBtn').addEventListener('click', () => $('backupBtn').click());
+$('settingsRestoreBackupBtn').addEventListener('click', () => $('restoreBackupBtn').click());
+$('settingsDataFolderBtn').addEventListener('click', () => $('dataFolderBtn').click());
+async function loadSettingsVersion() {
+  try {
+    const version = await window.crm.version();
+    $('settingsAppVersion').textContent = `v${version}`;
+    $('updatesPageVersion').textContent = `v${version}`;
+  } catch { $('settingsAppVersion').textContent = 'Недоступна'; $('updatesPageVersion').textContent = 'Недоступна'; }
+}
+const themeSelect = $('themeSelect');
+const compactModeToggle = $('compactModeToggle');
+const reducedMotionToggle = $('reducedMotionToggle');
+function applyUiPreferences() {
+  const theme = localStorage.getItem('gruzli-ui-theme') || 'brand';
+  const compact = localStorage.getItem('gruzli-ui-compact') === 'true';
+  const reduceMotion = localStorage.getItem('gruzli-ui-reduced-motion') === 'true';
+  document.body.dataset.theme = theme;
+  document.body.classList.toggle('compact-mode', compact);
+  document.body.classList.toggle('reduce-motion', reduceMotion);
+  if (themeSelect) themeSelect.value = theme;
+  if (compactModeToggle) compactModeToggle.checked = compact;
+  if (reducedMotionToggle) reducedMotionToggle.checked = reduceMotion;
+}
+themeSelect?.addEventListener('change', () => {
+  localStorage.setItem('gruzli-ui-theme', themeSelect.value);
+  applyUiPreferences();
+  toast('Цветовая схема применена.');
+});
+compactModeToggle?.addEventListener('change', () => {
+  localStorage.setItem('gruzli-ui-compact', String(compactModeToggle.checked));
+  applyUiPreferences();
+});
+reducedMotionToggle?.addEventListener('change', () => {
+  localStorage.setItem('gruzli-ui-reduced-motion', String(reducedMotionToggle.checked));
+  applyUiPreferences();
+});
+applyUiPreferences();
+loadSettingsVersion();
 $('checkUpdatesBtn').addEventListener('click', async () => {
   try { renderUpdateStatus(await window.crm.checkForUpdates()); }
   catch (error) { renderUpdateStatus({ state: 'error', message: error.message }); }
