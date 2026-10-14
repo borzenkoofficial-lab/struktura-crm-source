@@ -245,8 +245,10 @@ ipcMain.handle('projects:list', () => db.prepare(`SELECT p.*, c.name client_name
 ipcMain.handle('projects:create', (_event, input = {}) => {
   const project = normalizeProjectInput(input);
   const contract = amount(project.contract_rub, { allowZero: true });
-  const result = db.prepare(`INSERT INTO projects(title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
-    VALUES (@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
+  const clientId = input.client_id ? Number(input.client_id) : null;
+  if (clientId !== null && (!Number.isSafeInteger(clientId) || clientId < 1 || !db.prepare('SELECT id FROM clients WHERE id=?').get(clientId))) throw new Error('Выбранный клиент не найден. Обнови список и попробуй снова.');
+  const result = db.prepare(`INSERT INTO projects(client_id,title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
+    VALUES (@client_id,@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, client_id: clientId, contract_rub: contract });
   return db.prepare('SELECT * FROM projects WHERE id=?').get(result.lastInsertRowid);
 });
 ipcMain.handle('projects:update', (_event, input = {}) => {
@@ -255,10 +257,12 @@ ipcMain.handle('projects:update', (_event, input = {}) => {
   if (!db.prepare('SELECT id FROM projects WHERE id=?').get(id)) throw new Error('Объект не найден. Обнови список и попробуй снова.');
   const project = normalizeProjectInput(input);
   const contract = amount(project.contract_rub, { allowZero: true });
-  db.prepare(`UPDATE projects SET title=@title, service=@service, status=@status, contract_rub=@contract_rub,
+  const clientId = input.client_id ? Number(input.client_id) : null;
+  if (clientId !== null && (!Number.isSafeInteger(clientId) || clientId < 1 || !db.prepare('SELECT id FROM clients WHERE id=?').get(clientId))) throw new Error('Выбранный клиент не найден. Обнови список и попробуй снова.');
+  db.prepare(`UPDATE projects SET client_id=@client_id, title=@title, service=@service, status=@status, contract_rub=@contract_rub,
     address=@address, start_date=@start_date, end_date=@end_date, planned_people=@planned_people,
     complexity_factor=@complexity_factor, notes=@notes, updated_at=CURRENT_TIMESTAMP WHERE id=@id`)
-    .run({ ...project, contract_rub: contract, id });
+    .run({ ...project, client_id: clientId, contract_rub: contract, id });
   return db.prepare('SELECT * FROM projects WHERE id=?').get(id);
 });
 ipcMain.handle('projects:updateStatus', (_event, input = {}) => {
@@ -272,11 +276,14 @@ ipcMain.handle('projects:updateStatus', (_event, input = {}) => {
 });
 ipcMain.handle('projects:createWithPlan', (_event, input = {}) => {
   const plan = normalizeProductionPlan(input.plan || {});
-  const project = normalizeProjectInput({ ...(input.project || {}), planned_people: plan.planned_people, complexity_factor: plan.complexity_factor });
+  const projectInput = input.project || {};
+  const project = normalizeProjectInput({ ...projectInput, planned_people: plan.planned_people, complexity_factor: plan.complexity_factor });
+  const clientId = projectInput.client_id ? Number(projectInput.client_id) : null;
+  if (clientId !== null && (!Number.isSafeInteger(clientId) || clientId < 1 || !db.prepare('SELECT id FROM clients WHERE id=?').get(clientId))) throw new Error('Выбранный клиент не найден. Обнови список и попробуй снова.');
   const contract = amount(project.contract_rub, { allowZero: true });
   const create = db.transaction(() => {
-    const result = db.prepare(`INSERT INTO projects(title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
-      VALUES (@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
+    const result = db.prepare(`INSERT INTO projects(client_id,title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
+      VALUES (@client_id,@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, client_id: clientId, contract_rub: contract });
     const projectId = Number(result.lastInsertRowid);
     const insert = db.prepare(`INSERT INTO production_plans(project_id,catalog_id,work_name,unit,planned_quantity,baseline_productivity)
       VALUES (@project_id,@catalog_id,@work_name,@unit,@planned_quantity,@baseline_productivity)`);
