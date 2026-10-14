@@ -276,3 +276,15 @@ test('target price is rejected when tax reserve plus target margin reaches 100 p
     overheadPercent: 0, taxPercent: 50, discountPercent: 0, marginPercent: 50
   }), /сумма налога и маржи/);
 });
+
+
+test('automatic payroll fallback is explicitly warned when the full duration cannot be estimated', () => {
+  const result = calculateDetailed({
+    workArea: 10,
+    lines: [{ name: 'Демонтаж', unit: 'м²', quantity: 10, price: 500, cost: 100 }],
+    crew: { people: 2, mode: 'shift', rate: 3000, hoursPerDay: 8, days: 1, automaticDaysUnavailable: true },
+    materialsCost: 0, disposalCost: 0, transportCost: 0, equipmentCost: 0, otherCost: 0,
+    overheadPercent: 0, taxPercent: 0, discountPercent: 0, marginPercent: 20
+  });
+  assert.ok(result.warnings.some(w => w.title === 'Автоматический срок не рассчитан'));
+});
