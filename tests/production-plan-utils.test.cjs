@@ -36,3 +36,22 @@ test('shift rejects duplicated labor hours exceeding the whole crew capacity', (
 test('shift can be logged with no work items when the shift produced no output', () => {
   assert.deepEqual(normalizeShiftWorkLines({ workers: 4, shiftHours: 8, lines: [] }), []);
 });
+
+test('shift subtracts downtime from available crew person-hours', () => {
+  assert.throws(() => normalizeShiftWorkLines({
+    workers: 5, shiftHours: 8, downtimeHours: 2,
+    lines: [shiftLine({ workers_count: 5, hours: 7 })]
+  }), /могла отработать максимум/);
+
+  const lines = normalizeShiftWorkLines({
+    workers: 5, shiftHours: 8, downtimeHours: 2,
+    lines: [shiftLine({ workers_count: 5, hours: 6 })]
+  });
+  assert.equal(lines.length, 1);
+});
+
+test('shift rejects downtime outside the shift duration', () => {
+  assert.throws(() => normalizeShiftWorkLines({
+    workers: 5, shiftHours: 8, downtimeHours: 9, lines: []
+  }), /Проверь численность/);
+});

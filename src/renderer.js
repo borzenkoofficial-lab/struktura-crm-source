@@ -939,6 +939,39 @@ $('productionHistory').addEventListener('click', async e => { const button = e.t
 
 $('today').textContent = new Intl.DateTimeFormat('ru-RU', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
 window.crm.version().then(v => $('version').textContent = `v${v}`);
+function renderUpdateStatus(status = {}) {
+  if ($('updateCurrentVersion')) $('updateCurrentVersion').textContent = status.currentVersion ? `v${status.currentVersion}` : '—';
+  if ($('updateAvailableVersion')) $('updateAvailableVersion').textContent = status.downloadedVersion ? `v${status.downloadedVersion} · скачано` : status.availableVersion ? `v${status.availableVersion}` : status.state === 'current' ? 'Уже актуальна' : '—';
+  if ($('updateStatusMessage')) $('updateStatusMessage').textContent = status.message || 'Проверка ещё не выполнялась';
+  const downloading = status.state === 'downloading';
+  $('updateProgressTrack').hidden = !downloading;
+  $('updateProgressBar').style.width = `${Math.max(0, Math.min(100, Number(status.progress) || 0))}%`;
+  $('checkUpdatesBtn').disabled = status.state === 'checking' || downloading;
+  $('checkUpdatesBtn').textContent = status.state === 'checking' ? 'Проверяем…' : 'Проверить обновления';
+  $('downloadUpdateBtn').hidden = status.state !== 'available';
+  $('downloadUpdateBtn').disabled = downloading;
+  $('installUpdateBtn').hidden = status.state !== 'downloaded';
+}
+$('openUpdatesBtn').addEventListener('click', async () => {
+  openDialog('updatesDialog');
+  try { renderUpdateStatus(await window.crm.updateStatus()); }
+  catch (error) { renderUpdateStatus({ state: 'error', message: error.message }); }
+});
+$('checkUpdatesBtn').addEventListener('click', async () => {
+  try { renderUpdateStatus(await window.crm.checkForUpdates()); }
+  catch (error) { renderUpdateStatus({ state: 'error', message: error.message }); }
+});
+$('downloadUpdateBtn').addEventListener('click', async () => {
+  $('downloadUpdateBtn').disabled = true;
+  try { renderUpdateStatus(await window.crm.downloadUpdate()); }
+  catch (error) { renderUpdateStatus({ state: 'error', message: error.message }); }
+});
+$('installUpdateBtn').addEventListener('click', async () => {
+  try { await window.crm.installUpdate(); }
+  catch (error) { renderUpdateStatus({ state: 'error', message: error.message }); }
+});
+window.crm.onUpdateStatus(renderUpdateStatus);
+
 for (const id of ['paymentForm','expenseForm']) { const field = $(id).elements[id === 'paymentForm' ? 'payment_date' : 'expense_date']; field.value = dateToday(); }
 const startupSplash = $('startupSplash');
 const startupStartedAt = performance.now();

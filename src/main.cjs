@@ -1,9 +1,10 @@
 const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, safeStorage, session, Notification } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('node:path');
 const fs = require('node:fs');
 const { openDatabase } = require('./db.cjs');
 const Database = require('better-sqlite3');
-const { parseCsv, prospectDuplicateKeys } = require('./csv.cjs');
+const { parseCsv, prospectDuplicateKeys, safeCsvCell } = require('./csv.cjs');
 const { crawlSites } = require('./site-crawler.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
@@ -19,6 +20,20 @@ let db;
 let mainWindow;
 let browserView;
 let browserIsVisible = false;
+let updateStatus = { state: 'idle', currentVersion: app.getVersion(), availableVersion: '', downloadedVersion: '', message: 'Проверка ещё не выполнялась' };
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = false;
+function publishUpdateStatus(patch) {
+  updateStatus = { ...updateStatus, ...patch, currentVersion: app.getVersion() };
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('updates:status', updateStatus);
+  return updateStatus;
+}
+autoUpdater.on('checking-for-update', () => publishUpdateStatus({ state: 'checking', message: 'Проверяем наличие обновлений…' }));
+autoUpdater.on('update-available', info => publishUpdateStatus({ state: 'available', availableVersion: info.version, message: `Доступна версия ${info.version}` }));
+autoUpdater.on('update-not-available', () => publishUpdateStatus({ state: 'current', availableVersion: '', message: 'Установлена последняя версия' }));
+autoUpdater.on('download-progress', progress => publishUpdateStatus({ state: 'downloading', progress: Math.round(progress.percent), message: `Загрузка обновления: ${Math.round(progress.percent)}%` }));
+autoUpdater.on('update-downloaded', info => publishUpdateStatus({ state: 'downloaded', downloadedVersion: info.version, availableVersion: info.version, progress: 100, message: `Версия ${info.version} готова к установке` }));
+autoUpdater.on('error', error => publishUpdateStatus({ state: 'error', message: `Ошибка обновления: ${String(error.message || error).slice(0, 240)}` }));
 const services = ['demolition', 'finishing', 'raised_floor'];
 const sources = ['avito', 'phone', 'telegram', 'recommendation', 'website', 'other'];
 function clean(value, max = 2000) { return String(value ?? '').trim().slice(0, max); }
@@ -339,7 +354,7 @@ ipcMain.handle('production:saveShift', (_event, input = {}) => {
   if (!Number.isFinite(downtime) || downtime < 0 || downtime > shiftHours) throw new Error('Простой должен быть от 0 до длительности смены.');
   if (![0.7,1,1.25,1.5,2].includes(factor)) throw new Error('Выбери допустимый коэффициент сложности.');
   const notes = clean(input.notes, 3000);
-  const lines = normalizeShiftWorkLines({ lines: input.lines, workers, shiftHours });
+  const lines = normalizeShiftWorkLines({ lines: input.lines, workers, shiftHours, downtimeHours: downtime });
   if (!lines.length && !notes) throw new Error('Если за смену ничего не сделано, укажи причину простоя в примечании.');
   const save = db.transaction(() => {
     const result = db.prepare(`INSERT INTO work_shifts(project_id,shift_date,workers_count,shift_hours,downtime_hours,complexity_factor,notes)
@@ -599,7 +614,7 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   if (canceled || !filePath) return { canceled: true };
   const rows = db.prepare(sql).all();
   const columns = rows.length ? Object.keys(rows[0]) : sql.match(/SELECT (.+?) FROM/)[1].split(',').map(s=>s.trim());
-  const quote = value => `"${String(value ?? '').replace(/"/g,'""')}"`;
+  const quote = value => `"${safeCsvCell(value).replace(/"/g,'""')}"`;
   fs.writeFileSync(filePath, '\uFEFF' + [columns.map(quote).join(';'), ...rows.map(row => columns.map(col => quote(row[col])).join(';'))].join('\r\n'), 'utf8');
   return { canceled: false, filePath, count: rows.length };
 });
@@ -779,4 +794,34 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
 });
 
+ipcMain.handle('updates:status', () => updateStatus);
+ipcMain.handle('updates:check', async () => {
+  if (!app.isPackaged) {
+    return publishUpdateStatus({ state: 'development', message: 'Проверка обновлений доступна в установленной версии CRM.' });
+  }
+  try {
+    publishUpdateStatus({ state: 'checking', message: 'Проверяем наличие обновлений…' });
+    await autoUpdater.checkForUpdates();
+    return updateStatus;
+  } catch (error) {
+    return publishUpdateStatus({ state: 'error', message: `Не удалось проверить обновления: ${String(error.message || error).slice(0, 220)}` });
+  }
+});
+ipcMain.handle('updates:download', async () => {
+  if (!app.isPackaged) throw new Error('Скачивание обновлений доступно только в установленной версии CRM.');
+  if (updateStatus.state !== 'available') throw new Error('Сначала проверь наличие обновления.');
+  try {
+    publishUpdateStatus({ state: 'downloading', progress: 0, message: 'Начинаем загрузку обновления…' });
+    await autoUpdater.downloadUpdate();
+    return updateStatus;
+  } catch (error) {
+    publishUpdateStatus({ state: 'error', message: `Не удалось скачать обновление: ${String(error.message || error).slice(0, 220)}` });
+    throw error;
+  }
+});
+ipcMain.handle('updates:install', () => {
+  if (!app.isPackaged || updateStatus.state !== 'downloaded') throw new Error('Сначала скачай обновление.');
+  autoUpdater.quitAndInstall(false, true);
+  return { accepted: true };
+});
 ipcMain.handle('app:version', () => app.getVersion());

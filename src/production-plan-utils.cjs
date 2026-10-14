@@ -26,10 +26,10 @@ function normalizeProductionPlan(input = {}) {
   return { planned_people: people, complexity_factor: factor, lines };
 }
 
-function normalizeShiftWorkLines({ lines, workers, shiftHours } = {}) {
+function normalizeShiftWorkLines({ lines, workers, shiftHours, downtimeHours = 0 } = {}) {
   if (!Array.isArray(lines) || lines.length > 40) throw new Error('В отчёте можно указать не более 40 видов работ.');
-  const crew = Number(workers), totalHours = Number(shiftHours);
-  if (!Number.isInteger(crew) || crew < 1 || crew > 200 || !Number.isFinite(totalHours) || totalHours < 0.5 || totalHours > 24) {
+  const crew = Number(workers), totalHours = Number(shiftHours), downtime = Number(downtimeHours);
+  if (!Number.isInteger(crew) || crew < 1 || crew > 200 || !Number.isFinite(totalHours) || totalHours < 0.5 || totalHours > 24 || !Number.isFinite(downtime) || downtime < 0 || downtime > totalHours) {
     throw new Error('Проверь численность бригады и продолжительность смены.');
   }
   const seen = new Set();
@@ -45,7 +45,7 @@ function normalizeShiftWorkLines({ lines, workers, shiftHours } = {}) {
     allocatedPersonHours += people * hours;
     return { catalog_id: catalogId, work_name: name, unit, quantity_done: quantity, workers_count: people, hours, baseline_productivity: baseline };
   });
-  const availablePersonHours = crew * totalHours;
+  const availablePersonHours = crew * (totalHours - downtime);
   if (allocatedPersonHours > availablePersonHours + 0.01) {
     throw new Error(`Распределено ${allocatedPersonHours.toLocaleString('ru-RU')} чел.-ч, а вся бригада могла отработать максимум ${availablePersonHours.toLocaleString('ru-RU')} чел.-ч. Проверь людей и часы по каждой работе: одни и те же часы нельзя учитывать дважды.`);
   }

@@ -1,6 +1,6 @@
 {
   "name": "struktura-crm",
-  "version": "1.13.9",
+  "version": "1.13.10",
   "private": true,
   "description": "Настольная локальная CRM для Windows: клиенты, демонтаж, сметы, производство и PDF",
   "main": "src/main.cjs",
@@ -10,7 +10,8 @@
     "dist:win": "electron-builder --win nsis"
   },
   "dependencies": {
-    "better-sqlite3": "^11.8.1"
+    "better-sqlite3": "^11.8.1",
+    "electron-updater": "^6.6.2"
   },
   "devDependencies": {
     "electron": "^35.2.1",
@@ -40,6 +41,13 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "borzenkoofficial-lab",
+        "repo": "struktura-crm-source"
+      }
+    ]
   }
 }

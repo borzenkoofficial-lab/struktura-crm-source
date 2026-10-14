@@ -105,4 +105,10 @@ function prospectDuplicateKeys(item) {
   return [...new Set(keys)];
 }
 
-module.exports = { parseCsv, detectDelimiter, normalizePhone, normalizeUrl, normalizeCompany, prospectDuplicateKeys };
+function safeCsvCell(value) {
+  const text = String(value ?? '');
+  const first = text.trimStart()[0];
+  return first && '=+-@'.includes(first) ? "'" + text : text;
+}
+
+module.exports = { parseCsv, detectDelimiter, normalizePhone, normalizeUrl, normalizeCompany, prospectDuplicateKeys, safeCsvCell };

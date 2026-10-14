@@ -50,5 +50,10 @@ contextBridge.exposeInMainWorld('crm', {
   saveAndScanBrowserSite: (data) => ipcRenderer.invoke('browser:saveAndScan', data),
   onBrowserState: (callback) => { const listener = (_event, state) => callback(state); ipcRenderer.on('browser:state', listener); return () => ipcRenderer.removeListener('browser:state', listener); },
   exportQuotePdf: (data) => ipcRenderer.invoke('estimate:exportQuotePdf', data),
-  version: () => ipcRenderer.invoke('app:version')
+  version: () => ipcRenderer.invoke('app:version'),
+  checkForUpdates: () => ipcRenderer.invoke('updates:check'),
+  updateStatus: () => ipcRenderer.invoke('updates:status'),
+  downloadUpdate: () => ipcRenderer.invoke('updates:download'),
+  installUpdate: () => ipcRenderer.invoke('updates:install'),
+  onUpdateStatus: (callback) => { const listener = (_event, status) => callback(status); ipcRenderer.on('updates:status', listener); return () => ipcRenderer.removeListener('updates:status', listener); }
 });
