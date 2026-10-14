@@ -51,3 +51,12 @@ test('completed-works act includes period quantities and clear non-legal-substit
   assert.match(html, /перед использованием как договорного документа проверьте требования/);
   assert.doesNotMatch(html, /Финансы за выбранный период/);
 });
+
+
+test('production report uses the current GRUZLI CRM brand consistently', () => {
+  const { buildProductionReportHtml } = require('../src/production-report.cjs');
+  const html = buildProductionReportHtml({ project: { title: 'Тестовый объект' } });
+  assert.match(html, /<div class="brand">GRUZLI<\/div>/);
+  assert.match(html, /Сформировано в GRUZLI CRM/);
+  assert.doesNotMatch(html, /STRUKTURA/);
+});
