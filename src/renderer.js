@@ -175,11 +175,18 @@ async function refreshDashboard() {
   $('statReceived').textContent = fmt(s.received); $('statCash').textContent = fmt(s.cash);
   $('leadNavCount').textContent = s.leads;
   const leads = await window.crm.listLeads();
-  $('recentLeads').innerHTML = leads.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th></tr></thead><tbody>${leads.slice(0,5).map(l => `<tr><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><span class="pill ${esc(l.status)}">${esc(statusLabels[l.status] || l.status)}</span></td><td>${fmt(l.budget_rub)}</td></tr>`).join('')}</tbody></table>` : `<div class="empty-state"><div class="empty-icon">◉</div><strong>Пока нет заявок</strong><span>Добавь первое обращение — оно появится здесь.</span><button class="button primary" data-goto="leads">Добавить заявку</button></div>`;
+  $('recentLeads').innerHTML = leads.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Клиент</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th></tr></thead><tbody>${leads.slice(0,5).map(l => `<tr><td>${esc(l.title)}</td><td>${esc(l.client_name || '—')}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><span class="pill ${esc(l.status)}">${esc(statusLabels[l.status] || l.status)}</span></td><td>${fmt(l.budget_rub)}</td></tr>`).join('')}</tbody></table>` : `<div class="empty-state"><div class="empty-icon">◉</div><strong>Пока нет заявок</strong><span>Добавь первое обращение — оно появится здесь.</span><button class="button primary" data-goto="leads">Добавить заявку</button></div>`;
   try { const production = await window.crm.productionOverview(); renderProductionIntelligence(production, 'piHomeSummary', 'piHomeAlerts'); } catch (error) { $('piHomeSummary').textContent = 'Не удалось загрузить данные производства.'; $('piHomeAlerts').innerHTML = `<div class="pi-no-alerts">${esc(error.message)}</div>`; }
 }
 async function refreshLeads() {
-  const rows = await window.crm.listLeads(); const q = ($('leadSearch')?.value || '').toLowerCase(); const status = $('leadStatusFilter')?.value || '';
+  const [rows, clients] = await Promise.all([window.crm.listLeads(), window.crm.listClients()]);
+  const clientSelect = $('leadClient');
+  if (clientSelect) {
+    const selectedClient = clientSelect.value;
+    clientSelect.innerHTML = `<option value="">Без привязки к клиенту</option>${clients.map(c => `<option value="${c.id}">${esc(c.name)}${c.phone ? ` · ${esc(c.phone)}` : ''}</option>`).join('')}`;
+    if (clients.some(c => String(c.id) === selectedClient)) clientSelect.value = selectedClient;
+  }
+  const q = ($('leadSearch')?.value || '').toLowerCase(); const status = $('leadStatusFilter')?.value || '';
   const filtered = rows.filter(l => `${l.title} ${l.address} ${l.notes} ${sourceLabels[l.source]}`.toLowerCase().includes(q) && (!status || l.status === status));
   $('leadsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th><th>Адрес</th><th>Создана</th><th>Действия</th></tr></thead><tbody>${filtered.map(l => `<tr><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><select class="lead-status-select" data-lead-status="${l.id}" aria-label="Статус заявки: ${esc(l.title)}">${Object.entries(statusLabels).map(([value,label]) => `<option value="${value}" ${l.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(l.budget_rub)}</td><td>${esc(l.address || '—')}</td><td>${esc(String(l.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-lead="${l.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Заявок не найдено','Создай заявку или измени фильтр.');
 }
@@ -808,7 +815,7 @@ $('leadsTable').addEventListener('click', async event => {
     const rows = await window.crm.listLeads(), lead = rows.find(item => item.id === Number(button.dataset.editLead));
     if (!lead) throw new Error('Заявка не найдена. Обнови список.');
     const form = $('leadForm');
-    for (const key of ['id','title','service','source','budget_rub','address','notes']) form.elements[key].value = lead[key] ?? '';
+    for (const key of ['id','title','client_id','service','source','budget_rub','address','notes']) form.elements[key].value = lead[key] ?? '';
     $('leadDialogTitle').textContent = 'Изменить заявку'; openDialog('leadDialog');
   } catch (error) { toast(error.message, true); }
 });
@@ -818,7 +825,7 @@ $('clientForm').addEventListener('submit', async e => {
     if (data.id) await window.crm.updateClient(data); else await window.crm.createClient(data);
     form.reset(); $('clientDialogTitle').textContent = 'Новый клиент'; closeDialog('clientDialog');
     toast(data.id ? 'Карточка клиента обновлена.' : 'Клиент сохранён.');
-    await Promise.all([refreshClients(), refreshDashboard()]);
+    await Promise.all([refreshClients(), refreshLeads(), refreshDashboard()]);
   } catch (err) { toast(err.message, true); }
 });
 $('clientsTable').addEventListener('click', async event => {
