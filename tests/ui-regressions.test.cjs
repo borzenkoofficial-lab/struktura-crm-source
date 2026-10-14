@@ -341,5 +341,4 @@ test('reports combine sales funnel and finance metrics with explicit cash-balanc
   for (const id of ['reportReceived','reportExpenses','reportCash','reportReceivables']) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /не банковский баланс и не чистая прибыль/);
   assert.ok(renderer.includes("$('reportReceivables').textContent = fmt(finance.receivablesTotal)"));
-  assert.match(renderer, /\$('reportReceivables'\)\.textContent = fmt\(finance\.receivablesTotal\)/);
 });
