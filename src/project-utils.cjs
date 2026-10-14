@@ -6,8 +6,12 @@ const STATUSES = new Set(['planned', 'active', 'completed', 'cancelled']);
 function validDate(value) {
   if (!value) return true;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  const [year, month, day] = value.split('-').map(Number);
+  // setUTCFullYear avoids Date.UTC's special handling of years 0–99 as 1900–1999.
+  const date = new Date(0);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCFullYear(year, month - 1, day);
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
 function normalizeProjectInput(input = {}) {
