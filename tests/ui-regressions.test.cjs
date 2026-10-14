@@ -335,3 +335,10 @@ test('production shift reports can be corrected transactionally without stale wo
   assert.match(handler[0], /DELETE FROM work_shift_items WHERE shift_id=\?/);
   assert.match(handler[0], /UPDATE work_shifts SET/);
 });
+
+
+test('reports combine sales funnel and finance metrics with explicit cash-balance limitations', () => {
+  for (const id of ['reportReceived','reportExpenses','reportCash','reportReceivables']) assert.match(html, new RegExp('id="' + id + '"'));
+  assert.match(html, /не банковский баланс и не чистая прибыль/);
+  assert.ok(renderer.includes("$('reportReceivables').textContent = fmt(finance.receivablesTotal)"));
+});
