@@ -197,3 +197,12 @@ test('backup restore validates SQLite integrity and preserves an automatic rollb
   assert.match(main, /прежняя база возвращена/);
   assert.match(main, /Действующая база не изменена/);
 });
+
+test('payments and expenses reject impossible calendar dates before writing to SQLite', () => {
+  const paymentHandler = main.match(/ipcMain\.handle\('payments:create',[\s\S]*?\n\}\);/);
+  const expenseHandler = main.match(/ipcMain\.handle\('expenses:create',[\s\S]*?\n\}\);/);
+  assert.ok(paymentHandler, 'payment create handler exists');
+  assert.ok(expenseHandler, 'expense create handler exists');
+  assert.match(paymentHandler[0], /!validDate\(date\) \|\| !date/);
+  assert.match(expenseHandler[0], /!validDate\(date\) \|\| !date/);
+});
