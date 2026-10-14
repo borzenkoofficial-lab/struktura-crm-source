@@ -34,8 +34,6 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
 
   const observedRates = entries.map((entry) => entry.rate);
   const rawObservedMedian = median(observedRates);
-  const rawObservedQ25 = quantile(observedRates, 0.25);
-  const rawObservedQ75 = quantile(observedRates, 0.75);
   const count = entries.length;
   const crewSizeCounts = new Map();
   for (const entry of entries) crewSizeCounts.set(entry.crewSize, (crewSizeCounts.get(entry.crewSize) || 0) + 1);
