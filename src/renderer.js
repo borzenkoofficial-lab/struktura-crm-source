@@ -233,7 +233,7 @@ function estimateReadInputs() {
   return {
     workArea: $('estimateWorkArea').value,
     lines: estimateLines,
-    crew: { people: $('estimateCrewPeople').value, mode: $('estimateCrewMode').value, rate: $('estimateCrewRate').value, hoursPerDay: $('estimateCrewHours').value, days: $('estimateCrewAutoDays')?.checked ? Math.max(0, Math.ceil(estimateGetDurationForecast().daysForCrew || 0)) : $('estimateCrewDays').value },
+    crew: { people: $('estimateCrewPeople').value, mode: $('estimateCrewMode').value, rate: $('estimateCrewRate').value, hoursPerDay: $('estimateCrewHours').value, days: $('estimateCrewAutoDays')?.checked ? Math.max(1, Math.ceil(estimateGetDurationForecast().daysForCrew ?? Number($('estimateCrewDays').value || 1))) : $('estimateCrewDays').value },
     materialsCost: $('estimateMaterialsCost').value, disposalCost: $('estimateDisposalCost').value,
     transportCost: $('estimateTransportCost').value, equipmentCost: $('estimateEquipmentCost').value,
     otherCost: $('estimateOtherCost').value, overheadPercent: $('estimateOverheadPercent').value,
@@ -242,10 +242,7 @@ function estimateReadInputs() {
   };
 }
 function estimateGetDurationForecast() {
-  const durationLines = estimateLines.filter(line => Number(line.quantity) > 0).map(line => {
-    const learned = learnedProductivityModels[String(line.catalogId)];
-    return { ...line, productivity: estimateEffectiveProductivity(line), learningObservations: Number(learned?.observations || 0), baselineProductivity: Number(line.productivity || 0) };
-  });
+  const durationLines = estimateLines.filter(line => Number(line.quantity) > 0).map(estimateDurationLine);
   return window.StrukturaEstimateCalculator.calculateDuration({ lines: durationLines, crew: { people: $('estimateCrewPeople').value, hoursPerDay: $('estimateCrewHours').value }, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value, reservePercent: $('estimateScheduleReserve').value, efficiencyPercent: $('estimateEfficiency')?.value || 85 });
 }
 function estimateReadActualInputs(plannedCost = 0) {
@@ -327,6 +324,18 @@ function estimateEffectiveProductivity(line) {
   const weight = count >= 5 ? 0.75 : count >= 3 ? 0.5 : 0.25;
   return Math.round((baseline * (1 - weight) + Number(observed.observedMedian) * weight) * 1000) / 1000;
 }
+function estimateDurationLine(line) {
+  const learned = learnedProductivityModels[String(line.catalogId)] || {};
+  return {
+    ...line,
+    productivity: estimateEffectiveProductivity(line),
+    learningObservations: Number(learned.observations || 0),
+    baselineProductivity: Number(line.productivity || 0),
+    observedMedian: Number(learned.observedMedian || 0),
+    observedQ25: Number(learned.observedQ25 || 0),
+    observedQ75: Number(learned.observedQ75 || 0)
+  };
+}
 async function refreshEstimateLearningRates() {
   const requestId = ++learningRatesRequestId;
   const ids = [...new Set(estimateCatalog.map(item => String(item.id)).filter(Boolean))];
@@ -350,15 +359,12 @@ async function refreshEstimateLearningRates() {
   estimateRefreshDuration();
 }
 function estimateRefreshDuration() {
-  const durationLines = estimateLines.filter(line => Number(line.quantity) > 0).map(line => {
-    const learned = learnedProductivityModels[String(line.catalogId)];
-    return { ...line, productivity: estimateEffectiveProductivity(line), learningObservations: Number(learned?.observations || 0), baselineProductivity: Number(line.productivity || 0) };
-  });
+  const durationLines = estimateLines.filter(line => Number(line.quantity) > 0).map(estimateDurationLine);
   const result = window.StrukturaEstimateCalculator.calculateDuration({ lines: durationLines, crew: { people: $('estimateCrewPeople').value, hoursPerDay: $('estimateCrewHours').value }, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value, reservePercent: $('estimateScheduleReserve').value, efficiencyPercent: $('estimateEfficiency')?.value || 85 });
   const fmtDays = value => value === null || !Number.isFinite(value) ? 'Укажи бригаду' : `${value.toLocaleString('ru-RU',{maximumFractionDigits:1})} смен`;
   $('estimatePersonShifts').textContent = `${result.personShifts.toLocaleString('ru-RU',{maximumFractionDigits:1})}${result.missingRates ? ' + неучтённые работы' : ''}`;
   $('estimateDurationDays').textContent = result.missingRates ? 'Нужны нормы по всем работам' : fmtDays(result.daysForCrew);
-  $('estimateDurationHours').textContent = result.missingRates ? `Частичный расчёт: учтено ${result.lines.length - result.missingRates} из ${result.lines.length} позиций. Срок всего объекта не рассчитан.` : result.daysForCrew === null ? 'Укажи бригаду и длительность смены больше нуля' : `≈ ${result.calendarHours.toLocaleString('ru-RU',{maximumFractionDigits:1})} часов по графику · ориентир ${fmtDays(result.lowDaysForCrew)}–${fmtDays(result.highDaysForCrew)}`;
+  $('estimateDurationHours').textContent = result.missingRates ? `Частичный расчёт: учтено ${result.lines.length - result.missingRates} из ${result.lines.length} позиций. Срок всего объекта не рассчитан.` : result.daysForCrew === null ? 'Укажи бригаду и длительность смены больше нуля' : `≈ ${result.calendarHours.toLocaleString('ru-RU',{maximumFractionDigits:1})} часов по графику · ${result.hasEmpiricalRange ? `диапазон по фактической выработке: ${fmtDays(result.lowDaysForCrew)}–${fmtDays(result.highDaysForCrew)}` : 'статистический диапазон пока недоступен: нужны 5+ наблюдений по каждой работе'}`;
   $('estimateDurationFive').textContent = result.missingRates ? 'Недостаточно норм' : fmtDays(result.hoursPerDay > 0 ? result.personShifts * 8 / (5 * result.hoursPerDay) * (1 + result.reservePercent / 100) : null);
   $('estimateDurationTen').textContent = result.missingRates ? 'Недостаточно норм' : fmtDays(result.hoursPerDay > 0 ? result.personShifts * 8 / (10 * result.hoursPerDay) * (1 + result.reservePercent / 100) : null);
   $('estimateRequiredPeople').textContent = result.requiredPeople === null ? '—' : `${result.requiredPeople} чел.`;
