@@ -412,3 +412,11 @@ test('backup restore validates foreign keys and clears SQLite sidecars before ro
   assert.match(main, /нарушенные связи между таблицами/);
   assert.match(main, /for \(const sidecar of \[walPath, shmPath\]\) if \(fs\.existsSync\(sidecar\)\) fs\.rmSync\(sidecar, \{ force: true \}\);\s*fs\.copyFileSync\(safetyPath, livePath\)/);
 });
+
+
+test('expense form has exactly one submit handler so editing cannot create a duplicate expense', () => {
+  const handlers = [...renderer.matchAll(/\$\('expenseForm'\)\.addEventListener\('submit'/g)];
+  assert.equal(handlers.length, 1, 'expense form must have a single submit handler');
+  const handler = renderer.slice(handlers[0].index, renderer.indexOf("\n});", handlers[0].index) + 4);
+  assert.match(handler, /if \(data\.id\) await window\.crm\.updateExpense\(data\); else await window\.crm\.createExpense\(data\)/);
+});
