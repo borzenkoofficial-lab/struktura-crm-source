@@ -209,6 +209,18 @@ ipcMain.handle('leads:create', (_event, input = {}) => {
   const result = db.prepare('INSERT INTO leads(title,service,source,budget_rub,address,notes) VALUES (?,?,?,?,?,?)').run(title,service,source,budget,clean(input.address,250),clean(input.notes));
   return db.prepare('SELECT * FROM leads WHERE id=?').get(result.lastInsertRowid);
 });
+ipcMain.handle('leads:update', (_event, input = {}) => {
+  const id = Number(input.id), title = clean(input.title, 180);
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный номер заявки.');
+  if (!title) throw new Error('Укажи название заявки.');
+  if (!db.prepare('SELECT id FROM leads WHERE id=?').get(id)) throw new Error('Заявка не найдена. Обнови список и попробуй снова.');
+  const service = services.includes(input.service) ? input.service : 'demolition';
+  const source = sources.includes(input.source) ? input.source : 'phone';
+  const budget = amount(input.budget_rub, { allowZero: true });
+  db.prepare('UPDATE leads SET title=?, service=?, source=?, budget_rub=?, address=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
+    .run(title, service, source, budget, clean(input.address,250), clean(input.notes), id);
+  return db.prepare('SELECT * FROM leads WHERE id=?').get(id);
+});
 ipcMain.handle('leads:updateStatus', (_event, input = {}) => {
   const id = Number(input.id);
   const status = String(input.status || '');

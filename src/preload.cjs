@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('crm', {
   updateClient: (data) => ipcRenderer.invoke('clients:update', data),
   listLeads: () => ipcRenderer.invoke('leads:list'),
   createLead: (data) => ipcRenderer.invoke('leads:create', data),
+  updateLead: (data) => ipcRenderer.invoke('leads:update', data),
   updateLeadStatus: (data) => ipcRenderer.invoke('leads:updateStatus', data),
   listProjects: () => ipcRenderer.invoke('projects:list'),
   createProject: (data) => ipcRenderer.invoke('projects:create', data),
