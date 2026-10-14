@@ -619,3 +619,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible {
   .estimate-duration-results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .estimate-calibration-grid, .estimate-calibration-result { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+
+/* The embedded Electron browser is a native overlay; DOM transforms would offset it. */
+.view#view-browser.active { animation: none; transform: none; }
