@@ -14,7 +14,7 @@ function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === name));
   const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', plans: 'Тариф и интеграции' };
-  $('pageTitle').textContent = titles[name] || 'Struktura CRM';
+  $('pageTitle').textContent = titles[name] || 'GRUZLI CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
   if (loaders[name]) loaders[name]().catch(e => toast(`Ошибка загрузки: ${e.message}`, true));
   if (name === 'projects') refreshEstimateLearningRates().catch(e => toast(`Не удалось обновить нормы по практике: ${e.message}`, true));
