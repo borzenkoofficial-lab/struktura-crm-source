@@ -432,3 +432,14 @@ test('renderer does not register duplicate direct DOM event handlers on the same
   const duplicates = [...registrations].filter(([, count]) => count > 1).map(([key, count]) => key + ' (' + count + ')');
   assert.deepEqual(duplicates, [], 'duplicate event registrations can execute a write twice: ' + duplicates.join(', '));
 });
+
+
+test('manual leads can be linked to an existing client and preserve that relation when edited', () => {
+  assert.match(html, /id="leadClient" name="client_id"|name="client_id" id="leadClient"/);
+  assert.match(renderer, /Promise\.all\(\[window\.crm\.listLeads\(\), window\.crm\.listClients\(\)\]\)/);
+  assert.match(renderer, /l\.client_name \|\| '—'/);
+  assert.match(renderer, /\['id','title','client_id','service','source','budget_rub','address','notes'\]/);
+  assert.match(main, /INSERT INTO leads\(client_id,title,service,source,budget_rub,address,notes\)/);
+  assert.match(main, /UPDATE leads SET client_id=\?, title=\?, service=\?, source=\?, budget_rub=\?, address=\?, notes=\?/);
+  assert.match(main, /Выбранный клиент не найден/);
+});
