@@ -73,6 +73,8 @@ test('production model learns diminishing per-worker output for larger crews onl
   assert.equal(smallCrew.crewScalingApplied, true);
   assert.equal(largeCrew.crewScalingApplied, true);
   assert.ok(largeCrew.effectiveProductivity < smallCrew.effectiveProductivity, 'per-worker productivity should be lower for the observed larger crew');
+  assert.ok(smallCrew.observedQ25 > 0 && smallCrew.observedQ75 > smallCrew.observedQ25, 'quartiles must be available for the reference crew');
+  assert.ok(largeCrew.observedQ25 > 0 && largeCrew.observedQ75 > largeCrew.observedQ25, 'quartiles must be normalized to the target crew size');
 });
 
 test('production model keeps linear scaling when productivity is similar across crew sizes', () => {
