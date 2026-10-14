@@ -1,4 +1,5 @@
 const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, safeStorage, session, Notification } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('node:path');
 const fs = require('node:fs');
 const { openDatabase } = require('./db.cjs');
@@ -19,6 +20,20 @@ let db;
 let mainWindow;
 let browserView;
 let browserIsVisible = false;
+let updateStatus = { state: 'idle', currentVersion: app.getVersion(), availableVersion: '', downloadedVersion: '', message: 'Проверка ещё не выполнялась' };
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = false;
+function publishUpdateStatus(patch) {
+  updateStatus = { ...updateStatus, ...patch, currentVersion: app.getVersion() };
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('updates:status', updateStatus);
+  return updateStatus;
+}
+autoUpdater.on('checking-for-update', () => publishUpdateStatus({ state: 'checking', message: 'Проверяем наличие обновлений…' }));
+autoUpdater.on('update-available', info => publishUpdateStatus({ state: 'available', availableVersion: info.version, message: `Доступна версия ${info.version}` }));
+autoUpdater.on('update-not-available', () => publishUpdateStatus({ state: 'current', availableVersion: '', message: 'Установлена последняя версия' }));
+autoUpdater.on('download-progress', progress => publishUpdateStatus({ state: 'downloading', progress: Math.round(progress.percent), message: `Загрузка обновления: ${Math.round(progress.percent)}%` }));
+autoUpdater.on('update-downloaded', info => publishUpdateStatus({ state: 'downloaded', downloadedVersion: info.version, availableVersion: info.version, progress: 100, message: `Версия ${info.version} готова к установке` }));
+autoUpdater.on('error', error => publishUpdateStatus({ state: 'error', message: `Ошибка обновления: ${String(error.message || error).slice(0, 240)}` }));
 const services = ['demolition', 'finishing', 'raised_floor'];
 const sources = ['avito', 'phone', 'telegram', 'recommendation', 'website', 'other'];
 function clean(value, max = 2000) { return String(value ?? '').trim().slice(0, max); }
