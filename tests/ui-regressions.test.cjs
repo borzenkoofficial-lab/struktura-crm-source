@@ -218,3 +218,20 @@ test('strict calendar date utility rejects impossible dates and accepts leap day
   assert.throws(() => normalizeProjectInput({ title: 'Тестовый объект', start_date: '2026-02-30', end_date: '2026-03-10' }), /дату начала/);
   assert.throws(() => normalizeProjectInput({ title: 'Тестовый объект', start_date: '2026-10-15', end_date: '2026-10-14' }), /окончания не может быть раньше/);
 });
+
+
+test('all data-backed sections expose a recoverable load error and retry path', () => {
+  const sectionNames = ['dashboard','leads','clients','projects','production','finance','prospects','tasks','reports'];
+  for (const name of sectionNames) {
+    assert.match(renderer, new RegExp(`\\b${name}: refresh`), `${name} has a loader`);
+  }
+  assert.match(renderer, /function renderSectionLoadError\(name\)/);
+  assert.match(renderer, /data-retry-view=/);
+  assert.match(renderer, /document\.addEventListener\('click',[\s\S]*?\[data-retry-view\]/);
+  assert.match(renderer, /view\.setAttribute\('aria-busy', 'true'\)/);
+  assert.match(renderer, /finally\(\(\) => view\.removeAttribute\('aria-busy'\)\)/);
+  assert.match(renderer, /Проверь локальную базу и повтори загрузку/);
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.section-load-error/);
+  assert.match(css, /\.view\[aria-busy="true"\]/);
+});
