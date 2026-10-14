@@ -1,4 +1,4 @@
-name: Build Struktura CRM for Windows
+name: Build GRUZLI CRM for Windows
 
 on:
   workflow_dispatch:
@@ -42,7 +42,7 @@ jobs:
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: Struktura-CRM-Windows-Installer
+          name: GRUZLI-CRM-Windows-Installer
           path: dist/*.exe
           if-no-files-found: error
           retention-days: 14
