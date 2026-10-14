@@ -12,9 +12,9 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
 function dateToday() { return new Date().toISOString().slice(0,10); }
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
-  document.querySelectorAll('.nav-item[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+  document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', plans: 'Тариф и интеграции' };
-  $('pageTitle').textContent = titles[name] || 'Struktura CRM';
+  $('pageTitle').textContent = titles[name] || 'GRUZLI CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
   if (loaders[name]) loaders[name]().catch(e => toast(`Ошибка загрузки: ${e.message}`, true));
   if (name === 'projects') refreshEstimateLearningRates().catch(e => toast(`Не удалось обновить нормы по практике: ${e.message}`, true));
@@ -540,6 +540,55 @@ function openDialog(id) { $(id).showModal(); }
 function closeDialog(id) { $(id).close(); }
 async function exportCsv(kind) { try { const r = await window.crm.exportDataCsv(kind); if (!r.canceled) toast(`Экспорт завершён: строк ${r.count}.`); } catch (e) { toast(e.message, true); } }
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+const commandPalette = $('commandPaletteDialog');
+const commandSearch = $('commandPaletteSearch');
+$('openCommandPaletteBtn')?.addEventListener('click', openCommandPalette);
+function openCommandPalette() {
+  if (!commandPalette) return;
+  commandPalette.showModal();
+  commandSearch.value = '';
+  filterCommandPalette('');
+  requestAnimationFrame(() => commandSearch.focus());
+}
+function filterCommandPalette(query) {
+  const q = String(query || '').trim().toLocaleLowerCase('ru-RU');
+  let firstFound = false;
+  document.querySelectorAll('.command-item').forEach(item => {
+    const visible = !q || item.textContent.toLocaleLowerCase('ru-RU').includes(q);
+    item.hidden = !visible;
+    const firstMatch = visible && !firstFound;
+    item.classList.toggle('command-first-match', firstMatch);
+    if (firstMatch) firstFound = true;
+  });
+}
+commandSearch?.addEventListener('input', () => filterCommandPalette(commandSearch.value));
+commandPalette?.addEventListener('click', event => {
+  const item = event.target.closest('[data-command-view]');
+  if (!item) return;
+  commandPalette.close();
+  showView(item.dataset.commandView);
+});
+document.addEventListener('keydown', event => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    if (commandPalette?.open) commandPalette.close(); else openCommandPalette();
+  }
+  if (event.key === 'Escape' && commandPalette?.open) commandPalette.close();
+});
+const sidebarToggle = $('toggleSidebarBtn');
+function setSidebarCollapsed(collapsed) {
+  const shell = document.querySelector('.app-shell');
+  shell.classList.toggle('sidebar-collapsed', collapsed);
+  sidebarToggle?.setAttribute('aria-pressed', String(collapsed));
+  sidebarToggle?.setAttribute('aria-label', collapsed ? 'Развернуть меню' : 'Свернуть меню');
+  document.querySelectorAll('.nav-item[data-view]').forEach(button => {
+    if (collapsed) button.title = button.textContent.trim();
+    else button.removeAttribute('title');
+  });
+  try { localStorage.setItem('gruzli.sidebarCollapsed', collapsed ? '1' : '0'); } catch (_) {}
+}
+try { setSidebarCollapsed(localStorage.getItem('gruzli.sidebarCollapsed') === '1'); } catch (_) { setSidebarCollapsed(false); }
+sidebarToggle?.addEventListener('click', () => setSidebarCollapsed(!document.querySelector('.app-shell').classList.contains('sidebar-collapsed')));
 document.querySelectorAll('[data-plan-action]').forEach(button => button.addEventListener('click', () => { const plan = button.dataset.planAction; const labels = { subscription: 'Подписка', lifetime: 'Покупка навсегда', pro: 'Профессиональный тариф' }; toast(`${labels[plan] || 'Тариф'}: оформление ещё не подключено. Никаких списаний не выполняется.`); }));
 document.addEventListener('click', e => {
   const goto = e.target.closest('[data-goto]'); if (goto) showView(goto.dataset.goto);

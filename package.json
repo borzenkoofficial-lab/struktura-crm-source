@@ -1,8 +1,8 @@
 {
   "name": "struktura-crm",
-  "version": "1.13.10",
+  "version": "1.14.0",
   "private": true,
-  "description": "Настольная локальная CRM для Windows: клиенты, демонтаж, сметы, производство и PDF",
+  "description": "GRUZLI CRM — локальная настольная система управления клиентами, объектами, производством, сметами и финансами",
   "main": "src/main.cjs",
   "scripts": {
     "start": "electron .",
@@ -19,7 +19,7 @@
   },
   "build": {
     "appId": "ru.struktura.crm",
-    "productName": "Struktura CRM",
+    "productName": "GRUZLI CRM",
     "asar": true,
     "files": [
       "src/**/*",
@@ -34,7 +34,7 @@
           ]
         }
       ],
-      "artifactName": "Struktura-CRM-Setup-${version}.${ext}"
+      "artifactName": "GRUZLI-CRM-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -48,6 +48,7 @@
         "owner": "borzenkoofficial-lab",
         "repo": "struktura-crm-source"
       }
-    ]
+    ],
+    "artifactName": "GRUZLI-CRM-Setup-${version}.${ext}"
   }
 }
