@@ -476,3 +476,24 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 .nav-item:focus-visible{outline-color:#ff9777;outline-offset:2px}
 .sidebar-collapsed .nav-item[data-view]{position:relative}
 @keyframes gruzli-view-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+
+
+/* Universal command palette */
+.command-palette{width:min(640px,calc(100vw - 28px));max-width:640px;padding:0;border:1px solid #dce4ed;border-radius:18px;overflow:hidden}
+.command-palette::backdrop{background:#0b1728a6;backdrop-filter:blur(5px)}
+.command-palette-head{display:flex;align-items:center;gap:12px;padding:17px 18px;border-bottom:1px solid #e8edf3}
+.command-search-icon{font-size:25px;color:#f0643b}
+.command-palette-head input{flex:1;min-width:0;border:0!important;box-shadow:none!important;font-size:15px;padding:9px 0}
+.command-palette-head input:focus{outline:0!important;box-shadow:none!important}
+.command-palette kbd{font:600 10px Inter, sans-serif;padding:4px 6px;border:1px solid #dce4ed;border-radius:6px;background:#f7f9fc;color:#7b8798}
+.command-palette-caption{padding:14px 18px 7px;color:#9aa5b5;font-size:9px;letter-spacing:1.3px;font-weight:850}
+.command-palette-items{max-height:min(52vh,430px);overflow:auto;padding:4px 9px 12px}
+.command-item{width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:11px 10px;border:1px solid transparent;border-radius:10px;background:transparent;color:#243348;cursor:pointer}
+.command-item>span{width:31px;height:31px;display:grid;place-items:center;border-radius:9px;background:#f2f5f9;color:#65748a;font-size:16px}
+.command-item strong{font-size:12px;min-width:120px}
+.command-item small{flex:1;color:#8b97a8;font-size:11px}
+.command-item:hover,.command-item.command-first-match{background:#fff4ef;border-color:#f8d5c8}
+.command-item:hover>span,.command-item.command-first-match>span{background:#ffe2d8;color:#d94e2d}
+.command-item[hidden]{display:none}
+.command-palette-footer{display:flex;justify-content:space-between;gap:12px;padding:12px 17px;border-top:1px solid #e9eef4;background:#fafbfd;color:#8793a4;font-size:10px}
+@media(max-width:540px){.command-item small{display:none}.command-item strong{min-width:0}.command-palette-footer{font-size:9px}}
