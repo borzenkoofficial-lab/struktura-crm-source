@@ -28,3 +28,11 @@ test('project normalizes service, status, contract and bounded text fields', () 
   assert.equal(project.address.length, 250);
   assert.throws(() => normalizeProjectInput({ title: 'X', contract_rub: -1 }), /неотрицательной/i);
 });
+
+
+test('project calendar validation handles years below 0100 without JavaScript year coercion', () => {
+  assert.equal(validDate('0099-12-31'), true);
+  assert.equal(validDate('0004-02-29'), true);
+  assert.equal(validDate('0001-02-29'), false);
+  assert.equal(validDate('0099-02-29'), false);
+});
