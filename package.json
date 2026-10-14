@@ -41,13 +41,13 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
-    }
-  },
-  "publish": [
-    {
-      "provider": "github",
-      "owner": "borzenkoofficial-lab",
-      "repo": "struktura-crm-source"
-    }
-  ]
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "borzenkoofficial-lab",
+        "repo": "struktura-crm-source"
+      }
+    ]
+  }
 }
