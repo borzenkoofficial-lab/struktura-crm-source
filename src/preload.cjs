@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld('crm', {
   getProductionPlan: (projectId) => ipcRenderer.invoke('production:getPlan', projectId),
   saveProductionPlan: (data) => ipcRenderer.invoke('production:savePlan', data),
   saveWorkShift: (data) => ipcRenderer.invoke('production:saveShift', data),
+  getWorkShift: (id) => ipcRenderer.invoke('production:getShift', id),
+  updateWorkShift: (data) => ipcRenderer.invoke('production:updateShift', data),
   deleteWorkShift: (shiftId) => ipcRenderer.invoke('production:deleteShift', shiftId),
   listPayments: () => ipcRenderer.invoke('payments:list'),
   createPayment: (data) => ipcRenderer.invoke('payments:create', data),
