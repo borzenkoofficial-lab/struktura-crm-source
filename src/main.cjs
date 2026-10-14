@@ -339,7 +339,7 @@ ipcMain.handle('production:saveShift', (_event, input = {}) => {
   if (!Number.isFinite(downtime) || downtime < 0 || downtime > shiftHours) throw new Error('Простой должен быть от 0 до длительности смены.');
   if (![0.7,1,1.25,1.5,2].includes(factor)) throw new Error('Выбери допустимый коэффициент сложности.');
   const notes = clean(input.notes, 3000);
-  const lines = normalizeShiftWorkLines({ lines: input.lines, workers, shiftHours });
+  const lines = normalizeShiftWorkLines({ lines: input.lines, workers, shiftHours, downtimeHours: downtime });
   if (!lines.length && !notes) throw new Error('Если за смену ничего не сделано, укажи причину простоя в примечании.');
   const save = db.transaction(() => {
     const result = db.prepare(`INSERT INTO work_shifts(project_id,shift_date,workers_count,shift_hours,downtime_hours,complexity_factor,notes)
