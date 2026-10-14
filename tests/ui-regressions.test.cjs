@@ -393,3 +393,9 @@ test('duration breakdown labels and displays the effective productivity used by 
   assert.match(renderer, /Эффективная норма \/ чел\.-смену/);
   assert.match(renderer, /line\.effectiveProductivity\.toLocaleString/);
 });
+
+
+test('embedded browser bounds stay aligned during scroll and are not measured through a transform animation', () => {
+  assert.match(renderer, /window\.addEventListener\('scroll', syncBrowserBounds, true\)/);
+  assert.match(css, /\.view#view-browser\.active\s*\{\s*animation:\s*none;\s*transform:\s*none;/);
+});
