@@ -357,6 +357,6 @@ test('GRUZLI responsive polish keeps forms usable, tables scrollable and keyboar
   assert.match(css, /@media\s*\(max-width:\s*760px\)/);
   assert.match(css, /@media\s*\(max-width:\s*420px\)/);
   assert.match(css, /\.estimate-lines-table\s*\{\s*min-width:\s*780px;/);
-  assert.match(css, /\.data-table\s*\{\s*min-width:\s*620px;/);
+  assert.match(css, /\.catalog-table\s*\{\s*min-width:\s*620px;/);
   assert.match(css, /button:focus-visible, a:focus-visible, \[role="button"\]:focus-visible/);
 });
