@@ -387,3 +387,9 @@ test('schedule forecast uses empirical quantiles and avoids zero-day automatic p
   assert.match(calculator, /Автоматический срок не рассчитан/);
   assert.match(renderer, /статистический диапазон пока недоступен/);
 });
+
+
+test('duration breakdown labels and displays the effective productivity used by the forecast', () => {
+  assert.match(renderer, /Эффективная норма \/ чел\.-смену/);
+  assert.match(renderer, /line\.effectiveProductivity\.toLocaleString/);
+});
