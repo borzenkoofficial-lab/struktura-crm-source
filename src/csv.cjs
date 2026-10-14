@@ -83,7 +83,7 @@ function normalizeUrl(value) {
     for (const key of [...url.searchParams.keys()]) if (/^(utm_.+|yclid|gclid|fbclid)$/i.test(key)) url.searchParams.delete(key);
     url.hostname = url.hostname.toLowerCase().replace(/^www\./, '');
     url.pathname = url.pathname.replace(/\/+$/, '') || '/';
-    return url.toString().replace(/\/$/, '').toLowerCase();
+    return url.toString().replace(/\/$/, '');
   } catch { return raw.toLowerCase().replace(/\/+$/, ''); }
 }
 function normalizeCompany(value) {
