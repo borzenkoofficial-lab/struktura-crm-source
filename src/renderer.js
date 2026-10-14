@@ -230,10 +230,13 @@ let learnedProductivityModels = {};
 let learningRatesRequestId = 0;
 function money(n) { return fmt(Math.round(Number(n || 0))); }
 function estimateReadInputs() {
+  const automaticDays = $('estimateCrewAutoDays')?.checked === true;
+  const durationForecast = automaticDays ? estimateGetDurationForecast() : null;
+  const automaticDaysUnavailable = automaticDays && (durationForecast.daysForCrew === null || !Number.isFinite(durationForecast.daysForCrew));
   return {
     workArea: $('estimateWorkArea').value,
     lines: estimateLines,
-    crew: { people: $('estimateCrewPeople').value, mode: $('estimateCrewMode').value, rate: $('estimateCrewRate').value, hoursPerDay: $('estimateCrewHours').value, days: $('estimateCrewAutoDays')?.checked ? Math.max(1, Math.ceil(estimateGetDurationForecast().daysForCrew ?? Number($('estimateCrewDays').value || 1))) : $('estimateCrewDays').value },
+    crew: { people: $('estimateCrewPeople').value, mode: $('estimateCrewMode').value, rate: $('estimateCrewRate').value, hoursPerDay: $('estimateCrewHours').value, days: automaticDays ? Math.max(1, Math.ceil(durationForecast.daysForCrew ?? Number($('estimateCrewDays').value || 1))) : $('estimateCrewDays').value, automaticDaysUnavailable },
     materialsCost: $('estimateMaterialsCost').value, disposalCost: $('estimateDisposalCost').value,
     transportCost: $('estimateTransportCost').value, equipmentCost: $('estimateEquipmentCost').value,
     otherCost: $('estimateOtherCost').value, overheadPercent: $('estimateOverheadPercent').value,
