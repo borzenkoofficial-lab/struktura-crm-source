@@ -374,7 +374,7 @@ ipcMain.handle('production:rateModels', (_event, input = {}) => {
   for (const row of observations) (observationsByCatalog[row.catalog_id] ||= []).push(row);
   return ids.map(catalogId => {
     const model = buildRateModel({ baselineProductivity: 1, observations: observationsByCatalog[catalogId] || [], targetCrewSize });
-    return { catalog_id: catalogId, observations: model.observations, observedMedian: model.observedMedian, confidence: model.confidence, crewScalingApplied: model.crewScalingApplied, referenceCrewSize: model.referenceCrewSize, targetCrewSize };
+    return { catalog_id: catalogId, observations: model.observations, observedMedian: model.observedMedian, observedQ25: model.observedQ25, observedQ75: model.observedQ75, confidence: model.confidence, crewScalingApplied: model.crewScalingApplied, referenceCrewSize: model.referenceCrewSize, targetCrewSize };
   });
 });
 
