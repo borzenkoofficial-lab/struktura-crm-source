@@ -282,3 +282,15 @@ test('lead details can be edited without creating a duplicate lead', () => {
   assert.ok(handler); assert.match(handler[0], /Number\.isSafeInteger\(id\)/);
   assert.match(handler[0], /UPDATE leads SET title=\?, service=\?, source=\?, budget_rub=\?, address=\?, notes=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
 });
+
+
+test('project details can be edited while linked finance and production records are preserved', () => {
+  assert.match(html, /id="projectDialogTitle"/); assert.match(html, /name="id"/);
+  assert.match(renderer, /data-edit-project=/); assert.match(renderer, /window\.crm\.updateProject\(data\)/);
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  assert.match(preload, /updateProject: \(data\) => ipcRenderer\.invoke\('projects:update', data\)/);
+  const handler = main.match(/ipcMain\.handle\('projects:update',[\s\S]*?\n\}\);/);
+  assert.ok(handler); assert.match(handler[0], /normalizeProjectInput\(input\)/);
+  assert.match(handler[0], /UPDATE projects SET title=@title, service=@service, status=@status, contract_rub=@contract_rub/);
+  assert.doesNotMatch(handler[0], /DELETE FROM (payments|expenses|production_plans)/);
+});
