@@ -190,18 +190,24 @@ test('duration estimator applies visible shift-efficiency adjustment to starter 
   const realistic = calculateDuration({ lines: line, crew: { people: 10, hoursPerDay: 8 }, difficulty: 1, reservePercent: 0, efficiencyPercent: 85 });
   assert.equal(full.daysForCrew, 8.5);
   assert.ok(realistic.daysForCrew > full.daysForCrew);
-  assert.ok(realistic.highDaysForCrew > realistic.daysForCrew);
+  assert.equal(realistic.lowDaysForCrew, null, 'do not invent a statistical interval without real observations');
+  assert.equal(realistic.highDaysForCrew, null, 'do not invent a statistical interval without real observations');
+  assert.equal(realistic.hasEmpiricalRange, false);
   assert.equal(realistic.lines[0].effectiveEfficiency, 85);
 });
 
-test('reliable observed history avoids applying starter-rate efficiency loss twice', () => {
+test('observed productivity is not reduced twice and empirical schedule range uses real quantiles', () => {
   const result = calculateDuration({
-    lines: [{ name: 'Демонтаж стяжки', unit: 'м²', quantity: 680, productivity: 8, learningObservations: 5 }],
+    lines: [{ name: 'Демонтаж стяжки', unit: 'м²', quantity: 680, productivity: 8, baselineProductivity: 8, learningObservations: 5, observedMedian: 8, observedQ25: 6, observedQ75: 10 }],
     crew: { people: 10, hoursPerDay: 8 }, difficulty: 1, reservePercent: 0, efficiencyPercent: 85
   });
-  assert.equal(result.daysForCrew, 8.5);
   assert.equal(result.reliableHistoryLines, 1);
-  assert.equal(result.lines[0].effectiveEfficiency, 100);
+  assert.equal(result.lines[0].effectiveProductivity, 7.7, '85% efficiency applies to the 25% starter component, not the measured 75% component');
+  assert.ok(result.daysForCrew > 8.5);
+  assert.equal(result.hasEmpiricalRange, true);
+  assert.ok(result.lowDaysForCrew < result.daysForCrew);
+  assert.ok(result.highDaysForCrew > result.daysForCrew);
+  assert.ok(result.highDaysForCrew > result.lowDaysForCrew);
 });
 
 test('estimate exposes zero-price line and unit-cost/payroll double-count risks', () => {
