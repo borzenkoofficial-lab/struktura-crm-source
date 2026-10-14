@@ -450,6 +450,18 @@ ipcMain.handle('payments:create', (_event, input = {}) => {
   const result = db.prepare('INSERT INTO payments(project_id,amount_rub,payment_date,payment_type,method,note) VALUES (?,?,?,?,?,?)').run(projectId,amountRub,date,type,method,clean(input.note,500));
   return db.prepare('SELECT * FROM payments WHERE id=?').get(result.lastInsertRowid);
 });
+ipcMain.handle('payments:update', (_event, input = {}) => {
+  const id = Number(input.id), projectId = Number(input.project_id);
+  if (!Number.isSafeInteger(id) || id < 1 || !db.prepare('SELECT id FROM payments WHERE id=?').get(id)) throw new Error('Платёж не найден. Обнови список и попробуй снова.');
+  if (!Number.isSafeInteger(projectId) || projectId < 1 || !db.prepare('SELECT id FROM projects WHERE id=?').get(projectId)) throw new Error('Выбери существующий объект.');
+  const amountRub = amount(input.amount_rub), date = clean(input.payment_date,10);
+  if (!validDate(date) || !date) throw new Error('Укажи корректную календарную дату платежа.');
+  const type = input.payment_type === 'refund' ? 'refund' : 'incoming';
+  const method = ['cash','bank','transfer','other'].includes(input.method) ? input.method : 'other';
+  db.prepare('UPDATE payments SET project_id=?, amount_rub=?, payment_date=?, payment_type=?, method=?, note=? WHERE id=?')
+    .run(projectId, amountRub, date, type, method, clean(input.note,500), id);
+  return db.prepare('SELECT * FROM payments WHERE id=?').get(id);
+});
 ipcMain.handle('expenses:list', () => db.prepare(`SELECT e.*, p.title project_title FROM expenses e LEFT JOIN projects p ON p.id=e.project_id ORDER BY e.expense_date DESC, e.id DESC LIMIT 2000`).all());
 ipcMain.handle('finance:insights', () => {
   const projects = db.prepare(`SELECT p.*, COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub FROM projects p WHERE p.status != 'cancelled'`).all();
@@ -471,6 +483,21 @@ ipcMain.handle('expenses:create', (_event, input = {}) => {
   const isPaid = input.is_paid === '0' || input.is_paid === false ? 0 : 1;
   const result = db.prepare('INSERT INTO expenses(project_id,amount_rub,expense_date,category,description,is_paid) VALUES (?,?,?,?,?,?)').run(projectId,amountRub,date,category,description,isPaid);
   return db.prepare('SELECT * FROM expenses WHERE id=?').get(result.lastInsertRowid);
+});
+ipcMain.handle('expenses:update', (_event, input = {}) => {
+  const id = Number(input.id);
+  if (!Number.isSafeInteger(id) || id < 1 || !db.prepare('SELECT id FROM expenses WHERE id=?').get(id)) throw new Error('Расход не найден. Обнови список и попробуй снова.');
+  const description = clean(input.description,180);
+  if (!description) throw new Error('Укажи назначение расхода.');
+  const amountRub = amount(input.amount_rub), date = clean(input.expense_date,10);
+  if (!validDate(date) || !date) throw new Error('Укажи корректную календарную дату расхода.');
+  const projectId = input.project_id ? Number(input.project_id) : null;
+  if (projectId !== null && (!Number.isSafeInteger(projectId) || projectId < 1 || !db.prepare('SELECT id FROM projects WHERE id=?').get(projectId))) throw new Error('Выбранный объект не найден.');
+  const category = ['materials','workers','transport','rent','tools','tax','other'].includes(input.category) ? input.category : 'other';
+  const isPaid = input.is_paid === '0' || input.is_paid === false ? 0 : 1;
+  db.prepare('UPDATE expenses SET project_id=?, amount_rub=?, expense_date=?, category=?, description=?, is_paid=? WHERE id=?')
+    .run(projectId, amountRub, date, category, description, isPaid, id);
+  return db.prepare('SELECT * FROM expenses WHERE id=?').get(id);
 });
 ipcMain.handle('tasks:list', (_event, input = {}) => {
   const filter = ['open','done','all'].includes(input.filter) ? input.filter : 'open';

@@ -306,3 +306,18 @@ test('tasks can be edited without resetting completion status', () => {
   assert.match(handler[0], /UPDATE tasks SET title=\?, due_at=\?, lead_id=\?, project_id=\? WHERE id=\?/);
   assert.doesNotMatch(handler[0], /is_done\s*=/);
 });
+
+
+test('payment and expense records can be corrected with validated updates', () => {
+  assert.match(html, /id="paymentDialogTitle"/); assert.match(html, /id="expenseDialogTitle"/);
+  assert.match(renderer, /data-edit-payment=/); assert.match(renderer, /data-edit-expense=/);
+  assert.match(renderer, /window\.crm\.updatePayment\(data\)/); assert.match(renderer, /window\.crm\.updateExpense\(data\)/);
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  assert.match(preload, /updatePayment: \(data\) => ipcRenderer\.invoke\('payments:update', data\)/);
+  assert.match(preload, /updateExpense: \(data\) => ipcRenderer\.invoke\('expenses:update', data\)/);
+  const payment = main.match(/ipcMain\.handle\('payments:update',[\s\S]*?\n\}\);/);
+  const expense = main.match(/ipcMain\.handle\('expenses:update',[\s\S]*?\n\}\);/);
+  assert.ok(payment); assert.ok(expense);
+  assert.match(payment[0], /validDate\(date\)/); assert.match(payment[0], /UPDATE payments SET/);
+  assert.match(expense[0], /validDate\(date\)/); assert.match(expense[0], /UPDATE expenses SET/);
+});

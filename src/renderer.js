@@ -218,8 +218,8 @@ async function refreshFinance() {
   const [summary, payments, expenses, insights] = await Promise.all([window.crm.summary(), window.crm.listPayments(), window.crm.listExpenses(), window.crm.financeInsights()]);
   renderFinanceInsights(insights);
   $('financeReceived').textContent = fmt(summary.received); $('financeExpenses').textContent = fmt(summary.expenses); $('financeCash').textContent = fmt(summary.cash);
-  $('paymentsTable').innerHTML = payments.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Операция</th><th>Сумма</th><th>Способ</th><th>Комментарий</th></tr></thead><tbody>${payments.map(p => `<tr><td>${esc(p.payment_date)}</td><td>${esc(p.project_title)}</td><td>${p.payment_type === 'refund' ? '<span class="pill lost">Возврат</span>' : '<span class="pill won">Поступление</span>'}</td><td>${p.payment_type === 'refund' ? '−' : '+'}${fmt(p.amount_rub)}</td><td>${esc(({cash:'Наличные',bank:'На счёт',transfer:'Перевод',other:'Другое'})[p.method] || p.method)}</td><td>${esc(p.note || '—')}</td></tr>`).join('')}</tbody></table>` : empty('Платежей пока нет','Добавь объект, затем записывай авансы и окончательные расчёты.');
-  $('expensesTable').innerHTML = expenses.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Расход</th><th>Объект</th><th>Категория</th><th>Сумма</th><th>Статус</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${esc(e.expense_date)}</td><td>${esc(e.description)}</td><td>${esc(e.project_title || 'Общий')}</td><td>${esc(expenseLabels[e.category] || e.category)}</td><td>${fmt(e.amount_rub)}</td><td><span class="pill ${e.is_paid ? 'won' : 'estimate'}">${e.is_paid ? 'Оплачено' : 'Запланировано'}</span></td></tr>`).join('')}</tbody></table>` : empty('Расходов пока нет','Записывай материалы, рабочих, транспорт и другие расходы.');
+  $('paymentsTable').innerHTML = payments.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Операция</th><th>Сумма</th><th>Способ</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${payments.map(p => `<tr><td>${esc(p.payment_date)}</td><td>${esc(p.project_title)}</td><td>${p.payment_type === 'refund' ? '<span class="pill lost">Возврат</span>' : '<span class="pill won">Поступление</span>'}</td><td>${p.payment_type === 'refund' ? '−' : '+'}${fmt(p.amount_rub)}</td><td>${esc(({cash:'Наличные',bank:'На счёт',transfer:'Перевод',other:'Другое'})[p.method] || p.method)}</td><td>${esc(p.note || '—')}</td><td><button type="button" class="button subtle compact" data-edit-payment="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Платежей пока нет','Добавь объект, затем записывай авансы и окончательные расчёты.');
+  $('expensesTable').innerHTML = expenses.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Расход</th><th>Объект</th><th>Категория</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${esc(e.expense_date)}</td><td>${esc(e.description)}</td><td>${esc(e.project_title || 'Общий')}</td><td>${esc(expenseLabels[e.category] || e.category)}</td><td>${fmt(e.amount_rub)}</td><td><span class="pill ${e.is_paid ? 'won' : 'estimate'}">${e.is_paid ? 'Оплачено' : 'Запланировано'}</span></td><td><button type="button" class="button subtle compact" data-edit-expense="${e.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Расходов пока нет','Записывай материалы, рабочих, транспорт и другие расходы.');
   await refreshProjects();
 }
 let estimateCatalog = window.StrukturaEstimateCalculator.getCatalog();
@@ -717,8 +717,8 @@ actualInputIds.forEach(id => $(id).addEventListener('input', () => { const r = r
 $('actualUseEstimatePriceBtn').addEventListener('click', () => { const r = refreshEstimate(); if (!r) return; $('actualContractRevenue').value = Math.round(r.revenue); estimateRefreshActuals(r.totalCost); estimateSaveDraft(); toast('Цена сметы подставлена в план/факт.'); });
 estimateLoadDraft();
 refreshEstimateLearningRates().catch(error => { $('estimateLearningStatus').textContent = `Не удалось загрузить фактические нормы: ${error.message}`; });
-$('addPaymentBtn').addEventListener('click', async () => { await refreshProjects(); if (!(await window.crm.listProjects()).length) { toast('Сначала создай объект, к которому привязать платёж.', true); showView('projects'); return; } $('paymentForm').elements.payment_date.value = dateToday(); openDialog('paymentDialog'); });
-$('addExpenseBtn').addEventListener('click', async () => { await refreshProjects(); $('expenseForm').elements.expense_date.value = dateToday(); openDialog('expenseDialog'); });
+$('addPaymentBtn').addEventListener('click', async () => { await refreshProjects(); if (!(await window.crm.listProjects()).length) { toast('Сначала создай объект, к которому привязать платёж.', true); showView('projects'); return; } $('paymentForm').reset(); $('paymentForm').elements.payment_date.value = dateToday(); $('paymentDialogTitle').textContent = 'Записать платёж'; openDialog('paymentDialog'); });
+$('addExpenseBtn').addEventListener('click', async () => { await refreshProjects(); $('expenseForm').reset(); $('expenseForm').elements.expense_date.value = dateToday(); $('expenseDialogTitle').textContent = 'Добавить расход'; openDialog('expenseDialog'); });
 $('notificationSettingsBtn').addEventListener('click', async () => { try { await refreshNotificationSettings(); openDialog('notificationSettingsDialog'); } catch (error) { toast(`Не удалось загрузить настройки уведомлений: ${error.message}`, true); } });
 $('notificationSettingsForm').addEventListener('submit', async event => { event.preventDefault(); const form = event.currentTarget; const data = Object.fromEntries(new FormData(form)); for (const key of ['enabled','taskDeadlines','missingShiftReports','overdueProjects','weekdaysOnly']) data[key] = form.elements[key].checked; for (const key of ['startHour','endHour','staleShiftDays','repeatEveryHours']) data[key] = Number(data[key]); try { const saved = await window.crm.saveNotificationSettings(data); closeDialog('notificationSettingsDialog'); $('notificationStatus').textContent = saved.enabled ? `Включены · ${String(saved.startHour).padStart(2,'0')}:00–${String(saved.endHour).padStart(2,'0')}:00 · проверка каждые 15 мин.` : 'Уведомления выключены'; toast('Настройки уведомлений сохранены.'); } catch (error) { toast(error.message, true); } });
 $('refreshBtn').addEventListener('click', () => refreshDashboard().catch(e => toast(e.message,true)));
@@ -848,7 +848,46 @@ $('projectsTable').addEventListener('click', async event => {
     $('projectDialogTitle').textContent = 'Изменить объект'; openDialog('projectDialog');
   } catch (error) { toast(error.message, true); }
 });
-$('paymentForm').addEventListener('submit', async e => { e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form)); try { await window.crm.createPayment(data); form.reset(); closeDialog('paymentDialog'); toast('Платёж записан.'); await refreshFinance(); await refreshDashboard(); } catch (err) { toast(err.message,true); } });
+$('paymentForm').addEventListener('submit', async e => {
+  e.preventDefault(); const form = e.currentTarget, data = Object.fromEntries(new FormData(form));
+  try {
+    if (data.id) await window.crm.updatePayment(data); else await window.crm.createPayment(data);
+    form.reset(); closeDialog('paymentDialog'); $('paymentDialogTitle').textContent = 'Записать платёж';
+    toast(data.id ? 'Платёж обновлён.' : 'Платёж записан.');
+    await refreshFinance(); await refreshDashboard();
+  } catch (err) { toast(err.message,true); }
+});
+$('paymentsTable').addEventListener('click', async event => {
+  const button = event.target.closest('[data-edit-payment]'); if (!button) return;
+  try {
+    const rows = await window.crm.listPayments(), payment = rows.find(item => item.id === Number(button.dataset.editPayment));
+    if (!payment) throw new Error('Платёж не найден. Обнови список.');
+    await refreshProjects();
+    const form = $('paymentForm');
+    for (const key of ['id','project_id','amount_rub','payment_type','payment_date','method','note']) form.elements[key].value = payment[key] ?? '';
+    $('paymentDialogTitle').textContent = 'Изменить платёж'; $('paymentDialog').showModal();
+  } catch (error) { toast(error.message,true); }
+});
+$('expenseForm').addEventListener('submit', async e => {
+  e.preventDefault(); const form = e.currentTarget, data = Object.fromEntries(new FormData(form));
+  try {
+    if (data.id) await window.crm.updateExpense(data); else await window.crm.createExpense(data);
+    form.reset(); closeDialog('expenseDialog'); $('expenseDialogTitle').textContent = 'Добавить расход';
+    toast(data.id ? 'Расход обновлён.' : 'Расход сохранён.');
+    await refreshFinance(); await refreshDashboard();
+  } catch (err) { toast(err.message,true); }
+});
+$('expensesTable').addEventListener('click', async event => {
+  const button = event.target.closest('[data-edit-expense]'); if (!button) return;
+  try {
+    const rows = await window.crm.listExpenses(), expense = rows.find(item => item.id === Number(button.dataset.editExpense));
+    if (!expense) throw new Error('Расход не найден. Обнови список.');
+    await refreshProjects();
+    const form = $('expenseForm');
+    for (const key of ['id','project_id','amount_rub','expense_date','category','description','is_paid']) form.elements[key].value = expense[key] ?? '';
+    $('expenseDialogTitle').textContent = 'Изменить расход'; $('expenseDialog').showModal();
+  } catch (error) { toast(error.message,true); }
+});
 $('expenseForm').addEventListener('submit', async e => { e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form)); try { await window.crm.createExpense(data); form.reset(); closeDialog('expenseDialog'); toast('Расход сохранён.'); await refreshFinance(); await refreshDashboard(); } catch (err) { toast(err.message,true); } });
 $('importProspectsBtn').addEventListener('click', async () => { try { const r = await window.crm.importProspectsCsv(); if (!r.canceled) { toast(`Импортировано: ${r.imported}, пропущено дублей: ${r.skipped}.`); await refreshProspects(); } } catch (e) { toast(e.message,true); } });
 $('crawlWebsitesBtn').addEventListener('click', async () => {
