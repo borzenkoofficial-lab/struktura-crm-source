@@ -76,6 +76,7 @@ async function showIntegratedBrowser() {
   browserResizeObserver.observe($('browserPage'));
   browserResizeObserver.observe($('view-browser'));
   window.addEventListener('resize', syncBrowserBounds);
+  window.addEventListener('scroll', syncBrowserBounds, true);
 }
 function updateBrowserState(state = {}) {
   browserStateCache = { ...browserStateCache, ...state };
