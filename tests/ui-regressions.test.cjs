@@ -271,3 +271,14 @@ test('project status can be changed safely from the objects list', () => {
   assert.ok(handler); assert.match(handler[0], /allowedStatuses\.includes\(status\)/);
   assert.match(handler[0], /UPDATE projects SET status=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
 });
+
+
+test('lead details can be edited without creating a duplicate lead', () => {
+  assert.match(html, /id="leadDialogTitle"/); assert.match(html, /name="id"/);
+  assert.match(renderer, /data-edit-lead=/); assert.match(renderer, /window\.crm\.updateLead\(data\)/);
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  assert.match(preload, /updateLead: \(data\) => ipcRenderer\.invoke\('leads:update', data\)/);
+  const handler = main.match(/ipcMain\.handle\('leads:update',[\s\S]*?\n\}\);/);
+  assert.ok(handler); assert.match(handler[0], /Number\.isSafeInteger\(id\)/);
+  assert.match(handler[0], /UPDATE leads SET title=\?, service=\?, source=\?, budget_rub=\?, address=\?, notes=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
+});
