@@ -342,3 +342,9 @@ test('reports combine sales funnel and finance metrics with explicit cash-balanc
   assert.match(html, /не банковский баланс и не чистая прибыль/);
   assert.ok(renderer.includes("$('reportReceivables').textContent = fmt(finance.receivablesTotal)"));
 });
+
+test('client and prospect create, update and CSV import validate contact email at the main-process boundary', () => {
+  assert.match(main, /require\('\.\/contact-utils\.cjs'\)/);
+  assert.ok(main.includes('email: normalizeContactEmail(input.email)'));
+  assert.ok(main.includes('email: normalizeContactEmail(item.email)'));
+});

@@ -18,6 +18,7 @@ const { crawlSites } = require('./site-crawler.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
 const { normalizeTaskInput } = require('./task-utils.cjs');
+const { normalizeContactEmail } = require('./contact-utils.cjs');
 const { buildFinanceInsights } = require('./finance-insights.cjs');
 const { normalizeProjectInput, validDate } = require('./project-utils.cjs');
 const { forecastRemainingWork, buildRateModel } = require('./production-model.cjs');
@@ -185,7 +186,7 @@ ipcMain.handle('clients:create', (_event, input = {}) => {
   const name = clean(input.name, 180);
   if (!name) throw new Error('Укажи имя клиента или название компании.');
   const result = db.prepare('INSERT INTO clients(name,phone,email,client_type,notes) VALUES (@name,@phone,@email,@client_type,@notes)').run({
-    name, phone: clean(input.phone, 40), email: clean(input.email, 180),
+    name, phone: clean(input.phone, 40), email: normalizeContactEmail(input.email),
     client_type: input.client_type === 'company' ? 'company' : 'person', notes: clean(input.notes)
   });
   return db.prepare('SELECT * FROM clients WHERE id=?').get(result.lastInsertRowid);
@@ -196,7 +197,7 @@ ipcMain.handle('clients:update', (_event, input = {}) => {
   if (!name) throw new Error('Укажи имя клиента или название компании.');
   if (!db.prepare('SELECT id FROM clients WHERE id=?').get(id)) throw new Error('Клиент не найден. Обнови список и попробуй снова.');
   db.prepare('UPDATE clients SET name=?, phone=?, email=?, client_type=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
-    .run(name, clean(input.phone, 40), clean(input.email, 180), input.client_type === 'company' ? 'company' : 'person', clean(input.notes), id);
+    .run(name, clean(input.phone, 40), normalizeContactEmail(input.email), input.client_type === 'company' ? 'company' : 'person', clean(input.notes), id);
   return db.prepare('SELECT * FROM clients WHERE id=?').get(id);
 });
 ipcMain.handle('leads:list', () => db.prepare('SELECT l.*, c.name client_name FROM leads l LEFT JOIN clients c ON c.id=l.client_id ORDER BY l.id DESC LIMIT 1000').all());
@@ -645,7 +646,7 @@ ipcMain.handle('prospects:create', (_event, input = {}) => {
   if (!companyName) throw new Error('Укажи название компании.');
   const service = services.includes(input.service) ? input.service : 'demolition';
   const sourceUrl = clean(input.source_url, 500);
-  const row = { company_name: companyName, category: clean(input.category, 120), region: clean(input.region, 120), phone: clean(input.phone, 60), email: clean(input.email, 180), website: clean(input.website, 250), source_url: sourceUrl };
+  const row = { company_name: companyName, category: clean(input.category, 120), region: clean(input.region, 120), phone: clean(input.phone, 60), email: normalizeContactEmail(input.email), website: clean(input.website, 250), source_url: sourceUrl };
   const keys = prospectDuplicateKeys(row);
   const existing = db.prepare('SELECT company_name,region,phone,email,website,source_url FROM prospects').all();
   if (existing.some(item => prospectDuplicateKeys(item).some(key => keys.includes(key)))) throw new Error('Похожая компания уже есть в базе. Проверь поиск перед повторным добавлением.');
@@ -664,7 +665,7 @@ ipcMain.handle('prospects:update', (_event, input = {}) => {
   const service = services.includes(input.service) ? input.service : 'demolition';
   const status = ['new','reviewed','contacted','converted','rejected'].includes(input.status) ? input.status : 'new';
   const sourceUrl = clean(input.source_url, 500);
-  const row = { company_name: companyName, category: clean(input.category,120), region: clean(input.region,120), phone: clean(input.phone,60), email: clean(input.email,180), website: clean(input.website,250), source_url: sourceUrl };
+  const row = { company_name: companyName, category: clean(input.category,120), region: clean(input.region,120), phone: clean(input.phone,60), email: normalizeContactEmail(input.email), website: clean(input.website,250), source_url: sourceUrl };
   const keys = prospectDuplicateKeys(row);
   const existing = db.prepare('SELECT id,company_name,region,phone,email,website,source_url FROM prospects WHERE id<>?').all(id);
   if (existing.some(item => prospectDuplicateKeys(item).some(key => keys.includes(key)))) throw new Error('Такая компания или контакт уже есть в базе. Изменения не сохранены.');
@@ -722,7 +723,7 @@ ipcMain.handle('prospects:importCsv', async () => {
       const row = {
         company_name: clean(item.company_name,180), category: clean(item.category,120),
         service: services.includes(item.service) ? item.service : /отдел|finishing/i.test(item.service) ? 'finishing' : /фальш|raised/i.test(item.service) ? 'raised_floor' : 'demolition',
-        region: clean(item.region,120) || 'Москва и Московская область', phone: clean(item.phone,60), email: clean(item.email,180),
+        region: clean(item.region,120) || 'Москва и Московская область', phone: clean(item.phone,60), email: normalizeContactEmail(item.email),
         website: clean(item.website,250), source_url: clean(item.source_url,500),
         source_name: clean(item.source_name || path.basename(filePath),120), notes: clean(item.notes),
         status: ['new','reviewed','contacted','converted','rejected'].includes(item.status) ? item.status : 'new'
