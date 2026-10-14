@@ -550,7 +550,7 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
   .estimate-add-row > * { width: 100%; min-width: 0; }
   .estimate-table-wrap, .table-wrap { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .estimate-lines-table { min-width: 780px; }
-  .data-table { min-width: 620px; }
+  .catalog-table { min-width: 620px; }
   .panel-head { gap: 12px; padding: 15px; }
   .pi-explainer { grid-template-columns: minmax(0, 1fr); }
   .pi-mockup { max-width: 100%; }
