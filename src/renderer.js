@@ -542,6 +542,7 @@ async function exportCsv(kind) { try { const r = await window.crm.exportDataCsv(
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
 const commandPalette = $('commandPaletteDialog');
 const commandSearch = $('commandPaletteSearch');
+$('openCommandPaletteBtn')?.addEventListener('click', openCommandPalette);
 function openCommandPalette() {
   if (!commandPalette) return;
   commandPalette.showModal();
@@ -551,14 +552,14 @@ function openCommandPalette() {
 }
 function filterCommandPalette(query) {
   const q = String(query || '').trim().toLocaleLowerCase('ru-RU');
-  let firstVisible = null;
+  let firstFound = false;
   document.querySelectorAll('.command-item').forEach(item => {
     const visible = !q || item.textContent.toLocaleLowerCase('ru-RU').includes(q);
     item.hidden = !visible;
-    if (visible && !firstVisible) firstVisible = item;
+    const firstMatch = visible && !firstFound;
+    item.classList.toggle('command-first-match', firstMatch);
+    if (firstMatch) firstFound = true;
   });
-  if (firstVisible) firstVisible.classList.add('command-first-match');
-  document.querySelectorAll('.command-item:not(:first-child)').forEach(item => { if (item !== firstVisible) item.classList.remove('command-first-match'); });
 }
 commandSearch?.addEventListener('input', () => filterCommandPalette(commandSearch.value));
 commandPalette?.addEventListener('click', event => {
