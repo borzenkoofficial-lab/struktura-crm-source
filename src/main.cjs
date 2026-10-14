@@ -491,6 +491,18 @@ ipcMain.handle('tasks:create', (_event, input = {}) => {
   const result = db.prepare('INSERT INTO tasks(lead_id,project_id,title,due_at) VALUES (?,?,?,?)').run(leadId, projectId, title, dueAt);
   return db.prepare('SELECT * FROM tasks WHERE id=?').get(result.lastInsertRowid);
 });
+ipcMain.handle('tasks:update', (_event, input = {}) => {
+  const id = Number(input.id);
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректная задача.');
+  if (!db.prepare('SELECT id FROM tasks WHERE id=?').get(id)) throw new Error('Задача не найдена. Обнови список и попробуй снова.');
+  const normalized = normalizeTaskInput(input);
+  const leadId = input.lead_id ? Number(input.lead_id) : null;
+  const projectId = input.project_id ? Number(input.project_id) : null;
+  if (leadId !== null && (!Number.isSafeInteger(leadId) || leadId < 1 || !db.prepare('SELECT id FROM leads WHERE id=?').get(leadId))) throw new Error('Выбранная заявка не найдена.');
+  if (projectId !== null && (!Number.isSafeInteger(projectId) || projectId < 1 || !db.prepare('SELECT id FROM projects WHERE id=?').get(projectId))) throw new Error('Выбранный объект не найден.');
+  db.prepare('UPDATE tasks SET title=?, due_at=?, lead_id=?, project_id=? WHERE id=?').run(normalized.title, normalized.dueAt, leadId, projectId, id);
+  return db.prepare('SELECT * FROM tasks WHERE id=?').get(id);
+});
 ipcMain.handle('tasks:complete', (_event, input = {}) => {
   const id = Number(input.id);
   if (!Number.isInteger(id) || id < 1) throw new Error('Некорректная задача.');
