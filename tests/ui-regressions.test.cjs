@@ -206,3 +206,15 @@ test('payments and expenses reject impossible calendar dates before writing to S
   assert.match(paymentHandler[0], /!validDate\(date\) \|\| !date/);
   assert.match(expenseHandler[0], /!validDate\(date\) \|\| !date/);
 });
+
+
+test('strict calendar date utility rejects impossible dates and accepts leap days', () => {
+  const { validDate, normalizeProjectInput } = require('../src/project-utils.cjs');
+  for (const date of ['2025-02-29', '2026-02-30', '2026-04-31', '2026-13-01', '2026-00-10', '14.10.2026', '2026-10-14T00:00:00Z']) {
+    assert.equal(validDate(date), false, `expected invalid date: ${date}`);
+  }
+  assert.equal(validDate('2024-02-29'), true);
+  assert.equal(validDate('2026-10-14'), true);
+  assert.throws(() => normalizeProjectInput({ title: 'Тестовый объект', start_date: '2026-02-30', end_date: '2026-03-10' }), /дату начала/);
+  assert.throws(() => normalizeProjectInput({ title: 'Тестовый объект', start_date: '2026-10-15', end_date: '2026-10-14' }), /окончания не может быть раньше/);
+});
