@@ -21,3 +21,11 @@ test('urgency distinguishes overdue, due today, upcoming, unscheduled and done t
   assert.equal(taskUrgency({ is_done: 0, due_at: null }, today), 'unscheduled');
   assert.equal(taskUrgency({ is_done: 1, due_at: '2026-10-10' }, today), 'done');
 });
+
+test('task rejects impossible calendar dates and invalid local times', () => {
+  for (const due_at of ['2026-02-29', '2026-04-31', '2026-13-01', '2026-10-15T24:00', '2026-10-15T12:60', '2026-10-15T9:30', '2026-10-15T12:30:00']) {
+    assert.throws(() => normalizeTaskInput({ title: 'Позвонить', due_at }), /корректную дату/);
+  }
+  assert.equal(normalizeTaskInput({ title: 'Позвонить', due_at: '2028-02-29' }).dueAt, '2028-02-29');
+  assert.equal(normalizeTaskInput({ title: 'Позвонить', due_at: '2026-10-15T00:00' }).dueAt, '2026-10-15T00:00');
+});
