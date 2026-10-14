@@ -576,3 +576,46 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible {
   outline: 3px solid #f0643b;
   outline-offset: 3px;
 }
+
+
+/* Layout hardening: prevent long labels, controls and nested grids from widening cards. */
+.main, .view, .panel, .panel-head > div, .section-head > div,
+.estimate-pro-body, .estimate-meta-grid > *, .estimate-two-columns > *,
+.estimate-duration-controls > *, .estimate-duration-results > *,
+.estimate-calibration-grid > *, .production-input-grid > * {
+  min-width: 0;
+}
+.section-head, .topbar, .top-actions, .toolbar, .button-row,
+.estimate-pro-head, .estimate-subhead, .estimate-head-actions,
+.estimate-actions, .estimate-catalog-actions {
+  min-width: 0;
+}
+.estimate-meta-grid label, .estimate-duration-controls label,
+.estimate-calibration-grid label, .production-input-grid label {
+  overflow-wrap: anywhere;
+}
+.estimate-meta-grid input, .estimate-meta-grid select,
+.estimate-duration-controls input, .estimate-duration-controls select,
+.estimate-calibration-grid input, .estimate-calibration-grid select,
+.production-input-grid input, .production-input-grid select {
+  min-width: 0;
+  max-width: 100%;
+}
+.estimate-duration-results article { min-width: 0; }
+.estimate-duration-results article > strong {
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 1120px) {
+  .estimate-two-columns { grid-template-columns: minmax(0, 1fr); }
+  .estimate-pro-head { flex-direction: column; }
+  .estimate-head-actions { width: 100%; }
+  .estimate-add-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .estimate-add-row > label { grid-column: 1 / -1; }
+  .section-head { align-items: flex-start; }
+  .section-head > .button { max-width: 100%; white-space: normal; }
+}
+@media (max-width: 1020px) {
+  .estimate-duration-results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .estimate-calibration-grid, .estimate-calibration-result { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
