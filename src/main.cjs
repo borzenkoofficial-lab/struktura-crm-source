@@ -782,9 +782,23 @@ ipcMain.handle('backup:restore', async () => {
     const integrity = candidate.pragma('integrity_check', { simple: true });
     if (integrity !== 'ok') throw new Error(`Проверка целостности копии не пройдена: ${integrity}`);
     const tables = new Set(candidate.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
-    const required = ['clients', 'leads', 'projects', 'payments', 'expenses', 'settings'];
-    const missing = required.filter(name => !tables.has(name));
-    if (missing.length) throw new Error(`Это не резервная копия GRUZLI CRM: отсутствуют таблицы ${missing.join(', ')}.`);
+    const requiredColumns = {
+      clients: ['id', 'name', 'phone', 'email'],
+      leads: ['id', 'title', 'service', 'source', 'status'],
+      projects: ['id', 'title', 'service', 'status', 'contract_rub'],
+      payments: ['id', 'project_id', 'amount_rub', 'payment_date'],
+      expenses: ['id', 'amount_rub', 'expense_date', 'description'],
+      settings: ['key', 'value']
+    };
+    const missingTables = Object.keys(requiredColumns).filter(name => !tables.has(name));
+    if (missingTables.length) throw new Error(`Это не резервная копия GRUZLI CRM: отсутствуют таблицы ${missingTables.join(', ')}.`);
+    const schemaProblems = [];
+    for (const [table, required] of Object.entries(requiredColumns)) {
+      const columns = new Set(candidate.prepare(`PRAGMA table_info(${table})`).all().map(column => column.name));
+      const missingColumns = required.filter(column => !columns.has(column));
+      if (missingColumns.length) schemaProblems.push(`${table}: ${missingColumns.join(', ')}`);
+    }
+    if (schemaProblems.length) throw new Error(`Структура базы не соответствует CRM: ${schemaProblems.join('; ')}.`);
     candidate.close(); candidate = null;
   } catch (error) {
     if (candidate) { try { candidate.close(); } catch {} }
