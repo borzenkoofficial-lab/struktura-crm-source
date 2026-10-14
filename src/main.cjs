@@ -781,6 +781,8 @@ ipcMain.handle('backup:restore', async () => {
     candidate = new Database(sourcePath, { readonly: true, fileMustExist: true });
     const integrity = candidate.pragma('integrity_check', { simple: true });
     if (integrity !== 'ok') throw new Error(`Проверка целостности копии не пройдена: ${integrity}`);
+    const foreignKeyProblems = candidate.pragma('foreign_key_check');
+    if (foreignKeyProblems.length) throw new Error(`В резервной копии обнаружены нарушенные связи между таблицами (${foreignKeyProblems.length}).`);
     const tables = new Set(candidate.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
     const requiredColumns = {
       clients: ['id', 'name', 'phone', 'email'],
@@ -828,6 +830,7 @@ ipcMain.handle('backup:restore', async () => {
   } catch (error) {
     try { if (db && db.open) db.close(); } catch {}
     try {
+      for (const sidecar of [walPath, shmPath]) if (fs.existsSync(sidecar)) fs.rmSync(sidecar, { force: true });
       fs.copyFileSync(safetyPath, livePath);
       db = openDatabase(userDataPath);
     } catch (rollbackError) {
