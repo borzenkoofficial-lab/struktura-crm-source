@@ -2,6 +2,12 @@ name: Build GRUZLI CRM for Windows
 
 on:
   workflow_dispatch:
+    inputs:
+      build_installer:
+        description: 'Build the Windows installer (slow)'
+        required: true
+        type: boolean
+        default: false
   pull_request:
     branches:
       - main
@@ -35,11 +41,13 @@ jobs:
         run: npm test
 
       - name: Build Windows installer
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.build_installer)
         run: npm run dist:win -- --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload installer
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.build_installer)
         uses: actions/upload-artifact@v4
         with:
           name: GRUZLI-CRM-Windows-Installer
