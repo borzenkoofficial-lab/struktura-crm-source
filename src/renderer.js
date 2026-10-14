@@ -558,10 +558,16 @@ function openProspectEditor(prospect) {
   openDialog('prospectDialog');
 }
 async function refreshReports() {
-  const [clients, leads] = await Promise.all([window.crm.listClients(), window.crm.listLeads()]);
+  const [clients, leads, summary, finance] = await Promise.all([
+    window.crm.listClients(), window.crm.listLeads(), window.crm.summary(), window.crm.financeInsights()
+  ]);
   const won = leads.filter(l => l.status === 'won').length;
   $('reportClients').textContent = clients.length; $('reportLeads').textContent = leads.length; $('reportWon').textContent = won;
   $('reportConversion').textContent = `${leads.length ? Math.round(won / leads.length * 100) : 0}%`;
+  $('reportReceived').textContent = fmt(summary.received);
+  $('reportExpenses').textContent = fmt(summary.expenses);
+  $('reportCash').textContent = fmt(summary.cash);
+  $('reportReceivables').textContent = fmt(finance.receivablesTotal);
   const groups = {};
   for (const lead of leads) { const key = lead.source || 'other'; if (!groups[key]) groups[key] = { count: 0, budget: 0, won: 0 }; groups[key].count++; groups[key].budget += Number(lead.budget_rub || 0); if (lead.status === 'won') groups[key].won++; }
   const sorted = Object.entries(groups).sort((a,b) => b[1].count - a[1].count);
