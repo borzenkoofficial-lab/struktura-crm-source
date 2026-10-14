@@ -497,3 +497,21 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 .command-item[hidden]{display:none}
 .command-palette-footer{display:flex;justify-content:space-between;gap:12px;padding:12px 17px;border-top:1px solid #e9eef4;background:#fafbfd;color:#8793a4;font-size:10px}
 @media(max-width:540px){.command-item small{display:none}.command-item strong{min-width:0}.command-palette-footer{font-size:9px}}
+
+/* Shared resilience states for every data-backed workspace section. */
+.view[aria-busy="true"] { cursor: progress; }
+.view[aria-busy="true"] .table-wrap,
+.view[aria-busy="true"] .table-panel { opacity: .72; }
+.section-load-error {
+  display: flex; align-items: flex-start; gap: 13px; margin: 12px; padding: 18px;
+  border: 1px solid #f0c8bd; border-radius: 13px; background: #fff7f4; color: #27364a;
+}
+.section-load-error-icon {
+  display: grid; place-items: center; flex: 0 0 30px; height: 30px; border-radius: 9px;
+  background: #ffe2d8; color: #b9381d; font-weight: 850;
+}
+.section-load-error strong { display: block; font-size: 13px; }
+.section-load-error p { margin: 5px 0 12px; color: #66758a; font-size: 12px; line-height: 1.5; }
+@media (prefers-reduced-motion: reduce) {
+  .view[aria-busy="true"] .table-wrap, .view[aria-busy="true"] .table-panel { transition: none; }
+}
