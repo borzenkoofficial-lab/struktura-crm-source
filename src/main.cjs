@@ -207,7 +207,9 @@ ipcMain.handle('leads:create', (_event, input = {}) => {
   const service = services.includes(input.service) ? input.service : 'demolition';
   const source = sources.includes(input.source) ? input.source : 'phone';
   const budget = amount(input.budget_rub, { allowZero: true });
-  const result = db.prepare('INSERT INTO leads(title,service,source,budget_rub,address,notes) VALUES (?,?,?,?,?,?)').run(title,service,source,budget,clean(input.address,250),clean(input.notes));
+  const clientId = input.client_id ? Number(input.client_id) : null;
+  if (clientId !== null && (!Number.isSafeInteger(clientId) || clientId < 1 || !db.prepare('SELECT id FROM clients WHERE id=?').get(clientId))) throw new Error('Выбранный клиент не найден. Обнови список и попробуй снова.');
+  const result = db.prepare('INSERT INTO leads(client_id,title,service,source,budget_rub,address,notes) VALUES (?,?,?,?,?,?,?)').run(clientId,title,service,source,budget,clean(input.address,250),clean(input.notes));
   return db.prepare('SELECT * FROM leads WHERE id=?').get(result.lastInsertRowid);
 });
 ipcMain.handle('leads:update', (_event, input = {}) => {
@@ -218,8 +220,10 @@ ipcMain.handle('leads:update', (_event, input = {}) => {
   const service = services.includes(input.service) ? input.service : 'demolition';
   const source = sources.includes(input.source) ? input.source : 'phone';
   const budget = amount(input.budget_rub, { allowZero: true });
-  db.prepare('UPDATE leads SET title=?, service=?, source=?, budget_rub=?, address=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
-    .run(title, service, source, budget, clean(input.address,250), clean(input.notes), id);
+  const clientId = input.client_id ? Number(input.client_id) : null;
+  if (clientId !== null && (!Number.isSafeInteger(clientId) || clientId < 1 || !db.prepare('SELECT id FROM clients WHERE id=?').get(clientId))) throw new Error('Выбранный клиент не найден. Обнови список и попробуй снова.');
+  db.prepare('UPDATE leads SET client_id=?, title=?, service=?, source=?, budget_rub=?, address=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
+    .run(clientId, title, service, source, budget, clean(input.address,250), clean(input.notes), id);
   return db.prepare('SELECT * FROM leads WHERE id=?').get(id);
 });
 ipcMain.handle('leads:updateStatus', (_event, input = {}) => {
