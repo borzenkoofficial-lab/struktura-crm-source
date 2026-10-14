@@ -1,6 +1,6 @@
 {
   "name": "struktura-crm",
-  "version": "1.13.9",
+  "version": "1.13.10",
   "private": true,
   "description": "Настольная локальная CRM для Windows: клиенты, демонтаж, сметы, производство и PDF",
   "main": "src/main.cjs",
@@ -14,7 +14,8 @@
   },
   "devDependencies": {
     "electron": "^35.2.1",
-    "electron-builder": "^26.0.12"
+    "electron-builder": "^26.0.12",
+    "electron-updater": "^6.6.2"
   },
   "build": {
     "appId": "ru.struktura.crm",
@@ -41,5 +42,12 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     }
-  }
+  },
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "borzenkoofficial-lab",
+      "repo": "struktura-crm-source"
+    }
+  ]
 }
