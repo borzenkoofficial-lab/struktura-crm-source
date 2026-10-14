@@ -186,6 +186,8 @@ function openDatabase(userDataPath) {
   if (!leadColumns.has('client_id')) db.exec('ALTER TABLE leads ADD COLUMN client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL');
   const projectColumns = new Set(db.prepare('PRAGMA table_info(projects)').all().map(column => column.name));
   if (!projectColumns.has('client_id')) db.exec('ALTER TABLE projects ADD COLUMN client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL');
+  const activityColumns = new Set(db.prepare('PRAGMA table_info(activities)').all().map(column => column.name));
+  if (!activityColumns.has('client_id')) db.exec('ALTER TABLE activities ADD COLUMN client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL');
   if (!projectColumns.has('planned_people')) db.exec('ALTER TABLE projects ADD COLUMN planned_people INTEGER NOT NULL DEFAULT 5 CHECK(planned_people BETWEEN 1 AND 200)');
   if (!projectColumns.has('complexity_factor')) db.exec('ALTER TABLE projects ADD COLUMN complexity_factor REAL NOT NULL DEFAULT 1 CHECK(complexity_factor > 0)');
   const prospectColumns = new Set(db.prepare('PRAGMA table_info(prospects)').all().map(column => column.name));
