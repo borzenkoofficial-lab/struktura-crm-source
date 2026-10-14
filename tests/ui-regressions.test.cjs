@@ -454,3 +454,7 @@ test('projects, including estimate-to-project creation, can be linked to an exis
   assert.match(main, /projectInput\.client_id/);
   assert.match(main, /Выбранный клиент не найден/);
 });
+
+
+test('income tracking has separate official/internal labels and period summaries',()=>{assert.match(html,/id="incomeMonthTotal"/);assert.match(html,/id="incomeYearTotal"/);assert.match(html,/id="incomeForm"/);assert.match(html,/value="internal">Внутренний учёт/);assert.match(renderer,/window\.crm\.listIncomeRecords\(\)/);assert.match(main,/ipcMain\.handle\('income:create'/);assert.match(main,/ipcMain\.handle\('income:update'/);assert.match(main,/income_records/);});
+test('native dialogs force opaque readable surfaces and visible input states',()=>{const css=fs.readFileSync(path.join(__dirname,'../src/styles.css'),'utf8');assert.match(css,/dialog\.modal\{background:#fff!important;color:#182434!important/);assert.match(css,/dialog\.modal input:not\(\[type=checkbox\]\):not\(\[type=radio\]\),dialog\.modal select,dialog\.modal textarea\{background:#fff!important;color:#182434!important/);assert.match(css,/dialog\.modal::backdrop\{background:rgba\(12,24,39,.68\)/);});
