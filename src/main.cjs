@@ -244,6 +244,18 @@ ipcMain.handle('projects:create', (_event, input = {}) => {
     VALUES (@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
   return db.prepare('SELECT * FROM projects WHERE id=?').get(result.lastInsertRowid);
 });
+ipcMain.handle('projects:update', (_event, input = {}) => {
+  const id = Number(input.id);
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный номер объекта.');
+  if (!db.prepare('SELECT id FROM projects WHERE id=?').get(id)) throw new Error('Объект не найден. Обнови список и попробуй снова.');
+  const project = normalizeProjectInput(input);
+  const contract = amount(project.contract_rub, { allowZero: true });
+  db.prepare(`UPDATE projects SET title=@title, service=@service, status=@status, contract_rub=@contract_rub,
+    address=@address, start_date=@start_date, end_date=@end_date, planned_people=@planned_people,
+    complexity_factor=@complexity_factor, notes=@notes, updated_at=CURRENT_TIMESTAMP WHERE id=@id`)
+    .run({ ...project, contract_rub: contract, id });
+  return db.prepare('SELECT * FROM projects WHERE id=?').get(id);
+});
 ipcMain.handle('projects:updateStatus', (_event, input = {}) => {
   const id = Number(input.id), status = String(input.status || '');
   const allowedStatuses = ['planned', 'active', 'completed', 'cancelled'];
