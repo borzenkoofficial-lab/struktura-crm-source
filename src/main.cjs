@@ -794,4 +794,34 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
 });
 
+ipcMain.handle('updates:status', () => updateStatus);
+ipcMain.handle('updates:check', async () => {
+  if (!app.isPackaged) {
+    return publishUpdateStatus({ state: 'development', message: 'Проверка обновлений доступна в установленной версии CRM.' });
+  }
+  try {
+    publishUpdateStatus({ state: 'checking', message: 'Проверяем наличие обновлений…' });
+    await autoUpdater.checkForUpdates();
+    return updateStatus;
+  } catch (error) {
+    return publishUpdateStatus({ state: 'error', message: `Не удалось проверить обновления: ${String(error.message || error).slice(0, 220)}` });
+  }
+});
+ipcMain.handle('updates:download', async () => {
+  if (!app.isPackaged) throw new Error('Скачивание обновлений доступно только в установленной версии CRM.');
+  if (updateStatus.state !== 'available') throw new Error('Сначала проверь наличие обновления.');
+  try {
+    publishUpdateStatus({ state: 'downloading', progress: 0, message: 'Начинаем загрузку обновления…' });
+    await autoUpdater.downloadUpdate();
+    return updateStatus;
+  } catch (error) {
+    publishUpdateStatus({ state: 'error', message: `Не удалось скачать обновление: ${String(error.message || error).slice(0, 220)}` });
+    throw error;
+  }
+});
+ipcMain.handle('updates:install', () => {
+  if (!app.isPackaged || updateStatus.state !== 'downloaded') throw new Error('Сначала скачай обновление.');
+  autoUpdater.quitAndInstall(false, true);
+  return { accepted: true };
+});
 ipcMain.handle('app:version', () => app.getVersion());
