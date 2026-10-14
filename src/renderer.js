@@ -145,7 +145,7 @@ async function refreshTasks() {
   $('taskNavCount').textContent = allRows.filter(t => !t.is_done).length;
   const q = ($('taskSearch')?.value || '').toLowerCase();
   const filtered = rows.filter(t => `${t.title} ${t.lead_title || ''} ${t.project_title || ''}`.toLowerCase().includes(q));
-  $('tasksTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Задача</th><th>Связано с</th><th>Срок</th><th>Статус</th><th>Действие</th></tr></thead><tbody>${filtered.map(t => { const due = t.due_at ? new Date(t.due_at).toLocaleString('ru-RU', { dateStyle:'medium', timeStyle: String(t.due_at).includes('T') ? 'short' : undefined }) : 'Не назначен'; const related = [t.lead_title && `Заявка: ${t.lead_title}`, t.project_title && `Объект: ${t.project_title}`].filter(Boolean).join(' · ') || '—'; return `<tr><td>${esc(t.title)}</td><td>${esc(related)}</td><td>${esc(due)}</td><td><span class="pill ${t.urgency === 'overdue' ? 'lost' : t.urgency === 'done' ? 'won' : t.urgency === 'today' ? 'new' : 'contacted'}">${esc(taskUrgencyLabels[t.urgency] || 'Активна')}</span></td><td>${t.is_done ? `<button class="button subtle task-toggle" data-task-id="${t.id}" data-task-done="0">Вернуть</button>` : `<button class="button subtle task-toggle" data-task-id="${t.id}" data-task-done="1">Выполнено</button>`}</td></tr>`; }).join('')}</tbody></table>` : empty('Задач пока нет','Создай следующий шаг по заявке или объекту.');
+  $('tasksTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Задача</th><th>Связано с</th><th>Срок</th><th>Статус</th><th>Действие</th></tr></thead><tbody>${filtered.map(t => { const due = t.due_at ? new Date(t.due_at).toLocaleString('ru-RU', { dateStyle:'medium', timeStyle: String(t.due_at).includes('T') ? 'short' : undefined }) : 'Не назначен'; const related = [t.lead_title && `Заявка: ${t.lead_title}`, t.project_title && `Объект: ${t.project_title}`].filter(Boolean).join(' · ') || '—'; return `<tr><td>${esc(t.title)}</td><td>${esc(related)}</td><td>${esc(due)}</td><td><span class="pill ${t.urgency === 'overdue' ? 'lost' : t.urgency === 'done' ? 'won' : t.urgency === 'today' ? 'new' : 'contacted'}">${esc(taskUrgencyLabels[t.urgency] || 'Активна')}</span></td><td><div class="table-actions"><button type="button" class="button subtle compact" data-edit-task="${t.id}">Изменить</button>${t.is_done ? `<button class="button subtle compact task-toggle" data-task-id="${t.id}" data-task-done="0">Вернуть</button>` : `<button class="button subtle compact task-toggle" data-task-id="${t.id}" data-task-done="1">Выполнено</button>`}</div></td></tr>`; }).join('')}</tbody></table>` : empty('Задач пока нет','Создай следующий шаг по заявке или объекту.');
   $('taskLeadSelect').innerHTML = `<option value="">Без заявки</option>${leads.filter(l => !['won','lost'].includes(l.status)).map(l => `<option value="${l.id}">${esc(l.title)}</option>`).join('')}`;
   $('taskProjectSelect').innerHTML = `<option value="">Без объекта</option>${projects.filter(p => !['completed','cancelled'].includes(p.status)).map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('')}`;
   document.querySelectorAll('.task-toggle').forEach(button => button.addEventListener('click', async () => { try { await window.crm.completeTask({ id: Number(button.dataset.taskId), is_done: button.dataset.taskDone === '1' }); toast(button.dataset.taskDone === '1' ? 'Задача закрыта.' : 'Задача возвращена в работу.'); await refreshTasks(); } catch (e) { toast(e.message, true); } }));
@@ -732,8 +732,30 @@ $('refreshRadarBtn').addEventListener('click', () => refreshProspects().then(() 
 $('domainSearchService').addEventListener('change', refreshDomainSearchLinks);
 $('domainSearchRegion').addEventListener('input', refreshDomainSearchLinks);
 refreshDomainSearchLinks();
-$('addTaskBtn').addEventListener('click', async () => { await refreshTasks(); $('taskForm').reset(); $('taskDialog').showModal(); });
-$('taskForm').addEventListener('submit', async e => { e.preventDefault(); const data = Object.fromEntries(new FormData(e.currentTarget)); try { await window.crm.createTask(data); closeDialog('taskDialog'); toast('Задача добавлена в план действий.'); await refreshTasks(); } catch (err) { toast(err.message, true); } });
+$('addTaskBtn').addEventListener('click', async () => { await refreshTasks(); $('taskForm').reset(); $('taskDialogTitle').textContent = 'Новая задача'; $('taskDialog').showModal(); });
+$('taskForm').addEventListener('submit', async e => {
+  e.preventDefault(); const form = e.currentTarget, data = Object.fromEntries(new FormData(form));
+  try {
+    if (data.id) await window.crm.updateTask(data); else await window.crm.createTask(data);
+    closeDialog('taskDialog'); form.reset(); $('taskDialogTitle').textContent = 'Новая задача';
+    toast(data.id ? 'Задача обновлена.' : 'Задача добавлена в план действий.');
+    await refreshTasks();
+  } catch (err) { toast(err.message, true); }
+});
+$('tasksTable').addEventListener('click', async event => {
+  const button = event.target.closest('[data-edit-task]'); if (!button) return;
+  try {
+    const rows = await window.crm.listTasks({ filter: 'all' }), task = rows.find(item => item.id === Number(button.dataset.editTask));
+    if (!task) throw new Error('Задача не найдена. Обнови список.');
+    await refreshTasks();
+    const form = $('taskForm');
+    for (const key of ['id','title','due_at','lead_id','project_id']) {
+      const field = form.elements[key]; if (!field) continue;
+      field.value = task[key] == null ? '' : (key === 'due_at' ? String(task[key]).slice(0,16) : task[key]);
+    }
+    $('taskDialogTitle').textContent = 'Изменить задачу'; $('taskDialog').showModal();
+  } catch (error) { toast(error.message, true); }
+});
 $('taskSearch').addEventListener('input', () => refreshTasks().catch(e => toast(e.message, true)));
 $('taskFilter').addEventListener('change', () => refreshTasks().catch(e => toast(e.message, true)));
 $('addProspectBtn').addEventListener('click', () => openProspectEditor());

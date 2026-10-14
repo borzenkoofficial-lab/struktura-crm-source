@@ -294,3 +294,15 @@ test('project details can be edited while linked finance and production records 
   assert.match(handler[0], /UPDATE projects SET title=@title, service=@service, status=@status, contract_rub=@contract_rub/);
   assert.doesNotMatch(handler[0], /DELETE FROM (payments|expenses|production_plans)/);
 });
+
+
+test('tasks can be edited without resetting completion status', () => {
+  assert.match(html, /id="taskDialogTitle"/); assert.match(html, /name="id"/);
+  assert.match(renderer, /window\.crm\.updateTask\(data\)/);
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  assert.match(preload, /updateTask: \(data\) => ipcRenderer\.invoke\('tasks:update', data\)/);
+  const handler = main.match(/ipcMain\.handle\('tasks:update',[\s\S]*?\n\}\);/);
+  assert.ok(handler); assert.match(handler[0], /normalizeTaskInput\(input\)/);
+  assert.match(handler[0], /UPDATE tasks SET title=\?, due_at=\?, lead_id=\?, project_id=\? WHERE id=\?/);
+  assert.doesNotMatch(handler[0], /is_done\s*=/);
+});
