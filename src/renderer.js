@@ -540,6 +540,7 @@ function openDialog(id) { $(id).showModal(); }
 function closeDialog(id) { $(id).close(); }
 async function exportCsv(kind) { try { const r = await window.crm.exportDataCsv(kind); if (!r.canceled) toast(`Экспорт завершён: строк ${r.count}.`); } catch (e) { toast(e.message, true); } }
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+$('toggleSidebarBtn')?.addEventListener('click', () => { const shell = document.querySelector('.app-shell'); const collapsed = shell.classList.toggle('sidebar-collapsed'); $('toggleSidebarBtn').setAttribute('aria-pressed', String(collapsed)); });
 document.querySelectorAll('[data-plan-action]').forEach(button => button.addEventListener('click', () => { const plan = button.dataset.planAction; const labels = { subscription: 'Подписка', lifetime: 'Покупка навсегда', pro: 'Профессиональный тариф' }; toast(`${labels[plan] || 'Тариф'}: оформление ещё не подключено. Никаких списаний не выполняется.`); }));
 document.addEventListener('click', e => {
   const goto = e.target.closest('[data-goto]'); if (goto) showView(goto.dataset.goto);
