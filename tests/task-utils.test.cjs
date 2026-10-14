@@ -29,3 +29,10 @@ test('task rejects impossible calendar dates and invalid local times', () => {
   assert.equal(normalizeTaskInput({ title: 'Позвонить', due_at: '2028-02-29' }).dueAt, '2028-02-29');
   assert.equal(normalizeTaskInput({ title: 'Позвонить', due_at: '2026-10-15T00:00' }).dueAt, '2026-10-15T00:00');
 });
+
+
+test('task calendar validation handles years below 0100 without JavaScript year coercion', () => {
+  assert.equal(normalizeTaskInput({ title: 'Проверка', due_at: '0099-12-31' }).dueAt, '0099-12-31');
+  assert.equal(normalizeTaskInput({ title: 'Проверка', due_at: '0004-02-29' }).dueAt, '0004-02-29');
+  assert.throws(() => normalizeTaskInput({ title: 'Проверка', due_at: '0001-02-29' }), /корректную дату/);
+});
