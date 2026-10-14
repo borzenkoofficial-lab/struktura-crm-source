@@ -420,3 +420,15 @@ test('expense form has exactly one submit handler so editing cannot create a dup
   const handler = renderer.slice(handlers[0].index, renderer.indexOf("\n});", handlers[0].index) + 4);
   assert.match(handler, /if \(data\.id\) await window\.crm\.updateExpense\(data\); else await window\.crm\.createExpense\(data\)/);
 });
+
+
+test('renderer does not register duplicate direct DOM event handlers on the same element', () => {
+  const registrations = new Map();
+  const pattern = /\\$\\('([^']+)'\\)\\.addEventListener\\('([^']+)'/g;
+  for (const match of renderer.matchAll(pattern)) {
+    const key = match[1] + '::' + match[2];
+    registrations.set(key, (registrations.get(key) || 0) + 1);
+  }
+  const duplicates = [...registrations].filter(([, count]) => count > 1).map(([key, count]) => key + ' (' + count + ')');
+  assert.deepEqual(duplicates, [], 'duplicate event registrations can execute a write twice: ' + duplicates.join(', '));
+});
