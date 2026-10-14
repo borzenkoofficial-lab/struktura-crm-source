@@ -200,6 +200,17 @@ ipcMain.handle('leads:create', (_event, input = {}) => {
   const result = db.prepare('INSERT INTO leads(title,service,source,budget_rub,address,notes) VALUES (?,?,?,?,?,?)').run(title,service,source,budget,clean(input.address,250),clean(input.notes));
   return db.prepare('SELECT * FROM leads WHERE id=?').get(result.lastInsertRowid);
 });
+ipcMain.handle('leads:updateStatus', (_event, input = {}) => {
+  const id = Number(input.id);
+  const status = String(input.status || '');
+  const allowedStatuses = ['new', 'contacted', 'measurement', 'estimate', 'negotiation', 'won', 'lost'];
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный номер заявки.');
+  if (!allowedStatuses.includes(status)) throw new Error('Выбери допустимый статус заявки.');
+  const existing = db.prepare('SELECT id FROM leads WHERE id=?').get(id);
+  if (!existing) throw new Error('Заявка не найдена. Обнови список и попробуй снова.');
+  db.prepare('UPDATE leads SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(status, id);
+  return db.prepare('SELECT * FROM leads WHERE id=?').get(id);
+});
 ipcMain.handle('projects:list', () => db.prepare(`SELECT p.*, c.name client_name, l.title lead_title,
   COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub,
   COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub,

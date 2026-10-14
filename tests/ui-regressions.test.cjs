@@ -235,3 +235,19 @@ test('all data-backed sections expose a recoverable load error and retry path', 
   assert.match(css, /\.section-load-error/);
   assert.match(css, /\.view\[aria-busy="true"\]/);
 });
+
+
+test('lead pipeline supports validated status changes from the list through the preload bridge', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  assert.match(preload, /updateLeadStatus: \(data\) => ipcRenderer\.invoke\('leads:updateStatus', data\)/);
+  assert.match(main, /ipcMain\.handle\('leads:updateStatus'/);
+  const handler = main.match(/ipcMain\.handle\('leads:updateStatus',[\s\S]*?\n\}\);/);
+  assert.ok(handler, 'lead status update handler exists');
+  assert.match(handler[0], /Number\.isSafeInteger\(id\)/);
+  assert.match(handler[0], /allowedStatuses\.includes\(status\)/);
+  assert.match(handler[0], /SELECT id FROM leads WHERE id=\?/);
+  assert.match(handler[0], /UPDATE leads SET status=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
+  assert.match(renderer, /data-lead-status=/);
+  assert.match(renderer, /aria-label="Статус заявки:/);
+  assert.match(renderer, /updateLeadStatus\(\{ id, status \}\)/);
+});
