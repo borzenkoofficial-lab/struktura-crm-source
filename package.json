@@ -10,12 +10,12 @@
     "dist:win": "electron-builder --win nsis"
   },
   "dependencies": {
-    "better-sqlite3": "^11.8.1"
+    "better-sqlite3": "^11.8.1",
+    "electron-updater": "^6.6.2"
   },
   "devDependencies": {
     "electron": "^35.2.1",
-    "electron-builder": "^26.0.12",
-    "electron-updater": "^6.6.2"
+    "electron-builder": "^26.0.12"
   },
   "build": {
     "appId": "ru.struktura.crm",
