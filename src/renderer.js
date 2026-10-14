@@ -732,8 +732,30 @@ $('refreshRadarBtn').addEventListener('click', () => refreshProspects().then(() 
 $('domainSearchService').addEventListener('change', refreshDomainSearchLinks);
 $('domainSearchRegion').addEventListener('input', refreshDomainSearchLinks);
 refreshDomainSearchLinks();
-$('addTaskBtn').addEventListener('click', async () => { await refreshTasks(); $('taskForm').reset(); $('taskDialog').showModal(); });
-$('taskForm').addEventListener('submit', async e => { e.preventDefault(); const data = Object.fromEntries(new FormData(e.currentTarget)); try { await window.crm.createTask(data); closeDialog('taskDialog'); toast('Задача добавлена в план действий.'); await refreshTasks(); } catch (err) { toast(err.message, true); } });
+$('addTaskBtn').addEventListener('click', async () => { await refreshTasks(); $('taskForm').reset(); $('taskDialogTitle').textContent = 'Новая задача'; $('taskDialog').showModal(); });
+$('taskForm').addEventListener('submit', async e => {
+  e.preventDefault(); const form = e.currentTarget, data = Object.fromEntries(new FormData(form));
+  try {
+    if (data.id) await window.crm.updateTask(data); else await window.crm.createTask(data);
+    closeDialog('taskDialog'); form.reset(); $('taskDialogTitle').textContent = 'Новая задача';
+    toast(data.id ? 'Задача обновлена.' : 'Задача добавлена в план действий.');
+    await refreshTasks();
+  } catch (err) { toast(err.message, true); }
+});
+$('tasksTable').addEventListener('click', async event => {
+  const button = event.target.closest('[data-edit-task]'); if (!button) return;
+  try {
+    const rows = await window.crm.listTasks({ filter: 'all' }), task = rows.find(item => item.id === Number(button.dataset.editTask));
+    if (!task) throw new Error('Задача не найдена. Обнови список.');
+    await refreshTasks();
+    const form = $('taskForm');
+    for (const key of ['id','title','due_at','lead_id','project_id']) {
+      const field = form.elements[key]; if (!field) continue;
+      field.value = task[key] == null ? '' : (key === 'due_at' ? String(task[key]).slice(0,16) : task[key]);
+    }
+    $('taskDialogTitle').textContent = 'Изменить задачу'; $('taskDialog').showModal();
+  } catch (error) { toast(error.message, true); }
+});
 $('taskSearch').addEventListener('input', () => refreshTasks().catch(e => toast(e.message, true)));
 $('taskFilter').addEventListener('change', () => refreshTasks().catch(e => toast(e.message, true)));
 $('addProspectBtn').addEventListener('click', () => openProspectEditor());
