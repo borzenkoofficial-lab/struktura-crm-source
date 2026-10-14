@@ -38,3 +38,30 @@ jobs:
 
       - name: Check JavaScript syntax
         run: node -e "const fs=require('node:fs');const path=require('node:path');const cp=require('node:child_process');let files=[];for(const root of ['src','tests']){if(!fs.existsSync(root))continue;const walk=d=>{for(const e of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,e.name);if(e.isDirectory())walk(p);else if(e.name.endsWith('.cjs')||e.name.endsWith('.js'))files.push(p)}};walk(root)}for(const f of files){const r=cp.spawnSync(process.execPath,['--check',f],{encoding:'utf8'});if(r.status!==0){process.stderr.write(r.stderr||r.stdout);process.exit(r.status||1)}}console.log('Syntax OK:',files.length,'files')"
+
+  build-windows-installer:
+    name: Build Windows installer
+    runs-on: windows-latest
+    needs: test
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build NSIS installer
+        run: npm run dist:win
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GRUZLI-CRM-Windows-Installer
+          path: dist/GRUZLI-CRM-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 7
