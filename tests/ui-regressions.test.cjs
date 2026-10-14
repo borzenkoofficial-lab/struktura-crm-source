@@ -192,7 +192,9 @@ test('backup restore is exposed in the UI and safe preload bridge', () => {
 
 test('backup restore validates SQLite integrity and preserves an automatic rollback copy', () => {
   assert.match(main, /integrity_check/);
-  assert.match(main, /const required = \['clients', 'leads', 'projects', 'payments', 'expenses', 'settings'\]/);
+  assert.match(main, /const requiredColumns = \{/);
+  assert.match(main, /PRAGMA table_info\(\$\{table\}\)/);
+  assert.match(main, /Структура базы не соответствует CRM/);
   assert.match(main, /await db\.backup\(safetyPath\)/);
   assert.match(main, /прежняя база возвращена/);
   assert.match(main, /Действующая база не изменена/);
@@ -280,7 +282,7 @@ test('lead details can be edited without creating a duplicate lead', () => {
   assert.match(preload, /updateLead: \(data\) => ipcRenderer\.invoke\('leads:update', data\)/);
   const handler = main.match(/ipcMain\.handle\('leads:update',[\s\S]*?\n\}\);/);
   assert.ok(handler); assert.match(handler[0], /Number\.isSafeInteger\(id\)/);
-  assert.match(handler[0], /UPDATE leads SET title=\?, service=\?, source=\?, budget_rub=\?, address=\?, notes=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
+  assert.match(handler[0], /UPDATE leads SET client_id=\?, title=\?, service=\?, source=\?, budget_rub=\?, address=\?, notes=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
 });
 
 
@@ -291,7 +293,7 @@ test('project details can be edited while linked finance and production records 
   assert.match(preload, /updateProject: \(data\) => ipcRenderer\.invoke\('projects:update', data\)/);
   const handler = main.match(/ipcMain\.handle\('projects:update',[\s\S]*?\n\}\);/);
   assert.ok(handler); assert.match(handler[0], /normalizeProjectInput\(input\)/);
-  assert.match(handler[0], /UPDATE projects SET title=@title, service=@service, status=@status, contract_rub=@contract_rub/);
+  assert.match(handler[0], /UPDATE projects SET client_id=@client_id, title=@title, service=@service, status=@status, contract_rub=@contract_rub/);
   assert.doesNotMatch(handler[0], /DELETE FROM (payments|expenses|production_plans)/);
 });
 
@@ -348,3 +350,117 @@ test('client and prospect create, update and CSV import validate contact email a
   assert.ok(main.includes('email: normalizeContactEmail(input.email)'));
   assert.ok(main.includes('email: normalizeContactEmail(item.email)'));
 });
+
+
+test('GRUZLI responsive polish keeps forms usable, tables scrollable and keyboard focus visible', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
+  assert.equal(pkg.build.productName, 'GRUZLI CRM');
+  assert.match(css, /@media\s*\(max-width:\s*760px\)/);
+  assert.match(css, /@media\s*\(max-width:\s*420px\)/);
+  assert.match(css, /\.estimate-lines-table\s*\{\s*min-width:\s*780px;/);
+  assert.match(css, /\.catalog-table\s*\{\s*min-width:\s*620px;/);
+  assert.match(css, /button:focus-visible, a:focus-visible, \[role="button"\]:focus-visible/);
+});
+
+test('every renderer API call has a preload bridge and every IPC channel has a main handler', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  const mainSource = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
+  const exposedMethods = new Set([...preload.matchAll(/^\s{2}([A-Za-z_$][\w$]*):/gm)].map(match => match[1]));
+  const rendererMethods = new Set([...renderer.matchAll(/window\.crm\.([A-Za-z_$][\w$]*)/g)].map(match => match[1]));
+  for (const method of rendererMethods) {
+    assert.ok(exposedMethods.has(method), `renderer calls missing preload method: ${method}`);
+  }
+
+  const bridgeChannels = new Set([...preload.matchAll(/ipcRenderer\.invoke\('([^']+)'/g)].map(match => match[1]));
+  const mainChannels = new Set([...mainSource.matchAll(/ipcMain\.handle\('([^']+)'/g)].map(match => match[1]));
+  assert.deepEqual([...bridgeChannels].filter(channel => !mainChannels.has(channel)), [], 'preload channels must have main handlers');
+  assert.deepEqual([...mainChannels].filter(channel => !bridgeChannels.has(channel)), [], 'main handlers must be reachable through preload');
+});
+
+
+test('schedule forecast uses empirical quantiles and avoids zero-day automatic payroll', () => {
+  const calculator = fs.readFileSync(path.join(__dirname, '../src/estimate-calculator.js'), 'utf8');
+  assert.doesNotMatch(calculator, /daysForCrew \* 0\.85/);
+  assert.match(calculator, /statistical interval is only shown when every included work has at least five/i);
+  assert.match(renderer, /automaticDaysUnavailable/);
+  assert.match(calculator, /Автоматический срок не рассчитан/);
+  assert.match(renderer, /статистический диапазон пока недоступен/);
+});
+
+
+test('duration breakdown labels and displays the effective productivity used by the forecast', () => {
+  assert.match(renderer, /Эффективная норма \/ чел\.-смену/);
+  assert.match(renderer, /line\.effectiveProductivity\.toLocaleString/);
+});
+
+
+test('embedded browser bounds stay aligned during scroll and are not measured through a transform animation', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(renderer, /window\.addEventListener\('scroll', syncBrowserBounds, true\)/);
+  assert.match(css, /\.view#view-browser\.active\s*\{\s*animation:\s*none;\s*transform:\s*none;/);
+});
+
+
+test('duration forecast tolerates an empty target-date field while the user is editing it', () => {
+  assert.match(renderer, /targetDays: \$\('estimateTargetDays'\)\.value \|\| 5/);
+});
+
+
+test('backup restore validates foreign keys and clears SQLite sidecars before rollback', () => {
+  assert.match(main, /candidate\.pragma\('foreign_key_check'\)/);
+  assert.match(main, /нарушенные связи между таблицами/);
+  assert.match(main, /for \(const sidecar of \[walPath, shmPath\]\) if \(fs\.existsSync\(sidecar\)\) fs\.rmSync\(sidecar, \{ force: true \}\);\s*fs\.copyFileSync\(safetyPath, livePath\)/);
+});
+
+
+test('expense form has exactly one submit handler so editing cannot create a duplicate expense', () => {
+  const handlers = [...renderer.matchAll(/\$\('expenseForm'\)\.addEventListener\('submit'/g)];
+  assert.equal(handlers.length, 1, 'expense form must have a single submit handler');
+  const handler = renderer.slice(handlers[0].index, renderer.indexOf("\n});", handlers[0].index) + 4);
+  assert.match(handler, /if \(data\.id\) await window\.crm\.updateExpense\(data\); else await window\.crm\.createExpense\(data\)/);
+});
+
+
+test('renderer does not register duplicate direct DOM event handlers on the same element', () => {
+  const registrations = new Map();
+  const pattern = /\$\('([^']+)'\)\.addEventListener\('([^']+)'/g;
+  for (const match of renderer.matchAll(pattern)) {
+    const key = match[1] + '::' + match[2];
+    registrations.set(key, (registrations.get(key) || 0) + 1);
+  }
+  const duplicates = [...registrations].filter(([, count]) => count > 1).map(([key, count]) => key + ' (' + count + ')');
+  assert.deepEqual(duplicates, [], 'duplicate event registrations can execute a write twice: ' + duplicates.join(', '));
+});
+
+
+test('manual leads can be linked to an existing client and preserve that relation when edited', () => {
+  assert.match(html, /id="leadClient" name="client_id"|name="client_id" id="leadClient"/);
+  assert.match(renderer, /Promise\.all\(\[window\.crm\.listLeads\(\), window\.crm\.listClients\(\)\]\)/);
+  assert.match(renderer, /l\.client_name \|\| '—'/);
+  assert.match(renderer, /\['id','title','client_id','service','source','budget_rub','address','notes'\]/);
+  assert.match(main, /INSERT INTO leads\(client_id,title,service,source,budget_rub,address,notes\)/);
+  assert.match(main, /UPDATE leads SET client_id=\?, title=\?, service=\?, source=\?, budget_rub=\?, address=\?, notes=\?/);
+  assert.match(main, /Выбранный клиент не найден/);
+});
+
+
+test('projects, including estimate-to-project creation, can be linked to an existing client', () => {
+  assert.match(html, /id="projectClient" name="client_id"|name="client_id" id="projectClient"/);
+  assert.match(renderer, /Promise\.all\(\[window\.crm\.listProjects\(\), window\.crm\.listClients\(\)\]\)/);
+  assert.match(renderer, /\['id','title','client_id','service','status','contract_rub'/);
+  assert.match(main, /INSERT INTO projects\(client_id,title,service,status,contract_rub/);
+  assert.match(main, /UPDATE projects SET client_id=@client_id/);
+  assert.match(main, /projectInput\.client_id/);
+  assert.match(main, /Выбранный клиент не найден/);
+});
+
+
+test('income tracking has separate official/internal labels and period summaries',()=>{assert.match(html,/id="incomeMonthTotal"/);assert.match(html,/id="incomeYearTotal"/);assert.match(html,/id="incomeForm"/);assert.match(html,/value="internal">Внутренний учёт/);assert.match(renderer,/window\.crm\.listIncomeRecords\(\)/);assert.match(main,/ipcMain\.handle\('income:create'/);assert.match(main,/ipcMain\.handle\('income:update'/);assert.match(main,/income_records/);});
+test('native dialogs force opaque readable surfaces and visible input states',()=>{const css=fs.readFileSync(path.join(__dirname,'../src/styles.css'),'utf8');assert.match(css,/dialog\.modal\{background:#fff!important;color:#182434!important/);assert.match(css,/dialog\.modal input:not\(\[type=checkbox\]\):not\(\[type=radio\]\),dialog\.modal select,dialog\.modal textarea\{background:#fff!important;color:#182434!important/);assert.match(css,/dialog\.modal::backdrop\{background:rgba\(12,24,39,.68\)/);});
+
+
+test('contract generator exposes required party, bank and scope fields and PDF export bridge',()=>{assert.match(html,/id="contractDialog"/);assert.match(html,/name="contractor_account"/);assert.match(html,/name="customer_account"/);assert.match(html,/name="contractor_bik"/);assert.match(html,/name="work_scope"/);assert.match(renderer,/window\.crm\.exportContractPdf\(data\)/);assert.match(main,/ipcMain\.handle\('documents:exportContractPdf'/);assert.match(main,/Сдача и приёмка работ/);assert.match(main,/Дополнительные работы/);});
+
+test('updates and settings are first-class views with product changelog and usable local preferences',()=>{assert.match(html,/data-view="updates"/);assert.match(html,/id="view-updates"/);assert.match(html,/id="manageUpdatesBtn"/);assert.match(html,/Клиенты и заявки связаны/);assert.match(html,/ПИ — производственный интеллект/);assert.match(html,/id="view-settings"/);assert.match(html,/id="themeSelect"/);assert.match(html,/id="settingsBackupBtn"/);assert.match(html,/id="settingsNotificationsBtn"/);assert.match(renderer,/gruzli-ui-theme/);assert.match(renderer,/showView\('updates'\)/);});
+test('brand palette and responsive settings layouts are defined',()=>{const css=fs.readFileSync(path.join(__dirname,'../src/styles.css'),'utf8');assert.match(css,/--brand-ink:#14283b/);assert.match(css,/body\[data-theme="ocean"\]/);assert.match(css,/body\.compact-mode/);assert.match(css,/body\.reduce-motion/);assert.match(css,/\.updates-release-grid/);});

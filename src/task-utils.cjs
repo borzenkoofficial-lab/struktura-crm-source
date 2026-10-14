@@ -9,7 +9,10 @@ function normalizeTaskInput(input = {}) {
     const year = Number(yearText), month = Number(monthText), day = Number(dayText);
     const hour = hourText === undefined ? null : Number(hourText);
     const minute = minuteText === undefined ? null : Number(minuteText);
-    const date = new Date(Date.UTC(year, month - 1, day));
+    const date = new Date(0);
+    date.setUTCHours(0, 0, 0, 0);
+    // Avoid Date.UTC's special interpretation of years 0–99 as 1900–1999.
+    date.setUTCFullYear(year, month - 1, day);
     const validDate = date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
     const validTime = hour === null || (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59);
     if (!validDate || !validTime) throw new Error('Укажи корректную дату и время.');

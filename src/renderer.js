@@ -13,7 +13,7 @@ function dateToday() { return new Date().toISOString().slice(0,10); }
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', plans: 'Тариф и интеграции' };
+  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', plans: 'Тариф и интеграции', updates: 'Обновления и журнал изменений', settings: 'Настройки программы' };
   $('pageTitle').textContent = titles[name] || 'GRUZLI CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
   const view = $(`view-${name}`);
@@ -76,6 +76,7 @@ async function showIntegratedBrowser() {
   browserResizeObserver.observe($('browserPage'));
   browserResizeObserver.observe($('view-browser'));
   window.addEventListener('resize', syncBrowserBounds);
+  window.addEventListener('scroll', syncBrowserBounds, true);
 }
 function updateBrowserState(state = {}) {
   browserStateCache = { ...browserStateCache, ...state };
@@ -174,12 +175,19 @@ async function refreshDashboard() {
   $('statReceived').textContent = fmt(s.received); $('statCash').textContent = fmt(s.cash);
   $('leadNavCount').textContent = s.leads;
   const leads = await window.crm.listLeads();
-  $('recentLeads').innerHTML = leads.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th></tr></thead><tbody>${leads.slice(0,5).map(l => `<tr><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><span class="pill ${esc(l.status)}">${esc(statusLabels[l.status] || l.status)}</span></td><td>${fmt(l.budget_rub)}</td></tr>`).join('')}</tbody></table>` : `<div class="empty-state"><div class="empty-icon">◉</div><strong>Пока нет заявок</strong><span>Добавь первое обращение — оно появится здесь.</span><button class="button primary" data-goto="leads">Добавить заявку</button></div>`;
+  $('recentLeads').innerHTML = leads.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Клиент</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th></tr></thead><tbody>${leads.slice(0,5).map(l => `<tr><td>${esc(l.title)}</td><td>${esc(l.client_name || '—')}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><span class="pill ${esc(l.status)}">${esc(statusLabels[l.status] || l.status)}</span></td><td>${fmt(l.budget_rub)}</td></tr>`).join('')}</tbody></table>` : `<div class="empty-state"><div class="empty-icon">◉</div><strong>Пока нет заявок</strong><span>Добавь первое обращение — оно появится здесь.</span><button class="button primary" data-goto="leads">Добавить заявку</button></div>`;
   try { const production = await window.crm.productionOverview(); renderProductionIntelligence(production, 'piHomeSummary', 'piHomeAlerts'); } catch (error) { $('piHomeSummary').textContent = 'Не удалось загрузить данные производства.'; $('piHomeAlerts').innerHTML = `<div class="pi-no-alerts">${esc(error.message)}</div>`; }
 }
 async function refreshLeads() {
-  const rows = await window.crm.listLeads(); const q = ($('leadSearch')?.value || '').toLowerCase(); const status = $('leadStatusFilter')?.value || '';
-  const filtered = rows.filter(l => `${l.title} ${l.address} ${l.notes} ${sourceLabels[l.source]}`.toLowerCase().includes(q) && (!status || l.status === status));
+  const [rows, clients] = await Promise.all([window.crm.listLeads(), window.crm.listClients()]);
+  const clientSelect = $('leadClient');
+  if (clientSelect) {
+    const selectedClient = clientSelect.value;
+    clientSelect.innerHTML = `<option value="">Без привязки к клиенту</option>${clients.map(c => `<option value="${c.id}">${esc(c.name)}${c.phone ? ` · ${esc(c.phone)}` : ''}</option>`).join('')}`;
+    if (clients.some(c => String(c.id) === selectedClient)) clientSelect.value = selectedClient;
+  }
+  const q = ($('leadSearch')?.value || '').toLowerCase(); const status = $('leadStatusFilter')?.value || '';
+  const filtered = rows.filter(l => `${l.title} ${l.client_name || ''} ${l.address} ${l.notes} ${sourceLabels[l.source]}`.toLowerCase().includes(q) && (!status || l.status === status));
   $('leadsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th><th>Адрес</th><th>Создана</th><th>Действия</th></tr></thead><tbody>${filtered.map(l => `<tr><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><select class="lead-status-select" data-lead-status="${l.id}" aria-label="Статус заявки: ${esc(l.title)}">${Object.entries(statusLabels).map(([value,label]) => `<option value="${value}" ${l.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(l.budget_rub)}</td><td>${esc(l.address || '—')}</td><td>${esc(String(l.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-lead="${l.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Заявок не найдено','Создай заявку или измени фильтр.');
 }
 async function refreshClients() {
@@ -188,7 +196,14 @@ async function refreshClients() {
   $('clientsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Клиент</th><th>Телефон</th><th>Email</th><th>Тип</th><th>Добавлен</th><th>Действия</th></tr></thead><tbody>${filtered.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.phone || '—')}</td><td>${esc(c.email || '—')}</td><td>${c.client_type === 'company' ? 'Компания' : 'Частное лицо'}</td><td>${esc(String(c.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-client="${c.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Клиентов пока нет','Добавь первый контакт в свою базу.');
 }
 async function refreshProjects() {
-  const rows = await window.crm.listProjects(); const q = ($('projectSearch')?.value || '').toLowerCase();
+  const [rows, clients] = await Promise.all([window.crm.listProjects(), window.crm.listClients()]);
+  const clientSelect = $('projectClient');
+  if (clientSelect) {
+    const selectedClient = clientSelect.value;
+    clientSelect.innerHTML = `<option value="">Без привязки к клиенту</option>${clients.map(c => `<option value="${c.id}">${esc(c.name)}${c.phone ? ` · ${esc(c.phone)}` : ''}</option>`).join('')}`;
+    if (clients.some(c => String(c.id) === selectedClient)) clientSelect.value = selectedClient;
+  }
+  const q = ($('projectSearch')?.value || '').toLowerCase();
   const filtered = rows.filter(p => `${p.title} ${p.address} ${p.client_name || ''}`.toLowerCase().includes(q));
   $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th><th>Действия</th></tr></thead><tbody>${filtered.map(p => `<tr><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><select class="project-status-select" data-project-status="${p.id}" aria-label="Статус объекта: ${esc(p.title)}">${Object.entries(projectStatusLabels).map(([value,label]) => `<option value="${value}" ${p.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Number(p.received_rub)))}</td><td><button type="button" class="button subtle compact" data-edit-project="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
   const options = rows.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
@@ -215,9 +230,18 @@ function renderFinanceInsights(data) {
   $('financeAlerts').innerHTML = alerts.length ? alerts.map(a => `<article class="finance-alert ${a.level}"><strong>${esc(a.title)}</strong><span>${esc(a.body)}</span></article>`).join('') : '<div class="empty-state compact-empty"><strong>Критичных сигналов по введённым данным нет</strong><span>Это не гарантия платёжеспособности: проверь полноту учёта.</span></div>';
 }
 async function refreshFinance() {
-  const [summary, payments, expenses, insights] = await Promise.all([window.crm.summary(), window.crm.listPayments(), window.crm.listExpenses(), window.crm.financeInsights()]);
+  const [summary, payments, expenses, insights, incomeRecords] = await Promise.all([window.crm.summary(), window.crm.listPayments(), window.crm.listExpenses(), window.crm.financeInsights(), window.crm.listIncomeRecords()]);
   renderFinanceInsights(insights);
   $('financeReceived').textContent = fmt(summary.received); $('financeExpenses').textContent = fmt(summary.expenses); $('financeCash').textContent = fmt(summary.cash);
+  const now = new Date(), monthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`, yearKey = String(now.getFullYear());
+  const totalFor = rows => rows.reduce((sum,row) => sum + Number(row.amount_rub || 0),0);
+  const monthRows = incomeRecords.filter(row => String(row.income_date || '').startsWith(monthKey));
+  const yearRows = incomeRecords.filter(row => String(row.income_date || '').startsWith(yearKey));
+  $('incomeMonthTotal').textContent = fmt(totalFor(monthRows)); $('incomeYearTotal').textContent = fmt(totalFor(yearRows));
+  $('incomeMonthDetail').textContent = `Официально: ${fmt(totalFor(monthRows.filter(row=>row.record_type==='official')))} · внутренний учёт: ${fmt(totalFor(monthRows.filter(row=>row.record_type==='internal')))}`;
+  $('incomeYearDetail').textContent = `Официально: ${fmt(totalFor(yearRows.filter(row=>row.record_type==='official')))} · внутренний учёт: ${fmt(totalFor(yearRows.filter(row=>row.record_type==='internal')))}`;
+  $('incomeTable').innerHTML = incomeRecords.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Источник</th><th>Категория</th><th>Сумма</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${incomeRecords.map(row=>`<tr><td>${esc(row.income_date)}</td><td>${esc(row.source)}</td><td><span class="pill ${row.record_type==='internal'?'estimate':'won'}">${row.record_type==='internal'?'Внутренний учёт':'Официальный учёт'}</span></td><td>+${fmt(row.amount_rub)}</td><td>${esc(row.note||'—')}</td><td><button type="button" class="button subtle compact" data-edit-income="${row.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Дополнительных поступлений пока нет','Нажми «Добавить доход», чтобы зафиксировать поступление вне списка платежей по объектам.');
+
   $('paymentsTable').innerHTML = payments.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Операция</th><th>Сумма</th><th>Способ</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${payments.map(p => `<tr><td>${esc(p.payment_date)}</td><td>${esc(p.project_title)}</td><td>${p.payment_type === 'refund' ? '<span class="pill lost">Возврат</span>' : '<span class="pill won">Поступление</span>'}</td><td>${p.payment_type === 'refund' ? '−' : '+'}${fmt(p.amount_rub)}</td><td>${esc(({cash:'Наличные',bank:'На счёт',transfer:'Перевод',other:'Другое'})[p.method] || p.method)}</td><td>${esc(p.note || '—')}</td><td><button type="button" class="button subtle compact" data-edit-payment="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Платежей пока нет','Добавь объект, затем записывай авансы и окончательные расчёты.');
   $('expensesTable').innerHTML = expenses.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Расход</th><th>Объект</th><th>Категория</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${esc(e.expense_date)}</td><td>${esc(e.description)}</td><td>${esc(e.project_title || 'Общий')}</td><td>${esc(expenseLabels[e.category] || e.category)}</td><td>${fmt(e.amount_rub)}</td><td><span class="pill ${e.is_paid ? 'won' : 'estimate'}">${e.is_paid ? 'Оплачено' : 'Запланировано'}</span></td><td><button type="button" class="button subtle compact" data-edit-expense="${e.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Расходов пока нет','Записывай материалы, рабочих, транспорт и другие расходы.');
   await refreshProjects();
@@ -230,23 +254,23 @@ let learnedProductivityModels = {};
 let learningRatesRequestId = 0;
 function money(n) { return fmt(Math.round(Number(n || 0))); }
 function estimateReadInputs() {
+  const automaticDays = $('estimateCrewAutoDays')?.checked === true;
+  const durationForecast = automaticDays ? estimateGetDurationForecast() : null;
+  const automaticDaysUnavailable = automaticDays && (durationForecast.daysForCrew === null || !Number.isFinite(durationForecast.daysForCrew));
   return {
     workArea: $('estimateWorkArea').value,
     lines: estimateLines,
-    crew: { people: $('estimateCrewPeople').value, mode: $('estimateCrewMode').value, rate: $('estimateCrewRate').value, hoursPerDay: $('estimateCrewHours').value, days: $('estimateCrewAutoDays')?.checked ? Math.max(0, Math.ceil(estimateGetDurationForecast().daysForCrew || 0)) : $('estimateCrewDays').value },
+    crew: { people: $('estimateCrewPeople').value, mode: $('estimateCrewMode').value, rate: $('estimateCrewRate').value, hoursPerDay: $('estimateCrewHours').value, days: automaticDays ? Math.max(1, Math.ceil(durationForecast.daysForCrew ?? Number($('estimateCrewDays').value || 1))) : $('estimateCrewDays').value, automaticDaysUnavailable },
     materialsCost: $('estimateMaterialsCost').value, disposalCost: $('estimateDisposalCost').value,
     transportCost: $('estimateTransportCost').value, equipmentCost: $('estimateEquipmentCost').value,
     otherCost: $('estimateOtherCost').value, overheadPercent: $('estimateOverheadPercent').value,
     taxPercent: $('estimateTaxPercent').value, discountPercent: $('estimateDiscountPercent').value,
-    marginPercent: $('estimateTargetMargin').value, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value, efficiencyPercent: $('estimateEfficiency')?.value || 85
+    marginPercent: $('estimateTargetMargin').value, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value || 5, efficiencyPercent: $('estimateEfficiency')?.value || 85
   };
 }
 function estimateGetDurationForecast() {
-  const durationLines = estimateLines.filter(line => Number(line.quantity) > 0).map(line => {
-    const learned = learnedProductivityModels[String(line.catalogId)];
-    return { ...line, productivity: estimateEffectiveProductivity(line), learningObservations: Number(learned?.observations || 0), baselineProductivity: Number(line.productivity || 0) };
-  });
-  return window.StrukturaEstimateCalculator.calculateDuration({ lines: durationLines, crew: { people: $('estimateCrewPeople').value, hoursPerDay: $('estimateCrewHours').value }, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value, reservePercent: $('estimateScheduleReserve').value, efficiencyPercent: $('estimateEfficiency')?.value || 85 });
+  const durationLines = estimateLines.filter(line => Number(line.quantity) > 0).map(estimateDurationLine);
+  return window.StrukturaEstimateCalculator.calculateDuration({ lines: durationLines, crew: { people: $('estimateCrewPeople').value, hoursPerDay: $('estimateCrewHours').value }, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value || 5, reservePercent: $('estimateScheduleReserve').value, efficiencyPercent: $('estimateEfficiency')?.value || 85 });
 }
 function estimateReadActualInputs(plannedCost = 0) {
   return {
@@ -327,6 +351,18 @@ function estimateEffectiveProductivity(line) {
   const weight = count >= 5 ? 0.75 : count >= 3 ? 0.5 : 0.25;
   return Math.round((baseline * (1 - weight) + Number(observed.observedMedian) * weight) * 1000) / 1000;
 }
+function estimateDurationLine(line) {
+  const learned = learnedProductivityModels[String(line.catalogId)] || {};
+  return {
+    ...line,
+    productivity: estimateEffectiveProductivity(line),
+    learningObservations: Number(learned.observations || 0),
+    baselineProductivity: Number(line.productivity || 0),
+    observedMedian: Number(learned.observedMedian || 0),
+    observedQ25: Number(learned.observedQ25 || 0),
+    observedQ75: Number(learned.observedQ75 || 0)
+  };
+}
 async function refreshEstimateLearningRates() {
   const requestId = ++learningRatesRequestId;
   const ids = [...new Set(estimateCatalog.map(item => String(item.id)).filter(Boolean))];
@@ -350,15 +386,12 @@ async function refreshEstimateLearningRates() {
   estimateRefreshDuration();
 }
 function estimateRefreshDuration() {
-  const durationLines = estimateLines.filter(line => Number(line.quantity) > 0).map(line => {
-    const learned = learnedProductivityModels[String(line.catalogId)];
-    return { ...line, productivity: estimateEffectiveProductivity(line), learningObservations: Number(learned?.observations || 0), baselineProductivity: Number(line.productivity || 0) };
-  });
-  const result = window.StrukturaEstimateCalculator.calculateDuration({ lines: durationLines, crew: { people: $('estimateCrewPeople').value, hoursPerDay: $('estimateCrewHours').value }, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value, reservePercent: $('estimateScheduleReserve').value, efficiencyPercent: $('estimateEfficiency')?.value || 85 });
+  const durationLines = estimateLines.filter(line => Number(line.quantity) > 0).map(estimateDurationLine);
+  const result = window.StrukturaEstimateCalculator.calculateDuration({ lines: durationLines, crew: { people: $('estimateCrewPeople').value, hoursPerDay: $('estimateCrewHours').value }, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value || 5, reservePercent: $('estimateScheduleReserve').value, efficiencyPercent: $('estimateEfficiency')?.value || 85 });
   const fmtDays = value => value === null || !Number.isFinite(value) ? 'Укажи бригаду' : `${value.toLocaleString('ru-RU',{maximumFractionDigits:1})} смен`;
   $('estimatePersonShifts').textContent = `${result.personShifts.toLocaleString('ru-RU',{maximumFractionDigits:1})}${result.missingRates ? ' + неучтённые работы' : ''}`;
   $('estimateDurationDays').textContent = result.missingRates ? 'Нужны нормы по всем работам' : fmtDays(result.daysForCrew);
-  $('estimateDurationHours').textContent = result.missingRates ? `Частичный расчёт: учтено ${result.lines.length - result.missingRates} из ${result.lines.length} позиций. Срок всего объекта не рассчитан.` : result.daysForCrew === null ? 'Укажи бригаду и длительность смены больше нуля' : `≈ ${result.calendarHours.toLocaleString('ru-RU',{maximumFractionDigits:1})} часов по графику · ориентир ${fmtDays(result.lowDaysForCrew)}–${fmtDays(result.highDaysForCrew)}`;
+  $('estimateDurationHours').textContent = result.missingRates ? `Частичный расчёт: учтено ${result.lines.length - result.missingRates} из ${result.lines.length} позиций. Срок всего объекта не рассчитан.` : result.daysForCrew === null ? 'Укажи бригаду и длительность смены больше нуля' : `≈ ${result.calendarHours.toLocaleString('ru-RU',{maximumFractionDigits:1})} часов по графику · ${result.hasEmpiricalRange ? `диапазон по фактической выработке: ${fmtDays(result.lowDaysForCrew)}–${fmtDays(result.highDaysForCrew)}` : 'статистический диапазон пока недоступен: нужны 5+ наблюдений по каждой работе'}`;
   $('estimateDurationFive').textContent = result.missingRates ? 'Недостаточно норм' : fmtDays(result.hoursPerDay > 0 ? result.personShifts * 8 / (5 * result.hoursPerDay) * (1 + result.reservePercent / 100) : null);
   $('estimateDurationTen').textContent = result.missingRates ? 'Недостаточно норм' : fmtDays(result.hoursPerDay > 0 ? result.personShifts * 8 / (10 * result.hoursPerDay) * (1 + result.reservePercent / 100) : null);
   $('estimateRequiredPeople').textContent = result.requiredPeople === null ? '—' : `${result.requiredPeople} чел.`;
@@ -366,7 +399,7 @@ function estimateRefreshDuration() {
   if (result.reservePercent > 0) $('estimateDurationHours').textContent += ` · резерв ${result.reservePercent}% включён`;
   if ($('estimateCrewAutoDays')?.checked && result.isComplete && result.daysForCrew !== null) $('estimateCrewDays').value = String(Math.max(1, Math.ceil(result.daysForCrew)));
 
-  $('estimateDurationBreakdown').innerHTML = result.lines.length ? `<div class="estimate-duration-table"><div class="estimate-duration-row header"><span>Работа</span><span>Объём</span><span>Норма / чел.-смену</span><span>Трудоёмкость</span></div>${result.lines.map((line, index) => { const source = durationLines[index]; const normDetail = source?.learningObservations ? `Практика: ${source.learningObservations} наблюдений · старт ${source.baselineProductivity.toLocaleString('ru-RU',{maximumFractionDigits:2})}` : 'Стартовая норма из прайса'; return `<div class="estimate-duration-row"><span>${esc(line.name)}</span><span>${line.quantity.toLocaleString('ru-RU')} ${esc(line.unit)}</span><span>${line.missingRate ? 'Не задана' : `${line.productivity.toLocaleString('ru-RU')} ${esc(line.unit)} / чел.`}<small>${esc(normDetail)}</small></span><strong>${line.missingRate ? '—' : `${line.personShifts.toLocaleString('ru-RU',{maximumFractionDigits:1})} чел.-смен`}</strong></div>`; }).join('')}</div>` : '<p class="estimate-duration-empty">Добавь работы в смету, чтобы рассчитать трудоёмкость.</p>';
+  $('estimateDurationBreakdown').innerHTML = result.lines.length ? `<div class="estimate-duration-table"><div class="estimate-duration-row header"><span>Работа</span><span>Объём</span><span>Эффективная норма / чел.-смену</span><span>Трудоёмкость</span></div>${result.lines.map((line, index) => { const source = durationLines[index]; const normDetail = source?.learningObservations ? `Практика: ${source.learningObservations} наблюдений · старт ${source.baselineProductivity.toLocaleString('ru-RU',{maximumFractionDigits:2})}` : 'Стартовая норма из прайса'; return `<div class="estimate-duration-row"><span>${esc(line.name)}</span><span>${line.quantity.toLocaleString('ru-RU')} ${esc(line.unit)}</span><span>${line.missingRate ? 'Не задана' : `${line.effectiveProductivity.toLocaleString('ru-RU',{maximumFractionDigits:2})} ${esc(line.unit)} / чел.`}<small>${esc(normDetail)}</small></span><strong>${line.missingRate ? '—' : `${line.personShifts.toLocaleString('ru-RU',{maximumFractionDigits:1})} чел.-смен`}</strong></div>`; }).join('')}</div>` : '<p class="estimate-duration-empty">Добавь работы в смету, чтобы рассчитать трудоёмкость.</p>';
   if (result.missingRates) $('estimateDurationBreakdown').insertAdjacentHTML('afterbegin', `<p class="notice inline-notice">Для ${result.missingRates} позиций не задана норма производительности; они не включены в итог трудоёмкости.</p>`);
   return result;
 }
@@ -695,6 +728,8 @@ $('estimateAddCustomCatalogBtn').addEventListener('click', () => {
 });
 $('estimateCopyBtn').addEventListener('click', estimateCopySummary);
 $('estimateCsvBtn').addEventListener('click', estimateDownloadCsv);
+$('estimateContractBtn').addEventListener('click',()=>{const result=refreshEstimate();if(!result)return;const form=$('contractForm'),now=new Date(),today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;form.reset();form.elements.contract_number.value=`ГР-${String(Date.now()).slice(-6)}/${now.getFullYear()}`;form.elements.contract_date.value=today;form.elements.start_date.value=today;form.elements.end_date.value='';form.elements.contract_price.value=String(Math.round(result.revenue));form.elements.object_address.value=$('estimateAddress').value||'';form.elements.customer_name.value=$('estimateCustomer').value||'';form.elements.customer_contact.value=$('estimateContact').value||'';form.elements.work_scope.value=result.lineItems.map((line,i)=>`${i+1}. ${line.name} — ${line.quantity} ${line.unit}`).join('\n')||'Работы согласно согласованной смете.';openDialog('contractDialog');});
+$('contractForm').addEventListener('submit',async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget));if(data.end_date<data.start_date){toast('Дата окончания не может быть раньше даты начала.',true);return;}try{const saved=await window.crm.exportContractPdf(data);if(saved?.canceled)return;closeDialog('contractDialog');toast('Договор подряда в PDF сохранён.');}catch(error){toast(`Не удалось сформировать договор: ${error.message}`,true);}});
 $('estimatePdfBtn').addEventListener('click', async () => {
   const r = refreshEstimate(); if (!r) return;
   try { const saved = await window.crm.exportQuotePdf({ title: $('estimateTitle').value, customer: $('estimateCustomer').value, address: $('estimateAddress').value, contact: $('estimateContact').value, validity: $('estimateValidity').value, lines: r.lineItems.map(x => ({name:x.name,unit:x.unit,quantity:x.quantity,price:x.price})), revenue: r.revenue, discount: r.discount }); if (saved?.canceled) return; toast('КП в PDF сохранено.'); } catch (error) { toast(`Не удалось сформировать PDF: ${error.message}`, true); }
@@ -798,7 +833,7 @@ $('leadsTable').addEventListener('click', async event => {
     const rows = await window.crm.listLeads(), lead = rows.find(item => item.id === Number(button.dataset.editLead));
     if (!lead) throw new Error('Заявка не найдена. Обнови список.');
     const form = $('leadForm');
-    for (const key of ['id','title','service','source','budget_rub','address','notes']) form.elements[key].value = lead[key] ?? '';
+    for (const key of ['id','title','client_id','service','source','budget_rub','address','notes']) form.elements[key].value = lead[key] ?? '';
     $('leadDialogTitle').textContent = 'Изменить заявку'; openDialog('leadDialog');
   } catch (error) { toast(error.message, true); }
 });
@@ -808,7 +843,7 @@ $('clientForm').addEventListener('submit', async e => {
     if (data.id) await window.crm.updateClient(data); else await window.crm.createClient(data);
     form.reset(); $('clientDialogTitle').textContent = 'Новый клиент'; closeDialog('clientDialog');
     toast(data.id ? 'Карточка клиента обновлена.' : 'Клиент сохранён.');
-    await Promise.all([refreshClients(), refreshDashboard()]);
+    await Promise.all([refreshClients(), refreshLeads(), refreshProjects(), refreshDashboard()]);
   } catch (err) { toast(err.message, true); }
 });
 $('clientsTable').addEventListener('click', async event => {
@@ -850,7 +885,7 @@ $('projectsTable').addEventListener('click', async event => {
     const rows = await window.crm.listProjects(), project = rows.find(item => item.id === Number(button.dataset.editProject));
     if (!project) throw new Error('Объект не найден. Обнови список.');
     const form = $('projectForm');
-    for (const key of ['id','title','service','status','contract_rub','address','start_date','end_date','planned_people','complexity_factor','notes']) form.elements[key].value = project[key] ?? '';
+    for (const key of ['id','title','client_id','service','status','contract_rub','address','start_date','end_date','planned_people','complexity_factor','notes']) form.elements[key].value = project[key] ?? '';
     $('projectDialogTitle').textContent = 'Изменить объект'; openDialog('projectDialog');
   } catch (error) { toast(error.message, true); }
 });
@@ -874,6 +909,23 @@ $('paymentsTable').addEventListener('click', async event => {
     $('paymentDialogTitle').textContent = 'Изменить платёж'; $('paymentDialog').showModal();
   } catch (error) { toast(error.message,true); }
 });
+$('addIncomeBtn').addEventListener('click', () => {
+  const form=$('incomeForm'); form.reset(); form.elements.id.value='';
+  const now=new Date(); form.elements.income_date.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  $('incomeDialogTitle').textContent='Добавить доход'; openDialog('incomeDialog');
+});
+$('incomeForm').addEventListener('submit',async e=>{
+  e.preventDefault(); const form=e.currentTarget,data=Object.fromEntries(new FormData(form));
+  try { if(data.id) await window.crm.updateIncomeRecord(data); else await window.crm.createIncomeRecord(data); form.reset(); closeDialog('incomeDialog'); toast(data.id?'Доход обновлён.':'Доход сохранён.'); await refreshFinance(); }
+  catch(error){toast(error.message,true);}
+});
+$('incomeTable').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-edit-income]'); if(!button)return;
+  try { const rows=await window.crm.listIncomeRecords(),row=rows.find(item=>item.id===Number(button.dataset.editIncome)); if(!row)throw new Error('Запись дохода не найдена.');
+    const form=$('incomeForm'); for(const key of ['id','amount_rub','income_date','record_type','source','note']) form.elements[key].value=row[key]??'';
+    $('incomeDialogTitle').textContent='Изменить доход'; openDialog('incomeDialog');
+  } catch(error){toast(error.message,true);}
+});
 $('expenseForm').addEventListener('submit', async e => {
   e.preventDefault(); const form = e.currentTarget, data = Object.fromEntries(new FormData(form));
   try {
@@ -894,7 +946,6 @@ $('expensesTable').addEventListener('click', async event => {
     $('expenseDialogTitle').textContent = 'Изменить расход'; $('expenseDialog').showModal();
   } catch (error) { toast(error.message,true); }
 });
-$('expenseForm').addEventListener('submit', async e => { e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form)); try { await window.crm.createExpense(data); form.reset(); closeDialog('expenseDialog'); toast('Расход сохранён.'); await refreshFinance(); await refreshDashboard(); } catch (err) { toast(err.message,true); } });
 $('importProspectsBtn').addEventListener('click', async () => { try { const r = await window.crm.importProspectsCsv(); if (!r.canceled) { toast(`Импортировано: ${r.imported}, пропущено дублей: ${r.skipped}.`); await refreshProspects(); } } catch (e) { toast(e.message,true); } });
 $('crawlWebsitesBtn').addEventListener('click', async () => {
   const button = $('crawlWebsitesBtn'), result = $('crawlerResult');
@@ -1124,7 +1175,7 @@ $('productionShiftForm').addEventListener('submit', async e => {
   try {
     const saved = data.id ? await window.crm.updateWorkShift(data) : await window.crm.saveWorkShift(data);
     closeDialog('productionShiftDialog');
-    toast(data.id ? \`Отчёт смены №\${saved.shift_id} исправлен.\` : \`Смена №\${saved.shift_id} закрыта. Факт сохранён; производственная модель и прогноз обновлены.\`);
+    toast(data.id ? `Отчёт смены №${saved.shift_id} исправлен.` : `Смена №${saved.shift_id} закрыта. Факт сохранён; производственная модель и прогноз обновлены.`);
     await Promise.all([refreshProduction(), refreshEstimateLearningRates()]);
   } catch (error) { toast(error.message,true); }
 });
@@ -1179,8 +1230,8 @@ $('productionHistory').addEventListener('click', async e => {
     }
     if (!deleteButton) return;
     const id = Number(deleteButton.dataset.deleteProductionShift);
-    if (!confirm(\`Удалить отчёт смены №\${id}? Объём исчезнет из истории и будет исключён из расчёта производительности. Это действие нельзя отменить.\`)) return;
-    await window.crm.deleteWorkShift(id); toast(\`Отчёт смены №\${id} удалён.\`);
+    if (!confirm(`Удалить отчёт смены №${id}? Объём исчезнет из истории и будет исключён из расчёта производительности. Это действие нельзя отменить.`)) return;
+    await window.crm.deleteWorkShift(id); toast(`Отчёт смены №${id} удалён.`);
     await Promise.all([refreshProduction(), refreshEstimateLearningRates()]);
   } catch (error) { toast(error.message,true); }
 });
@@ -1200,11 +1251,56 @@ function renderUpdateStatus(status = {}) {
   $('downloadUpdateBtn').disabled = downloading;
   $('installUpdateBtn').hidden = status.state !== 'downloaded';
 }
-$('openUpdatesBtn').addEventListener('click', async () => {
+$('openUpdatesBtn').addEventListener('click', () => showView('updates'));
+$('manageUpdatesBtn').addEventListener('click', async () => {
   openDialog('updatesDialog');
   try { renderUpdateStatus(await window.crm.updateStatus()); }
   catch (error) { renderUpdateStatus({ state: 'error', message: error.message }); }
 });
+$('settingsOpenUpdatesBtn').addEventListener('click', () => showView('updates'));
+$('settingsNotificationsBtn').addEventListener('click', async () => {
+  try { await refreshNotificationSettings(); openDialog('notificationSettingsDialog'); }
+  catch (error) { toast(`Не удалось загрузить настройки уведомлений: ${error.message}`, true); }
+});
+$('settingsBackupBtn').addEventListener('click', () => $('backupBtn').click());
+$('settingsRestoreBackupBtn').addEventListener('click', () => $('restoreBackupBtn').click());
+$('settingsDataFolderBtn').addEventListener('click', () => $('dataFolderBtn').click());
+async function loadSettingsVersion() {
+  try {
+    const version = await window.crm.version();
+    $('settingsAppVersion').textContent = `v${version}`;
+    $('updatesPageVersion').textContent = `v${version}`;
+  } catch { $('settingsAppVersion').textContent = 'Недоступна'; $('updatesPageVersion').textContent = 'Недоступна'; }
+}
+const themeSelect = $('themeSelect');
+const compactModeToggle = $('compactModeToggle');
+const reducedMotionToggle = $('reducedMotionToggle');
+function applyUiPreferences() {
+  const theme = localStorage.getItem('gruzli-ui-theme') || 'brand';
+  const compact = localStorage.getItem('gruzli-ui-compact') === 'true';
+  const reduceMotion = localStorage.getItem('gruzli-ui-reduced-motion') === 'true';
+  document.body.dataset.theme = theme;
+  document.body.classList.toggle('compact-mode', compact);
+  document.body.classList.toggle('reduce-motion', reduceMotion);
+  if (themeSelect) themeSelect.value = theme;
+  if (compactModeToggle) compactModeToggle.checked = compact;
+  if (reducedMotionToggle) reducedMotionToggle.checked = reduceMotion;
+}
+themeSelect?.addEventListener('change', () => {
+  localStorage.setItem('gruzli-ui-theme', themeSelect.value);
+  applyUiPreferences();
+  toast('Цветовая схема применена.');
+});
+compactModeToggle?.addEventListener('change', () => {
+  localStorage.setItem('gruzli-ui-compact', String(compactModeToggle.checked));
+  applyUiPreferences();
+});
+reducedMotionToggle?.addEventListener('change', () => {
+  localStorage.setItem('gruzli-ui-reduced-motion', String(reducedMotionToggle.checked));
+  applyUiPreferences();
+});
+applyUiPreferences();
+loadSettingsVersion();
 $('checkUpdatesBtn').addEventListener('click', async () => {
   try { renderUpdateStatus(await window.crm.checkForUpdates()); }
   catch (error) { renderUpdateStatus({ state: 'error', message: error.message }); }

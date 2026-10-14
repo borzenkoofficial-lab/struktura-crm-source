@@ -25,6 +25,8 @@ test('observed production is normalized for complexity and blended more as evide
   assert.equal(model.learnedNormalRate, 8.4);
   assert.equal(model.effectiveProductivity, 8.4);
   assert.match(model.confidence, /3–4/);
+  assert.equal(model.observedQ25, 8.4);
+  assert.equal(model.observedQ75, 10.4);
 });
 
 test('remaining-time forecast accounts for completed work, crew size, and items already finished', () => {
@@ -71,6 +73,8 @@ test('production model learns diminishing per-worker output for larger crews onl
   assert.equal(smallCrew.crewScalingApplied, true);
   assert.equal(largeCrew.crewScalingApplied, true);
   assert.ok(largeCrew.effectiveProductivity < smallCrew.effectiveProductivity, 'per-worker productivity should be lower for the observed larger crew');
+  assert.ok(smallCrew.observedQ25 > 0 && smallCrew.observedQ75 > smallCrew.observedQ25, 'quartiles must be available for the reference crew');
+  assert.ok(largeCrew.observedQ25 > 0 && largeCrew.observedQ75 > largeCrew.observedQ25, 'quartiles must be normalized to the target crew size');
 });
 
 test('production model keeps linear scaling when productivity is similar across crew sizes', () => {

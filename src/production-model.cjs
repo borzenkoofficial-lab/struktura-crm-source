@@ -1,10 +1,17 @@
 'use strict';
 
 function median(values) {
+  return quantile(values, 0.5);
+}
+
+function quantile(values, probability) {
   const sorted = values.filter(Number.isFinite).slice().sort((a, b) => a - b);
   if (!sorted.length) return null;
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+  const p = Math.max(0, Math.min(1, Number(probability)));
+  const position = (sorted.length - 1) * p;
+  const lower = Math.floor(position);
+  const upper = Math.ceil(position);
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower);
 }
 
 function buildRateModel({ baselineProductivity, observations = [], targetDifficulty = 1, targetCrewSize = 5 } = {}) {
@@ -25,7 +32,8 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
     return { rate: (quantity / (workers * hours / 8)) * factor, crewSize: workers };
   }).filter((entry) => entry && Number.isFinite(entry.rate) && entry.rate > 0);
 
-  const rawObservedMedian = median(entries.map((entry) => entry.rate));
+  const observedRates = entries.map((entry) => entry.rate);
+  const rawObservedMedian = median(observedRates);
   const count = entries.length;
   const crewSizeCounts = new Map();
   for (const entry of entries) crewSizeCounts.set(entry.crewSize, (crewSizeCounts.get(entry.crewSize) || 0) + 1);
@@ -56,6 +64,11 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
     const intercept = median(entries.map(entry => Math.log(entry.rate) - crewSizeExponent * Math.log(entry.crewSize)));
     crewAdjustedObservedMedian = Math.exp(intercept + crewSizeExponent * Math.log(crewTarget));
   }
+  const targetCrewRates = crewScalingApplied
+    ? entries.map(entry => entry.rate * Math.pow(crewTarget / entry.crewSize, crewSizeExponent))
+    : observedRates;
+  const observedQ25 = quantile(targetCrewRates, 0.25);
+  const observedQ75 = quantile(targetCrewRates, 0.75);
   const observedWeight = count >= 5 ? 0.75 : count >= 3 ? 0.5 : count > 0 ? 0.25 : 0;
   const learnedNormalRate = crewAdjustedObservedMedian == null
     ? baseline
@@ -68,6 +81,8 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
     baselineProductivity: baseline,
     observedMedian: crewAdjustedObservedMedian == null ? null : round(crewAdjustedObservedMedian, 3),
     rawObservedMedian: rawObservedMedian == null ? null : round(rawObservedMedian, 3),
+    observedQ25: observedQ25 == null ? null : round(observedQ25, 3),
+    observedQ75: observedQ75 == null ? null : round(observedQ75, 3),
     learnedNormalRate: round(learnedNormalRate, 3),
     effectiveProductivity: round(effectiveProductivity, 3),
     observations: count,

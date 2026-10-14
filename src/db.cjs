@@ -56,6 +56,16 @@ CREATE TABLE IF NOT EXISTS payments (
   note TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS income_records (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ amount_rub INTEGER NOT NULL CHECK(amount_rub > 0),
+ income_date TEXT NOT NULL,
+ record_type TEXT NOT NULL DEFAULT 'official' CHECK(record_type IN ('official','internal')),
+ source TEXT NOT NULL,
+ note TEXT NOT NULL DEFAULT '',
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_income_records_date ON income_records(income_date);
 CREATE TABLE IF NOT EXISTS expenses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
@@ -182,7 +192,12 @@ function openDatabase(userDataPath) {
   db.pragma('foreign_keys = ON');
   db.exec(SCHEMA);
   // Additive migrations keep existing local databases intact after app updates.
+  const leadColumns = new Set(db.prepare('PRAGMA table_info(leads)').all().map(column => column.name));
+  if (!leadColumns.has('client_id')) db.exec('ALTER TABLE leads ADD COLUMN client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL');
   const projectColumns = new Set(db.prepare('PRAGMA table_info(projects)').all().map(column => column.name));
+  if (!projectColumns.has('client_id')) db.exec('ALTER TABLE projects ADD COLUMN client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL');
+  const activityColumns = new Set(db.prepare('PRAGMA table_info(activities)').all().map(column => column.name));
+  if (!activityColumns.has('client_id')) db.exec('ALTER TABLE activities ADD COLUMN client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL');
   if (!projectColumns.has('planned_people')) db.exec('ALTER TABLE projects ADD COLUMN planned_people INTEGER NOT NULL DEFAULT 5 CHECK(planned_people BETWEEN 1 AND 200)');
   if (!projectColumns.has('complexity_factor')) db.exec('ALTER TABLE projects ADD COLUMN complexity_factor REAL NOT NULL DEFAULT 1 CHECK(complexity_factor > 0)');
   const prospectColumns = new Set(db.prepare('PRAGMA table_info(prospects)').all().map(column => column.name));
