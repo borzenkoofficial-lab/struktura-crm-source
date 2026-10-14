@@ -348,3 +348,15 @@ test('client and prospect create, update and CSV import validate contact email a
   assert.ok(main.includes('email: normalizeContactEmail(input.email)'));
   assert.ok(main.includes('email: normalizeContactEmail(item.email)'));
 });
+
+
+test('GRUZLI responsive polish keeps forms usable, tables scrollable and keyboard focus visible', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf8'));
+  assert.equal(pkg.build.productName, 'GRUZLI CRM');
+  assert.match(css, /@media\s*\(max-width:\s*760px\)/);
+  assert.match(css, /@media\s*\(max-width:\s*420px\)/);
+  assert.match(css, /\.estimate-lines-table\s*\{\s*min-width:\s*780px;/);
+  assert.match(css, /\.data-table\s*\{\s*min-width:\s*620px;/);
+  assert.match(css, /button:focus-visible, a:focus-visible, \[role="button"\]:focus-visible/);
+});
