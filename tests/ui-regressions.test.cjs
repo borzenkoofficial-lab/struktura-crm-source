@@ -282,7 +282,7 @@ test('lead details can be edited without creating a duplicate lead', () => {
   assert.match(preload, /updateLead: \(data\) => ipcRenderer\.invoke\('leads:update', data\)/);
   const handler = main.match(/ipcMain\.handle\('leads:update',[\s\S]*?\n\}\);/);
   assert.ok(handler); assert.match(handler[0], /Number\.isSafeInteger\(id\)/);
-  assert.match(handler[0], /UPDATE leads SET title=\?, service=\?, source=\?, budget_rub=\?, address=\?, notes=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
+  assert.match(handler[0], /UPDATE leads SET client_id=\?, title=\?, service=\?, source=\?, budget_rub=\?, address=\?, notes=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
 });
 
 
@@ -293,7 +293,7 @@ test('project details can be edited while linked finance and production records 
   assert.match(preload, /updateProject: \(data\) => ipcRenderer\.invoke\('projects:update', data\)/);
   const handler = main.match(/ipcMain\.handle\('projects:update',[\s\S]*?\n\}\);/);
   assert.ok(handler); assert.match(handler[0], /normalizeProjectInput\(input\)/);
-  assert.match(handler[0], /UPDATE projects SET title=@title, service=@service, status=@status, contract_rub=@contract_rub/);
+  assert.match(handler[0], /UPDATE projects SET client_id=@client_id, title=@title, service=@service, status=@status, contract_rub=@contract_rub/);
   assert.doesNotMatch(handler[0], /DELETE FROM (payments|expenses|production_plans)/);
 });
 
@@ -441,5 +441,16 @@ test('manual leads can be linked to an existing client and preserve that relatio
   assert.match(renderer, /\['id','title','client_id','service','source','budget_rub','address','notes'\]/);
   assert.match(main, /INSERT INTO leads\(client_id,title,service,source,budget_rub,address,notes\)/);
   assert.match(main, /UPDATE leads SET client_id=\?, title=\?, service=\?, source=\?, budget_rub=\?, address=\?, notes=\?/);
+  assert.match(main, /Выбранный клиент не найден/);
+});
+
+
+test('projects, including estimate-to-project creation, can be linked to an existing client', () => {
+  assert.match(html, /id="projectClient" name="client_id"|name="client_id" id="projectClient"/);
+  assert.match(renderer, /Promise\.all\(\[window\.crm\.listProjects\(\), window\.crm\.listClients\(\)\]\)/);
+  assert.match(renderer, /\['id','title','client_id','service','status','contract_rub'/);
+  assert.match(main, /INSERT INTO projects\(client_id,title,service,status,contract_rub/);
+  assert.match(main, /UPDATE projects SET client_id=@client_id/);
+  assert.match(main, /projectInput\.client_id/);
   assert.match(main, /Выбранный клиент не найден/);
 });
