@@ -251,3 +251,23 @@ test('lead pipeline supports validated status changes from the list through the 
   assert.match(renderer, /aria-label="Статус заявки:/);
   assert.match(renderer, /updateLeadStatus\(\{ id, status \}\)/);
 });
+
+
+test('client cards can be edited through validated main-process IPC', () => {
+  assert.match(html, /id="clientDialogTitle"/); assert.match(html, /name="id"/);
+  assert.match(renderer, /data-edit-client=/); assert.match(renderer, /window\.crm\.updateClient\(data\)/);
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  assert.match(preload, /updateClient: \(data\) => ipcRenderer\.invoke\('clients:update', data\)/);
+  const handler = main.match(/ipcMain\.handle\('clients:update',[\s\S]*?\n\}\);/);
+  assert.ok(handler); assert.match(handler[0], /Number\.isSafeInteger\(id\)/);
+  assert.match(handler[0], /UPDATE clients SET name=\?, phone=\?, email=\?, client_type=\?, notes=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
+});
+
+test('project status can be changed safely from the objects list', () => {
+  assert.match(renderer, /data-project-status=/); assert.match(renderer, /window\.crm\.updateProjectStatus\(\{ id, status \}\)/);
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  assert.match(preload, /updateProjectStatus: \(data\) => ipcRenderer\.invoke\('projects:updateStatus', data\)/);
+  const handler = main.match(/ipcMain\.handle\('projects:updateStatus',[\s\S]*?\n\}\);/);
+  assert.ok(handler); assert.match(handler[0], /allowedStatuses\.includes\(status\)/);
+  assert.match(handler[0], /UPDATE projects SET status=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
+});

@@ -190,6 +190,15 @@ ipcMain.handle('clients:create', (_event, input = {}) => {
   });
   return db.prepare('SELECT * FROM clients WHERE id=?').get(result.lastInsertRowid);
 });
+ipcMain.handle('clients:update', (_event, input = {}) => {
+  const id = Number(input.id), name = clean(input.name, 180);
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный номер клиента.');
+  if (!name) throw new Error('Укажи имя клиента или название компании.');
+  if (!db.prepare('SELECT id FROM clients WHERE id=?').get(id)) throw new Error('Клиент не найден. Обнови список и попробуй снова.');
+  db.prepare('UPDATE clients SET name=?, phone=?, email=?, client_type=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
+    .run(name, clean(input.phone, 40), clean(input.email, 180), input.client_type === 'company' ? 'company' : 'person', clean(input.notes), id);
+  return db.prepare('SELECT * FROM clients WHERE id=?').get(id);
+});
 ipcMain.handle('leads:list', () => db.prepare('SELECT l.*, c.name client_name FROM leads l LEFT JOIN clients c ON c.id=l.client_id ORDER BY l.id DESC LIMIT 1000').all());
 ipcMain.handle('leads:create', (_event, input = {}) => {
   const title = clean(input.title, 180);
@@ -222,6 +231,15 @@ ipcMain.handle('projects:create', (_event, input = {}) => {
   const result = db.prepare(`INSERT INTO projects(title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
     VALUES (@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
   return db.prepare('SELECT * FROM projects WHERE id=?').get(result.lastInsertRowid);
+});
+ipcMain.handle('projects:updateStatus', (_event, input = {}) => {
+  const id = Number(input.id), status = String(input.status || '');
+  const allowedStatuses = ['planned', 'active', 'completed', 'cancelled'];
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный номер объекта.');
+  if (!allowedStatuses.includes(status)) throw new Error('Выбери допустимый статус объекта.');
+  if (!db.prepare('SELECT id FROM projects WHERE id=?').get(id)) throw new Error('Объект не найден. Обнови список и попробуй снова.');
+  db.prepare('UPDATE projects SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(status, id);
+  return db.prepare('SELECT * FROM projects WHERE id=?').get(id);
 });
 ipcMain.handle('projects:createWithPlan', (_event, input = {}) => {
   const plan = normalizeProductionPlan(input.plan || {});

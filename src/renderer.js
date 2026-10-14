@@ -185,12 +185,12 @@ async function refreshLeads() {
 async function refreshClients() {
   const rows = await window.crm.listClients(); const q = ($('clientSearch')?.value || '').toLowerCase();
   const filtered = rows.filter(c => `${c.name} ${c.phone} ${c.email}`.toLowerCase().includes(q));
-  $('clientsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Клиент</th><th>Телефон</th><th>Email</th><th>Тип</th><th>Добавлен</th></tr></thead><tbody>${filtered.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.phone || '—')}</td><td>${esc(c.email || '—')}</td><td>${c.client_type === 'company' ? 'Компания' : 'Частное лицо'}</td><td>${esc(String(c.created_at).slice(0,10))}</td></tr>`).join('')}</tbody></table>` : empty('Клиентов пока нет','Добавь первый контакт в свою базу.');
+  $('clientsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Клиент</th><th>Телефон</th><th>Email</th><th>Тип</th><th>Добавлен</th><th>Действия</th></tr></thead><tbody>${filtered.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.phone || '—')}</td><td>${esc(c.email || '—')}</td><td>${c.client_type === 'company' ? 'Компания' : 'Частное лицо'}</td><td>${esc(String(c.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-client="${c.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Клиентов пока нет','Добавь первый контакт в свою базу.');
 }
 async function refreshProjects() {
   const rows = await window.crm.listProjects(); const q = ($('projectSearch')?.value || '').toLowerCase();
   const filtered = rows.filter(p => `${p.title} ${p.address} ${p.client_name || ''}`.toLowerCase().includes(q));
-  $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th></tr></thead><tbody>${filtered.map(p => `<tr><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><span class="pill ${esc(p.status)}">${esc(projectStatusLabels[p.status] || p.status)}</span></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Number(p.received_rub)))}</td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
+  $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th></tr></thead><tbody>${filtered.map(p => `<tr><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><select class="project-status-select" data-project-status="${p.id}" aria-label="Статус объекта: ${esc(p.title)}">${Object.entries(projectStatusLabels).map(([value,label]) => `<option value="${value}" ${p.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Number(p.received_rub)))}</td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
   const options = rows.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
   $('paymentProject').innerHTML = `<option value="">Выбери объект</option>${options}`;
   $('expenseProject').innerHTML = `<option value="">Общий расход без объекта</option>${options}`;
@@ -631,7 +631,7 @@ document.addEventListener('click', e => {
 });
 $('quickLead').addEventListener('click', () => { showView('leads'); openDialog('leadDialog'); });
 $('addLeadBtn').addEventListener('click', () => openDialog('leadDialog'));
-$('addClientBtn').addEventListener('click', () => openDialog('clientDialog'));
+$('addClientBtn').addEventListener('click', () => { $('clientForm').reset(); $('clientDialogTitle').textContent = 'Новый клиент'; openDialog('clientDialog'); });
 $('addProjectBtn').addEventListener('click', () => { pendingProjectPlan = null; $('projectForm').reset(); $('projectForm').elements.planned_people.value = '5'; openDialog('projectDialog'); });
 $('projectForm').elements.start_date.addEventListener('change', e => { $('projectForm').elements.end_date.min = e.target.value || ''; if ($('projectForm').elements.end_date.value && e.target.value && $('projectForm').elements.end_date.value < e.target.value) $('projectForm').elements.end_date.value = ''; $('projectForm').elements.end_date.setCustomValidity(''); });
 $('projectForm').elements.end_date.addEventListener('change', e => { const start = $('projectForm').elements.start_date.value; if (start && e.target.value && e.target.value < start) { e.target.setCustomValidity('Дата окончания не может быть раньше даты начала.'); e.target.reportValidity(); } else e.target.setCustomValidity(''); });
@@ -756,7 +756,36 @@ $('leadsTable').addEventListener('change', async event => {
   }
 });
 $('leadForm').addEventListener('submit', async e => { e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form)); try { await window.crm.createLead(data); form.reset(); closeDialog('leadDialog'); toast('Заявка сохранена.'); await Promise.all([refreshLeads(),refreshDashboard()]); } catch (err) { toast(err.message, true); } });
-$('clientForm').addEventListener('submit', async e => { e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form)); try { await window.crm.createClient(data); form.reset(); closeDialog('clientDialog'); toast('Клиент сохранён.'); await Promise.all([refreshClients(),refreshDashboard()]); } catch (err) { toast(err.message, true); } });
+$('clientForm').addEventListener('submit', async e => {
+  e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form));
+  try {
+    if (data.id) await window.crm.updateClient(data); else await window.crm.createClient(data);
+    form.reset(); $('clientDialogTitle').textContent = 'Новый клиент'; closeDialog('clientDialog');
+    toast(data.id ? 'Карточка клиента обновлена.' : 'Клиент сохранён.');
+    await Promise.all([refreshClients(), refreshDashboard()]);
+  } catch (err) { toast(err.message, true); }
+});
+$('clientsTable').addEventListener('click', async event => {
+  const button = event.target.closest('[data-edit-client]');
+  if (!button) return;
+  try {
+    const clients = await window.crm.listClients();
+    const client = clients.find(item => item.id === Number(button.dataset.editClient));
+    if (!client) throw new Error('Клиент не найден. Обнови список.');
+    const form = $('clientForm');
+    for (const key of ['id','name','phone','email','client_type','notes']) form.elements[key].value = client[key] ?? '';
+    $('clientDialogTitle').textContent = 'Изменить клиента'; openDialog('clientDialog');
+  } catch (error) { toast(error.message, true); }
+});
+$('projectsTable').addEventListener('change', async event => {
+  const control = event.target.closest('[data-project-status]'); if (!control) return;
+  const id = Number(control.dataset.projectStatus), status = control.value; control.disabled = true;
+  try {
+    await window.crm.updateProjectStatus({ id, status }); toast('Статус объекта обновлён.');
+    await Promise.all([refreshProjects(), refreshDashboard(), refreshProduction(), refreshFinance()]);
+  } catch (error) { toast(`Не удалось изменить статус объекта: ${error.message}`, true); await refreshProjects().catch(() => {}); }
+  finally { control.disabled = false; }
+});
 $('projectForm').addEventListener('submit', async e => {
   e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form));
   const planToAttach = pendingProjectPlan; pendingProjectPlan = null;
