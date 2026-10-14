@@ -195,6 +195,7 @@
     const gapToTarget = targetPrice === null ? null : targetPrice - revenue;
     const targetListPrice = discountPercent < 100 && targetPrice !== null ? targetPrice / (1 - discountPercent / 100) : null;
     const warnings = [];
+    if (crew.automaticDaysUnavailable) warnings.push({ level: 'warning', title: 'Автоматический срок не рассчитан', message: 'Для автоматического расчёта затрат на бригаду нужны объёмы и нормы по всем работам, а также длительность смены. В затратах используется сохранённое ручное число смен — проверь его перед подтверждением цены.' });
     if (!lineItems.length || workRevenue <= 0) warnings.push({ level: 'danger', title: 'В смете нет оплачиваемых работ', message: 'Добавь работы и проверь цены. Сейчас выручка по прайсу равна нулю.' });
     if (profit < 0) warnings.push({ level: 'danger', title: 'Смета убыточна', message: `Расчётный убыток составляет ${Math.round(Math.abs(profit)).toLocaleString('ru-RU')} ₽. Не подтверждай цену до пересмотра объёма, ставок или расходов.` });
     else if (actualMargin < marginPercent) warnings.push({ level: 'warning', title: 'Прибыль ниже целевой маржи', message: `Фактическая маржа ${actualMargin.toFixed(1).replace('.', ',')}%, целевая — ${marginPercent}%. Сравни цену клиента с рекомендованной.` });
