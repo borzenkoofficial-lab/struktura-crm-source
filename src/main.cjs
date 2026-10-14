@@ -3,7 +3,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { openDatabase } = require('./db.cjs');
 const Database = require('better-sqlite3');
-const { parseCsv, prospectDuplicateKeys } = require('./csv.cjs');
+const { parseCsv, prospectDuplicateKeys, safeCsvCell } = require('./csv.cjs');
 const { crawlSites } = require('./site-crawler.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
@@ -599,7 +599,7 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   if (canceled || !filePath) return { canceled: true };
   const rows = db.prepare(sql).all();
   const columns = rows.length ? Object.keys(rows[0]) : sql.match(/SELECT (.+?) FROM/)[1].split(',').map(s=>s.trim());
-  const quote = value => `"${String(value ?? '').replace(/"/g,'""')}"`;
+  const quote = value => `"${safeCsvCell(value).replace(/"/g,'""')}"`;
   fs.writeFileSync(filePath, '\uFEFF' + [columns.map(quote).join(';'), ...rows.map(row => columns.map(col => quote(row[col])).join(';'))].join('\r\n'), 'utf8');
   return { canceled: false, filePath, count: rows.length };
 });
