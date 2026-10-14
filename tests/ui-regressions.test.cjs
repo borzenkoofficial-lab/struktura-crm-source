@@ -381,6 +381,7 @@ test('schedule forecast uses empirical quantiles and avoids zero-day automatic p
   const calculator = fs.readFileSync(path.join(__dirname, '../src/estimate-calculator.js'), 'utf8');
   assert.doesNotMatch(calculator, /daysForCrew \* 0\.85/);
   assert.match(calculator, /statistical interval is only shown when every included work has at least five/i);
-  assert.match(renderer, /Math\.max\(1, Math\.ceil\(estimateGetDurationForecast\(\)\.daysForCrew \?\? Number\(\$\('estimateCrewDays'\)\.value \|\| 1\)\)\)/);
+  assert.match(renderer, /automaticDaysUnavailable/);
+  assert.match(calculator, /Автоматический срок не рассчитан/);
   assert.match(renderer, /статистический диапазон пока недоступен/);
 });
