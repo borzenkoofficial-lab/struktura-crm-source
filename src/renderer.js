@@ -180,7 +180,7 @@ async function refreshDashboard() {
 async function refreshLeads() {
   const rows = await window.crm.listLeads(); const q = ($('leadSearch')?.value || '').toLowerCase(); const status = $('leadStatusFilter')?.value || '';
   const filtered = rows.filter(l => `${l.title} ${l.address} ${l.notes} ${sourceLabels[l.source]}`.toLowerCase().includes(q) && (!status || l.status === status));
-  $('leadsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th><th>Адрес</th><th>Создана</th></tr></thead><tbody>${filtered.map(l => `<tr><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><span class="pill ${esc(l.status)}">${esc(statusLabels[l.status] || l.status)}</span></td><td>${fmt(l.budget_rub)}</td><td>${esc(l.address || '—')}</td><td>${esc(String(l.created_at).slice(0,10))}</td></tr>`).join('')}</tbody></table>` : empty('Заявок не найдено','Создай заявку или измени фильтр.');
+  $('leadsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th><th>Адрес</th><th>Создана</th></tr></thead><tbody>${filtered.map(l => `<tr><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><select class="lead-status-select" data-lead-status="${l.id}" aria-label="Статус заявки: ${esc(l.title)}">${Object.entries(statusLabels).map(([value,label]) => `<option value="${value}" ${l.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(l.budget_rub)}</td><td>${esc(l.address || '—')}</td><td>${esc(String(l.created_at).slice(0,10))}</td></tr>`).join('')}</tbody></table>` : empty('Заявок не найдено','Создай заявку или измени фильтр.');
 }
 async function refreshClients() {
   const rows = await window.crm.listClients(); const q = ($('clientSearch')?.value || '').toLowerCase();
@@ -738,6 +738,23 @@ $('taskSearch').addEventListener('input', () => refreshTasks().catch(e => toast(
 $('taskFilter').addEventListener('change', () => refreshTasks().catch(e => toast(e.message, true)));
 $('addProspectBtn').addEventListener('click', () => openProspectEditor());
 $('prospectForm').addEventListener('submit', async e => { e.preventDefault(); const data = Object.fromEntries(new FormData(e.currentTarget)); try { if (data.id) await window.crm.updateProspect(data); else await window.crm.createProspect(data); closeDialog('prospectDialog'); toast(data.id ? 'Компания обновлена.' : 'Компания добавлена.'); await refreshProspects(); } catch (err) { toast(err.message,true); } });
+$('leadsTable').addEventListener('change', async event => {
+  const control = event.target.closest('[data-lead-status]');
+  if (!control) return;
+  const id = Number(control.dataset.leadStatus);
+  const status = control.value;
+  control.disabled = true;
+  try {
+    await window.crm.updateLeadStatus({ id, status });
+    toast('Статус заявки обновлён.');
+    await Promise.all([refreshLeads(), refreshDashboard(), refreshReports()]);
+  } catch (error) {
+    toast(`Не удалось изменить статус: ${error.message}`, true);
+    await refreshLeads().catch(() => {});
+  } finally {
+    control.disabled = false;
+  }
+});
 $('leadForm').addEventListener('submit', async e => { e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form)); try { await window.crm.createLead(data); form.reset(); closeDialog('leadDialog'); toast('Заявка сохранена.'); await Promise.all([refreshLeads(),refreshDashboard()]); } catch (err) { toast(err.message, true); } });
 $('clientForm').addEventListener('submit', async e => { e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form)); try { await window.crm.createClient(data); form.reset(); closeDialog('clientDialog'); toast('Клиент сохранён.'); await Promise.all([refreshClients(),refreshDashboard()]); } catch (err) { toast(err.message, true); } });
 $('projectForm').addEventListener('submit', async e => {
