@@ -540,6 +540,40 @@ function openDialog(id) { $(id).showModal(); }
 function closeDialog(id) { $(id).close(); }
 async function exportCsv(kind) { try { const r = await window.crm.exportDataCsv(kind); if (!r.canceled) toast(`Экспорт завершён: строк ${r.count}.`); } catch (e) { toast(e.message, true); } }
 document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+const commandPalette = $('commandPaletteDialog');
+const commandSearch = $('commandPaletteSearch');
+function openCommandPalette() {
+  if (!commandPalette) return;
+  commandPalette.showModal();
+  commandSearch.value = '';
+  filterCommandPalette('');
+  requestAnimationFrame(() => commandSearch.focus());
+}
+function filterCommandPalette(query) {
+  const q = String(query || '').trim().toLocaleLowerCase('ru-RU');
+  let firstVisible = null;
+  document.querySelectorAll('.command-item').forEach(item => {
+    const visible = !q || item.textContent.toLocaleLowerCase('ru-RU').includes(q);
+    item.hidden = !visible;
+    if (visible && !firstVisible) firstVisible = item;
+  });
+  if (firstVisible) firstVisible.classList.add('command-first-match');
+  document.querySelectorAll('.command-item:not(:first-child)').forEach(item => { if (item !== firstVisible) item.classList.remove('command-first-match'); });
+}
+commandSearch?.addEventListener('input', () => filterCommandPalette(commandSearch.value));
+commandPalette?.addEventListener('click', event => {
+  const item = event.target.closest('[data-command-view]');
+  if (!item) return;
+  commandPalette.close();
+  showView(item.dataset.commandView);
+});
+document.addEventListener('keydown', event => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    if (commandPalette?.open) commandPalette.close(); else openCommandPalette();
+  }
+  if (event.key === 'Escape' && commandPalette?.open) commandPalette.close();
+});
 const sidebarToggle = $('toggleSidebarBtn');
 function setSidebarCollapsed(collapsed) {
   const shell = document.querySelector('.app-shell');
