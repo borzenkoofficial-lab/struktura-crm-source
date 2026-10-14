@@ -405,3 +405,10 @@ test('embedded browser bounds stay aligned during scroll and are not measured th
 test('duration forecast tolerates an empty target-date field while the user is editing it', () => {
   assert.match(renderer, /targetDays: \$\('estimateTargetDays'\)\.value \|\| 5/);
 });
+
+
+test('backup restore validates foreign keys and clears SQLite sidecars before rollback', () => {
+  assert.match(main, /candidate\.pragma\('foreign_key_check'\)/);
+  assert.match(main, /нарушенные связи между таблицами/);
+  assert.match(main, /for \(const sidecar of \[walPath, shmPath\]\) if \(fs\.existsSync\(sidecar\)\) fs\.rmSync\(sidecar, \{ force: true \}\);\s*fs\.copyFileSync\(safetyPath, livePath\)/);
+});
