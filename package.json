@@ -34,7 +34,7 @@
           ]
         }
       ],
-      "artifactName": "Struktura-CRM-Setup-${version}.${ext}"
+      "artifactName": "GRUZLI-CRM-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
