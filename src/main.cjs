@@ -485,6 +485,25 @@ ipcMain.handle('production:deleteShift', (_event, shiftIdValue) => {
   return { deleted: true, shift_id: shiftId };
 });
 
+ipcMain.handle('income:list', () => db.prepare('SELECT * FROM income_records ORDER BY income_date DESC, id DESC LIMIT 2000').all());
+ipcMain.handle('income:create', (_event, input = {}) => {
+  const amountRub = amount(input.amount_rub), date = clean(input.income_date, 10), source = clean(input.source, 180);
+  if (!validDate(date) || !date) throw new Error('Укажи корректную дату дохода.');
+  if (!source) throw new Error('Укажи источник дохода.');
+  const type = input.record_type === 'internal' ? 'internal' : 'official';
+  const result = db.prepare('INSERT INTO income_records(amount_rub,income_date,record_type,source,note) VALUES (?,?,?,?,?)').run(amountRub,date,type,source,clean(input.note,500));
+  return db.prepare('SELECT * FROM income_records WHERE id=?').get(result.lastInsertRowid);
+});
+ipcMain.handle('income:update', (_event, input = {}) => {
+  const id = Number(input.id);
+  if (!Number.isSafeInteger(id) || id < 1 || !db.prepare('SELECT id FROM income_records WHERE id=?').get(id)) throw new Error('Запись дохода не найдена.');
+  const amountRub = amount(input.amount_rub), date = clean(input.income_date,10), source = clean(input.source,180);
+  if (!validDate(date) || !date) throw new Error('Укажи корректную дату дохода.');
+  if (!source) throw new Error('Укажи источник дохода.');
+  const type = input.record_type === 'internal' ? 'internal' : 'official';
+  db.prepare('UPDATE income_records SET amount_rub=?,income_date=?,record_type=?,source=?,note=? WHERE id=?').run(amountRub,date,type,source,clean(input.note,500),id);
+  return db.prepare('SELECT * FROM income_records WHERE id=?').get(id);
+});
 ipcMain.handle('payments:list', () => db.prepare(`SELECT py.*, p.title project_title FROM payments py JOIN projects p ON p.id=py.project_id ORDER BY py.payment_date DESC, py.id DESC LIMIT 2000`).all());
 ipcMain.handle('payments:create', (_event, input = {}) => {
   const projectId = Number(input.project_id);
