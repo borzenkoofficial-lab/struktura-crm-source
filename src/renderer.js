@@ -242,12 +242,12 @@ function estimateReadInputs() {
     transportCost: $('estimateTransportCost').value, equipmentCost: $('estimateEquipmentCost').value,
     otherCost: $('estimateOtherCost').value, overheadPercent: $('estimateOverheadPercent').value,
     taxPercent: $('estimateTaxPercent').value, discountPercent: $('estimateDiscountPercent').value,
-    marginPercent: $('estimateTargetMargin').value, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value, efficiencyPercent: $('estimateEfficiency')?.value || 85
+    marginPercent: $('estimateTargetMargin').value, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value || 5, efficiencyPercent: $('estimateEfficiency')?.value || 85
   };
 }
 function estimateGetDurationForecast() {
   const durationLines = estimateLines.filter(line => Number(line.quantity) > 0).map(estimateDurationLine);
-  return window.StrukturaEstimateCalculator.calculateDuration({ lines: durationLines, crew: { people: $('estimateCrewPeople').value, hoursPerDay: $('estimateCrewHours').value }, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value, reservePercent: $('estimateScheduleReserve').value, efficiencyPercent: $('estimateEfficiency')?.value || 85 });
+  return window.StrukturaEstimateCalculator.calculateDuration({ lines: durationLines, crew: { people: $('estimateCrewPeople').value, hoursPerDay: $('estimateCrewHours').value }, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value || 5, reservePercent: $('estimateScheduleReserve').value, efficiencyPercent: $('estimateEfficiency')?.value || 85 });
 }
 function estimateReadActualInputs(plannedCost = 0) {
   return {
@@ -364,7 +364,7 @@ async function refreshEstimateLearningRates() {
 }
 function estimateRefreshDuration() {
   const durationLines = estimateLines.filter(line => Number(line.quantity) > 0).map(estimateDurationLine);
-  const result = window.StrukturaEstimateCalculator.calculateDuration({ lines: durationLines, crew: { people: $('estimateCrewPeople').value, hoursPerDay: $('estimateCrewHours').value }, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value, reservePercent: $('estimateScheduleReserve').value, efficiencyPercent: $('estimateEfficiency')?.value || 85 });
+  const result = window.StrukturaEstimateCalculator.calculateDuration({ lines: durationLines, crew: { people: $('estimateCrewPeople').value, hoursPerDay: $('estimateCrewHours').value }, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value || 5, reservePercent: $('estimateScheduleReserve').value, efficiencyPercent: $('estimateEfficiency')?.value || 85 });
   const fmtDays = value => value === null || !Number.isFinite(value) ? 'Укажи бригаду' : `${value.toLocaleString('ru-RU',{maximumFractionDigits:1})} смен`;
   $('estimatePersonShifts').textContent = `${result.personShifts.toLocaleString('ru-RU',{maximumFractionDigits:1})}${result.missingRates ? ' + неучтённые работы' : ''}`;
   $('estimateDurationDays').textContent = result.missingRates ? 'Нужны нормы по всем работам' : fmtDays(result.daysForCrew);
