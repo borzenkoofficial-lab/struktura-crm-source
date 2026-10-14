@@ -430,6 +430,41 @@ ipcMain.handle('production:saveShift', (_event, input = {}) => {
   return { saved: true, shift_id: id, itemCount: lines.length };
 });
 
+ipcMain.handle('production:getShift', (_event, shiftIdValue) => {
+  const shiftId = Number(shiftIdValue);
+  if (!Number.isSafeInteger(shiftId) || shiftId < 1) throw new Error('Некорректный номер смены.');
+  const shift = db.prepare('SELECT * FROM work_shifts WHERE id=?').get(shiftId);
+  if (!shift) throw new Error('Отчёт смены не найден.');
+  const lines = db.prepare('SELECT catalog_id,work_name,unit,quantity_done,workers_count,hours,baseline_productivity FROM work_shift_items WHERE shift_id=? ORDER BY id').all(shiftId);
+  return { ...shift, lines };
+});
+ipcMain.handle('production:updateShift', (_event, input = {}) => {
+  const shiftId = Number(input.id);
+  if (!Number.isSafeInteger(shiftId) || shiftId < 1 || !db.prepare('SELECT id FROM work_shifts WHERE id=?').get(shiftId)) throw new Error('Отчёт смены не найден.');
+  const projectId = Number(input.project_id);
+  const project = db.prepare('SELECT id,status,complexity_factor FROM projects WHERE id=?').get(projectId);
+  if (!Number.isSafeInteger(projectId) || !project || project.status !== 'active') throw new Error('Выбери объект со статусом «В работе».');
+  const date = clean(input.shift_date, 10);
+  if (!validDate(date) || !date) throw new Error('Укажи корректную дату смены.');
+  const workers = Number(input.workers_count), shiftHours = Number(input.shift_hours), downtime = Number(input.downtime_hours || 0);
+  const factor = Number(input.complexity_factor ?? project.complexity_factor ?? 1);
+  if (!Number.isInteger(workers) || workers < 1 || workers > 200) throw new Error('Численность на смене должна быть от 1 до 200 человек.');
+  if (!Number.isFinite(shiftHours) || shiftHours < 0.5 || shiftHours > 24) throw new Error('Длительность смены должна быть от 0,5 до 24 часов.');
+  if (!Number.isFinite(downtime) || downtime < 0 || downtime > shiftHours) throw new Error('Простой должен быть от 0 до длительности смены.');
+  if (![0.7,1,1.25,1.5,2].includes(factor)) throw new Error('Выбери допустимый коэффициент сложности.');
+  const notes = clean(input.notes, 3000);
+  const lines = normalizeShiftWorkLines({ lines: input.lines, workers, shiftHours, downtimeHours: downtime });
+  if (!lines.length && !notes) throw new Error('Если за смену ничего не сделано, укажи причину простоя в примечании.');
+  const update = db.transaction(() => {
+    db.prepare('UPDATE work_shifts SET project_id=?,shift_date=?,workers_count=?,shift_hours=?,downtime_hours=?,complexity_factor=?,notes=? WHERE id=?')
+      .run(projectId,date,workers,shiftHours,downtime,factor,notes,shiftId);
+    db.prepare('DELETE FROM work_shift_items WHERE shift_id=?').run(shiftId);
+    const insert = db.prepare('INSERT INTO work_shift_items(shift_id,catalog_id,work_name,unit,quantity_done,workers_count,hours,baseline_productivity) VALUES (@shift_id,@catalog_id,@work_name,@unit,@quantity_done,@workers_count,@hours,@baseline_productivity)');
+    for (const line of lines) insert.run({ shift_id: shiftId, ...line });
+  });
+  update();
+  return { saved: true, shift_id: shiftId, itemCount: lines.length };
+});
 ipcMain.handle('production:deleteShift', (_event, shiftIdValue) => {
   const shiftId = Number(shiftIdValue);
   if (!Number.isInteger(shiftId) || shiftId < 1) throw new Error('Некорректный номер смены.');
