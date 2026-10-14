@@ -468,3 +468,11 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 .app-shell.sidebar-collapsed .local-badge{display:flex;justify-content:center;padding:12px 0}
 @media(max-width:1050px){.main{padding:22px}.sidebar{width:225px}.app-shell.sidebar-collapsed .sidebar{width:78px}}
 @media(max-width:760px){.app-shell{display:block}.sidebar{position:relative;top:auto;height:auto;width:100%;padding:12px!important;border-right:0;border-bottom:1px solid #2a3a4f}.brand{padding:0 8px 12px}.sidebar .nav-item{display:inline-flex;width:auto;max-width:100%;padding:9px;margin:2px}.sidebar-bottom{margin-top:10px}.local-badge{display:none}.app-shell.sidebar-collapsed .sidebar{width:100%;height:64px;overflow:hidden}.app-shell.sidebar-collapsed .sidebar .brand{display:none}.app-shell.sidebar-collapsed .sidebar .nav-item{display:none}.app-shell.sidebar-collapsed .sidebar .nav-item.active{display:inline-flex}.main{padding:18px 13px}.topbar{align-items:flex-start;flex-wrap:wrap}.topbar h1{font-size:22px}.top-actions{flex-wrap:wrap}.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Navigation and section transitions */
+.view.active{animation:gruzli-view-in .22s ease-out both}
+.nav-item[aria-current="page"]{font-weight:750}
+.nav-item:focus-visible{outline-color:#ff9777;outline-offset:2px}
+.sidebar-collapsed .nav-item[data-view]{position:relative}
+@keyframes gruzli-view-in{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
