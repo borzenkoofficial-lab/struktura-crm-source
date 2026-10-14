@@ -180,7 +180,7 @@ async function refreshDashboard() {
 async function refreshLeads() {
   const rows = await window.crm.listLeads(); const q = ($('leadSearch')?.value || '').toLowerCase(); const status = $('leadStatusFilter')?.value || '';
   const filtered = rows.filter(l => `${l.title} ${l.address} ${l.notes} ${sourceLabels[l.source]}`.toLowerCase().includes(q) && (!status || l.status === status));
-  $('leadsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th><th>Адрес</th><th>Создана</th></tr></thead><tbody>${filtered.map(l => `<tr><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><select class="lead-status-select" data-lead-status="${l.id}" aria-label="Статус заявки: ${esc(l.title)}">${Object.entries(statusLabels).map(([value,label]) => `<option value="${value}" ${l.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(l.budget_rub)}</td><td>${esc(l.address || '—')}</td><td>${esc(String(l.created_at).slice(0,10))}</td></tr>`).join('')}</tbody></table>` : empty('Заявок не найдено','Создай заявку или измени фильтр.');
+  $('leadsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th><th>Адрес</th><th>Создана</th><th>Действия</th></tr></thead><tbody>${filtered.map(l => `<tr><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><select class="lead-status-select" data-lead-status="${l.id}" aria-label="Статус заявки: ${esc(l.title)}">${Object.entries(statusLabels).map(([value,label]) => `<option value="${value}" ${l.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(l.budget_rub)}</td><td>${esc(l.address || '—')}</td><td>${esc(String(l.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-lead="${l.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Заявок не найдено','Создай заявку или измени фильтр.');
 }
 async function refreshClients() {
   const rows = await window.crm.listClients(); const q = ($('clientSearch')?.value || '').toLowerCase();
@@ -629,8 +629,8 @@ document.addEventListener('click', e => {
   const editProspect = e.target.closest('[data-prospect-edit]'); if (editProspect) window.crm.listProspects().then(rows => openProspectEditor(rows.find(p => p.id === Number(editProspect.dataset.prospectEdit)))).catch(err => toast(err.message,true));
   const convertProspect = e.target.closest('[data-prospect-convert]'); if (convertProspect) window.crm.convertProspectToLead(Number(convertProspect.dataset.prospectConvert)).then(async r => { toast(`Создана заявка №${r.leadId}.`); await Promise.all([refreshProspects(),refreshLeads(),refreshDashboard()]); }).catch(err => toast(err.message,true));
 });
-$('quickLead').addEventListener('click', () => { showView('leads'); openDialog('leadDialog'); });
-$('addLeadBtn').addEventListener('click', () => openDialog('leadDialog'));
+$('quickLead').addEventListener('click', () => { $('leadForm').reset(); $('leadDialogTitle').textContent = 'Добавить заявку'; showView('leads'); openDialog('leadDialog'); });
+$('addLeadBtn').addEventListener('click', () => { $('leadForm').reset(); $('leadDialogTitle').textContent = 'Добавить заявку'; openDialog('leadDialog'); });
 $('addClientBtn').addEventListener('click', () => { $('clientForm').reset(); $('clientDialogTitle').textContent = 'Новый клиент'; openDialog('clientDialog'); });
 $('addProjectBtn').addEventListener('click', () => { pendingProjectPlan = null; $('projectForm').reset(); $('projectForm').elements.planned_people.value = '5'; openDialog('projectDialog'); });
 $('projectForm').elements.start_date.addEventListener('change', e => { $('projectForm').elements.end_date.min = e.target.value || ''; if ($('projectForm').elements.end_date.value && e.target.value && $('projectForm').elements.end_date.value < e.target.value) $('projectForm').elements.end_date.value = ''; $('projectForm').elements.end_date.setCustomValidity(''); });
@@ -755,7 +755,25 @@ $('leadsTable').addEventListener('change', async event => {
     control.disabled = false;
   }
 });
-$('leadForm').addEventListener('submit', async e => { e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form)); try { await window.crm.createLead(data); form.reset(); closeDialog('leadDialog'); toast('Заявка сохранена.'); await Promise.all([refreshLeads(),refreshDashboard()]); } catch (err) { toast(err.message, true); } });
+$('leadForm').addEventListener('submit', async e => {
+  e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form));
+  try {
+    if (data.id) await window.crm.updateLead(data); else await window.crm.createLead(data);
+    form.reset(); $('leadDialogTitle').textContent = 'Добавить заявку'; closeDialog('leadDialog');
+    toast(data.id ? 'Заявка обновлена.' : 'Заявка сохранена.');
+    await Promise.all([refreshLeads(), refreshDashboard(), refreshReports()]);
+  } catch (err) { toast(err.message, true); }
+});
+$('leadsTable').addEventListener('click', async event => {
+  const button = event.target.closest('[data-edit-lead]'); if (!button) return;
+  try {
+    const rows = await window.crm.listLeads(), lead = rows.find(item => item.id === Number(button.dataset.editLead));
+    if (!lead) throw new Error('Заявка не найдена. Обнови список.');
+    const form = $('leadForm');
+    for (const key of ['id','title','service','source','budget_rub','address','notes']) form.elements[key].value = lead[key] ?? '';
+    $('leadDialogTitle').textContent = 'Изменить заявку'; openDialog('leadDialog');
+  } catch (error) { toast(error.message, true); }
+});
 $('clientForm').addEventListener('submit', async e => {
   e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form));
   try {
