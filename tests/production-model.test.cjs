@@ -25,6 +25,8 @@ test('observed production is normalized for complexity and blended more as evide
   assert.equal(model.learnedNormalRate, 8.4);
   assert.equal(model.effectiveProductivity, 8.4);
   assert.match(model.confidence, /3–4/);
+  assert.equal(model.observedQ25, 8.4);
+  assert.equal(model.observedQ75, 10.4);
 });
 
 test('remaining-time forecast accounts for completed work, crew size, and items already finished', () => {
