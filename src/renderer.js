@@ -1014,7 +1014,7 @@ async function refreshProduction() {
     }).join('');
     return `<article class="production-project-card"><div class="production-card-top"><div><span class="pill active">В работе</span><h4>${esc(project.title)}</h4><p>${esc(project.address || 'Адрес не указан')} · ${esc(serviceLabels[project.service] || project.service)}</p></div><span class="production-card-icon">◷</span></div><div class="production-forecast"><span>ПРОГНОЗ ОСТАТКА</span><strong>${esc(forecastLabel)}</strong><small>${project.planCount ? `Трудоёмкость остатка ≈ ${productionNum(forecast.laborShiftsRemaining,1)} человеко-смен. Норма по практике обновляется после отчётов.` : 'План объёмов пока не указан. Без него остаток работ и срок достоверно не вычислить.'}</small></div><div class="production-card-facts"><span><b>${project.shiftCount}</b> смен записано</span><span><b>${productionNum(project.personShifts,1)}</b> человеко-смен факт</span><span>Последняя: <b>${esc(project.lastShiftDate || 'нет')}</b></span></div>${items ? `<div class="production-work-list">${items}${forecast.lines.length > 5 ? `<div class="production-more-lines">Ещё позиций в плане: ${forecast.lines.length - 5}</div>` : ''}</div>` : `<div class="production-no-plan">План не настроен — сначала внеси все плановые работы и объёмы.</div>`}<div class="production-card-actions"><button class="button subtle" data-production-plan="${project.id}">Настроить план</button><button class="button primary" data-production-shift="${project.id}">＋ Отчёт за смену</button></div></article>`;
   }).join('') : `<div class="panel production-empty"><div class="production-empty-icon">◷</div><h4>Пока нет активных объектов</h4><p>Создай объект в разделе «Объекты» и поставь статус «В работе». После этого здесь появится карточка для плана, прогноза и ежедневных отчётов.</p><button class="button primary" data-goto="projects">Перейти к объектам</button></div>`;
-  $('productionHistory').innerHTML = data.history.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Бригада</th><th>Фактически сделано</th><th>Выработка против нормы</th><th>Простой</th><th>Условия</th><th>Примечание</th><th></th></tr></thead><tbody>${data.history.map(shift => `<tr><td>${esc(shift.shift_date)}</td><td>${esc(shift.project_title)}</td><td>${shift.workers_count} чел. × ${productionNum(shift.shift_hours,1)} ч.</td><td>${esc(shift.work_summary || '—')}<small class="table-sub">${shift.work_count} видов работ</small></td><td><div class="production-history-rates">${shift.performance.map(item => { const deviation = Number(item.deviationPct || 0); const cls = deviation >= 20 ? 'above' : deviation <= -20 ? 'below' : 'normal'; const label = deviation >= 20 ? 'Выше нормы' : deviation <= -20 ? 'Ниже нормы' : 'Близко к норме'; return `<div><span>${esc(item.work_name)}: ${productionNum(item.actualRate,2)} ${esc(item.unit)}/чел.-смену</span><small class="production-deviation ${cls}">${label} ${deviation > 0 ? '+' : ''}${deviation}% · старт ${productionNum(item.expectedRate,2)}</small></div>`; }).join('')}</div></td><td>${productionNum(shift.downtime_hours,1)} ч.</td><td>×${productionNum(shift.complexity_factor,2)}</td><td>${esc(shift.notes || '—')}</td><td><button class="button subtle production-delete-shift" data-delete-production-shift="${shift.id}" title="Удалить ошибочный отчёт">Удалить</button></td></tr>`).join('')}</tbody></table></div>` : empty('Смены пока не закрывались','Заполни первый отчёт — CRM сохранит факт и начнёт уточнять производительность.');
+  $('productionHistory').innerHTML = data.history.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Бригада</th><th>Фактически сделано</th><th>Выработка против нормы</th><th>Простой</th><th>Условия</th><th>Примечание</th><th></th></tr></thead><tbody>${data.history.map(shift => `<tr><td>${esc(shift.shift_date)}</td><td>${esc(shift.project_title)}</td><td>${shift.workers_count} чел. × ${productionNum(shift.shift_hours,1)} ч.</td><td>${esc(shift.work_summary || '—')}<small class="table-sub">${shift.work_count} видов работ</small></td><td><div class="production-history-rates">${shift.performance.map(item => { const deviation = Number(item.deviationPct || 0); const cls = deviation >= 20 ? 'above' : deviation <= -20 ? 'below' : 'normal'; const label = deviation >= 20 ? 'Выше нормы' : deviation <= -20 ? 'Ниже нормы' : 'Близко к норме'; return `<div><span>${esc(item.work_name)}: ${productionNum(item.actualRate,2)} ${esc(item.unit)}/чел.-смену</span><small class="production-deviation ${cls}">${label} ${deviation > 0 ? '+' : ''}${deviation}% · старт ${productionNum(item.expectedRate,2)}</small></div>`; }).join('')}</div></td><td>${productionNum(shift.downtime_hours,1)} ч.</td><td>×${productionNum(shift.complexity_factor,2)}</td><td>${esc(shift.notes || '—')}</td><td><div class="table-actions"><button class="button subtle compact" data-edit-production-shift="${shift.id}">Изменить</button><button class="button subtle compact production-delete-shift" data-delete-production-shift="${shift.id}" title="Удалить ошибочный отчёт">Удалить</button></div></td></tr>`).join('')}</tbody></table></div>` : empty('Смены пока не закрывались','Заполни первый отчёт — CRM сохранит факт и начнёт уточнять производительность.');
   window._strukturaProductionProjects = data.projects;
 }
 async function openProductionPlan(projectId = '') {
@@ -1038,6 +1038,7 @@ async function openProductionShift(projectId = '') {
   const data = await window.crm.productionOverview();
   if (!data.projects.length) { toast('Нет активных объектов. Переведи объект в статус «В работе» и повтори.'); showView('projects'); return; }
   $('shiftProjectSelect').innerHTML = productionCurrentProjectOptions(data.projects, projectId || (data.projects.length === 1 ? data.projects[0].id : ''));
+  $('productionShiftForm').reset(); $('productionShiftForm').elements.id.value = ''; $('productionShiftDialogTitle').textContent = 'Закрыть смену';
   $('shiftDate').value = dateToday(); $('shiftHours').value = '8'; $('shiftDowntime').value = '0'; $('shiftNotes').value = '';
   await productionLoadShiftRows();
   openDialog('productionShiftDialog');
@@ -1113,10 +1114,11 @@ $('productionShiftForm').addEventListener('submit', async e => {
   e.preventDefault(); const rows = [...$('productionShiftLines').querySelectorAll('[data-production-edit-row]')];
   const lines = rows.map(row => Object.fromEntries([...row.querySelectorAll('[data-prod-field]')].map(field => [field.dataset.prodField, field.value]))).filter(line => Number(line.quantity_done) > 0);
   if (!lines.length && !$('shiftNotes').value.trim()) { toast('Если за смену ничего не сделано, укажи причину в примечании.', true); $('shiftNotes').focus(); return; }
-  const data = { project_id: Number($('shiftProjectSelect').value), shift_date: $('shiftDate').value, workers_count: Number($('shiftWorkers').value), shift_hours: Number($('shiftHours').value), downtime_hours: Number($('shiftDowntime').value), complexity_factor: Number($('shiftDifficulty').value), notes: $('shiftNotes').value, lines };
+  const form = e.currentTarget, data = { id: form.elements.id.value, project_id: Number($('shiftProjectSelect').value), shift_date: $('shiftDate').value, workers_count: Number($('shiftWorkers').value), shift_hours: Number($('shiftHours').value), downtime_hours: Number($('shiftDowntime').value), complexity_factor: Number($('shiftDifficulty').value), notes: $('shiftNotes').value, lines };
   try {
-    const saved = await window.crm.saveWorkShift(data);
-    closeDialog('productionShiftDialog'); toast(`Смена №${saved.shift_id} закрыта. Факт сохранён; производственная модель и прогноз обновлены.`);
+    const saved = data.id ? await window.crm.updateWorkShift(data) : await window.crm.saveWorkShift(data);
+    closeDialog('productionShiftDialog');
+    toast(data.id ? \`Отчёт смены №\${saved.shift_id} исправлен.\` : \`Смена №\${saved.shift_id} закрыта. Факт сохранён; производственная модель и прогноз обновлены.\`);
     await Promise.all([refreshProduction(), refreshEstimateLearningRates()]);
   } catch (error) { toast(error.message,true); }
 });
@@ -1152,7 +1154,30 @@ $('productionNewShiftBtn').addEventListener('click', () => openProductionShift()
 $('productionNewPlanBtn').addEventListener('click', () => openProductionPlan().catch(error => toast(error.message,true)));
 $('shiftDifficulty').addEventListener('change', productionRefreshShiftHint);
 $('refreshProductionBtn').addEventListener('click', () => refreshProduction().catch(error => toast(error.message,true)));
-$('productionHistory').addEventListener('click', async e => { const button = e.target.closest('[data-delete-production-shift]'); if (!button) return; const id = Number(button.dataset.deleteProductionShift); if (!confirm(`Удалить отчёт смены №${id}? Объём исчезнет из истории и будет исключён из расчёта производительности. Это действие нельзя отменить.`)) return; try { await window.crm.deleteWorkShift(id); toast(`Отчёт смены №${id} удалён.`); await Promise.all([refreshProduction(), refreshEstimateLearningRates()]); } catch (error) { toast(error.message,true); } });
+$('productionHistory').addEventListener('click', async e => {
+  const editButton = e.target.closest('[data-edit-production-shift]');
+  const deleteButton = e.target.closest('[data-delete-production-shift]');
+  try {
+    if (editButton) {
+      const shift = await window.crm.getWorkShift(Number(editButton.dataset.editProductionShift));
+      if (!shift) throw new Error('Отчёт смены не найден.');
+      const data = await window.crm.productionOverview();
+      $('shiftProjectSelect').innerHTML = productionCurrentProjectOptions(data.projects, shift.project_id);
+      $('productionShiftForm').elements.id.value = shift.id;
+      $('shiftDate').value = shift.shift_date; $('shiftWorkers').value = shift.workers_count;
+      $('shiftHours').value = shift.shift_hours; $('shiftDowntime').value = shift.downtime_hours;
+      $('shiftDifficulty').value = String(shift.complexity_factor); $('shiftNotes').value = shift.notes || '';
+      productionRenderRows('productionShiftLines','shift',shift.lines);
+      $('productionShiftDialogTitle').textContent = 'Исправить отчёт смены';
+      openDialog('productionShiftDialog'); return;
+    }
+    if (!deleteButton) return;
+    const id = Number(deleteButton.dataset.deleteProductionShift);
+    if (!confirm(\`Удалить отчёт смены №\${id}? Объём исчезнет из истории и будет исключён из расчёта производительности. Это действие нельзя отменить.\`)) return;
+    await window.crm.deleteWorkShift(id); toast(\`Отчёт смены №\${id} удалён.\`);
+    await Promise.all([refreshProduction(), refreshEstimateLearningRates()]);
+  } catch (error) { toast(error.message,true); }
+});
 
 $('today').textContent = new Intl.DateTimeFormat('ru-RU', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date());
 window.crm.version().then(v => $('version').textContent = `v${v}`);
