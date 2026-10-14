@@ -367,7 +367,7 @@ ipcMain.handle('payments:create', (_event, input = {}) => {
   if (!Number.isInteger(projectId) || !db.prepare('SELECT id FROM projects WHERE id=?').get(projectId)) throw new Error('Выбери существующий объект.');
   const amountRub = amount(input.amount_rub);
   const date = clean(input.payment_date,10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) throw new Error('Укажи дату платежа.');
+  if (!validDate(date) || !date) throw new Error('Укажи корректную календарную дату платежа.');
   const type = input.payment_type === 'refund' ? 'refund' : 'incoming';
   const method = ['cash','bank','transfer','other'].includes(input.method) ? input.method : 'other';
   const result = db.prepare('INSERT INTO payments(project_id,amount_rub,payment_date,payment_type,method,note) VALUES (?,?,?,?,?,?)').run(projectId,amountRub,date,type,method,clean(input.note,500));
@@ -387,7 +387,7 @@ ipcMain.handle('expenses:create', (_event, input = {}) => {
   if (!description) throw new Error('Укажи назначение расхода.');
   const amountRub = amount(input.amount_rub);
   const date = clean(input.expense_date,10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) throw new Error('Укажи дату расхода.');
+  if (!validDate(date) || !date) throw new Error('Укажи корректную календарную дату расхода.');
   let projectId = input.project_id ? Number(input.project_id) : null;
   if (projectId !== null && (!Number.isInteger(projectId) || !db.prepare('SELECT id FROM projects WHERE id=?').get(projectId))) throw new Error('Выбранный объект не найден.');
   const category = ['materials','workers','transport','rent','tools','tax','other'].includes(input.category) ? input.category : 'other';
