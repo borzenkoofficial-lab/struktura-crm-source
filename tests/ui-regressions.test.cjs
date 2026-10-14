@@ -360,3 +360,18 @@ test('GRUZLI responsive polish keeps forms usable, tables scrollable and keyboar
   assert.match(css, /\.catalog-table\s*\{\s*min-width:\s*620px;/);
   assert.match(css, /button:focus-visible, a:focus-visible, \[role="button"\]:focus-visible/);
 });
+
+test('every renderer API call has a preload bridge and every IPC channel has a main handler', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  const mainSource = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
+  const exposedMethods = new Set([...preload.matchAll(/^\\s{2}([A-Za-z_$][\\w$]*):/gm)].map(match => match[1]));
+  const rendererMethods = new Set([...renderer.matchAll(/window\\.crm\\.([A-Za-z_$][\\w$]*)/g)].map(match => match[1]));
+  for (const method of rendererMethods) {
+    assert.ok(exposedMethods.has(method), `renderer calls missing preload method: ${method}`);
+  }
+
+  const bridgeChannels = new Set([...preload.matchAll(/ipcRenderer\\.invoke\\('([^']+)'/g)].map(match => match[1]));
+  const mainChannels = new Set([...mainSource.matchAll(/ipcMain\\.handle\\('([^']+)'/g)].map(match => match[1]));
+  assert.deepEqual([...bridgeChannels].filter(channel => !mainChannels.has(channel)), [], 'preload channels must have main handlers');
+  assert.deepEqual([...mainChannels].filter(channel => !bridgeChannels.has(channel)), [], 'main handlers must be reachable through preload');
+});
