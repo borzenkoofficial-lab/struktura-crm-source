@@ -400,3 +400,8 @@ test('embedded browser bounds stay aligned during scroll and are not measured th
   assert.match(renderer, /window\.addEventListener\('scroll', syncBrowserBounds, true\)/);
   assert.match(css, /\.view#view-browser\.active\s*\{\s*animation:\s*none;\s*transform:\s*none;/);
 });
+
+
+test('duration forecast tolerates an empty target-date field while the user is editing it', () => {
+  assert.match(renderer, /targetDays: \$\('estimateTargetDays'\)\.value \|\| 5/);
+});
