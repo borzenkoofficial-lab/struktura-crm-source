@@ -121,7 +121,7 @@ test('PI detects a worsening production trend only after four dated observations
   const trend = items.find(item => item.id === 'production-trend-worsening-снятие стяжки');
   assert.ok(trend);
   assert.match(trend.detail, /Предыдущие два наблюдения: в среднем -6% к плану/u);
-  assert.match(trend.detail, /Последние два: в среднем -30% к плану/u);
+  assert.match(trend.detail, /Последние два: -30% к плану/u);
 });
 
 test('PI does not infer a production trend from fewer than four observations', () => {
