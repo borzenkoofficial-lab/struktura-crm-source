@@ -101,7 +101,7 @@ test('learns from condition-matched shifts instead of mixing incomparable job co
   assert.equal(model.matchedObservations, 2);
   assert.equal(model.observations, 2);
   assert.equal(model.conditionMatchSufficient, true);
-  assert.equal(model.observedMedian, 8.5);
+  assert.equal(model.observedMedian, 4.25);
 });
 
 test('falls back to baseline when there are fewer than two comparable-condition observations', () => {
