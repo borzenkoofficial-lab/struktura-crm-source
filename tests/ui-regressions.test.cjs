@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'utf8');
 const main = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
@@ -343,8 +344,272 @@ test('reports combine sales funnel and finance metrics with explicit cash-balanc
   assert.ok(renderer.includes("$('reportReceivables').textContent = fmt(finance.receivablesTotal)"));
 });
 
+test('commercial order card button is wired through preload to the lead conversion handler', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  assert.match(renderer, /data-order-convert/);
+  assert.match(renderer, /closest\('\[data-order-convert\]'\)/);
+  assert.match(renderer, /window\.crm\.convertCommercialOrderToLead\(orderId\)/);
+  assert.match(renderer, /await refreshLeads\(\)/);
+  assert.match(preload, /convertCommercialOrderToLead: \(id\) => ipcRenderer\.invoke\('orders:convertLead', id\)/);
+  assert.match(main, /ipcMain\.handle\('orders:convertLead'/);
+});
+
+test('converting a commercial order to a lead preserves its PI economics as provisional context', () => {
+  const handler = main.match(/ipcMain\.handle\('orders:convertLead',[\s\S]*?\n\}\);/);
+  assert.ok(handler);
+  assert.match(handler[0], /SELECT \* FROM commercial_order_analysis WHERE order_id=\?/);
+  assert.match(handler[0], /ПИ — предварительная экономика, не подтверждённая смета/);
+  assert.match(handler[0], /estimated_profit_rub/);
+  assert.match(handler[0], /estimated_margin_pct/);
+  assert.match(handler[0], /estimated_days/);
+  assert.match(handler[0], /бюджет заказчика не подтверждён/);
+});
+
 test('client and prospect create, update and CSV import validate contact email at the main-process boundary', () => {
   assert.match(main, /require\('\.\/contact-utils\.cjs'\)/);
   assert.ok(main.includes('email: normalizeContactEmail(input.email)'));
   assert.ok(main.includes('email: normalizeContactEmail(item.email)'));
+});
+
+
+test('Windows app startup hides the legacy menu and reports startup failures', () => {
+  assert.match(main, /Menu\.setApplicationMenu\(null\)/);
+  assert.match(main, /win\.setMenuBarVisibility\(false\)/);
+  assert.match(main, /Failed to load CRM interface/);
+  assert.match(main, /Struktura CRM startup failed/);
+});
+
+test('startup splash has an independent CSS failsafe if renderer JavaScript never runs', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /startup-splash-failsafe/);
+  assert.match(css, /12s/);
+  assert.match(renderer, /Превышено время ожидания загрузки обзора/);
+});
+
+
+test('primary navigation is registered before optional renderer widgets initialize', () => {
+  const early = renderer.indexOf('Register primary navigation before the rest of renderer initialization');
+  const laterWidgets = renderer.indexOf("window.crm.onBrowserState(updateBrowserState)");
+  assert.notEqual(early, -1, 'early navigation delegate exists');
+  assert.ok(laterWidgets > early, 'navigation is wired before browser widget initialization');
+  assert.match(renderer, /event\.target\.closest\('\[data-view\]'\)/);
+  assert.match(renderer, /window\.addEventListener\('error'/);
+  assert.doesNotMatch(renderer, /document\.querySelectorAll\('\[data-view\]'\)\.forEach\(b => b\.addEventListener/);
+});
+
+test('renderer and Electron entry scripts pass Node syntax validation', () => {
+  const files = [
+    '../src/main.cjs', '../src/preload.cjs', '../src/renderer.js',
+    '../src/production-intelligence.js', '../src/prospect-scoring.js',
+    '../src/prospect-radar.js', '../src/estimate-calculator.js'
+  ];
+  for (const relative of files) {
+    const file = path.join(__dirname, relative);
+    const result = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
+    assert.equal(result.status, 0, `Syntax check failed for ${relative}: ${result.stderr || result.stdout}`);
+  }
+});
+
+
+test('additional income CRUD is wired end-to-end and contributes to cash totals exactly once', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  const db = fs.readFileSync(path.join(__dirname, '../src/db.cjs'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'utf8');
+  assert.match(html, /id="addIncomeBtn"/);
+  assert.match(html, /id="incomeForm"/);
+  assert.match(html, /name="record_type"/);
+  assert.match(renderer, /window\.crm\.listIncomeRecords\(\)/);
+  assert.match(renderer, /window\.crm\.createIncomeRecord\(data\)/);
+  assert.match(renderer, /window\.crm\.updateIncomeRecord\(data\)/);
+  assert.match(preload, /listIncomeRecords: \(\) => ipcRenderer\.invoke\('income:list'\)/);
+  assert.match(preload, /createIncomeRecord: \(data\) => ipcRenderer\.invoke\('income:create', data\)/);
+  assert.match(preload, /updateIncomeRecord: \(data\) => ipcRenderer\.invoke\('income:update', data\)/);
+  assert.match(main, /ipcMain\.handle\('income:list'/);
+  assert.match(main, /ipcMain\.handle\('income:create'/);
+  assert.match(main, /ipcMain\.handle\('income:update'/);
+  assert.match(db, /CREATE TABLE IF NOT EXISTS income_records/);
+  assert.match(main, /const totalReceived = received \+ otherIncome/);
+  assert.match(main, /cash: totalReceived - expenses/);
+  assert.match(main, /cash: totalReceived - paid/);
+});
+
+
+test('PI compares recent production performance, detects persistent low output and declining trend', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.js');
+  const history = [
+    { project_id: 1, shift_date: '2026-10-15', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 70, expectedRate: 100, deviationPct: -30 }] },
+    { project_id: 1, shift_date: '2026-10-14', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 72, expectedRate: 100, deviationPct: -28 }] },
+    { project_id: 1, shift_date: '2026-10-13', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 68, expectedRate: 100, deviationPct: -32 }] },
+    { project_id: 1, shift_date: '2026-10-12', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 105, expectedRate: 100, deviationPct: 5 }] },
+    { project_id: 1, shift_date: '2026-10-11', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 100, expectedRate: 100, deviationPct: 0 }] },
+    { project_id: 1, shift_date: '2026-10-10', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 98, expectedRate: 100, deviationPct: -2 }] }
+  ];
+  const result = buildProductionIntelligence({
+    projects: [{ id: 1, title: 'Тестовый объект', planCount: 1, shiftCount: 6, forecast: { estimated: true, lines: [] }, lastShiftDate: '2026-10-15' }],
+    history,
+    totals: { shifts: 6, work_records: 6 }
+  }, { today: '2026-10-15' });
+  assert.equal(result.dataQuality.comparableWorkTypes, 1);
+  assert.equal(result.dataQuality.lowProductivityWorkTypes, 1);
+  assert.equal(result.dataQuality.decliningWorkTypes, 1);
+  assert.ok(result.alerts.some(alert => alert.title.includes('Устойчивая выработка ниже нормы')));
+  assert.ok(result.alerts.some(alert => alert.title.includes('Выработка ухудшается')));
+  assert.match(result.summary, /сравнение по истории доступно для 1 видов работ/);
+});
+
+test('PI refuses to infer productivity trends from fewer than three valid observations', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.js');
+  const result = buildProductionIntelligence({
+    projects: [{ id: 1, title: 'Тест', planCount: 1, forecast: { estimated: true, lines: [] }, shiftCount: 2, lastShiftDate: '2026-10-15' }],
+    history: [
+      { project_id: 1, shift_date: '2026-10-15', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж', unit: 'м²', actualRate: 70, expectedRate: 100, deviationPct: -30 }] },
+      { project_id: 1, shift_date: '2026-10-14', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж', unit: 'м²', actualRate: 72, expectedRate: 100, deviationPct: -28 }] }
+    ],
+    totals: { shifts: 2, work_records: 2 }
+  }, { today: '2026-10-15' });
+  assert.equal(result.dataQuality.comparableWorkTypes, 0);
+  assert.equal(result.dataQuality.lowProductivityWorkTypes, 0);
+  assert.equal(result.alerts.some(alert => alert.title.includes('Устойчивая выработка ниже нормы')), false);
+});
+
+test('PI labels invalid or missing productivity data instead of treating it as zero output', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.js');
+  const result = buildProductionIntelligence({
+    projects: [{ id: 1, title: 'Тест', planCount: 1, forecast: { estimated: true, lines: [] }, shiftCount: 1, lastShiftDate: '2026-10-15' }],
+    history: [{ project_id: 1, shift_date: '2026-10-15', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж', unit: 'м²', actualRate: 0, expectedRate: 100, deviationPct: -100 }] }],
+    totals: { shifts: 1, work_records: 1 }
+  }, { today: '2026-10-15' });
+  assert.equal(result.dataQuality.validPerformanceObservations, 0);
+  assert.equal(result.dataQuality.invalidPerformanceObservations, 1);
+  assert.equal(result.dataQuality.comparableWorkTypes, 0);
+});
+
+
+test('PI flags unstable output when comparable observations vary sharply', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.js');
+  const deviations = [-40, -5, -45, -2, -3, -1];
+  const history = deviations.map((deviation, index) => ({
+    project_id: 1,
+    shift_date: `2026-10-${String(15 - index).padStart(2, '0')}`,
+    shift_hours: 8,
+    downtime_hours: 0,
+    performance: [{ work_name: 'Вынос вручную', unit: 'м³', actualRate: 100 + deviation, expectedRate: 100, deviationPct: deviation }]
+  }));
+  const result = buildProductionIntelligence({
+    projects: [{ id: 1, title: 'Тест', planCount: 1, forecast: { estimated: true, lines: [] }, shiftCount: 6, lastShiftDate: '2026-10-15' }],
+    history,
+    totals: { shifts: 6, work_records: 6 }
+  }, { today: '2026-10-15' });
+  assert.equal(result.dataQuality.unstableWorkTypes, 1);
+  assert.ok(result.alerts.some(alert => alert.title.includes('Нестабильная выработка')));
+});
+
+
+test('PI proposes conservative local norm calibration only after five valid observations', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.js');
+  const history = [0, 1, 2, 3, 4].map(index => ({
+    project_id: 1,
+    shift_date: `2026-10-${String(15 - index).padStart(2, '0')}`,
+    shift_hours: 8,
+    downtime_hours: 0,
+    performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 70, expectedRate: 100, deviationPct: -30 }]
+  }));
+  const result = buildProductionIntelligence({
+    projects: [{ id: 1, title: 'Тест', planCount: 1, forecast: { estimated: true, lines: [] }, shiftCount: 5, lastShiftDate: '2026-10-15' }],
+    history,
+    totals: { shifts: 5, work_records: 5 }
+  }, { today: '2026-10-15' });
+  const model = result.learningModels.find(item => item.workName === 'Демонтаж стяжки');
+  assert.equal(model.observations, 5);
+  assert.equal(model.observedFactor, 0.7);
+  assert.equal(model.suggestedFactor, 0.85);
+  assert.equal(model.status, 'candidate');
+  assert.match(result.learningSummary, /не применяются автоматически/);
+});
+
+test('PI keeps sparse calibration data in collection mode and never suggests an extreme correction', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.js');
+  const history = [0, 1, 2].map(index => ({
+    project_id: 1,
+    shift_date: `2026-10-${String(15 - index).padStart(2, '0')}`,
+    shift_hours: 8,
+    downtime_hours: 0,
+    performance: [{ work_name: 'Вынос вручную', unit: 'м³', actualRate: 150, expectedRate: 100, deviationPct: 50 }]
+  }));
+  const result = buildProductionIntelligence({
+    projects: [{ id: 1, title: 'Тест', planCount: 1, forecast: { estimated: true, lines: [] }, shiftCount: 3, lastShiftDate: '2026-10-15' }],
+    history,
+    totals: { shifts: 3, work_records: 3 }
+  }, { today: '2026-10-15' });
+  const model = result.learningModels.find(item => item.workName === 'Вынос вручную');
+  assert.equal(model.status, 'watch');
+  assert.equal(model.suggestedFactor, 1);
+  assert.equal(result.learningSummary.includes('не предлагает менять нормы'), true);
+});
+
+
+test('product presentation tab is reachable and contains the STRUKTURA story and functional navigation', () => {
+  assert.match(html, /data-view="about"/);
+  assert.match(html, /id="view-about"/);
+  assert.match(html, /Порядок в работе/);
+  assert.match(html, /Факты важнее впечатлений/);
+  assert.match(html, /ПИ — производственный интеллект/);
+  assert.match(html, /data-goto="production"/);
+  assert.match(html, /data-goto="projects"/);
+  assert.match(renderer, /about: 'О продукте STRUKTURA'/);
+});
+
+test('product presentation includes responsive 3D visuals and respects reduced-motion preferences', () => {
+  const styles = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(styles, /\.about-hero-scene/);
+  assert.match(styles, /perspective:/);
+  assert.match(styles, /@keyframes about-slab-float/);
+  assert.match(styles, /@media\(prefers-reduced-motion:reduce\)\{\.about-view/);
+});
+
+test('objects workspace is divided into numbered, responsive sections with a separate object list', () => {
+  const projectView = html.slice(html.indexOf('id="view-projects"'), html.indexOf('id="view-production"'));
+  for (const heading of [
+    'Паспорт сметы', 'Состав работ и объёмы', 'Планирование сроков',
+    'Фактическая производительность', 'Себестоимость и расходы',
+    'Итоговая экономика', 'Контроль объекта: план / факт', 'Действия по смете'
+  ]) assert.ok(projectView.includes(heading), `objects workflow includes "${heading}"`);
+  assert.match(projectView, /class="object-list-head"[\s\S]*?<div class="panel table-panel"><div id="projectsTable"/);
+  const styles = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(styles, /#view-projects \.object-block-title/);
+  assert.match(styles, /@media\(max-width:480px\)\{#view-projects/);
+  assert.match(styles, /#view-projects \.estimate-pro-results/);
+});
+
+
+test('PI voice companion is present, data-driven, and supports speech plus evidence', () => {
+  assert.match(html, /id="piCoachAvatarBtn"/);
+  assert.match(html, /id="piCoachPopover"/);
+  assert.match(html, /id="piCoachSpeakBtn"/);
+  assert.match(html, /id="piCoachListenBtn"/);
+  assert.match(html, /id="piCoachEvidence"/);
+  assert.match(html, /src="pi-coach\.js"/);
+  assert.match(renderer, /SpeechSynthesisUtterance/);
+  assert.match(renderer, /SpeechRecognition \|\| window\.webkitSpeechRecognition/);
+  assert.match(renderer, /function piCoachAnswerVoice/);
+  assert.match(renderer, /window\.crm\.estimateHistory\(\)/);
+  assert.match(renderer, /window\.crm\.productionOverview\(\)/);
+  assert.match(renderer, /window\.crm\.piCoachHistory\(\)/);
+  assert.match(renderer, /window\.crm\.financeInsights\(\)/);
+  assert.match(renderer, /20 \* 60 \* 1000/);
+  const styles = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(styles, /\.pi-coach-avatar/);
+  assert.match(styles, /prefers-reduced-motion:reduce/);
+});
+
+test('exported quote history is stored locally and exposed through a narrow preload API', () => {
+  const database = fs.readFileSync(path.join(__dirname, '../src/db.cjs'), 'utf8');
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  assert.match(database, /CREATE TABLE IF NOT EXISTS quote_history/);
+  assert.match(main, /ipcMain\.handle\('estimate:history'/);
+  assert.match(main, /INSERT INTO quote_history/);
+  assert.match(main, /ipcMain\.handle\('pi:coachHistory'/);
+  assert.match(preload, /piCoachHistory: \(\) => ipcRenderer\.invoke\('pi:coachHistory'\)/);
+  assert.match(preload, /estimateHistory: \(\) => ipcRenderer\.invoke\('estimate:history'\)/);
 });

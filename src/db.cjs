@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS clients (
 CREATE TABLE IF NOT EXISTS leads (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+  commercial_order_id INTEGER REFERENCES commercial_orders(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   service TEXT NOT NULL CHECK(service IN ('demolition','finishing','raised_floor')),
   source TEXT NOT NULL CHECK(source IN ('avito','phone','telegram','recommendation','website','other')),
@@ -56,6 +57,16 @@ CREATE TABLE IF NOT EXISTS payments (
   note TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS income_records (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ amount_rub INTEGER NOT NULL CHECK(amount_rub > 0),
+ income_date TEXT NOT NULL,
+ record_type TEXT NOT NULL DEFAULT 'official' CHECK(record_type IN ('official','internal')),
+ source TEXT NOT NULL,
+ note TEXT NOT NULL DEFAULT '',
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_income_records_date ON income_records(income_date);
 CREATE TABLE IF NOT EXISTS expenses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
@@ -98,6 +109,44 @@ CREATE TABLE IF NOT EXISTS prospects (
   status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','reviewed','contacted','converted','rejected')),
   notes TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS commercial_orders (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, source_url TEXT NOT NULL UNIQUE,
+ source_name TEXT NOT NULL DEFAULT '', source_type TEXT NOT NULL DEFAULT 'web' CHECK(source_type IN ('web','telegram','avito','tenders','files')), snippet TEXT NOT NULL DEFAULT '', search_query TEXT NOT NULL DEFAULT '',
+ service TEXT NOT NULL DEFAULT 'demolition' CHECK(service IN ('demolition','finishing','raised_floor')),
+ region TEXT NOT NULL DEFAULT 'Москва и Московская область',
+ signal_score INTEGER NOT NULL DEFAULT 0 CHECK(signal_score BETWEEN 0 AND 100),
+ signal_labels TEXT NOT NULL DEFAULT '', relevance TEXT NOT NULL DEFAULT 'review' CHECK(relevance IN ('potential_order','review')),
+ status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','opened','relevant','rejected')),
+ first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+-- source_type index is created after additive migration for legacy databases.
+CREATE INDEX IF NOT EXISTS idx_commercial_orders_status ON commercial_orders(status);
+CREATE INDEX IF NOT EXISTS idx_commercial_orders_service ON commercial_orders(service);
+CREATE INDEX IF NOT EXISTS idx_commercial_orders_last_seen ON commercial_orders(last_seen_at DESC);
+CREATE TABLE IF NOT EXISTS commercial_order_analysis (
+  order_id INTEGER PRIMARY KEY REFERENCES commercial_orders(id) ON DELETE CASCADE,
+  catalog_id TEXT NOT NULL DEFAULT '',
+  work_name TEXT NOT NULL,
+  unit TEXT NOT NULL DEFAULT 'м²',
+  quantity REAL NOT NULL CHECK(quantity > 0),
+  budget_rub REAL NOT NULL DEFAULT 0 CHECK(budget_rub >= 0),
+  price_per_unit REAL NOT NULL DEFAULT 0 CHECK(price_per_unit >= 0),
+  cost_per_unit REAL NOT NULL DEFAULT 0 CHECK(cost_per_unit >= 0),
+  baseline_productivity REAL NOT NULL CHECK(baseline_productivity > 0),
+  effective_productivity REAL NOT NULL CHECK(effective_productivity > 0),
+  crew_size INTEGER NOT NULL CHECK(crew_size BETWEEN 1 AND 200),
+  wage_per_worker_shift REAL NOT NULL DEFAULT 0 CHECK(wage_per_worker_shift >= 0),
+  other_costs_rub REAL NOT NULL DEFAULT 0 CHECK(other_costs_rub >= 0),
+  difficulty_factor REAL NOT NULL DEFAULT 1 CHECK(difficulty_factor BETWEEN 0.25 AND 5),
+  reserve_percent REAL NOT NULL DEFAULT 15 CHECK(reserve_percent BETWEEN 0 AND 100),
+  observations_count INTEGER NOT NULL DEFAULT 0 CHECK(observations_count >= 0),
+  estimated_days REAL NOT NULL CHECK(estimated_days > 0),
+  revenue_rub REAL NOT NULL CHECK(revenue_rub >= 0),
+  estimated_cost_rub REAL NOT NULL CHECK(estimated_cost_rub >= 0),
+  estimated_profit_rub REAL NOT NULL,
+  estimated_margin_pct REAL NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 CREATE TABLE IF NOT EXISTS competitor_listings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   source_name TEXT NOT NULL,
@@ -121,6 +170,22 @@ CREATE TABLE IF NOT EXISTS import_jobs (
   details TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS quote_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  customer TEXT NOT NULL DEFAULT '',
+  address TEXT NOT NULL DEFAULT '',
+  prepared_at TEXT NOT NULL,
+  revenue_rub REAL NOT NULL DEFAULT 0 CHECK(revenue_rub >= 0),
+  cost_rub REAL NOT NULL DEFAULT 0 CHECK(cost_rub >= 0),
+  profit_rub REAL NOT NULL DEFAULT 0,
+  margin_pct REAL NOT NULL DEFAULT 0,
+  discount_rub REAL NOT NULL DEFAULT 0 CHECK(discount_rub >= 0),
+  lines_count INTEGER NOT NULL DEFAULT 0 CHECK(lines_count >= 0),
+  lines_json TEXT NOT NULL DEFAULT '[]',
+  file_path TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_quote_history_prepared_at ON quote_history(prepared_at DESC);
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -182,14 +247,20 @@ function openDatabase(userDataPath) {
   db.pragma('foreign_keys = ON');
   db.exec(SCHEMA);
   // Additive migrations keep existing local databases intact after app updates.
+  const leadColumns = new Set(db.prepare('PRAGMA table_info(leads)').all().map(column => column.name));
+  if (!leadColumns.has('commercial_order_id')) db.exec('ALTER TABLE leads ADD COLUMN commercial_order_id INTEGER REFERENCES commercial_orders(id) ON DELETE SET NULL');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_leads_commercial_order ON leads(commercial_order_id)');
+  const orderColumns = new Set(db.prepare('PRAGMA table_info(commercial_orders)').all().map(column => column.name));
+  if (!orderColumns.has('source_type')) db.exec("ALTER TABLE commercial_orders ADD COLUMN source_type TEXT NOT NULL DEFAULT 'web' CHECK(source_type IN ('web','telegram','avito','tenders','files'))");
+  db.exec('CREATE INDEX IF NOT EXISTS idx_commercial_orders_source_type ON commercial_orders(source_type)');
   const projectColumns = new Set(db.prepare('PRAGMA table_info(projects)').all().map(column => column.name));
   if (!projectColumns.has('planned_people')) db.exec('ALTER TABLE projects ADD COLUMN planned_people INTEGER NOT NULL DEFAULT 5 CHECK(planned_people BETWEEN 1 AND 200)');
   if (!projectColumns.has('complexity_factor')) db.exec('ALTER TABLE projects ADD COLUMN complexity_factor REAL NOT NULL DEFAULT 1 CHECK(complexity_factor > 0)');
   const prospectColumns = new Set(db.prepare('PRAGMA table_info(prospects)').all().map(column => column.name));
   if (!prospectColumns.has('service')) db.exec("ALTER TABLE prospects ADD COLUMN service TEXT NOT NULL DEFAULT 'demolition' CHECK(service IN ('demolition','finishing','raised_floor'))");
   db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_service ON prospects(service)');
-  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','3')").run();
-  db.prepare("UPDATE settings SET value='3' WHERE key='schema_version'").run();
+  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','6')").run();
+  db.prepare("UPDATE settings SET value='6' WHERE key='schema_version'").run();
   return db;
 }
 

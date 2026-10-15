@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, safeStorage, session, Notification } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, safeStorage, session, Notification, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -16,6 +16,10 @@ const Database = require('better-sqlite3');
 const { parseCsv, prospectDuplicateKeys, safeCsvCell } = require('./csv.cjs');
 const { crawlSites } = require('./site-crawler.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
+const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, leadSourceForOrderType } = require('./order-radar.cjs');
+const { parseCommercialOrdersCsv } = require('./order-import.cjs');
+const { assessCommercialOrder } = require('./order-pi.cjs');
+const { calculateOrderEconomics } = require('./order-economics.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
 const { normalizeTaskInput } = require('./task-utils.cjs');
 const { normalizeContactEmail } = require('./contact-utils.cjs');
@@ -111,14 +115,18 @@ function createBrowserView(win) {
 function createWindow() {
   const win = new BrowserWindow({
     width: 1440, height: 920, minWidth: 1020, minHeight: 680,
-    title: 'GRUZLI CRM', backgroundColor: '#f5f7fa',
+    title: 'Struktura CRM', backgroundColor: '#f5f7fa', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
+  win.setMenuBarVisibility(false);
   mainWindow = win;
   createBrowserView(win);
   win.on('resize', () => { if (browserIsVisible) sendBrowserState(); });
   win.on('closed', () => { mainWindow = null; browserView = null; browserIsVisible = false; });
-  win.loadFile(path.join(__dirname, 'index.html'));
+  win.loadFile(path.join(__dirname, 'index.html')).catch(error => {
+    console.error('Failed to load CRM interface:', error);
+    dialog.showErrorBox('Не удалось открыть Struktura CRM', `Не удалось загрузить интерфейс приложения.\\n\\n${error.message || error}`);
+  });
 }
 function getSetting(key, fallback) {
   const row = db.prepare('SELECT value FROM settings WHERE key=?').get(key);
@@ -141,7 +149,7 @@ function checkAndSendReminders() {
     const now = new Date();
     const reminders = buildReminders({ tasks, projects, now, settings, lastSent });
     for (const item of reminders) {
-      const notice = new Notification({ title: `GRUZLI CRM · ${item.title}`, body: item.body, silent: false });
+      const notice = new Notification({ title: `STRUKTURA CRM · ${item.title}`, body: item.body, silent: false });
       notice.on('click', () => { if (mainWindow && !mainWindow.isDestroyed()) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); } });
       notice.show();
       lastSent[item.key] = now.toISOString();
@@ -153,12 +161,18 @@ function checkAndSendReminders() {
 }
 let reminderInterval;
 app.whenReady().then(() => {
+  // Remove Electron's legacy File/Edit/View/Window/Help menu; keep native Windows controls.
+  Menu.setApplicationMenu(null);
   db = openDatabase(app.getPath('userData'));
   if (!getSetting('reminder_settings', null)) setSetting('reminder_settings', DEFAULT_REMINDER_SETTINGS);
   createWindow();
   checkAndSendReminders();
   reminderInterval = setInterval(checkAndSendReminders, 15 * 60 * 1000);
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+}).catch(error => {
+  console.error('Struktura CRM startup failed:', error);
+  dialog.showErrorBox('Ошибка запуска Struktura CRM', `Приложение не смогло подготовить локальную базу данных.\\n\\n${error.message || error}`);
+  app.quit();
 });
 app.on('before-quit', () => { if (reminderInterval) clearInterval(reminderInterval); if (db) db.close(); });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
@@ -177,9 +191,11 @@ ipcMain.handle('dashboard:summary', () => {
   const projects = db.prepare("SELECT COUNT(*) count FROM projects WHERE status IN ('planned','active')").get().count;
   const contract = db.prepare("SELECT COALESCE(SUM(contract_rub),0) total FROM projects WHERE status != 'cancelled'").get().total;
   const received = db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END),0) total FROM payments").get().total;
+  const otherIncome = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM income_records').get().total;
+  const totalReceived = received + otherIncome;
   const expenses = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=1').get().total;
   const clients = db.prepare('SELECT COUNT(*) count FROM clients').get().count;
-  return { leads, projects, contract, received, expenses, clients, cash: received - expenses };
+  return { leads, projects, contract, received: totalReceived, expenses, clients, cash: totalReceived - expenses };
 });
 ipcMain.handle('clients:list', () => db.prepare('SELECT * FROM clients ORDER BY id DESC LIMIT 1000').all());
 ipcMain.handle('clients:create', (_event, input = {}) => {
@@ -333,6 +349,18 @@ ipcMain.handle('production:overview', () => {
   return { projects: resultProjects, history, totals: { ...totals, person_shifts: Number(totals.person_shifts || 0) }, modelItems: observations.length };
 });
 
+ipcMain.handle('pi:coachHistory', () => {
+  const rows = db.prepare('SELECT ws.id, ws.project_id, p.title project_title, ws.shift_date, ws.workers_count, ws.shift_hours, ws.downtime_hours, ws.complexity_factor, ws.notes ' +
+    'FROM work_shifts ws JOIN projects p ON p.id=ws.project_id ORDER BY ws.shift_date DESC, ws.id DESC').all();
+  const getPerformance = db.prepare('SELECT work_name, unit, quantity_done, workers_count, hours, baseline_productivity FROM work_shift_items WHERE shift_id=? ORDER BY id');
+  return rows.map(shift => ({ ...shift, performance: getPerformance.all(shift.id).map(item => {
+    const actualRate = Number(item.quantity_done) / (Number(item.workers_count) * Number(item.hours) / 8);
+    const expectedRate = Number(item.baseline_productivity) / Number(shift.complexity_factor || 1);
+    const deviation = expectedRate > 0 ? (actualRate / expectedRate - 1) * 100 : 0;
+    return { ...item, actualRate: Math.round(actualRate * 100) / 100, expectedRate: Math.round(expectedRate * 100) / 100, deviationPct: Math.round(deviation) };
+  }) }));
+});
+
 ipcMain.handle('production:exportReportPdf', async (_event, input = {}) => {
   const projectId = Number(input.project_id);
   const documentType = input.document_type === 'act' ? 'act' : 'report';
@@ -353,11 +381,21 @@ ipcMain.handle('production:exportReportPdf', async (_event, input = {}) => {
   const payments = input.internal === true && documentType === 'report' ? db.prepare('SELECT payment_date, payment_type, amount_rub, note FROM payments WHERE project_id=? AND payment_date BETWEEN ? AND ? ORDER BY payment_date, id').all(projectId, startDate, endDate) : [];
   const expenses = input.internal === true && documentType === 'report' ? db.prepare('SELECT expense_date, description, category, amount_rub, is_paid FROM expenses WHERE project_id=? AND expense_date BETWEEN ? AND ? ORDER BY expense_date, id').all(projectId, startDate, endDate) : [];
   const html = buildProductionReportHtml({ project, startDate, endDate, documentType, internal: input.internal === true, plan, shifts, actualByPeriod, payments, expenses });
-  const defaultName = `GRUZLI-${documentType === 'act' ? 'Акт-работ' : 'Отчёт'}-${project.title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,50)}-${startDate}-${endDate}.pdf`;
+  const defaultName = `STRUKTURA-${documentType === 'act' ? 'Акт-работ' : 'Отчёт'}-${project.title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,50)}-${startDate}-${endDate}.pdf`;
   const { canceled, filePath } = await dialog.showSaveDialog({ title: documentType === 'act' ? 'Сохранить акт фиксации работ в PDF' : 'Сохранить производственный отчёт в PDF', defaultPath: defaultName, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (canceled || !filePath) return { canceled: true };
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
-  try { await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html)); const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } }); fs.writeFileSync(filePath, data); return { canceled: false, filePath }; }
+  try {
+    await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+    fs.writeFileSync(filePath, data);
+    const costRub = Math.max(0, Number(input.estimatedCostRub) || 0);
+    const profitRub = Number.isFinite(Number(input.estimatedProfitRub)) ? Number(input.estimatedProfitRub) : total - costRub;
+    const marginPct = Number.isFinite(Number(input.marginPct)) ? Number(input.marginPct) : (total > 0 ? profitRub / total * 100 : 0);
+    db.prepare(`INSERT INTO quote_history(title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json,file_path) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(title, customer, address, new Date().toISOString(), total, costRub, profitRub, marginPct, discount, lines.length, JSON.stringify(lines.map(line => ({ name: clean(line.name,180), unit: clean(line.unit,24), quantity: Math.max(0, Number(line.quantity) || 0), price: Math.max(0, Number(line.price) || 0) }))), filePath);
+    return { canceled: false, filePath, historySaved: true };
+  }
   finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
 });
 
@@ -474,6 +512,25 @@ ipcMain.handle('production:deleteShift', (_event, shiftIdValue) => {
   return { deleted: true, shift_id: shiftId };
 });
 
+ipcMain.handle('income:list', () => db.prepare('SELECT * FROM income_records ORDER BY income_date DESC, id DESC LIMIT 2000').all());
+ipcMain.handle('income:create', (_event, input = {}) => {
+  const amountRub = amount(input.amount_rub), date = clean(input.income_date, 10), source = clean(input.source, 180);
+  if (!validDate(date) || !date) throw new Error('Укажи корректную дату дохода.');
+  if (!source) throw new Error('Укажи источник дохода.');
+  const type = input.record_type === 'internal' ? 'internal' : 'official';
+  const result = db.prepare('INSERT INTO income_records(amount_rub,income_date,record_type,source,note) VALUES (?,?,?,?,?)').run(amountRub,date,type,source,clean(input.note,500));
+  return db.prepare('SELECT * FROM income_records WHERE id=?').get(result.lastInsertRowid);
+});
+ipcMain.handle('income:update', (_event, input = {}) => {
+  const id = Number(input.id);
+  if (!Number.isSafeInteger(id) || id < 1 || !db.prepare('SELECT id FROM income_records WHERE id=?').get(id)) throw new Error('Запись дохода не найдена.');
+  const amountRub = amount(input.amount_rub), date = clean(input.income_date,10), source = clean(input.source,180);
+  if (!validDate(date) || !date) throw new Error('Укажи корректную дату дохода.');
+  if (!source) throw new Error('Укажи источник дохода.');
+  const type = input.record_type === 'internal' ? 'internal' : 'official';
+  db.prepare('UPDATE income_records SET amount_rub=?,income_date=?,record_type=?,source=?,note=? WHERE id=?').run(amountRub,date,type,source,clean(input.note,500),id);
+  return db.prepare('SELECT * FROM income_records WHERE id=?').get(id);
+});
 ipcMain.handle('payments:list', () => db.prepare(`SELECT py.*, p.title project_title FROM payments py JOIN projects p ON p.id=py.project_id ORDER BY py.payment_date DESC, py.id DESC LIMIT 2000`).all());
 ipcMain.handle('payments:create', (_event, input = {}) => {
   const projectId = Number(input.project_id);
@@ -503,9 +560,11 @@ ipcMain.handle('finance:insights', () => {
   const projects = db.prepare(`SELECT p.*, COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub FROM projects p WHERE p.status != 'cancelled'`).all();
   const expenses = db.prepare('SELECT * FROM expenses ORDER BY expense_date ASC').all();
   const received = db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END),0) total FROM payments").get().total;
+  const otherIncome = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM income_records').get().total;
+  const totalReceived = received + otherIncome;
   const paid = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=1').get().total;
   const now = new Date(); const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  return buildFinanceInsights({ today, cash: received - paid, projects, expenses });
+  return buildFinanceInsights({ today, cash: totalReceived - paid, projects, expenses });
 });
 ipcMain.handle('expenses:create', (_event, input = {}) => {
   const description = clean(input.description,180);
@@ -616,6 +675,122 @@ ipcMain.handle('search:run', async (_event, input = {}) => {
   });
   tx(allResults);
   return { queries, received: allResults.length, imported, skipped, errors };
+});
+ipcMain.handle('orders:list', (_event,input={})=>{
+ const status=['new','opened','relevant','rejected'].includes(input.status)?input.status:'';
+ const service=services.includes(input.service)?input.service:'';
+ const sourceType=['web','telegram','avito','tenders','files'].includes(input.sourceType)?input.sourceType:'';
+ const terms=clean(input.search,180).toLowerCase();const where=[],params=[];
+ if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}if(sourceType){where.push('source_type=?');params.push(sourceType)}
+ if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%')}
+ const rows=db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC LIMIT 500`).all(...params);
+ const analyses=new Map(db.prepare('SELECT * FROM commercial_order_analysis').all().map(item=>[Number(item.order_id),item]));
+ return rows.map(r=>{const analysis=analyses.get(Number(r.id))||null;return {...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean),pi_analysis:analysis,pi_assessment:assessCommercialOrder(r,analysis)};});
+});
+ipcMain.handle('orders:search',async(_event,input={})=>{
+ const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');
+ const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const sourceType=['all','web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';const queries=buildOrderQueries(service,region,sourceType);const found=[],errors=[];
+ for(const query of queries){try{const results=await searchBrave(query,apiKey,{count:10});found.push(...results.map(x=>normalizeBraveOrderResult(x,query,service,region)).filter(Boolean))}catch(e){errors.push({query,error:clean(e.message,240)})}}
+ const unique=deduplicateOrders(found);
+ const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`);
+ const update=db.prepare(`UPDATE commercial_orders SET title=@title,source_name=@source_name,source_type=@source_type,snippet=@snippet,search_query=@search_query,service=@service,region=@region,signal_score=@signal_score,signal_labels=@signal_labels,relevance=@relevance,last_seen_at=CURRENT_TIMESTAMP WHERE source_url=@source_url AND status NOT IN ('relevant','rejected')`);
+ const touch=db.prepare('UPDATE commercial_orders SET last_seen_at=CURRENT_TIMESTAMP WHERE source_url=?');
+ let added=0,refreshed=0,protectedCount=0;
+ const tx=db.transaction(items=>{
+  for(const item of items){
+   const prior=db.prepare('SELECT id,status FROM commercial_orders WHERE source_url=?').get(item.source_url);
+   const values={...item,signal_labels:item.signal_labels.join('|')};
+   if(!prior){const result=insert.run(values);if(result.changes)added++;else {const current=db.prepare('SELECT status FROM commercial_orders WHERE source_url=?').get(item.source_url);if(current&&['relevant','rejected'].includes(current.status)){touch.run(item.source_url);protectedCount++}else if(current){update.run(values);refreshed++}};continue}
+   if(orderRefreshAction(prior.status)==='protect'){touch.run(item.source_url);protectedCount++;continue}
+   update.run(values);refreshed++;
+  }
+  db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)')
+   .run('Brave Search API','commercial-order-radar',added,refreshed+protectedCount,errors.length,`Получено: ${found.length}; уникальных ссылок: ${unique.length}; добавлено: ${added}; обновлено: ${refreshed}; защищено от перезаписи: ${protectedCount}; запросов: ${queries.length}; ошибок: ${errors.length}`);
+ });
+ tx(unique);
+ if(!unique.length&&errors.length===queries.length)throw new Error('Не удалось найти заказы. '+errors.map(x=>x.error).join(' | '));
+ return {queries,received:found.length,unique:unique.length,added,refreshed,protected:protectedCount,errors};
+});
+ipcMain.handle('orders:saveAnalysis', (_event,input={}) => {
+ const orderId=Number(input.order_id);
+ if(!Number.isSafeInteger(orderId)||orderId<1||!db.prepare('SELECT id FROM commercial_orders WHERE id=?').get(orderId))throw new Error('Заказ не найден.');
+ const catalogId=clean(input.catalog_id,120);
+ const observations=catalogId?db.prepare(`SELECT wsi.quantity_done,wsi.workers_count,wsi.hours,ws.complexity_factor FROM work_shift_items wsi JOIN work_shifts ws ON ws.id=wsi.shift_id WHERE wsi.catalog_id=? ORDER BY ws.shift_date DESC,ws.id DESC`).all(catalogId):[];
+ const analysis={order_id:orderId,...calculateOrderEconomics({...input,catalog_id:catalogId},observations)};
+ db.prepare(`INSERT INTO commercial_order_analysis(order_id,catalog_id,work_name,unit,quantity,budget_rub,price_per_unit,cost_per_unit,baseline_productivity,effective_productivity,crew_size,wage_per_worker_shift,other_costs_rub,difficulty_factor,reserve_percent,observations_count,estimated_days,revenue_rub,estimated_cost_rub,estimated_profit_rub,estimated_margin_pct,updated_at)
+ VALUES (@order_id,@catalog_id,@work_name,@unit,@quantity,@budget_rub,@price_per_unit,@cost_per_unit,@baseline_productivity,@effective_productivity,@crew_size,@wage_per_worker_shift,@other_costs_rub,@difficulty_factor,@reserve_percent,@observations_count,@estimated_days,@revenue_rub,@estimated_cost_rub,@estimated_profit_rub,@estimated_margin_pct,CURRENT_TIMESTAMP)
+ ON CONFLICT(order_id) DO UPDATE SET catalog_id=excluded.catalog_id,work_name=excluded.work_name,unit=excluded.unit,quantity=excluded.quantity,budget_rub=excluded.budget_rub,price_per_unit=excluded.price_per_unit,cost_per_unit=excluded.cost_per_unit,baseline_productivity=excluded.baseline_productivity,effective_productivity=excluded.effective_productivity,crew_size=excluded.crew_size,wage_per_worker_shift=excluded.wage_per_worker_shift,other_costs_rub=excluded.other_costs_rub,difficulty_factor=excluded.difficulty_factor,reserve_percent=excluded.reserve_percent,observations_count=excluded.observations_count,estimated_days=excluded.estimated_days,revenue_rub=excluded.revenue_rub,estimated_cost_rub=excluded.estimated_cost_rub,estimated_profit_rub=excluded.estimated_profit_rub,estimated_margin_pct=excluded.estimated_margin_pct,updated_at=CURRENT_TIMESTAMP`).run(analysis);
+ return db.prepare('SELECT * FROM commercial_order_analysis WHERE order_id=?').get(orderId);
+});
+ipcMain.handle('orders:manualSearchUrl', (_event,input={}) => {
+ const service=services.includes(input.service)?input.service:'demolition';
+ const sourceType=['all','web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';
+ const region=clean(input.region,120)||'Москва и Московская область';
+ return buildManualOrderSearchUrl(service,region,sourceType);
+});
+ipcMain.handle('orders:createManual', (_event,input={}) => {
+ const title=clean(input.title,240),url=clean(input.source_url,700),snippet=clean(input.snippet,1200);
+ const service=services.includes(input.service)?input.service:'demolition';
+ const region=clean(input.region,120)||'Москва и Московская область';
+ if(!title)throw new Error('Укажи название заказа.');
+ const order=normalizeOrderResult({title,url,description:snippet},'Добавлено вручную',service,region);
+ if(!order)throw new Error('Не удалось проверить ссылку. Укажи действительный HTTP(S)-адрес первоисточника.');
+ const existing=db.prepare('SELECT id FROM commercial_orders WHERE source_url=?').get(order.source_url);
+ if(existing)return {id:existing.id,duplicate:true};
+ const result=db.prepare(`INSERT INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`).run({...order,search_query:'Добавлено вручную',signal_labels:order.signal_labels.join('|')});
+ return {id:Number(result.lastInsertRowid),duplicate:false};
+});
+ipcMain.handle('orders:importCsv', async () => {
+ const picked=await dialog.showOpenDialog({title:'Импорт коммерческих заказов из CSV',properties:['openFile'],filters:[{name:'CSV / текстовые таблицы',extensions:['csv','txt']}]});
+ if(picked.canceled||!picked.filePaths[0])return {canceled:true};
+ const filePath=picked.filePaths[0];
+ const parsed=parseCommercialOrdersCsv(fs.readFileSync(filePath,'utf8'));
+ const normalized=parsed.orders.map(item=>{
+  const order=normalizeOrderResult({title:item.title,url:item.source_url,description:item.snippet},'Импорт из файла',item.service,item.region);
+  if(!order)return null;
+  return {...order,source_name:item.source_name||order.source_name,source_type:'files',search_query:'Импорт из файла'};
+ }).filter(Boolean);
+ const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`);
+ let imported=0,duplicates=0;
+ const tx=db.transaction(items=>{for(const item of items){const values={...item,signal_labels:item.signal_labels.join('|')};const result=insert.run(values);if(result.changes)imported++;else duplicates++;}
+  db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)').run('CSV заказов',path.basename(filePath),imported,parsed.skipped+duplicates,0,`В файле: ${parsed.orders.length+parsed.skipped}; импортировано: ${imported}; пропущено: ${parsed.skipped+duplicates}`);
+ });
+ tx(normalized);
+ return {canceled:false,imported,skipped:parsed.skipped+duplicates+(parsed.orders.length-normalized.length),total:parsed.orders.length+parsed.skipped};
+});
+ipcMain.handle('orders:updateStatus',(_event,input={})=>{
+ const id=Number(input.id),status=['new','opened','relevant','rejected'].includes(input.status)?input.status:'';
+ if(!Number.isSafeInteger(id)||id<1||!status)throw new Error('Некорректный заказ или статус.');
+ const r=db.prepare('UPDATE commercial_orders SET status=? WHERE id=?').run(status,id);if(!r.changes)throw new Error('Заказ не найден.');
+ return db.prepare('SELECT * FROM commercial_orders WHERE id=?').get(id);
+});
+ipcMain.handle('orders:convertLead', (_event, orderId) => {
+ const id=Number(orderId);
+ if(!Number.isSafeInteger(id)||id<1)throw new Error('Некорректный номер заказа.');
+ const order=db.prepare('SELECT * FROM commercial_orders WHERE id=?').get(id);
+ if(!order)throw new Error('Коммерческий заказ не найден.');
+ const existing=db.prepare('SELECT id FROM leads WHERE commercial_order_id=?').get(id);
+ if(existing)return {leadId:existing.id,alreadyExists:true};
+ const analysis=db.prepare('SELECT * FROM commercial_order_analysis WHERE order_id=?').get(id)||null;
+ const serviceLabel={demolition:'Демонтаж',finishing:'Отделочные работы',raised_floor:'Фальшполы'}[order.service]||'Демонтаж';
+ const notes=[
+  'Создано из радара коммерческих заказов. Данные и актуальность необходимо проверить на исходном сайте.',
+  'Источник: '+order.source_url,
+  'Регион: '+order.region,
+  'Оценка сигнала: '+order.signal_score+'/100',
+  order.signal_labels?'Сигналы: '+String(order.signal_labels).split('|').filter(Boolean).join(', '):'',
+  order.snippet?'Фрагмент выдачи: '+order.snippet:'',
+  order.search_query?'Поисковый запрос: '+order.search_query:'',
+  analysis?'ПИ — предварительная экономика, не подтверждённая смета:':'',
+  analysis?'Ориентир выручки: '+Math.round(Number(analysis.revenue_rub)||0).toLocaleString('ru-RU')+' ₽; расходы: '+Math.round(Number(analysis.estimated_cost_rub)||0).toLocaleString('ru-RU')+' ₽; расчётная прибыль: '+Math.round(Number(analysis.estimated_profit_rub)||0).toLocaleString('ru-RU')+' ₽; маржа: '+Number(analysis.estimated_margin_pct||0).toLocaleString('ru-RU',{maximumFractionDigits:1})+'%; срок: '+Number(analysis.estimated_days||0).toLocaleString('ru-RU',{maximumFractionDigits:1})+' смен; бригада: '+Number(analysis.crew_size||0)+' чел.; история смен: '+Number(analysis.observations_count||0)+' наблюдений.':'',
+  analysis?(Number(analysis.budget_rub)>0?'Основа выручки: введённый бюджет, требуется проверка на первоисточнике.':'Основа выручки: ставка прайса; бюджет заказчика не подтверждён.'):'',
+ ].filter(Boolean).join('\n').slice(0,4000);
+ const create=db.transaction(()=>{
+  const result=db.prepare('INSERT INTO leads(commercial_order_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,?,?,\'new\',0,\'\',?)').run(id,(serviceLabel+' — '+order.title).slice(0,180),order.service,leadSourceForOrderType(order.source_type),notes);
+  db.prepare("UPDATE commercial_orders SET status='relevant' WHERE id=?").run(id);
+  return Number(result.lastInsertRowid);
+ });
+ return {leadId:create(),alreadyExists:false};
 });
 ipcMain.handle('prospects:crawlWebsites', async (_event, input = {}) => {
   const rawUrls = String(input.urls || '').split(/[\r\n,;]+/).map(x => x.trim()).filter(Boolean);
@@ -747,7 +922,7 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   };
   if (!allowed[kind]) throw new Error('Неизвестный тип экспорта.');
   const [label, sql, file] = allowed[kind];
-  const { canceled, filePath } = await dialog.showSaveDialog({ title: `GRUZLI CRM · Экспорт: ${label}`, defaultPath: `gruzli-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
+  const { canceled, filePath } = await dialog.showSaveDialog({ title: `STRUKTURA CRM · Экспорт: ${label}`, defaultPath: `gruzli-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
   if (canceled || !filePath) return { canceled: true };
   const rows = db.prepare(sql).all();
   const columns = rows.length ? Object.keys(rows[0]) : sql.match(/SELECT (.+?) FROM/)[1].split(',').map(s=>s.trim());
@@ -756,7 +931,7 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   return { canceled: false, filePath, count: rows.length };
 });
 ipcMain.handle('backup:create', async () => {
-  const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить резервную копию', defaultPath: `GRUZLI-CRM-backup-${new Date().toISOString().slice(0,10)}.sqlite`, filters: [{ name: 'SQLite database', extensions: ['sqlite','db'] }] });
+  const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить резервную копию', defaultPath: `STRUKTURA-CRM-backup-${new Date().toISOString().slice(0,10)}.sqlite`, filters: [{ name: 'SQLite database', extensions: ['sqlite','db'] }] });
   if (canceled || !filePath) return { canceled: true };
   db.pragma('wal_checkpoint(FULL)');
   await db.backup(filePath);
@@ -767,7 +942,7 @@ ipcMain.handle('backup:create', async () => {
 // as an automatic rollback copy and reopen the live connection after the file swap.
 ipcMain.handle('backup:restore', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
-    title: 'Выберите резервную копию GRUZLI CRM',
+    title: 'Выберите резервную копию STRUKTURA CRM',
     properties: ['openFile'],
     filters: [{ name: 'SQLite database', extensions: ['sqlite', 'db'] }]
   });
@@ -784,7 +959,7 @@ ipcMain.handle('backup:restore', async () => {
     const tables = new Set(candidate.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
     const required = ['clients', 'leads', 'projects', 'payments', 'expenses', 'settings'];
     const missing = required.filter(name => !tables.has(name));
-    if (missing.length) throw new Error(`Это не резервная копия GRUZLI CRM: отсутствуют таблицы ${missing.join(', ')}.`);
+    if (missing.length) throw new Error(`Это не резервная копия STRUKTURA CRM: отсутствуют таблицы ${missing.join(', ')}.`);
     candidate.close(); candidate = null;
   } catch (error) {
     if (candidate) { try { candidate.close(); } catch {} }
@@ -800,7 +975,7 @@ ipcMain.handle('backup:restore', async () => {
   if (answer.response !== 1) return { canceled: true };
 
   const userDataPath = app.getPath('userData');
-  const safetyPath = path.join(userDataPath, `GRUZLI-CRM-before-restore-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`);
+  const safetyPath = path.join(userDataPath, `STRUKTURA-CRM-before-restore-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`);
   const walPath = `${livePath}-wal`, shmPath = `${livePath}-shm`;
   db.pragma('wal_checkpoint(FULL)');
   await db.backup(safetyPath);
@@ -911,6 +1086,8 @@ ipcMain.handle('app:openExternal', async (_event, value) => {
 
 function quoteEscape(value) { return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 function quoteMoney(value) { return `${Math.round(Number(value) || 0).toLocaleString('ru-RU')} ₽`; }
+ipcMain.handle('estimate:history', () => db.prepare(`SELECT id,title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json FROM quote_history ORDER BY prepared_at DESC,id DESC`).all().map(row => ({ ...row, lines: (() => { try { return JSON.parse(row.lines_json || '[]'); } catch { return []; } })() })));
+
 ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   const lines = Array.isArray(input.lines) ? input.lines.slice(0, 500) : [];
   if (!lines.length) throw new Error('Добавь в смету хотя бы одну работу перед созданием КП.');
@@ -923,7 +1100,7 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   const preparedDate = new Date().toLocaleDateString('ru-RU');
   const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${quoteEscape(title)}</title><style>
   @page{size:A4;margin:13mm 13mm 15mm}*{box-sizing:border-box}body{font-family:Arial,'DejaVu Sans',sans-serif;color:#202a35;font-size:9pt;line-height:1.48;margin:0;background:#fff}header{position:relative;overflow:hidden;background:#172b3a;color:#fff;padding:21px 23px 20px;border-radius:2px;margin-bottom:18px;min-height:168px}header:after{content:"";position:absolute;right:-26px;top:-42px;width:205px;height:205px;border:1px solid rgba(255,255,255,.18);border-radius:50%;box-shadow:0 0 0 22px rgba(255,255,255,.035),0 0 0 45px rgba(255,255,255,.025)}.brand{font-size:23pt;letter-spacing:2.5px;font-weight:800;color:#fff;position:relative;z-index:1}.tag{font-size:7.2pt;letter-spacing:1.5px;color:#f1a36e;font-weight:bold;margin-top:4px;position:relative;z-index:1}.doctype{font-size:8pt;color:#c8d5dc;letter-spacing:1.4px;margin-top:22px;position:relative;z-index:1}.title{font-size:19pt;line-height:1.2;margin:5px 0 0;color:#fff;max-width:82%;position:relative;z-index:1}.hero-mark{position:absolute;right:19px;bottom:18px;width:95px;height:76px;border:1px solid rgba(255,255,255,.26);z-index:1;transform:skewY(-8deg)}.hero-mark:before,.hero-mark:after{content:"";position:absolute;border:1px solid rgba(241,163,110,.8)}.hero-mark:before{inset:12px -10px -10px 12px}.hero-mark:after{left:30px;top:-1px;bottom:-1px;border-width:0 0 0 1px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:7px 17px;margin:0 0 17px}.meta div{padding:7px 9px;background:#f4f6f7;border-left:2px solid #e38b55;min-height:43px}.label{display:block;font-size:7pt;letter-spacing:.65px;color:#687985;margin-bottom:2px;font-weight:700;text-transform:uppercase}.meta-value{overflow-wrap:anywhere}.section{font-size:10pt;font-weight:800;margin:17px 0 8px;color:#203747;display:flex;align-items:center;gap:8px}.section:before{content:"";width:4px;height:15px;background:#e38b55;display:inline-block}table{width:100%;border-collapse:collapse;font-size:8pt}thead{display:table-header-group}th{background:#203747;color:white;text-align:left;padding:8px 6px;font-weight:700}th:first-child{border-radius:2px 0 0 0}td{padding:7px 6px;border-bottom:1px solid #e4e9ec;vertical-align:top}tbody tr:nth-child(even){background:#f6f8f9}.num{text-align:right;white-space:nowrap}small{display:block;color:#6e7d87;font-size:7.3pt;margin-top:3px}.totals{margin:17px 0 0 auto;width:53%;background:#f3f6f7;padding:12px 14px;border-top:3px solid #e38b55}.total-label{color:#687985;font-size:7.5pt;font-weight:700;letter-spacing:.6px}.total{font-size:21pt;line-height:1.25;font-weight:800;color:#203747;margin-top:3px}.discount{font-size:8pt;color:#637079;margin-top:5px}.terms{margin-top:18px;padding:11px 12px;background:#f7f8f8;border-left:2px solid #cbd6dc;color:#596974;font-size:7.8pt}.terms strong{color:#203747}.signatures{display:grid;grid-template-columns:1.2fr .8fr;gap:15px;margin-top:19px;break-inside:avoid;page-break-inside:avoid}.sign-main{padding-top:8px}.sign-title{font-size:8pt;font-weight:800;color:#203747;margin-bottom:8px}.executor{font-size:9pt;font-weight:700;margin-bottom:18px}.signature-line{display:flex;align-items:end;gap:8px;margin-top:10px}.line{border-bottom:1px solid #667782;flex:1;height:22px}.line-label{font-size:7pt;color:#687985;white-space:nowrap}.stamp-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center}.stamp{width:100px;height:100px;border:1.5px dashed #9aaab3;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#8b9ba4;font-size:7pt;line-height:1.4;padding:12px;position:relative}.stamp:before{content:"";position:absolute;inset:5px;border:1px dashed #c0cbd1;border-radius:50%}.stamp-label{font-size:7pt;color:#687985;margin-top:5px}.footer{margin-top:17px;color:#82909a;font-size:6.8pt;border-top:1px solid #e2e7ea;padding-top:8px;display:flex;justify-content:space-between;gap:10px}tr{break-inside:avoid;page-break-inside:avoid}.terms,.totals{break-inside:avoid;page-break-inside:avoid}@media print{header{print-color-adjust:exact;-webkit-print-color-adjust:exact}.meta div,.totals,.terms,th{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
-  </style></head><body><header><div class="brand">GRUZLI</div><div class="tag">ДЕМОНТАЖ · ОТДЕЛКА · ФАЛЬШПОЛЫ</div><div class="doctype">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</div><div class="title">${quoteEscape(title)}</div><div class="hero-mark" aria-hidden="true"></div></header><div class="meta"><div><span class="label">Заказчик</span><span class="meta-value">${quoteEscape(customer || 'Не указан')}</span></div><div><span class="label">Контакт заказчика</span><span class="meta-value">${quoteEscape(contact || 'Не указан')}</span></div><div><span class="label">Адрес объекта</span><span class="meta-value">${quoteEscape(address || 'Будет уточнён')}</span></div><div><span class="label">Дата подготовки</span><span class="meta-value">${quoteEscape(preparedDate)}</span></div></div><div class="section">Состав и стоимость работ</div><table><thead><tr><th style="width:5%">№</th><th>Наименование работ</th><th>Ед.</th><th class="num">Кол-во</th><th class="num">Цена</th><th class="num">Сумма</th></tr></thead><tbody>${rows}</tbody></table><div class="totals"><div class="total-label">ИТОГО ПО ПРЕДЛОЖЕНИЮ</div><div class="total">${quoteMoney(total)}</div>${discount ? `<div class="discount">Скидка учтена в расчёте: ${quoteMoney(discount)}</div>` : ''}</div><div class="terms"><strong>Условия предложения</strong><br>Срок действия: ${quoteEscape(validity)}. Сроки выполнения, порядок оплаты и окончательный объём работ согласовываются сторонами до начала работ. Стоимость может быть уточнена после осмотра объекта и подтверждения объёмов. Дополнительные работы, не указанные в таблице, согласовываются отдельно. Настоящее коммерческое предложение не является договором подряда.</div><div class="signatures"><div class="sign-main"><div class="sign-title">ИСПОЛНИТЕЛЬ</div><div class="executor">ИП Борзенко Семен Сергеевич</div><div class="signature-line"><span class="line-label">Подпись</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Ф. И. О.</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Дата</span><span class="line"></span></div></div><div class="stamp-wrap"><div class="stamp">МЕСТО<br>ДЛЯ ПЕЧАТИ<br><span style="font-size:6pt">при наличии</span></div><div class="stamp-label">М. П.</div></div></div><div class="footer"><span>Сформировано в GRUZLI CRM</span><span>Демонтаж · Отделка · Фальшполы</span></div></body></html>`;
+  </style></head><body><header><div class="brand">STRUKTURA</div><div class="tag">ДЕМОНТАЖ · ОТДЕЛКА · ФАЛЬШПОЛЫ</div><div class="doctype">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</div><div class="title">${quoteEscape(title)}</div><div class="hero-mark" aria-hidden="true"></div></header><div class="meta"><div><span class="label">Заказчик</span><span class="meta-value">${quoteEscape(customer || 'Не указан')}</span></div><div><span class="label">Контакт заказчика</span><span class="meta-value">${quoteEscape(contact || 'Не указан')}</span></div><div><span class="label">Адрес объекта</span><span class="meta-value">${quoteEscape(address || 'Будет уточнён')}</span></div><div><span class="label">Дата подготовки</span><span class="meta-value">${quoteEscape(preparedDate)}</span></div></div><div class="section">Состав и стоимость работ</div><table><thead><tr><th style="width:5%">№</th><th>Наименование работ</th><th>Ед.</th><th class="num">Кол-во</th><th class="num">Цена</th><th class="num">Сумма</th></tr></thead><tbody>${rows}</tbody></table><div class="totals"><div class="total-label">ИТОГО ПО ПРЕДЛОЖЕНИЮ</div><div class="total">${quoteMoney(total)}</div>${discount ? `<div class="discount">Скидка учтена в расчёте: ${quoteMoney(discount)}</div>` : ''}</div><div class="terms"><strong>Условия предложения</strong><br>Срок действия: ${quoteEscape(validity)}. Сроки выполнения, порядок оплаты и окончательный объём работ согласовываются сторонами до начала работ. Стоимость может быть уточнена после осмотра объекта и подтверждения объёмов. Дополнительные работы, не указанные в таблице, согласовываются отдельно. Настоящее коммерческое предложение не является договором подряда.</div><div class="signatures"><div class="sign-main"><div class="sign-title">ИСПОЛНИТЕЛЬ</div><div class="executor">ИП Борзенко Семен Сергеевич</div><div class="signature-line"><span class="line-label">Подпись</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Ф. И. О.</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Дата</span><span class="line"></span></div></div><div class="stamp-wrap"><div class="stamp">МЕСТО<br>ДЛЯ ПЕЧАТИ<br><span style="font-size:6pt">при наличии</span></div><div class="stamp-label">М. П.</div></div></div><div class="footer"><span>Сформировано в STRUKTURA CRM</span><span>Демонтаж · Отделка · Фальшполы</span></div></body></html>`;
   const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить коммерческое предложение в PDF', defaultPath: `${title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,80)}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (canceled || !filePath) return { canceled: true };
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
