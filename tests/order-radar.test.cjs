@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildOrderQueries, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders } = require('../src/order-radar.cjs');
+const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, classifyOrderSource } = require('../src/order-radar.cjs');
 
 test('builds four order queries with selected service and region', () => {
   const queries = buildOrderQueries('demolition', 'Москва и МО');
@@ -121,4 +121,24 @@ test('builds service-specific procurement queries for all three services', () =>
   assert.ok(buildOrderQueries('demolition').some(q => /работ по демонтажу/i.test(q)));
   assert.ok(buildOrderQueries('finishing').some(q => /отделочных работ/i.test(q)));
   assert.ok(buildOrderQueries('raised_floor').some(q => /фальшпола/i.test(q)));
+});
+
+test('builds source-specific queries for Telegram, Avito and tenders', () => {
+  assert.ok(buildOrderQueries('demolition', 'Москва', 'telegram').every(q => /t\.me|telegram\.me/i.test(q)));
+  assert.ok(buildOrderQueries('finishing', 'Москва', 'avito').every(q => /avito\.ru/i.test(q)));
+  assert.ok(buildOrderQueries('raised_floor', 'Москва', 'tenders').some(q => /zakupki\.gov\.ru/i.test(q)));
+});
+
+test('classifies original source domains without trusting search query text', () => {
+  assert.equal(classifyOrderSource('https://t.me/public_channel/123'), 'telegram');
+  assert.equal(classifyOrderSource('https://www.avito.ru/moskva/item'), 'avito');
+  assert.equal(classifyOrderSource('https://zakupki.gov.ru/epz/order/1'), 'tenders');
+  assert.equal(classifyOrderSource('https://example.ru/order'), 'web');
+});
+
+test('builds manual search links without requiring an API key', () => {
+  const url = buildManualOrderSearchUrl('demolition', 'Москва и МО', 'avito');
+  assert.match(url, /^https:\/\/yandex\.ru\/search\/?text=/);
+  assert.match(decodeURIComponent(url), /site:avito\.ru/);
+  assert.match(decodeURIComponent(url), /Москва и МО/);
 });
