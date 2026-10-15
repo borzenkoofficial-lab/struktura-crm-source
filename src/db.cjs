@@ -170,6 +170,22 @@ CREATE TABLE IF NOT EXISTS import_jobs (
   details TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS quote_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  customer TEXT NOT NULL DEFAULT '',
+  address TEXT NOT NULL DEFAULT '',
+  prepared_at TEXT NOT NULL,
+  revenue_rub REAL NOT NULL DEFAULT 0 CHECK(revenue_rub >= 0),
+  cost_rub REAL NOT NULL DEFAULT 0 CHECK(cost_rub >= 0),
+  profit_rub REAL NOT NULL DEFAULT 0,
+  margin_pct REAL NOT NULL DEFAULT 0,
+  discount_rub REAL NOT NULL DEFAULT 0 CHECK(discount_rub >= 0),
+  lines_count INTEGER NOT NULL DEFAULT 0 CHECK(lines_count >= 0),
+  lines_json TEXT NOT NULL DEFAULT '[]',
+  file_path TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_quote_history_prepared_at ON quote_history(prepared_at DESC);
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -243,8 +259,8 @@ function openDatabase(userDataPath) {
   const prospectColumns = new Set(db.prepare('PRAGMA table_info(prospects)').all().map(column => column.name));
   if (!prospectColumns.has('service')) db.exec("ALTER TABLE prospects ADD COLUMN service TEXT NOT NULL DEFAULT 'demolition' CHECK(service IN ('demolition','finishing','raised_floor'))");
   db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_service ON prospects(service)');
-  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','5')").run();
-  db.prepare("UPDATE settings SET value='5' WHERE key='schema_version'").run();
+  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','6')").run();
+  db.prepare("UPDATE settings SET value='6' WHERE key='schema_version'").run();
   return db;
 }
 
