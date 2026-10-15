@@ -1040,6 +1040,18 @@ $('orderRadarSearch').addEventListener('input',()=>refreshCommercialOrders().cat
 $('orderRadarStatus').addEventListener('change',()=>refreshCommercialOrders().catch(e=>toast(e.message,true)));
 $('orderRadarService').addEventListener('change',()=>refreshCommercialOrders().catch(e=>toast(e.message,true)));
 $('orderRadarSource').addEventListener('change',()=>{refreshCommercialOrders().catch(e=>toast(e.message,true));const b=$('runOrderRadarBtn');if(b)b.textContent=$('orderRadarSource').value==='files'?'Выбран импорт CSV':'⌕ Найти через API';});
+$('commercialOrdersList').addEventListener('click',async e=>{
+ const button=e.target.closest('[data-order-convert]');if(!button)return;
+ const orderId=Number(button.dataset.orderConvert);if(!Number.isSafeInteger(orderId)||orderId<1){toast('Некорректный номер заказа.',true);return;}
+ button.disabled=true;button.textContent='Создаём заявку…';
+ try{
+  const result=await window.crm.convertCommercialOrderToLead(orderId);
+  await refreshCommercialOrders();
+  await refreshLeads();
+  toast(result.alreadyExists?'Этот заказ уже был передан в заявки.':'Заказ передан в раздел «Заявки».');
+ }catch(error){toast('Не удалось создать заявку: '+error.message,true);}
+ finally{button.disabled=false;}
+});
 $('commercialOrdersList').addEventListener('click',async e=>{const b=e.target.closest('[data-order-open]');if(!b)return;try{await window.crm.openExternal(b.dataset.orderUrl);await window.crm.updateCommercialOrderStatus({id:Number(b.dataset.orderOpen),status:'opened'});await refreshCommercialOrders()}catch(err){toast(err.message,true)}});
 $('commercialOrdersList').addEventListener('change',async e=>{const s=e.target.closest('[data-order-status]');if(!s)return;try{await window.crm.updateCommercialOrderStatus({id:Number(s.dataset.orderStatus),status:s.value});toast('Статус заказа сохранён.')}catch(err){toast(err.message,true)}});
 $('exportProspectsBtn').addEventListener('click', () => exportCsv('prospects'));
