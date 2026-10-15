@@ -4,20 +4,20 @@ const ORDER_QUERIES = {
   demolition: [
     'тендер закупка демонтаж коммерческих помещений',
     '"ищем подрядчика" демонтаж офисов',
-    'закупка демонтаж ремонт реконструкция коммерческий объект',
-    'site:zakupki.gov.ru OR site:roseltorg.ru OR site:b2b-center.ru демонтаж'
+    'тендер на выполнение работ по демонтажу Москва подрядчик',
+    'site:zakupki.gov.ru демонтаж OR site:roseltorg.ru демонтаж OR site:b2b-center.ru демонтаж'
   ],
   finishing: [
     'тендер закупка отделка офисов fit out',
     '"ищем подрядчика" отделочные работы коммерческие помещения',
-    'закупка ремонт реконструкция коммерческий объект',
-    'site:zakupki.gov.ru OR site:roseltorg.ru OR site:b2b-center.ru отделка'
+    'тендер на выполнение отделочных работ Москва подрядчик',
+    'site:zakupki.gov.ru отделка OR site:roseltorg.ru отделка OR site:b2b-center.ru отделка'
   ],
   raised_floor: [
     'тендер закупка демонтаж фальшпол',
     'заказчик ищет подрядчика фальшпол серверная',
-    'закупка ремонт серверной коммерческий объект',
-    'site:zakupki.gov.ru OR site:roseltorg.ru OR site:b2b-center.ru фальшпол'
+    'тендер на монтаж или демонтаж фальшпола подрядчик',
+    'site:zakupki.gov.ru фальшпол OR site:roseltorg.ru фальшпол OR site:b2b-center.ru фальшпол'
   ]
 };
 
@@ -44,6 +44,10 @@ function normalizeOrderResult(item = {}, query = '', service = 'demolition', reg
   try { url = new URL(String(item.url || '')); } catch { return null; }
   if (!['http:', 'https:'].includes(url.protocol) || !url.hostname || url.username || url.password) return null;
   url.hash = '';
+  // Remove common analytics parameters so the same publication is not stored as multiple orders.
+  for (const key of [...url.searchParams.keys()]) {
+    if (/^(utm_.+|fbclid|gclid|yclid|ysclid|_openstat|from)$/i.test(key)) url.searchParams.delete(key);
+  }
 
   const title = String(item.title || '').replace(/\s+/g, ' ').trim().slice(0, 240);
   if (!title) return null;
