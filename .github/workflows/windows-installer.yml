@@ -1,0 +1,57 @@
+name: Validate and Build Windows Installer
+
+on:
+  push:
+    branches:
+      - fix/pi-adaptive-insights-v1.15.0
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: struktura-installer-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-and-build:
+    name: Test and package Struktura CRM for Windows
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run automated tests
+        run: npm test
+
+      - name: Build branded Windows installer
+        run: npm run dist:win
+
+      - name: Verify installer artifact
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path "dist" -Filter "Struktura-CRM-Setup-1.15.0.exe" -File
+          if (-not $installer) {
+            throw "Expected installer was not created: dist/Struktura-CRM-Setup-1.15.0.exe"
+          }
+          if ($installer.Length -lt 10MB) {
+            throw "Installer is unexpectedly small ($($installer.Length) bytes)."
+          }
+          Get-FileHash $installer.FullName -Algorithm SHA256 | Format-List
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Struktura-CRM-Setup-1.15.0
+          path: dist/Struktura-CRM-Setup-1.15.0.exe
+          if-no-files-found: error
+          retention-days: 14
