@@ -373,7 +373,17 @@ ipcMain.handle('production:exportReportPdf', async (_event, input = {}) => {
   const { canceled, filePath } = await dialog.showSaveDialog({ title: documentType === 'act' ? 'Сохранить акт фиксации работ в PDF' : 'Сохранить производственный отчёт в PDF', defaultPath: defaultName, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (canceled || !filePath) return { canceled: true };
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
-  try { await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html)); const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } }); fs.writeFileSync(filePath, data); return { canceled: false, filePath }; }
+  try {
+    await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+    fs.writeFileSync(filePath, data);
+    const costRub = Math.max(0, Number(input.estimatedCostRub) || 0);
+    const profitRub = Number.isFinite(Number(input.estimatedProfitRub)) ? Number(input.estimatedProfitRub) : total - costRub;
+    const marginPct = Number.isFinite(Number(input.marginPct)) ? Number(input.marginPct) : (total > 0 ? profitRub / total * 100 : 0);
+    db.prepare(`INSERT INTO quote_history(title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json,file_path) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(title, customer, address, new Date().toISOString(), total, costRub, profitRub, marginPct, discount, lines.length, JSON.stringify(lines.map(line => ({ name: clean(line.name,180), unit: clean(line.unit,24), quantity: Math.max(0, Number(line.quantity) || 0), price: Math.max(0, Number(line.price) || 0) }))), filePath);
+    return { canceled: false, filePath, historySaved: true };
+  }
   finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
 });
 
@@ -1064,6 +1074,8 @@ ipcMain.handle('app:openExternal', async (_event, value) => {
 
 function quoteEscape(value) { return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 function quoteMoney(value) { return `${Math.round(Number(value) || 0).toLocaleString('ru-RU')} ₽`; }
+ipcMain.handle('estimate:history', () => db.prepare(`SELECT id,title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json FROM quote_history ORDER BY prepared_at DESC,id DESC LIMIT 500`).all().map(row => ({ ...row, lines: (() => { try { return JSON.parse(row.lines_json || '[]'); } catch { return []; } })() })));
+
 ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   const lines = Array.isArray(input.lines) ? input.lines.slice(0, 500) : [];
   if (!lines.length) throw new Error('Добавь в смету хотя бы одну работу перед созданием КП.');
