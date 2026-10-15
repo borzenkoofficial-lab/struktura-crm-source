@@ -87,6 +87,18 @@ test('does not mistake a high general relevance score for procurement intent', (
   assert.ok(!result.reasons.includes('Есть сигналы закупки или поиска подрядчика'));
 });
 
+test('does not treat a seller commercial proposal as buyer procurement intent', () => {
+  const result = assessCommercialOrder({
+    title: 'Коммерческое предложение на демонтаж офисов',
+    snippet: 'Наша компания предлагает услуги демонтажа коммерческих помещений.',
+    source_url: 'https://example.ru/services/demolition',
+    service: 'demolition',
+    signal_labels: ['Демонтаж', 'Коммерческий объект']
+  });
+  assert.equal(result.components.find(item => item.key === 'winLikelihood').value, 25);
+  assert.ok(!result.reasons.includes('Есть сигналы закупки или поиска подрядчика'));
+});
+
 test('accepts explicit procurement labels from normalized search results', () => {
   const result = assessCommercialOrder({
     title: 'Демонтаж коммерческого помещения',
