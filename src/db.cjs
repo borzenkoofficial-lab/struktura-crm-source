@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS commercial_orders (
  status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','opened','relevant','rejected')),
  first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX IF NOT EXISTS idx_commercial_orders_source_type ON commercial_orders(source_type);
+-- source_type index is created after additive migration for legacy databases.
 CREATE INDEX IF NOT EXISTS idx_commercial_orders_status ON commercial_orders(status);
 CREATE INDEX IF NOT EXISTS idx_commercial_orders_service ON commercial_orders(service);
 CREATE INDEX IF NOT EXISTS idx_commercial_orders_last_seen ON commercial_orders(last_seen_at DESC);
