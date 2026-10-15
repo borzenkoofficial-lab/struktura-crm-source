@@ -38,6 +38,7 @@ test('adds the commercial order link when migrating an existing leads table', t 
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const legacy = new Database(path.join(directory, 'struktura-crm.sqlite'));
   legacy.exec(`
+    CREATE TABLE clients (id INTEGER PRIMARY KEY AUTOINCREMENT);
     CREATE TABLE leads (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
