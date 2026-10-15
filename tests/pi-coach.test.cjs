@@ -46,9 +46,9 @@ test('PI coach compares expense periods and flags material refund patterns from 
       { payment_type: 'refund', amount_rub: 15000 }
     ],
     expenses: [
-      { expense_date: '2026-10-01', amount_rub: 5000 },
-      { expense_date: '2026-10-03', amount_rub: 4000 },
-      { expense_date: '2026-10-05', amount_rub: 3000 },
+      { expense_date: '2026-10-01', amount_rub: 15000 },
+      { expense_date: '2026-10-03', amount_rub: 10000 },
+      { expense_date: '2026-10-05', amount_rub: 8000 },
       { expense_date: '2026-08-20', amount_rub: 4000 },
       { expense_date: '2026-09-01', amount_rub: 4000 },
       { expense_date: '2026-09-10', amount_rub: 4000 }
