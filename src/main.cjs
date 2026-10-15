@@ -374,13 +374,13 @@ ipcMain.handle('production:rateModels', (_event, input = {}) => {
   const ids = [...new Set(input.catalog_ids.map(id => clean(id, 120)).filter(Boolean))];
   if (!ids.length) return [];
   const observationsByCatalog = {};
-  const observations = db.prepare(`SELECT wsi.catalog_id, wsi.quantity_done, wsi.workers_count, wsi.hours, ws.complexity_factor
+  const observations = db.prepare(`SELECT wsi.catalog_id, wsi.quantity_done, wsi.workers_count, wsi.hours, ws.complexity_factor, ws.conditions_json
     FROM work_shift_items wsi JOIN work_shifts ws ON ws.id=wsi.shift_id
     ORDER BY ws.shift_date DESC, ws.id DESC`).all();
   for (const row of observations) (observationsByCatalog[row.catalog_id] ||= []).push(row);
   return ids.map(catalogId => {
     const model = buildRateModel({ baselineProductivity: 1, observations: observationsByCatalog[catalogId] || [], targetCrewSize });
-    return { catalog_id: catalogId, observations: model.observations, observedMedian: model.observedMedian, confidence: model.confidence, crewScalingApplied: model.crewScalingApplied, referenceCrewSize: model.referenceCrewSize, targetCrewSize };
+    return { catalog_id: catalogId, observations: model.observations, availableObservations: model.availableObservations, matchedObservations: model.matchedObservations, conditionMatchSufficient: model.conditionMatchSufficient, observedMedian: model.observedMedian, confidence: model.confidence, crewScalingApplied: model.crewScalingApplied, referenceCrewSize: model.referenceCrewSize, targetCrewSize };
   });
 });
 
