@@ -27,7 +27,7 @@ const { buildFinanceInsights } = require('./finance-insights.cjs');
 const { normalizeProjectInput, validDate } = require('./project-utils.cjs');
 const { forecastRemainingWork, buildRateModel } = require('./production-model.cjs');
 const { DEFAULT_REMINDER_SETTINGS, normalizeReminderSettings, buildReminders } = require('./reminder-engine.cjs');
-const { normalizeProductionPlan, normalizeShiftWorkLines } = require('./production-plan-utils.cjs');
+const { normalizeProductionPlan, normalizeShiftWorkLines, normalizeConditions } = require('./production-plan-utils.cjs');
 const { buildProductionReportHtml } = require('./production-report.cjs');
 
 let db;
@@ -51,6 +51,7 @@ autoUpdater.on('error', error => publishUpdateStatus({ state: 'error', message: 
 const services = ['demolition', 'finishing', 'raised_floor'];
 const sources = ['avito', 'phone', 'telegram', 'recommendation', 'website', 'other'];
 function clean(value, max = 2000) { return String(value ?? '').trim().slice(0, max); }
+function parseConditionList(value) { try { return normalizeConditions(typeof value === 'string' ? JSON.parse(value || '[]') : value || []); } catch (_) { return []; } }
 const searchKeyPath = () => path.join(app.getPath('userData'), 'brave-search-key.enc');
 function hasSearchKey() { return fs.existsSync(searchKeyPath()); }
 function readSearchKey() {
@@ -301,7 +302,7 @@ ipcMain.handle('production:overview', () => {
     actualByProject.get(row.project_id)[row.catalog_id] = Number(row.actual_quantity || 0);
   }
   const observations = db.prepare(`SELECT wsi.catalog_id, wsi.quantity_done, wsi.workers_count, wsi.hours,
-    wsi.baseline_productivity, ws.complexity_factor, ws.shift_date, ws.id shift_id
+    wsi.baseline_productivity, ws.complexity_factor, ws.conditions_json, ws.shift_date, ws.id shift_id
     FROM work_shift_items wsi JOIN work_shifts ws ON ws.id=wsi.shift_id ORDER BY ws.shift_date DESC, ws.id DESC`).all();
   const observationsByCatalog = {};
   for (const row of observations) (observationsByCatalog[row.catalog_id] ||= []).push(row);
@@ -312,13 +313,14 @@ ipcMain.handle('production:overview', () => {
       actualByCatalog: actualByProject.get(project.id) || {},
       observationsByCatalog,
       targetDifficulty: Number(project.complexity_factor || 1),
-      crewSize: Number(project.planned_people || 5)
+      crewSize: Number(project.planned_people || 5),
+      targetConditions: parseConditionList(project.conditions_json)
     });
     const shiftStats = db.prepare('SELECT COUNT(*) count, COALESCE(SUM(workers_count*shift_hours/8.0),0) person_shifts, MAX(shift_date) last_date FROM work_shifts WHERE project_id=?').get(project.id);
     return { ...project, planCount: plan.length, forecast, shiftCount: shiftStats.count, personShifts: Number(shiftStats.person_shifts || 0), lastShiftDate: shiftStats.last_date || null };
   });
   const historyRows = db.prepare(`SELECT ws.id, ws.project_id, p.title project_title, ws.shift_date, ws.workers_count,
-    ws.shift_hours, ws.downtime_hours, ws.complexity_factor, ws.notes,
+    ws.shift_hours, ws.downtime_hours, ws.complexity_factor, ws.conditions_json, ws.notes,
     COUNT(wsi.id) work_count, COALESCE(SUM(wsi.quantity_done),0) quantity_total,
     GROUP_CONCAT(wsi.work_name || ': ' || CAST(ROUND(wsi.quantity_done,2) AS TEXT) || ' ' || wsi.unit, ' · ') work_summary
     FROM work_shifts ws JOIN projects p ON p.id=ws.project_id
@@ -396,7 +398,7 @@ ipcMain.handle('production:savePlan', (_event, input = {}) => {
   if (!Number.isInteger(projectId) || !project || ['completed','cancelled'].includes(project.status)) throw new Error('Выбери существующий незавершённый объект.');
   const plan = normalizeProductionPlan(input);
   const save = db.transaction(() => {
-    db.prepare('UPDATE projects SET planned_people=?, complexity_factor=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(plan.planned_people, plan.complexity_factor, projectId);
+    db.prepare('UPDATE projects SET planned_people=?, complexity_factor=?, conditions_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(plan.planned_people, plan.complexity_factor, JSON.stringify(plan.conditions), projectId);
     db.prepare('DELETE FROM production_plans WHERE project_id=?').run(projectId);
     const insert = db.prepare(`INSERT INTO production_plans(project_id,catalog_id,work_name,unit,planned_quantity,baseline_productivity)
       VALUES (@project_id,@catalog_id,@work_name,@unit,@planned_quantity,@baseline_productivity)`);
@@ -421,11 +423,12 @@ ipcMain.handle('production:saveShift', (_event, input = {}) => {
   if (!Number.isFinite(downtime) || downtime < 0 || downtime > shiftHours) throw new Error('Простой должен быть от 0 до длительности смены.');
   if (![0.7,1,1.25,1.5,2].includes(factor)) throw new Error('Выбери допустимый коэффициент сложности.');
   const notes = clean(input.notes, 3000);
+  const conditions = normalizeConditions(input.conditions);
   const lines = normalizeShiftWorkLines({ lines: input.lines, workers, shiftHours, downtimeHours: downtime });
   if (!lines.length && !notes) throw new Error('Если за смену ничего не сделано, укажи причину простоя в примечании.');
   const save = db.transaction(() => {
-    const result = db.prepare(`INSERT INTO work_shifts(project_id,shift_date,workers_count,shift_hours,downtime_hours,complexity_factor,notes)
-      VALUES (?,?,?,?,?,?,?)`).run(projectId,date,workers,shiftHours,downtime,factor,notes);
+    const result = db.prepare(`INSERT INTO work_shifts(project_id,shift_date,workers_count,shift_hours,downtime_hours,complexity_factor,conditions_json,notes)
+      VALUES (?,?,?,?,?,?,?,?)`).run(projectId,date,workers,shiftHours,downtime,factor,JSON.stringify(conditions),notes);
     const insert = db.prepare(`INSERT INTO work_shift_items(shift_id,catalog_id,work_name,unit,quantity_done,workers_count,hours,baseline_productivity)
       VALUES (@shift_id,@catalog_id,@work_name,@unit,@quantity_done,@workers_count,@hours,@baseline_productivity)`);
     for (const line of lines) insert.run({ shift_id: result.lastInsertRowid, ...line });
@@ -461,8 +464,8 @@ ipcMain.handle('production:updateShift', (_event, input = {}) => {
   const lines = normalizeShiftWorkLines({ lines: input.lines, workers, shiftHours, downtimeHours: downtime });
   if (!lines.length && !notes) throw new Error('Если за смену ничего не сделано, укажи причину простоя в примечании.');
   const update = db.transaction(() => {
-    db.prepare('UPDATE work_shifts SET project_id=?,shift_date=?,workers_count=?,shift_hours=?,downtime_hours=?,complexity_factor=?,notes=? WHERE id=?')
-      .run(projectId,date,workers,shiftHours,downtime,factor,notes,shiftId);
+    db.prepare('UPDATE work_shifts SET project_id=?,shift_date=?,workers_count=?,shift_hours=?,downtime_hours=?,complexity_factor=?,conditions_json=?,notes=? WHERE id=?')
+      .run(projectId,date,workers,shiftHours,downtime,factor,JSON.stringify(conditions),notes,shiftId);
     db.prepare('DELETE FROM work_shift_items WHERE shift_id=?').run(shiftId);
     const insert = db.prepare('INSERT INTO work_shift_items(shift_id,catalog_id,work_name,unit,quantity_done,workers_count,hours,baseline_productivity) VALUES (@shift_id,@catalog_id,@work_name,@unit,@quantity_done,@workers_count,@hours,@baseline_productivity)');
     for (const line of lines) insert.run({ shift_id: shiftId, ...line });
