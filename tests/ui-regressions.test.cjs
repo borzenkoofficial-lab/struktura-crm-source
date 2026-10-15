@@ -547,3 +547,23 @@ test('PI keeps sparse calibration data in collection mode and never suggests an 
   assert.equal(model.suggestedFactor, 1);
   assert.equal(result.learningSummary.includes('не предлагает менять нормы'), true);
 });
+
+
+test('product presentation tab is reachable and contains the STRUKTURA story and functional navigation', () => {
+  assert.match(html, /data-view="about"/);
+  assert.match(html, /id="view-about"/);
+  assert.match(html, /Порядок в работе/);
+  assert.match(html, /Факты важнее впечатлений/);
+  assert.match(html, /ПИ — производственный интеллект/);
+  assert.match(html, /data-goto="production"/);
+  assert.match(html, /data-goto="projects"/);
+  assert.match(renderer, /about: 'О продукте STRUKTURA'/);
+});
+
+test('product presentation includes responsive 3D visuals and respects reduced-motion preferences', () => {
+  const styles = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(styles, /\.about-hero-scene/);
+  assert.match(styles, /perspective:/);
+  assert.match(styles, /@keyframes about-slab-float/);
+  assert.match(styles, /@media\(prefers-reduced-motion:reduce\)\{\.about-view/);
+});
