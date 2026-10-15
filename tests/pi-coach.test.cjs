@@ -92,3 +92,31 @@ test('PI coach returns a grounded data-quality prompt when history is empty', ()
   assert.equal(items[0].id, 'data-quality-overview');
   assert.match(items[0].spoken, /не буду придумывать показатели/iu);
 });
+
+test('PI cross-checks saved quote profit against price minus cost and routes to quotes', () => {
+  const items = buildPiCoachInsights({ quotes: [
+    { id: 51, title: 'КП офис', revenue_rub: 100000, cost_rub: 70000, profit_rub: 50000, margin_pct: 50 }
+  ] }, { today: '2026-10-15' });
+  const mismatch = items.find(item => item.id === 'quote-math-mismatch-51');
+  assert.ok(mismatch);
+  assert.equal(mismatch.view, 'projects');
+  assert.match(mismatch.detail, /Цена минус себестоимость: 30 000|Цена минус себестоимость: 30 000/u);
+});
+
+test('PI does not warn about missing project dates for completed or cancelled projects', () => {
+  const items = buildPiCoachInsights({ projects: [
+    { id: 1, title: 'Старый объект', status: 'completed' },
+    { id: 2, title: 'Отменённый объект', status: 'cancelled' }
+  ] }, { today: '2026-10-15' });
+  assert.equal(items.some(item => item.id === 'project-dates-missing-1' || item.id === 'project-dates-missing-2'), false);
+});
+
+test('PI flags missing schedule only for active or planned projects and explains why it matters', () => {
+  const items = buildPiCoachInsights({ projects: [
+    { id: 7, title: 'Склад', status: 'active', start_date: '', end_date: '' }
+  ] }, { today: '2026-10-15' });
+  const item = items.find(row => row.id === 'project-dates-missing-7');
+  assert.ok(item);
+  assert.match(item.spoken, /не могу надёжно оценить/iu);
+  assert.equal(item.view, 'projects');
+});

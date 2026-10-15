@@ -779,3 +779,22 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 @keyframes piCoachEnter{from{opacity:0;transform:translateY(9px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(max-width:600px){.pi-companion{right:13px;bottom:14px}.pi-coach-avatar{width:58px;height:58px;border-radius:19px}.pi-coach-popover{width:min(370px,calc(100vw - 26px));padding:14px}.pi-coach-popover h3{font-size:16px}.pi-coach-actions{flex-wrap:wrap}}
 @media(prefers-reduced-motion:reduce){.pi-avatar-aura,.pi-coach-popover{animation:none!important}.pi-coach-avatar{transition:none}}
+
+/* PI compact companion: contextual nudges should not cover the workspace. */
+.pi-companion{right:18px;bottom:18px;gap:8px}
+.pi-coach-popover{width:min(340px,calc(100vw - 24px));max-height:min(62vh,500px);padding:13px 14px 10px;border-radius:15px}
+.pi-coach-head{padding-bottom:9px}
+.pi-coach-eyebrow{font-size:8px;letter-spacing:.55px}
+.pi-coach-head strong{font-size:12px}
+.pi-coach-priority{margin-top:10px;padding:4px 7px;font-size:8px}
+.pi-coach-popover h3{font-size:15px;line-height:1.3;margin:8px 0 6px}
+.pi-coach-popover>p{font-size:11px;line-height:1.55;margin-bottom:9px}
+.pi-coach-evidence{padding:8px}
+.pi-coach-evidence summary{font-size:9px}
+.pi-coach-evidence p{font-size:9px;line-height:1.5}
+.pi-coach-actions{gap:6px;margin-top:9px;flex-wrap:wrap}
+.pi-coach-actions .button{min-height:32px;font-size:10px;padding:7px 9px}
+.pi-coach-footer{padding-top:7px;margin-top:7px}
+.pi-coach-footer button{font-size:9px}
+.pi-coach-avatar{width:58px;height:58px;border-radius:19px}
+@media(max-width:600px){.pi-coach-popover{width:min(340px,calc(100vw - 24px));max-height:58vh;padding:12px}.pi-coach-avatar{width:54px;height:54px}}

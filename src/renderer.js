@@ -29,6 +29,8 @@ function showView(name) {
   if (name === 'projects') refreshEstimateLearningRates().catch(e => toast(`Не удалось обновить нормы по практике: ${e.message}`, true));
   if (name === 'browser') { showIntegratedBrowser().catch(e => toast(`Не удалось открыть браузер: ${e.message}`, true)); }
   else { window.crm.setBrowserVisibility({ visible: false }).catch(() => {}); }
+  // Re-evaluate business signals when the user moves between CRM sections.
+  if (name !== 'dashboard') refreshPiCoach().catch(() => {});
 }
 // Register primary navigation before the rest of renderer initialization. If a later widget
 // fails during setup, the workspace navigation remains usable and the error is observable.
@@ -273,7 +275,7 @@ async function refreshPiCoach(options = {}) {
       return;
     }
     const canAutoOpen = !piCoachLastAutoAt || now - piCoachLastAutoAt >= 20 * 60 * 1000;
-    if (unseen && canAutoOpen && (options.force === true || piCoachLastAutoAt === 0 || unseen.severity === 'danger')) {
+    if (unseen && canAutoOpen && (options.force === true || piCoachLastAutoAt === 0 || unseen.severity === 'danger' || unseen.priority >= 88)) {
       piCoachIndex = piCoachInsights.findIndex(item => item.id === unseen.id);
       piCoachOpen(piCoachIndex, true);
       piCoachMarkSeen(unseen.id);
@@ -1650,3 +1652,6 @@ Promise.race([
   .finally(hideStartupSplash);
 refreshSearchApiStatus();
 refreshNotificationSettings().catch(() => { $('notificationStatus').textContent = 'Настройки уведомлений недоступны'; });
+
+// PI re-checks saved business context periodically; only new high-priority signals can interrupt.
+setInterval(() => { refreshPiCoach().catch(() => {}); }, 5 * 60 * 1000);
