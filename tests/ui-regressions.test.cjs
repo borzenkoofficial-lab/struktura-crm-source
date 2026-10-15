@@ -369,3 +369,19 @@ test('client and prospect create, update and CSV import validate contact email a
   assert.ok(main.includes('email: normalizeContactEmail(input.email)'));
   assert.ok(main.includes('email: normalizeContactEmail(item.email)'));
 });
+
+
+test('production plans and shift reports expose structured conditions and persist them through IPC', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'utf8');
+  const main = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
+  const db = fs.readFileSync(path.join(__dirname, '../src/db.cjs'), 'utf8');
+  assert.match(html, /name="plan_condition" value="reinforced_concrete"/);
+  assert.match(html, /name="shift_condition" value="manual_carry"/);
+  assert.match(renderer, /conditions: productionReadConditions\('plan_condition'\)/);
+  assert.match(renderer, /conditions: productionReadConditions\('shift_condition'\)/);
+  assert.match(renderer, /productionSetConditions\('shift_condition', shift\.conditions_json\)/);
+  assert.match(main, /conditions_json=\?,notes=\?/);
+  assert.match(db, /ALTER TABLE projects ADD COLUMN conditions_json TEXT NOT NULL DEFAULT '\[\]'/);
+  assert.match(db, /ALTER TABLE work_shifts ADD COLUMN conditions_json TEXT NOT NULL DEFAULT '\[\]'/);
+});
