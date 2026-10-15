@@ -213,6 +213,46 @@ function buildPiCoachInsights(data = {}, options = {}) {
       'projects', 'Разобрать историю КП');
   }
 
+  // Cross-check stored commercial proposal arithmetic against the source amounts.
+  for (const quote of quotes) {
+    const revenue = Number(quote.revenue_rub);
+    const cost = Number(quote.cost_rub);
+    const storedProfit = Number(quote.profit_rub);
+    if (quote.profit_rub == null || quote.profit_rub === '' || !Number.isFinite(revenue) || !Number.isFinite(cost) || !Number.isFinite(storedProfit) || revenue <= 0 || cost < 0) continue;
+    const calculatedProfit = revenue - cost;
+    const tolerance = Math.max(2, revenue * 0.005);
+    const title = String(quote.title || ('КП №' + quote.id));
+    if (Math.abs(calculatedProfit - storedProfit) > tolerance) {
+      add('quote-math-mismatch-' + quote.id, calculatedProfit < 0 ? 'danger' : 'warning', calculatedProfit < 0 ? 99 : 92,
+        'Не сходится арифметика КП: ' + title,
+        'В сохранённом коммерческом предложении «' + title + '» прибыль не совпадает с расчётом цена минус себестоимость. Не отправляй документ, пока не сверишь исходные цифры и сохранённый PDF.',
+        'Цена: ' + rub(revenue) + '. Себестоимость: ' + rub(cost) + '. Цена минус себестоимость: ' + rub(calculatedProfit) + '. Сохранённая прибыль: ' + rub(storedProfit) + '. Расхождение: ' + rub(Math.abs(calculatedProfit - storedProfit)) + '. Допуск проверки — 0,5% цены или 2 ₽, что больше. Проверь, одинаково ли учитываются скидки, налоги и дополнительные расходы.',
+        'projects', 'Проверить КП');
+    }
+    const storedMargin = Number(quote.margin_pct);
+    if (quote.margin_pct != null && quote.margin_pct !== '' && Number.isFinite(storedMargin)) {
+      const calculatedMargin = calculatedProfit / revenue * 100;
+      if (Math.abs(calculatedMargin - storedMargin) > 1.5) {
+        add('quote-margin-mismatch-' + quote.id, 'warning', 91, 'Маржа в КП требует сверки: ' + title,
+          'В сохранённом КП маржа не совпадает с отношением прибыли к цене. Проверь формулу и исходные суммы до использования документа.',
+          'Цена: ' + rub(revenue) + '. Расчётная прибыль по цене минус себестоимость: ' + rub(calculatedProfit) + '. Маржа по этим значениям: ' + calculatedMargin.toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + '%. Сохранённая маржа: ' + storedMargin.toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + '%. Возможна разница в формуле или составе затрат.',
+          'projects', 'Сверить маржу');
+      }
+    }
+  }
+
+  // Missing dates are operationally relevant only for active/planned projects.
+  for (const project of projects) {
+    if (!['active', 'planned'].includes(project.status)) continue;
+    const title = String(project.title || ('Объект ' + (project.id ?? ''))).trim();
+    if (!validIso(String(project.end_date || '').slice(0, 10)) && !validIso(String(project.start_date || '').slice(0, 10))) {
+      add('project-dates-missing-' + project.id, 'info', 52, 'У объекта не заданы сроки: ' + title,
+        'У объекта «' + title + '» не заполнены даты начала и окончания. Я не могу надёжно оценить просрочку, загрузку бригады и дату поступления остатка оплаты без этих сроков.',
+        'Статус: ' + (project.status || 'не указан') + '. Дата начала: не заполнена. Дата окончания: не заполнена. Добавь плановую дату окончания и обновляй её при изменении графика.',
+        'projects', 'Указать сроки');
+    }
+  }
+
   if (!insights.length) {
     const recordCount = projects.length + leads.length + history.length + tasks.length + orders.length + quotes.length + payments.length + expenses.length + (Array.isArray(data.incomeRecords) ? data.incomeRecords.length : 0);
     add('data-quality-overview', 'info', 20, recordCount ? 'Сейчас нет подтверждённого критичного сигнала' : 'Начнём с данных бизнеса',
