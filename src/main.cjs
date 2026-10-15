@@ -16,7 +16,7 @@ const Database = require('better-sqlite3');
 const { parseCsv, prospectDuplicateKeys, safeCsvCell } = require('./csv.cjs');
 const { crawlSites } = require('./site-crawler.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
-const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders } = require('./order-radar.cjs');
+const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, leadSourceForOrderType } = require('./order-radar.cjs');
 const { parseCommercialOrdersCsv } = require('./order-import.cjs');
 const { assessCommercialOrder } = require('./order-pi.cjs');
 const { calculateOrderEconomics } = require('./order-economics.cjs');
@@ -727,7 +727,7 @@ ipcMain.handle('orders:convertLead', (_event, orderId) => {
   order.search_query?'Поисковый запрос: '+order.search_query:''
  ].filter(Boolean).join('\n').slice(0,4000);
  const create=db.transaction(()=>{
-  const result=db.prepare('INSERT INTO leads(commercial_order_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,?,\'website\',\'new\',0,\'\',?)').run(id,(serviceLabel+' — '+order.title).slice(0,180),order.service,notes);
+  const result=db.prepare('INSERT INTO leads(commercial_order_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,?,?,\'new\',0,\'\',?)').run(id,(serviceLabel+' — '+order.title).slice(0,180),order.service,leadSourceForOrderType(order.source_type),notes);
   db.prepare("UPDATE commercial_orders SET status='relevant' WHERE id=?").run(id);
   return Number(result.lastInsertRowid);
  });
