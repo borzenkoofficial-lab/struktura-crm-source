@@ -563,3 +563,6 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 .pi-recommendation span{font-size:11px;line-height:1.5;color:#627286}
 .pi-recommendation small{font-size:11px;line-height:1.5;color:#315f4a}
 .pi-alert-list{display:grid;gap:8px;margin-top:8px}
+
+.pi-alert.info{border-color:#c9dceb;background:#f3f9fd}
+.pi-alert.info strong,.pi-alert.info span{color:#315f80}
