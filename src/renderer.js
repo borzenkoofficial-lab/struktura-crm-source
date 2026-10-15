@@ -1183,7 +1183,7 @@ async function openProductionShift(projectId = '') {
 }
 async function productionLoadShiftRows() {
   const projectId = Number($('shiftProjectSelect').value);
-  if (!projectId) { $('shiftWorkers').value = '5'; $('shiftDifficulty').value = '1'; productionRenderRows('productionShiftLines','shift',[]); return; }
+  if (!projectId) { $('shiftWorkers').value = '5'; $('shiftDifficulty').value = '1'; productionSetConditions('shift_condition', []); productionRenderRows('productionShiftLines','shift',[]); return; }
   const data = await window.crm.getProductionPlan(projectId);
   $('shiftWorkers').value = data.project.planned_people || 5;
   $('shiftDifficulty').value = String(data.project.complexity_factor || 1);
