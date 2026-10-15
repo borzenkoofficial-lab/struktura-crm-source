@@ -189,6 +189,7 @@ async function refreshNotificationSettings() {
   $('notificationStatus').textContent = settings.enabled ? `Включены · ${String(settings.startHour).padStart(2,'0')}:00–${String(settings.endHour).padStart(2,'0')}:00 · проверка каждые 15 мин.` : 'Уведомления выключены';
 }
 let piCoachInsights = [];
+let piCoachContext = {};
 let piCoachIndex = 0;
 let piCoachLastAutoAt = 0;
 let piCoachFetchPromise = null;
@@ -254,7 +255,8 @@ async function refreshPiCoach(options = {}) {
     production.history = coachHistory;
     const builder = window.StrukturaPiCoach?.buildPiCoachInsights;
     if (typeof builder !== 'function') return;
-    const next = builder({ summary, projects, leads, tasks, orders, production, finance, quotes, payments, expenses, incomeRecords });
+    piCoachContext = { summary, projects, leads, tasks, orders, production, finance, quotes, payments, expenses, incomeRecords };
+    const next = builder(piCoachContext);
     const oldCurrent = piCoachCurrent()?.id;
     piCoachInsights = next;
     const oldIndex = oldCurrent ? piCoachInsights.findIndex(item => item.id === oldCurrent) : -1;
@@ -298,6 +300,113 @@ $('piCoachVoiceToggle').addEventListener('click', () => {
   piCoachRender();
   if (piCoachVoiceEnabled) piCoachSpeak(piCoachCurrent()?.spoken);
 });
+function piCoachNormalize(value) {
+  return String(value || '').toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+}
+function piCoachFindInsight(views) {
+  return piCoachInsights.find(item => views.includes(item.view)) || piCoachCurrent();
+}
+function piCoachAnswerVoice(rawQuery) {
+  const query = piCoachNormalize(rawQuery);
+  if (!query) { piCoachSpeak('Я не расслышала вопрос. Повтори, пожалуйста.'); return; }
+  if (/^(дальше|следующ|еще совет|ещё совет)/u.test(query)) {
+    if (piCoachInsights.length > 1) piCoachOpen(piCoachIndex + 1, true);
+    else piCoachSpeak('Сейчас у меня нет другого подтверждённого сигнала. После новых данных я обновлю советы.');
+    return;
+  }
+  if (/подроб|почему|на чем основан|доказательств/u.test(query)) {
+    piCoachSpeak(piCoachCurrent()?.detail || 'Сначала загрузи данные бизнеса.');
+    return;
+  }
+  if (/привет|здравств|что ты умеешь|помоги|чем можешь/u.test(query)) {
+    piCoachSpeak('Я ПИ, производственный интеллект STRUKTURA. Я сопоставляю сохранённые объекты, договоры, коммерческие предложения, платежи, расходы, заявки, задачи и отчёты смен. Могу подсветить риск и объяснить, на каких данных основан совет. Я не придумываю отсутствующие цифры.');
+    return;
+  }
+  const sections = [
+    { pattern: /финанс|деньг|касс|платеж|оплат|долг/u, view: 'finance', label: 'финансам' },
+    { pattern: /производств|смен|выработ|просто|план факт/u, view: 'production', label: 'производству' },
+    { pattern: /заявк|клиент|воронк|лид/u, view: 'leads', label: 'заявкам' },
+    { pattern: /задач|просроч/u, view: 'tasks', label: 'задачам' },
+    { pattern: /заказ|тендер/u, view: 'browser', label: 'заказам' },
+    { pattern: /кп|смет|предложен|марж|себестоим|цен/u, view: 'projects', label: 'сметам и КП' }
+  ];
+  const section = sections.find(item => item.pattern.test(query));
+  const projectList = Array.isArray(piCoachContext.projects) ? piCoachContext.projects : [];
+  const project = projectList.find(item => {
+    const title = piCoachNormalize(item.title);
+    return title.length >= 3 && query.includes(title);
+  }) || projectList.find(item => {
+    const tokens = piCoachNormalize(item.title).split(' ').filter(word => word.length >= 4);
+    return tokens.some(word => query.split(' ').includes(word));
+  });
+  if (project && (/объект|договор|проект|прибыл|расход|оплат|сколько|что по/u.test(query) || !section)) {
+    const contract = Number(project.contract_rub) || 0;
+    const received = Number(project.received_rub) || 0;
+    const paid = Number(project.paid_expenses_rub) || 0;
+    const planned = Number(project.planned_expenses_rub) || 0;
+    const remaining = Math.max(0, contract - received);
+    const margin = contract > 0 ? Math.round((contract - paid - planned) / contract * 100) : null;
+    const prodProject = (piCoachContext.production?.projects || []).find(item => Number(item.id) === Number(project.id));
+    let answer = 'По объекту «' + project.title + '». Статус: ' + (project.status || 'не указан') + '. Договор: ' + fmt(contract) + '. Получено: ' + fmt(received) + '. Остаток к получению по договору: ' + fmt(remaining) + '. Оплаченные расходы: ' + fmt(paid) + '. Неоплаченные или запланированные расходы: ' + fmt(planned) + '.';
+    if (margin !== null) answer += ' Расчётный запас договора после этих расходов — ' + margin + ' процентов. Это не окончательная прибыль: могут быть не внесены налоги и другие затраты.';
+    if (prodProject) answer += prodProject.planCount > 0 ? ' В производственном плане ' + prodProject.planCount + ' видов работ; отчётов смен: ' + prodProject.shiftCount + '. Последний отчёт: ' + (prodProject.lastShiftDate || 'не указан') + '.' : ' Производственный план пока не заполнен.';
+    piCoachSpeak(answer);
+    return;
+  }
+  if (section) {
+    if (/открой|покажи|перейди/u.test(query)) showView(section.view);
+    const insight = piCoachFindInsight([section.view]);
+    if (section.view === 'finance' && !piCoachInsights.some(item => item.view === 'finance')) {
+      const finance = piCoachContext.finance || {};
+      const forecast = Array.isArray(finance.forecasts) ? finance.forecasts.find(item => Number(item.days) === 7) : null;
+      piCoachSpeak('По финансам. Расчётный денежный остаток: ' + fmt(finance.cash) + '. Остаток по договорам к получению: ' + fmt(finance.receivablesTotal) + '. Неоплаченные расходы: ' + fmt(finance.unpaidTotal) + '.' + (forecast ? ' Прогноз остатка на семь дней: ' + fmt(forecast.projectedCash) + ', при условии что учтённые поступления и расходы произойдут в срок.' : ' Прогноз на семь дней недоступен.'));
+      return;
+    }
+    if (section.view === 'production' && !piCoachInsights.some(item => item.view === 'production')) {
+      const totals = piCoachContext.production?.totals || {};
+      piCoachSpeak('По производству: активных объектов в плане ' + ((piCoachContext.production?.projects || []).length) + ', отчётов смен в доступной истории ' + (totals.shifts || 0) + ', учтённых записей по работам ' + (totals.work_records || 0) + '. Пока нет отдельного сигнала с более высоким приоритетом.');
+      return;
+    }
+    if (section.view === 'projects') {
+      const quotes = piCoachContext.quotes || [];
+      if (quotes.length) {
+        const quote = quotes[0];
+        piCoachSpeak('В архиве ' + quotes.length + ' коммерческих предложений. Последнее — «' + (quote.title || 'без названия') + '», дата ' + String(quote.prepared_at || '').slice(0, 10) + '. Цена ' + fmt(quote.revenue_rub) + ', расчётная прибыль ' + fmt(quote.profit_rub) + ', маржа ' + Number(quote.margin_pct || 0).toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + ' процентов. Архив включает PDF, сохранённые после версии 1.16.0.');
+        return;
+      }
+    }
+    if (insight) piCoachSpeak(insight.spoken);
+    else piCoachSpeak('По ' + section.label + ' сейчас нет отдельного подтверждённого предупреждения. Это не значит, что проблем нет: я опираюсь только на внесённые данные.');
+    return;
+  }
+  piCoachSpeak('Я пока не поняла вопрос. Спроси, например: что по финансам, что по производству, сколько КП в архиве, или назови объект.');
+}
+$('piCoachListenBtn').addEventListener('click', () => {
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Recognition) {
+    piCoachSpeak('Голосовой ввод не поддерживается этой сборкой Windows или движком речи. Озвучивание советов доступно кнопкой Послушать.');
+    toast('Голосовой ввод недоступен в этой сборке. Озвучивание советов работает отдельно.', true);
+    return;
+  }
+  const button = $('piCoachListenBtn');
+  const recognition = new Recognition();
+  recognition.lang = 'ru-RU'; recognition.interimResults = false; recognition.maxAlternatives = 1;
+  button.disabled = true; button.textContent = '● Слушаю…';
+  recognition.onresult = event => {
+    const query = event.results?.[0]?.[0]?.transcript || '';
+    button.textContent = '🎙 Сказать ПИ';
+    piCoachAnswerVoice(query);
+  };
+  recognition.onerror = event => {
+    button.textContent = '🎙 Сказать ПИ';
+    if (event.error !== 'no-speech' && event.error !== 'aborted') toast('Не удалось распознать речь: ' + event.error, true);
+    else piCoachSpeak('Я не расслышала вопрос. Нажми на микрофон и повтори.');
+  };
+  recognition.onend = () => { button.disabled = false; button.textContent = '🎙 Сказать ПИ'; };
+  try { recognition.start(); }
+  catch (error) { button.disabled = false; button.textContent = '🎙 Сказать ПИ'; toast('Не удалось запустить микрофон: ' + error.message, true); }
+});
+
 $('piCoachNextBtn').addEventListener('click', () => {
   if (piCoachInsights.length > 1) piCoachOpen(piCoachIndex + 1, true);
 });
