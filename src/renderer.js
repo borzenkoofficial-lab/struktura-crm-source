@@ -239,12 +239,18 @@ function piCoachClose() {
 async function refreshPiCoach(options = {}) {
   if (piCoachFetchPromise) return piCoachFetchPromise;
   piCoachFetchPromise = (async () => {
-    const [summary, projects, leads, tasks, orders, production, finance, quotes, payments, expenses, incomeRecords] = await Promise.all([
+    const calls = await Promise.allSettled([
       window.crm.summary(), window.crm.listProjects(), window.crm.listLeads(),
       window.crm.listTasks({ filter: 'open' }), window.crm.listCommercialOrders({}),
       window.crm.productionOverview(), window.crm.financeInsights(), window.crm.estimateHistory(),
       window.crm.listPayments(), window.crm.listExpenses(), window.crm.listIncomeRecords()
     ]);
+    const value = (index, fallback) => calls[index].status === 'fulfilled' ? calls[index].value : fallback;
+    const [summary, projects, leads, tasks, orders, production, finance, quotes, payments, expenses, incomeRecords] = [
+      value(0, {}), value(1, []), value(2, []), value(3, []), value(4, []),
+      value(5, { projects: [], history: [], totals: {} }), value(6, {}),
+      value(7, []), value(8, []), value(9, []), value(10, [])
+    ];
     const builder = window.StrukturaPiCoach?.buildPiCoachInsights;
     if (typeof builder !== 'function') return;
     const next = builder({ summary, projects, leads, tasks, orders, production, finance, quotes, payments, expenses, incomeRecords });
@@ -252,10 +258,17 @@ async function refreshPiCoach(options = {}) {
     piCoachInsights = next;
     const oldIndex = oldCurrent ? piCoachInsights.findIndex(item => item.id === oldCurrent) : -1;
     piCoachIndex = oldIndex >= 0 ? oldIndex : 0;
-    if (!$('piCoachPopover').hidden) { piCoachRender(); return; }
     const now = Date.now();
     const seen = new Set(piCoachSeenIds());
     const unseen = piCoachInsights.find(item => !seen.has(item.id));
+    if (!$('piCoachPopover').hidden) {
+      if (options.force === true && unseen) {
+        piCoachIndex = piCoachInsights.findIndex(item => item.id === unseen.id);
+        piCoachOpen(piCoachIndex, false);
+        piCoachMarkSeen(unseen.id);
+      } else piCoachRender();
+      return;
+    }
     const canAutoOpen = !piCoachLastAutoAt || now - piCoachLastAutoAt >= 20 * 60 * 1000;
     if (unseen && canAutoOpen && (options.force === true || piCoachLastAutoAt === 0 || unseen.severity === 'danger')) {
       piCoachIndex = piCoachInsights.findIndex(item => item.id === unseen.id);
