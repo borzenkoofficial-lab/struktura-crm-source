@@ -242,7 +242,7 @@ async function refreshPiCoach(options = {}) {
   piCoachFetchPromise = (async () => {
     const calls = await Promise.allSettled([
       window.crm.summary(), window.crm.listProjects(), window.crm.listLeads(),
-      window.crm.listTasks({ filter: 'open' }), window.crm.listCommercialOrders({}),
+      window.crm.listTasks({ filter: 'all' }), window.crm.listCommercialOrders({}),
       window.crm.productionOverview(), window.crm.financeInsights(), window.crm.estimateHistory(), window.crm.piCoachHistory(),
       window.crm.listPayments(), window.crm.listExpenses(), window.crm.listIncomeRecords()
     ]);
