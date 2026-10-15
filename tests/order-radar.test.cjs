@@ -138,7 +138,7 @@ test('classifies original source domains without trusting search query text', ()
 
 test('builds manual search links without requiring an API key', () => {
   const url = buildManualOrderSearchUrl('demolition', 'Москва и МО', 'avito');
-  assert.match(url, /^https:\/\/yandex\.ru\/search\/?text=/);
+  assert.match(url, /^https:\/\/yandex\.ru\/search\/\?text=/);
   assert.match(decodeURIComponent(url), /site:avito\.ru/);
   assert.match(decodeURIComponent(url), /Москва и МО/);
 });
