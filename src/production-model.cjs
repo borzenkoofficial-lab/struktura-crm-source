@@ -25,8 +25,19 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
     return { rate: (quantity / (workers * hours / 8)) * factor, crewSize: workers };
   }).filter((entry) => entry && Number.isFinite(entry.rate) && entry.rate > 0);
 
-  const rawObservedMedian = median(entries.map((entry) => entry.rate));
+  const normalizedRates = entries.map(entry => entry.rate);
+  const rawObservedMedian = median(normalizedRates);
   const count = entries.length;
+  const absoluteDeviations = rawObservedMedian == null ? [] : normalizedRates.map(rate => Math.abs(rate - rawObservedMedian));
+  const medianAbsoluteDeviation = median(absoluteDeviations);
+  const robustSpreadPct = rawObservedMedian > 0 && medianAbsoluteDeviation != null
+    ? round((medianAbsoluteDeviation / rawObservedMedian) * 1.4826 * 100, 1)
+    : null;
+  // Planning ranges widen when evidence is sparse or observed productivity is unstable.
+  const uncertaintyPct = count >= 5
+    ? clamp(Math.max(10, Number(robustSpreadPct || 0) * 1.5), 10, 45)
+    : count >= 3 ? clamp(Math.max(25, Number(robustSpreadPct || 0) * 1.5), 25, 50)
+      : count > 0 ? 40 : 50;
   const crewSizeCounts = new Map();
   for (const entry of entries) crewSizeCounts.set(entry.crewSize, (crewSizeCounts.get(entry.crewSize) || 0) + 1);
   const hasRepeatedCrewGroups = [...crewSizeCounts.values()].filter(sizeCount => sizeCount >= 2).length >= 2;
@@ -73,6 +84,10 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
     observations: count,
     confidence,
     observedWeight,
+    robustSpreadPct,
+    uncertaintyPct,
+    confidenceScore: count === 0 ? 20 : Math.max(25, Math.min(95, Math.round(35 + Math.min(count, 8) * 7 - Math.max(0, Number(robustSpreadPct || 0) - 10) * 0.5))),
+    learningStatus: count === 0 ? 'baseline' : count < 3 ? 'early' : count < 5 ? 'learning' : 'learned',
     referenceCrewSize: referenceCrewSize == null ? null : round(referenceCrewSize, 1),
     targetCrewSize: crewTarget,
     crewSizeExponent: round(crewSizeExponent, 3),
@@ -94,6 +109,9 @@ function forecastRemainingWork({ planItems = [], actualByCatalog = {}, observati
       targetCrewSize: crew
     });
     const laborShiftsRemaining = remaining > 0 ? remaining / model.effectiveProductivity : 0;
+    const lowTeamShiftsRemaining = remaining > 0 ? remaining / (model.effectiveProductivity * (1 + model.uncertaintyPct / 100) * crew) : 0;
+    const highTeamShiftsRemaining = remaining > 0 ? remaining / (model.effectiveProductivity * Math.max(0.1, 1 - model.uncertaintyPct / 100) * crew) : 0;
+    const baselineDeviationPct = model.baselineProductivity > 0 ? round((model.learnedNormalRate / model.baselineProductivity - 1) * 100, 1) : 0;
     return {
       catalogId: item.catalog_id,
       name: item.work_name ?? item.name,
@@ -104,6 +122,9 @@ function forecastRemainingWork({ planItems = [], actualByCatalog = {}, observati
       ...model,
       laborShiftsRemaining: round(laborShiftsRemaining, 2),
       teamShiftsRemaining: round(laborShiftsRemaining / crew, 2),
+      forecastLowTeamShiftsRemaining: round(lowTeamShiftsRemaining, 2),
+      forecastHighTeamShiftsRemaining: round(Math.max(lowTeamShiftsRemaining, highTeamShiftsRemaining), 2),
+      baselineDeviationPct,
       overPlan: completed > planned
     };
   });
@@ -115,6 +136,9 @@ function forecastRemainingWork({ planItems = [], actualByCatalog = {}, observati
     completedLines: lines.filter((line) => line.remainingQuantity <= 0).length,
     totalLines: lines.length,
     observations: lines.reduce((sum, line) => sum + line.observations, 0),
+    forecastLowTeamShiftsRemaining: round(lines.reduce((sum,line)=>sum+line.forecastLowTeamShiftsRemaining,0),2),
+    forecastHighTeamShiftsRemaining: round(lines.reduce((sum,line)=>sum+line.forecastHighTeamShiftsRemaining,0),2),
+    confidenceScore: lines.length ? Math.round(lines.reduce((sum,line)=>sum+line.confidenceScore,0)/lines.length) : 0,
     estimated: lines.length > 0
   };
 }
