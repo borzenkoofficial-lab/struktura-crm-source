@@ -16,7 +16,8 @@ const Database = require('better-sqlite3');
 const { parseCsv, prospectDuplicateKeys, safeCsvCell } = require('./csv.cjs');
 const { crawlSites } = require('./site-crawler.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
-const { buildOrderQueries, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders } = require('./order-radar.cjs');
+const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders } = require('./order-radar.cjs');
+const { parseCommercialOrdersCsv } = require('./order-import.cjs');
 const { assessCommercialOrder } = require('./order-pi.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
 const { normalizeTaskInput } = require('./task-utils.cjs');
@@ -622,18 +623,19 @@ ipcMain.handle('search:run', async (_event, input = {}) => {
 ipcMain.handle('orders:list', (_event,input={})=>{
  const status=['new','opened','relevant','rejected'].includes(input.status)?input.status:'';
  const service=services.includes(input.service)?input.service:'';
+ const sourceType=['web','telegram','avito','tenders','files'].includes(input.sourceType)?input.sourceType:'';
  const terms=clean(input.search,180).toLowerCase();const where=[],params=[];
- if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}
+ if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}if(sourceType){where.push('source_type=?');params.push(sourceType)}
  if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%')}
  return db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC LIMIT 500`).all(...params).map(r=>({...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean),pi_assessment:assessCommercialOrder(r)}));
 });
 ipcMain.handle('orders:search',async(_event,input={})=>{
  const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');
- const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const queries=buildOrderQueries(service,region);const found=[],errors=[];
+ const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const sourceType=['web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';const queries=buildOrderQueries(service,region,sourceType);const found=[],errors=[];
  for(const query of queries){try{const results=await searchBrave(query,apiKey,{count:10});found.push(...results.map(x=>normalizeBraveOrderResult(x,query,service,region)).filter(Boolean))}catch(e){errors.push({query,error:clean(e.message,240)})}}
  const unique=deduplicateOrders(found);
- const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`);
- const update=db.prepare(`UPDATE commercial_orders SET title=@title,source_name=@source_name,snippet=@snippet,search_query=@search_query,service=@service,region=@region,signal_score=@signal_score,signal_labels=@signal_labels,relevance=@relevance,last_seen_at=CURRENT_TIMESTAMP WHERE source_url=@source_url AND status NOT IN ('relevant','rejected')`);
+ const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`);
+ const update=db.prepare(`UPDATE commercial_orders SET title=@title,source_name=@source_name,source_type=@source_type,snippet=@snippet,search_query=@search_query,service=@service,region=@region,signal_score=@signal_score,signal_labels=@signal_labels,relevance=@relevance,last_seen_at=CURRENT_TIMESTAMP WHERE source_url=@source_url AND status NOT IN ('relevant','rejected')`);
  const touch=db.prepare('UPDATE commercial_orders SET last_seen_at=CURRENT_TIMESTAMP WHERE source_url=?');
  let added=0,refreshed=0,protectedCount=0;
  const tx=db.transaction(items=>{
@@ -650,6 +652,30 @@ ipcMain.handle('orders:search',async(_event,input={})=>{
  tx(unique);
  if(!unique.length&&errors.length===queries.length)throw new Error('Не удалось найти заказы. '+errors.map(x=>x.error).join(' | '));
  return {queries,received:found.length,unique:unique.length,added,refreshed,protected:protectedCount,errors};
+});
+ipcMain.handle('orders:manualSearchUrl', (_event,input={}) => {
+ const service=services.includes(input.service)?input.service:'demolition';
+ const sourceType=['web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';
+ const region=clean(input.region,120)||'Москва и Московская область';
+ return buildManualOrderSearchUrl(service,region,sourceType);
+});
+ipcMain.handle('orders:importCsv', async () => {
+ const picked=await dialog.showOpenDialog({title:'Импорт коммерческих заказов из CSV',properties:['openFile'],filters:[{name:'CSV / текстовые таблицы',extensions:['csv','txt']}]});
+ if(picked.canceled||!picked.filePaths[0])return {canceled:true};
+ const filePath=picked.filePaths[0];
+ const parsed=parseCommercialOrdersCsv(fs.readFileSync(filePath,'utf8'));
+ const normalized=parsed.orders.map(item=>{
+  const order=normalizeOrderResult({title:item.title,url:item.source_url,description:item.snippet},'Импорт из файла',item.service,item.region);
+  if(!order)return null;
+  return {...order,source_name:item.source_name||order.source_name,source_type:'files',search_query:'Импорт из файла'};
+ }).filter(Boolean);
+ const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`);
+ let imported=0,duplicates=0;
+ const tx=db.transaction(items=>{for(const item of items){const values={...item,signal_labels:item.signal_labels.join('|')};const result=insert.run(values);if(result.changes)imported++;else duplicates++;}
+  db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)').run('CSV заказов',path.basename(filePath),imported,parsed.skipped+duplicates,0,`В файле: ${parsed.orders.length+parsed.skipped}; импортировано: ${imported}; пропущено: ${parsed.skipped+duplicates}`);
+ });
+ tx(normalized);
+ return {canceled:false,imported,skipped:parsed.skipped+duplicates+(parsed.orders.length-normalized.length),total:parsed.orders.length+parsed.skipped};
 });
 ipcMain.handle('orders:updateStatus',(_event,input={})=>{
  const id=Number(input.id),status=['new','opened','relevant','rejected'].includes(input.status)?input.status:'';
