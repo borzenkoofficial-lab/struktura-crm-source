@@ -716,6 +716,7 @@ ipcMain.handle('orders:convertLead', (_event, orderId) => {
  if(!order)throw new Error('Коммерческий заказ не найден.');
  const existing=db.prepare('SELECT id FROM leads WHERE commercial_order_id=?').get(id);
  if(existing)return {leadId:existing.id,alreadyExists:true};
+ const analysis=db.prepare('SELECT * FROM commercial_order_analysis WHERE order_id=?').get(id)||null;
  const serviceLabel={demolition:'Демонтаж',finishing:'Отделочные работы',raised_floor:'Фальшполы'}[order.service]||'Демонтаж';
  const notes=[
   'Создано из радара коммерческих заказов. Данные и актуальность необходимо проверить на исходном сайте.',
@@ -724,7 +725,10 @@ ipcMain.handle('orders:convertLead', (_event, orderId) => {
   'Оценка сигнала: '+order.signal_score+'/100',
   order.signal_labels?'Сигналы: '+String(order.signal_labels).split('|').filter(Boolean).join(', '):'',
   order.snippet?'Фрагмент выдачи: '+order.snippet:'',
-  order.search_query?'Поисковый запрос: '+order.search_query:''
+  order.search_query?'Поисковый запрос: '+order.search_query:'',
+  analysis?'ПИ — предварительная экономика, не подтверждённая смета:':'',
+  analysis?'Ориентир выручки: '+Math.round(Number(analysis.revenue_rub)||0).toLocaleString('ru-RU')+' ₽; расходы: '+Math.round(Number(analysis.estimated_cost_rub)||0).toLocaleString('ru-RU')+' ₽; расчётная прибыль: '+Math.round(Number(analysis.estimated_profit_rub)||0).toLocaleString('ru-RU')+' ₽; маржа: '+Number(analysis.estimated_margin_pct||0).toLocaleString('ru-RU',{maximumFractionDigits:1})+'%; срок: '+Number(analysis.estimated_days||0).toLocaleString('ru-RU',{maximumFractionDigits:1})+' смен; бригада: '+Number(analysis.crew_size||0)+' чел.; история смен: '+Number(analysis.observations_count||0)+' наблюдений.':'',
+  analysis?(Number(analysis.budget_rub)>0?'Основа выручки: введённый бюджет, требуется проверка на первоисточнике.':'Основа выручки: ставка прайса; бюджет заказчика не подтверждён.'):'',
  ].filter(Boolean).join('\n').slice(0,4000);
  const create=db.transaction(()=>{
   const result=db.prepare('INSERT INTO leads(commercial_order_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,?,?,\'new\',0,\'\',?)').run(id,(serviceLabel+' — '+order.title).slice(0,180),order.service,leadSourceForOrderType(order.source_type),notes);
