@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, safeStorage, session, Notification } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, safeStorage, session, Notification, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -115,14 +115,18 @@ function createBrowserView(win) {
 function createWindow() {
   const win = new BrowserWindow({
     width: 1440, height: 920, minWidth: 1020, minHeight: 680,
-    title: 'GRUZLI CRM', backgroundColor: '#f5f7fa',
+    title: 'Struktura CRM', backgroundColor: '#f5f7fa', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
+  win.setMenuBarVisibility(false);
   mainWindow = win;
   createBrowserView(win);
   win.on('resize', () => { if (browserIsVisible) sendBrowserState(); });
   win.on('closed', () => { mainWindow = null; browserView = null; browserIsVisible = false; });
-  win.loadFile(path.join(__dirname, 'index.html'));
+  win.loadFile(path.join(__dirname, 'index.html')).catch(error => {
+    console.error('Failed to load CRM interface:', error);
+    dialog.showErrorBox('Не удалось открыть Struktura CRM', `Не удалось загрузить интерфейс приложения.\\n\\n${error.message || error}`);
+  });
 }
 function getSetting(key, fallback) {
   const row = db.prepare('SELECT value FROM settings WHERE key=?').get(key);
@@ -157,12 +161,18 @@ function checkAndSendReminders() {
 }
 let reminderInterval;
 app.whenReady().then(() => {
+  // Remove Electron's legacy File/Edit/View/Window/Help menu; keep native Windows controls.
+  Menu.setApplicationMenu(null);
   db = openDatabase(app.getPath('userData'));
   if (!getSetting('reminder_settings', null)) setSetting('reminder_settings', DEFAULT_REMINDER_SETTINGS);
   createWindow();
   checkAndSendReminders();
   reminderInterval = setInterval(checkAndSendReminders, 15 * 60 * 1000);
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+}).catch(error => {
+  console.error('Struktura CRM startup failed:', error);
+  dialog.showErrorBox('Ошибка запуска Struktura CRM', `Приложение не смогло подготовить локальную базу данных.\\n\\n${error.message || error}`);
+  app.quit();
 });
 app.on('before-quit', () => { if (reminderInterval) clearInterval(reminderInterval); if (db) db.close(); });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
