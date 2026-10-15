@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS clients (
 CREATE TABLE IF NOT EXISTS leads (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+  commercial_order_id INTEGER REFERENCES commercial_orders(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   service TEXT NOT NULL CHECK(service IN ('demolition','finishing','raised_floor')),
   source TEXT NOT NULL CHECK(source IN ('avito','phone','telegram','recommendation','website','other')),
@@ -195,6 +196,9 @@ function openDatabase(userDataPath) {
   db.pragma('foreign_keys = ON');
   db.exec(SCHEMA);
   // Additive migrations keep existing local databases intact after app updates.
+  const leadColumns = new Set(db.prepare('PRAGMA table_info(leads)').all().map(column => column.name));
+  if (!leadColumns.has('commercial_order_id')) db.exec('ALTER TABLE leads ADD COLUMN commercial_order_id INTEGER REFERENCES commercial_orders(id) ON DELETE SET NULL');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_leads_commercial_order ON leads(commercial_order_id)');
   const projectColumns = new Set(db.prepare('PRAGMA table_info(projects)').all().map(column => column.name));
   if (!projectColumns.has('planned_people')) db.exec('ALTER TABLE projects ADD COLUMN planned_people INTEGER NOT NULL DEFAULT 5 CHECK(planned_people BETWEEN 1 AND 200)');
   if (!projectColumns.has('complexity_factor')) db.exec('ALTER TABLE projects ADD COLUMN complexity_factor REAL NOT NULL DEFAULT 1 CHECK(complexity_factor > 0)');
