@@ -70,3 +70,31 @@ test('uses saved preliminary economics in PI ranking without claiming real win p
   assert.ok(result.reasons.some(reason => reason.includes('Расчётная маржа')));
   assert.ok(!result.nextQuestions.includes('Уточнить бюджет или цену договора'));
 });
+
+
+test('does not mistake a high general relevance score for procurement intent', () => {
+  const result = assessCommercialOrder({
+    title: 'Демонтаж коммерческого помещения',
+    snippet: 'Компания описывает выполненный проект по демонтажу офиса и ремонту помещений.',
+    source_url: 'https://example.ru/projects/demolition',
+    service: 'demolition',
+    signal_score: 60,
+    signal_labels: ['Демонтаж', 'Коммерческий объект']
+  });
+  const intent = result.components.find(item => item.key === 'winLikelihood');
+  assert.equal(intent.value, 25);
+  assert.equal(result.winProbabilityStatus, 'not_calculated');
+  assert.ok(!result.reasons.includes('Есть сигналы закупки или поиска подрядчика'));
+});
+
+test('accepts explicit procurement labels from normalized search results', () => {
+  const result = assessCommercialOrder({
+    title: 'Демонтаж коммерческого помещения',
+    snippet: 'Информация о проекте.',
+    source_url: 'https://example.ru/tenders/123',
+    service: 'demolition',
+    signal_score: 60,
+    signal_labels: ['Закупка / тендер', 'Демонтаж']
+  });
+  assert.equal(result.components.find(item => item.key === 'winLikelihood').value, 90);
+});
