@@ -12,7 +12,7 @@ const DEADLINE_TERMS = /до \d{1,2}[.\-/]\d{1,2}|срок подачи|приё
 const BUDGET_TERMS = /(?:бюджет|нмцк|начальн.{0,20}цен|стоимость|цена контракта|цена договора)[^\n]{0,50}\d[\d\s.,]*(?:₽|руб|тыс|млн)?/iu;
 const VOLUME_TERMS = /\d[\d\s.,]*\s*(?:м²|м2|кв\.?\s*м|погонн|тонн|шт\.?)/iu;
 
-function assessCommercialOrder(order = {}) {
+function assessCommercialOrder(order = {}, analysis = null) {
   const title = String(order.title || '').trim();
   const snippet = String(order.snippet || '').trim();
   const text = title + ' ' + snippet;
@@ -20,15 +20,21 @@ function assessCommercialOrder(order = {}) {
   const fitEvidence = SERVICE_TERMS[service].test(text);
   const intentEvidence = INTENT_TERMS.test(text) || Number(order.signal_score) >= 30;
   const hasDeadline = DEADLINE_TERMS.test(text);
-  const hasBudget = BUDGET_TERMS.test(text);
-  const hasVolume = VOLUME_TERMS.test(text);
+  const analysisRevenue = Number(analysis?.revenue_rub);
+  const analysisMargin = Number(analysis?.estimated_margin_pct);
+  const analysisDays = Number(analysis?.estimated_days);
+  const hasAnalysis = Boolean(analysis && Number.isFinite(analysisRevenue) && analysisRevenue > 0 && Number.isFinite(analysisMargin) && Number.isFinite(analysisDays) && analysisDays > 0);
+  const hasBudget = BUDGET_TERMS.test(text) || Boolean(hasAnalysis && Number(analysis?.budget_rub) > 0);
+  const hasVolume = VOLUME_TERMS.test(text) || Boolean(hasAnalysis && Number(analysis?.quantity) > 0);
   const hasOriginalSource = /^https?:\/\//i.test(String(order.source_url || ''));
   const hasDescription = snippet.length >= 80;
 
   const fit = fitEvidence ? 100 : 20;
   const intent = intentEvidence ? 90 : 25;
-  const economics = hasBudget && hasVolume ? 80 : hasBudget || hasVolume ? 45 : null;
-  const timing = hasDeadline ? 85 : null;
+  const economics = hasAnalysis
+    ? analysisMargin <= 0 ? 0 : analysisMargin < 10 ? 25 : analysisMargin < 20 ? 50 : analysisMargin < 30 ? 75 : 90
+    : hasBudget && hasVolume ? 80 : hasBudget || hasVolume ? 45 : null;
+  const timing = hasDeadline ? 85 : hasAnalysis ? (analysisDays <= 3 ? 80 : analysisDays <= 7 ? 65 : analysisDays <= 14 ? 50 : 35) : null;
   const sourceQuality = hasOriginalSource && hasDescription ? 90 : hasOriginalSource || title ? 55 : 10;
 
   const components = [
@@ -51,9 +57,10 @@ function assessCommercialOrder(order = {}) {
   const reasons = [];
   if (fitEvidence) reasons.push('Найден сигнал нужного вида работ');
   if (intentEvidence) reasons.push('Есть сигналы закупки или поиска подрядчика');
-  if (hasBudget) reasons.push('В тексте найдено упоминание бюджета/цены — требуется проверка');
+  if (hasBudget) reasons.push('Бюджет/выручка указаны в источнике или расчёте — проверь подтверждение');
   if (hasVolume) reasons.push('В тексте найден объём работ — требуется проверка');
   if (hasDeadline) reasons.push('В тексте найден сигнал срока — требуется проверка');
+  if (hasAnalysis) reasons.push('Расчётная маржа: ' + Math.round(analysisMargin * 10) / 10 + '%; ориентировочно ' + Math.round(analysisDays * 10) / 10 + ' смен — результат зависит от введённых ставок и условий.');
   if (!fitEvidence) reasons.push('Вид работ не подтверждён текстом результата');
 
   return {
@@ -63,8 +70,8 @@ function assessCommercialOrder(order = {}) {
     confidence: known >= 4 ? 'средняя' : 'низкая',
     knownFactors: known,
     totalFactors: components.length,
-    economicsStatus: economics === null ? 'unknown' : 'needs_verification',
-    deadlineStatus: hasDeadline ? 'mentioned_unverified' : 'unknown',
+    economicsStatus: hasAnalysis ? 'calculated_preliminary' : economics === null ? 'unknown' : 'needs_verification',
+    deadlineStatus: hasDeadline ? 'mentioned_unverified' : hasAnalysis ? 'production_duration_estimated' : 'unknown',
     winProbabilityStatus: 'not_calculated',
     components,
     reasons,
