@@ -343,6 +343,16 @@ test('reports combine sales funnel and finance metrics with explicit cash-balanc
   assert.ok(renderer.includes("$('reportReceivables').textContent = fmt(finance.receivablesTotal)"));
 });
 
+test('commercial order card button is wired through preload to the lead conversion handler', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  assert.match(renderer, /data-order-convert/);
+  assert.match(renderer, /closest\('\[data-order-convert\]'\)/);
+  assert.match(renderer, /window\.crm\.convertCommercialOrderToLead\(orderId\)/);
+  assert.match(renderer, /await refreshLeads\(\)/);
+  assert.match(preload, /convertCommercialOrderToLead: \(id\) => ipcRenderer\.invoke\('orders:convertLead', id\)/);
+  assert.match(main, /ipcMain\.handle\('orders:convertLead'/);
+});
+
 test('converting a commercial order to a lead preserves its PI economics as provisional context', () => {
   const handler = main.match(/ipcMain\.handle\('orders:convertLead',[\s\S]*?\n\}\);/);
   assert.ok(handler);
