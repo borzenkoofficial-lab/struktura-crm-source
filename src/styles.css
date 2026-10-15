@@ -538,3 +538,16 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 .pi-order-details-body ul{margin:5px 0 10px;padding-left:19px}
 .pi-order-details-body li{margin:3px 0}
 .pi-order-details-body small{display:block;color:#7a8798;font-size:11px}
+
+
+.pi-order-economics{display:flex;flex-direction:column;gap:5px;margin:8px 0 10px;padding:10px 12px;border:1px solid #d9e9e0;border-radius:9px;background:#f3faf6;color:#2f5943;font-size:12px;line-height:1.45}
+.pi-order-economics strong{color:#205b3d;font-size:12px}
+.pi-order-economics small{color:#697d72;font-size:11px}
+.pi-order-economics.negative{border-color:#f0d2d2;background:#fff5f5;color:#8c3030}
+.pi-order-economics.negative strong{color:#8c3030}
+.pi-economics-modal{width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto}
+.pi-economics-modal form{display:flex;flex-direction:column;gap:12px}
+.pi-economics-modal .form-row{align-items:start}
+.pi-economics-modal label{display:flex;flex-direction:column;gap:5px;min-width:0}
+.pi-economics-modal input,.pi-economics-modal select{width:100%;min-width:0}
+.pi-economics-modal small{font-size:11px;color:#7b8797;line-height:1.4}
