@@ -123,6 +123,10 @@ function normalizeBraveOrderResult(item = {}, query = '', service = 'demolition'
   }, query, service, region);
 }
 
+function leadSourceForOrderType(sourceType) {
+  return ({ avito: 'avito', telegram: 'telegram', web: 'website', tenders: 'website', files: 'other' })[sourceType] || 'website';
+}
+
 function orderRefreshAction(status) {
   if (!status) return 'insert';
   if (status === 'relevant' || status === 'rejected') return 'protect';
@@ -138,4 +142,4 @@ function deduplicateOrders(items = []) {
   });
 }
 
-module.exports = { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, classifyOrderSource };
+module.exports = { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, classifyOrderSource, leadSourceForOrderType };
