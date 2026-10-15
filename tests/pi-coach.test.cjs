@@ -145,6 +145,16 @@ test('PI detects a worsening production trend only after four dated observations
   assert.match(trend.detail, /Последние два: -30% к плану/u);
 });
 
+test('PI does not combine production observations from different crew conditions', () => {
+  const items = buildPiCoachInsights({ production: { history: [
+    { id: 1, shift_date: '2026-10-01', workers_count: 4, shift_hours: 8, downtime_hours: 0, complexity_factor: 1, performance: [{ work_name: 'Демонтаж перегородок', unit: 'м²', workers_count: 4, hours: 8, deviationPct: -5 }] },
+    { id: 2, shift_date: '2026-10-02', workers_count: 4, shift_hours: 8, downtime_hours: 0, complexity_factor: 1, performance: [{ work_name: 'Демонтаж перегородок', unit: 'м²', workers_count: 4, hours: 8, deviationPct: -8 }] },
+    { id: 3, shift_date: '2026-10-03', workers_count: 7, shift_hours: 8, downtime_hours: 0, complexity_factor: 1, performance: [{ work_name: 'Демонтаж перегородок', unit: 'м²', workers_count: 7, hours: 8, deviationPct: -28 }] },
+    { id: 4, shift_date: '2026-10-04', workers_count: 7, shift_hours: 8, downtime_hours: 0, complexity_factor: 1, performance: [{ work_name: 'Демонтаж перегородок', unit: 'м²', workers_count: 7, hours: 8, deviationPct: -32 }] }
+  ] } }, { today: '2026-10-15' });
+  assert.equal(items.some(item => item.id.startsWith('production-trend-worsening-демонтаж перегородок')), false);
+});
+
 test('PI does not infer a production trend from fewer than four observations', () => {
   const items = buildPiCoachInsights({ production: { history: [
     { id: 1, shift_date: '2026-10-01', performance: [{ work_name: 'Демонтаж стен', unit: 'м²', workers_count: 5, hours: 8, deviationPct: -5 }] },
