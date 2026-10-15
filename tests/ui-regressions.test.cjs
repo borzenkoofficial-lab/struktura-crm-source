@@ -587,9 +587,12 @@ test('PI voice companion is present, data-driven, and supports speech plus evide
   assert.match(html, /id="piCoachAvatarBtn"/);
   assert.match(html, /id="piCoachPopover"/);
   assert.match(html, /id="piCoachSpeakBtn"/);
+  assert.match(html, /id="piCoachListenBtn"/);
   assert.match(html, /id="piCoachEvidence"/);
   assert.match(html, /src="pi-coach\.js"/);
   assert.match(renderer, /SpeechSynthesisUtterance/);
+  assert.match(renderer, /SpeechRecognition \|\| window\.webkitSpeechRecognition/);
+  assert.match(renderer, /function piCoachAnswerVoice/);
   assert.match(renderer, /window\.crm\.estimateHistory\(\)/);
   assert.match(renderer, /window\.crm\.productionOverview\(\)/);
   assert.match(renderer, /window\.crm\.piCoachHistory\(\)/);
