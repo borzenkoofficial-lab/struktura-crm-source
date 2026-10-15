@@ -214,7 +214,7 @@ function buildPiCoachInsights(data = {}, options = {}) {
   }
 
   if (!insights.length) {
-    const recordCount = projects.length + leads.length + history.length + tasks.length + orders.length;
+    const recordCount = projects.length + leads.length + history.length + tasks.length + orders.length + quotes.length + payments.length + expenses.length + (Array.isArray(data.incomeRecords) ? data.incomeRecords.length : 0);
     add('data-quality-overview', 'info', 20, recordCount ? 'Сейчас нет подтверждённого критичного сигнала' : 'Начнём с данных бизнеса',
       recordCount
         ? 'По доступным записям я не нашла сигнал, который обоснованно нужно поднимать выше остальных. Это не означает, что риска нет: я проверяю только внесённые данные. После новых смен, оплат и смет смогу сравнивать факты.'
