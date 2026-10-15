@@ -105,7 +105,7 @@ function buildProductionIntelligence(data = {}, options = {}) {
     for (const performance of (Array.isArray(shift.performance) ? shift.performance : [])) {
       const deviation = Number(performance.deviationPct);
       const workName = String(performance.work_name || 'Без названия').trim();
-      const workKey = `${shift.project_id ?? 'unknown'}::${workName.toLocaleLowerCase('ru-RU')}`;
+      const workKey = `${shift.project_id ?? 'unknown'}::${workName.toLocaleLowerCase('ru-RU')}::${conditionSignature(shift.conditions_json)}`;
       if (!performanceByWork.has(workKey)) performanceByWork.set(workKey, { projectId: shift.project_id ?? null, workName, observations: [] });
       if (Number.isFinite(deviation)) performanceByWork.get(workKey).observations.push({ deviation, date: shift.shift_date || '' });
       if (Number.isFinite(deviation) && deviation <= -20) {
@@ -180,6 +180,11 @@ function buildProductionIntelligence(data = {}, options = {}) {
   };
 }
 
+function conditionSignature(value) {
+  let conditions = value;
+  if (typeof value === 'string') { try { conditions = JSON.parse(value || '[]'); } catch (_) { conditions = []; } }
+  return Array.isArray(conditions) ? [...new Set(conditions.map(item => String(item || '').trim()).filter(Boolean))].sort().join('|') : '';
+}
 function confidenceFor({ hasPlan, estimated, shiftCount, observations }) {
   if (!hasPlan || !estimated) return 'недостаточно данных';
   if (observations >= 5 && shiftCount >= 5) return 'высокая';
