@@ -433,3 +433,54 @@ test('additional income CRUD is wired end-to-end and contributes to cash totals 
   assert.match(main, /cash: totalReceived - expenses/);
   assert.match(main, /cash: totalReceived - paid/);
 });
+
+
+test('PI compares recent production performance, detects persistent low output and unstable history', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.js');
+  const history = [
+    { project_id: 1, shift_date: '2026-10-15', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 70, expectedRate: 100, deviationPct: -30 }] },
+    { project_id: 1, shift_date: '2026-10-14', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 72, expectedRate: 100, deviationPct: -28 }] },
+    { project_id: 1, shift_date: '2026-10-13', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 68, expectedRate: 100, deviationPct: -32 }] },
+    { project_id: 1, shift_date: '2026-10-12', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 105, expectedRate: 100, deviationPct: 5 }] },
+    { project_id: 1, shift_date: '2026-10-11', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 100, expectedRate: 100, deviationPct: 0 }] },
+    { project_id: 1, shift_date: '2026-10-10', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 98, expectedRate: 100, deviationPct: -2 }] }
+  ];
+  const result = buildProductionIntelligence({
+    projects: [{ id: 1, title: 'Тестовый объект', planCount: 1, shiftCount: 6, forecast: { estimated: true, lines: [] }, lastShiftDate: '2026-10-15' }],
+    history,
+    totals: { shifts: 6, work_records: 6 }
+  }, { today: '2026-10-15' });
+  assert.equal(result.dataQuality.comparableWorkTypes, 1);
+  assert.equal(result.dataQuality.lowProductivityWorkTypes, 1);
+  assert.equal(result.dataQuality.decliningWorkTypes, 1);
+  assert.ok(result.alerts.some(alert => alert.title.includes('Устойчивая выработка ниже нормы')));
+  assert.ok(result.alerts.some(alert => alert.title.includes('Выработка ухудшается')));
+  assert.match(result.summary, /сравнение по истории доступно для 1 видов работ/);
+});
+
+test('PI refuses to infer productivity trends from fewer than three valid observations', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.js');
+  const result = buildProductionIntelligence({
+    projects: [{ id: 1, title: 'Тест', planCount: 1, forecast: { estimated: true, lines: [] }, shiftCount: 2, lastShiftDate: '2026-10-15' }],
+    history: [
+      { project_id: 1, shift_date: '2026-10-15', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж', unit: 'м²', actualRate: 70, expectedRate: 100, deviationPct: -30 }] },
+      { project_id: 1, shift_date: '2026-10-14', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж', unit: 'м²', actualRate: 72, expectedRate: 100, deviationPct: -28 }] }
+    ],
+    totals: { shifts: 2, work_records: 2 }
+  }, { today: '2026-10-15' });
+  assert.equal(result.dataQuality.comparableWorkTypes, 0);
+  assert.equal(result.dataQuality.lowProductivityWorkTypes, 0);
+  assert.equal(result.alerts.some(alert => alert.title.includes('Устойчивая выработка ниже нормы')), false);
+});
+
+test('PI labels invalid or missing productivity data instead of treating it as zero output', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.js');
+  const result = buildProductionIntelligence({
+    projects: [{ id: 1, title: 'Тест', planCount: 1, forecast: { estimated: true, lines: [] }, shiftCount: 1, lastShiftDate: '2026-10-15' }],
+    history: [{ project_id: 1, shift_date: '2026-10-15', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж', unit: 'м²', actualRate: 0, expectedRate: 100, deviationPct: -100 }] }],
+    totals: { shifts: 1, work_records: 1 }
+  }, { today: '2026-10-15' });
+  assert.equal(result.dataQuality.validPerformanceObservations, 0);
+  assert.equal(result.dataQuality.invalidPerformanceObservations, 1);
+  assert.equal(result.dataQuality.comparableWorkTypes, 0);
+});
