@@ -338,7 +338,7 @@ async function refreshEstimateLearningRates() {
   const requestId = ++learningRatesRequestId;
   const ids = [...new Set(estimateCatalog.map(item => String(item.id)).filter(Boolean))];
   const targetCrewSize = Math.max(1, Math.min(200, Math.round(Number($('estimateCrewPeople').value || 5))));
-  const models = await window.crm.productionRateModels(ids, targetCrewSize);
+  const models = await window.crm.productionRateModels(ids, targetCrewSize, productionReadConditions('estimate_condition'));
   if (requestId !== learningRatesRequestId) return;
   learnedProductivityModels = Object.fromEntries(models.map(model => [String(model.catalog_id), model]));
   const trained = Object.values(learnedProductivityModels).filter(model => Number(model.observations) > 0);
@@ -347,6 +347,8 @@ async function refreshEstimateLearningRates() {
   $('estimateLearningStatus').textContent = trained.length
     ? `Нормы по практике подключены: ${observations} наблюдений по ${trained.length} видам работ для бригады ${targetCrewSize} чел. Вес практики: 1–2 наблюдения — 25%, 3–4 — 50%, 5+ — 75%. Учёт размера бригады включён для ${crewAdjusted} видов работ, где накоплены повторные наблюдения на разных составах.`
     : 'Пока используются стартовые нормы из прайса. По мере закрытия смен фактическая выработка начнёт влиять и на этот калькулятор.';
+  const unmatchedConditions = Object.values(learnedProductivityModels).filter(model => model.conditionMatchRequired && !model.conditionMatchSufficient).length;
+  if (unmatchedConditions) $('estimateLearningStatus').textContent += ` По ${unmatchedConditions} позициям пока нет минимум двух смен с выбранными условиями — там сохранена стартовая норма.`;
   try {
     const production = await window.crm.productionOverview();
     renderProductionIntelligence(production, 'estimatePiSummary', 'estimatePiAlerts');
@@ -749,6 +751,7 @@ $('estimateCreateProjectBtn').addEventListener('click', () => {
 const actualInputIds = ['actualContractRevenue','actualReceived','actualWagesPaid','actualMaterialsPaid','actualDisposalPaid','actualTransportPaid','actualEquipmentPaid','actualOtherPaid'];
 actualInputIds.forEach(id => $(id).addEventListener('input', () => { const r = refreshEstimate(); if (r) estimateRefreshActuals(r.totalCost); estimateSaveDraft(); }));
 $('actualUseEstimatePriceBtn').addEventListener('click', () => { const r = refreshEstimate(); if (!r) return; $('actualContractRevenue').value = Math.round(r.revenue); estimateRefreshActuals(r.totalCost); estimateSaveDraft(); toast('Цена сметы подставлена в план/факт.'); });
+document.querySelectorAll('input[name="estimate_condition"]').forEach(input => input.addEventListener('change', () => refreshEstimateLearningRates().catch(error => { $('estimateLearningStatus').textContent = `Не удалось обновить нормы: ${error.message}`; })));
 estimateLoadDraft();
 refreshEstimateLearningRates().catch(error => { $('estimateLearningStatus').textContent = `Не удалось загрузить фактические нормы: ${error.message}`; });
 $('addPaymentBtn').addEventListener('click', async () => { await refreshProjects(); if (!(await window.crm.listProjects()).length) { toast('Сначала создай объект, к которому привязать платёж.', true); showView('projects'); return; } $('paymentForm').reset(); $('paymentForm').elements.payment_date.value = dateToday(); $('paymentDialogTitle').textContent = 'Записать платёж'; openDialog('paymentDialog'); });
