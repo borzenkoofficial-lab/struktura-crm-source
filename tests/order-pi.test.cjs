@@ -47,3 +47,25 @@ test('flags a service mismatch and weak source data', () => {
   assert.ok(result.nextQuestions.includes('Добавить ссылку на первоисточник'));
   assert.ok(result.reasons.includes('Вид работ не подтверждён текстом результата'));
 });
+
+test('uses saved preliminary economics in PI ranking without claiming real win probability', () => {
+  const result = assessCommercialOrder({
+    title: 'Тендер на демонтаж офисных помещений',
+    snippet: 'Заказчик ищет подрядчика для демонтажа коммерческого помещения.',
+    source_url: 'https://example.ru/tender/3',
+    service: 'demolition',
+    signal_score: 85
+  }, {
+    revenue_rub: 1500000,
+    budget_rub: 1500000,
+    quantity: 1000,
+    estimated_margin_pct: 22,
+    estimated_days: 8
+  });
+  assert.equal(result.economicsStatus, 'calculated_preliminary');
+  assert.equal(result.deadlineStatus, 'production_duration_estimated');
+  assert.equal(result.winProbabilityStatus, 'not_calculated');
+  assert.ok(result.components.find(item => item.key === 'economics').value > 0);
+  assert.ok(result.reasons.some(reason => reason.includes('Расчётная маржа')));
+  assert.ok(!result.nextQuestions.includes('Уточнить бюджет или цену договора'));
+});
