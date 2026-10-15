@@ -13,7 +13,7 @@ test('PI connects shift downtime, low measured output and a matching project cos
   const insight = items.find(item => item.id === 'production-cost-correlation-55');
   assert.ok(insight);
   assert.equal(insight.view, 'finance');
-  assert.match(insight.title, /финансовом риске/u);
+  assert.match(insight.title, /финансовым риском/u);
   assert.match(insight.detail, /расходы составляют 90% договора/u);
   assert.match(insight.detail, /не доказывает причинную связь/u);
 });
@@ -142,7 +142,7 @@ test('PI detects a worsening production trend only after four dated observations
   const trend = items.find(item => item.id === 'production-trend-worsening-снятие стяжки-м²');
   assert.ok(trend);
   assert.match(trend.detail, /Предыдущие два наблюдения: в среднем -6% к плану/u);
-  assert.match(trend.detail, /Последние два: -30% к плану/u);
+  assert.match(trend.detail, /Последние два: в среднем -30% к плану/u);
 });
 
 test('PI does not combine production observations from different crew conditions', () => {
