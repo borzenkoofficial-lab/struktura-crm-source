@@ -51,7 +51,13 @@ function assessCommercialOrder(order = {}, analysis = null) {
     { key: 'sourceQuality', label: 'Полнота источника', weight: 10, value: sourceQuality }
   ];
   // Unknown inputs contribute zero to the provisional score instead of being silently imputed.
-  const score = Math.round(components.reduce((sum, item) => sum + item.weight * (item.value ?? 0) / 100, 0));
+  const rawScore = Math.round(components.reduce((sum, item) => sum + item.weight * (item.value ?? 0) / 100, 0));
+  // Commercial viability is a guardrail, not just one weighted factor: a high-intent order
+  // with proven negative or very thin estimated margin must not rise to the top of the queue.
+  const scoreCap = hasAnalysis && analysisMargin <= 0 ? 39
+    : hasAnalysis && analysisMargin < 10 ? 54
+      : 100;
+  const score = Math.min(rawScore, scoreCap);
   const known = components.filter(item => item.value !== null).length;
   const missing = [];
   if (!hasBudget) missing.push('Уточнить бюджет или цену договора');
@@ -67,6 +73,9 @@ function assessCommercialOrder(order = {}, analysis = null) {
   if (hasVolume) reasons.push('В тексте найден объём работ — требуется проверка');
   if (hasDeadline) reasons.push('В тексте найден сигнал срока — требуется проверка');
   if (hasAnalysis) reasons.push('Расчётная маржа: ' + Math.round(analysisMargin * 10) / 10 + '%; ориентировочно ' + Math.round(analysisDays * 10) / 10 + ' смен — результат зависит от введённых ставок и условий.');
+  if (hasAnalysis && analysisMargin <= 0) reasons.push('Финансовый стоп-сигнал: расчётная маржа не положительная. Не ставить заказ в приоритет до пересмотра цены, затрат и условий.');
+  else if (hasAnalysis && analysisMargin < 10) reasons.push('Низкая расчётная маржа — приоритет ограничен. Проверь резерв на скрытые работы, логистику, вывоз и простои.');
+  if (score < rawScore) reasons.push('Итоговый приоритет ограничен финансовым стоп-сигналом, даже если текстовые сигналы закупки сильные.');
   if (!fitEvidence) reasons.push('Вид работ не подтверждён текстом результата');
 
   return {
