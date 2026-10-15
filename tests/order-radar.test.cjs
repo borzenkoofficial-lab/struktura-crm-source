@@ -12,6 +12,24 @@ test('builds four order queries with selected service and region', () => {
   assert.ok(queries.some(query => /zakupki\.gov\.ru|roseltorg\.ru|b2b-center\.ru/i.test(query)));
 });
 
+
+test('all-source search covers general web, Telegram, Avito and tender domains in four queries', () => {
+  const queries = buildOrderQueries('demolition', 'Москва и МО', 'all');
+  assert.equal(queries.length, 4);
+  assert.ok(queries.every(query => query.includes('Москва и МО')));
+  assert.ok(queries.some(query => /t\.me|telegram\.me/i.test(query)));
+  assert.ok(queries.some(query => /avito\.ru/i.test(query)));
+  assert.ok(queries.some(query => /zakupki\.gov\.ru|roseltorg\.ru|b2b-center\.ru/i.test(query)));
+});
+
+test('manual all-source search link includes the supported source domains', () => {
+  const url = buildManualOrderSearchUrl('demolition', 'Москва и МО', 'all');
+  const query = decodeURIComponent(url);
+  assert.match(query, /site:t\.me/);
+  assert.match(query, /site:avito\.ru/);
+  assert.match(query, /site:zakupki\.gov\.ru/);
+});
+
 test('normalizes links and scores a plausible commercial order from result evidence', () => {
   const order = normalizeOrderResult({
     title: 'Закупка на демонтаж офисных помещений',
