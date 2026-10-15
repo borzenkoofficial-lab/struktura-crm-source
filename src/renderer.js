@@ -970,7 +970,7 @@ $('runOrderRadarBtn').addEventListener('click',async()=>{
  finally{b.disabled=false;b.textContent='⌕ Найти через API'}
 });
 $('manualOrderSearchBtn').addEventListener('click',async()=>{
- try{const url=await window.crm.manualCommercialOrderSearchUrl({service:$('orderRadarService').value,region:$('orderRadarRegion').value,sourceType:$('orderRadarSource')?.value||'web'});await window.crm.openExternal(url);toast('Открылся ручной поиск. Проверь первоисточники и импортируй подходящие заказы из CSV.')}
+ try{const sourceType=$('orderRadarSource')?.value||'all';if(sourceType==='files'){toast('Для источника «Импорт из файла» используй кнопку «Импорт CSV».');return;}const url=await window.crm.manualCommercialOrderSearchUrl({service:$('orderRadarService').value,region:$('orderRadarRegion').value,sourceType});await window.crm.openExternal(url);toast('Открылся ручной поиск. Проверь первоисточники и импортируй подходящие заказы из CSV.')}
  catch(e){toast(e.message,true)}
 });
 $('importOrdersCsvBtn').addEventListener('click',async()=>{
