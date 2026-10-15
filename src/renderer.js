@@ -544,7 +544,7 @@ function renderOpportunityRadar(rows) {
 const orderStatusLabels={new:'Новый',opened:'Открывали',relevant:'Подходит',rejected:'Не подходит'};
 async function refreshCommercialOrders(){
  const search=$('orderRadarSearch')?.value||'',status=$('orderRadarStatus')?.value||'';
- const rows=await window.crm.listCommercialOrders({search,status,service:$('orderRadarService')?.value||'demolition'});const target=$('commercialOrdersList');if(!target)return;
+ const rows=await window.crm.listCommercialOrders({search,status,service:$('orderRadarService')?.value||'demolition',sourceType:$('orderRadarSource')?.value||''});const target=$('commercialOrdersList');if(!target)return;
  const summary=$('orderPiSummary');
  if(summary){
   const first=rows.filter(o=>o.pi_assessment).sort((a,b)=>b.pi_assessment.score-a.pi_assessment.score)[0];
@@ -956,11 +956,32 @@ $('runWebSearchBtn').addEventListener('click', async () => {
   } catch (error) { result.className = 'crawler-result error'; result.textContent = `Поиск не выполнен: ${error.message}`; toast(error.message, true); }
   finally { button.disabled = false; button.textContent = '⌕ Найти компании'; await refreshSearchApiStatus(); }
 });
-$('runOrderRadarBtn').addEventListener('click',async()=>{const b=$('runOrderRadarBtn'),r=$('orderRadarResult');b.disabled=true;b.textContent='Ищем…';r.hidden=false;r.className='crawler-result';r.textContent='Ищем страницы закупок и коммерческих заказов…';try{const report=await window.crm.searchCommercialOrders({service:$('orderRadarService').value,region:$('orderRadarRegion').value});const lines=[`Запросов: ${report.queries.length}`,`Результатов: ${report.received}`,`Уникальных ссылок: ${report.unique}`,`Новых карточек: ${report.added}`,`Обновлено: ${report.refreshed}`,`Защищено вручную отмеченных: ${report.protected||0}`,`Ошибок: ${report.errors.length}`];if(report.errors.length)lines.push('','Ошибки:',...report.errors.map(x=>`• ${x.query}: ${x.error}`));lines.push('','Результаты — кандидаты. Проверь актуальность и условия на исходном сайте.');r.textContent=lines.join('\n');await refreshCommercialOrders();toast(`Поиск завершён. Новых карточек: ${report.added}.`)}catch(e){r.className='crawler-result error';r.textContent=`Поиск не выполнен: ${e.message}`;toast(e.message,true)}finally{b.disabled=false;b.textContent='⌕ Найти заказы'}});
+$('runOrderRadarBtn').addEventListener('click',async()=>{
+ const b=$('runOrderRadarBtn'),r=$('orderRadarResult'),sourceType=$('orderRadarSource')?.value||'web';
+ if(sourceType==='files'){r.hidden=false;r.className='crawler-result';r.textContent='Для источника «Импорт из файла» нажми «Импорт CSV».';return;}
+ b.disabled=true;b.textContent='Ищем…';r.hidden=false;r.className='crawler-result';r.textContent='Ищем страницы заказов по выбранному источнику…';
+ try{
+  const report=await window.crm.searchCommercialOrders({service:$('orderRadarService').value,region:$('orderRadarRegion').value,sourceType});
+  const lines=[`Источник: ${sourceType}`,`Запросов: ${report.queries.length}`,`Результатов: ${report.received}`,`Уникальных ссылок: ${report.unique}`,`Новых карточек: ${report.added}`,`Обновлено: ${report.refreshed}`,`Защищено вручную отмеченных: ${report.protected||0}`,`Ошибок: ${report.errors.length}`];
+  if(report.errors.length)lines.push('','Ошибки:',...report.errors.map(x=>`• ${x.query}: ${x.error}`));
+  lines.push('','Результаты — кандидаты. Проверь актуальность и условия на исходном сайте.');
+  r.textContent=lines.join('\n');await refreshCommercialOrders();toast(`Поиск завершён. Новых карточек: ${report.added}.`);
+ }catch(e){r.className='crawler-result error';r.textContent=`Поиск не выполнен: ${e.message}. Если API недоступен, используй «Открыть ручной поиск».`;toast(e.message,true)}
+ finally{b.disabled=false;b.textContent='⌕ Найти через API'}
+});
+$('manualOrderSearchBtn').addEventListener('click',async()=>{
+ try{const url=await window.crm.manualCommercialOrderSearchUrl({service:$('orderRadarService').value,region:$('orderRadarRegion').value,sourceType:$('orderRadarSource')?.value||'web'});await window.crm.openExternal(url);toast('Открылся ручной поиск. Проверь первоисточники и импортируй подходящие заказы из CSV.')}
+ catch(e){toast(e.message,true)}
+});
+$('importOrdersCsvBtn').addEventListener('click',async()=>{
+ try{const result=await window.crm.importCommercialOrdersCsv();if(result.canceled)return;await refreshCommercialOrders();toast(`Импорт завершён: ${result.imported} добавлено, ${result.skipped} пропущено.`)}
+ catch(e){toast(`Импорт не выполнен: ${e.message}`,true)}
+});
 $('refreshOrdersBtn').addEventListener('click',()=>refreshCommercialOrders().then(()=>toast('Список заказов обновлён.')).catch(e=>toast(e.message,true)));
 $('orderRadarSearch').addEventListener('input',()=>refreshCommercialOrders().catch(e=>toast(e.message,true)));
 $('orderRadarStatus').addEventListener('change',()=>refreshCommercialOrders().catch(e=>toast(e.message,true)));
 $('orderRadarService').addEventListener('change',()=>refreshCommercialOrders().catch(e=>toast(e.message,true)));
+$('orderRadarSource').addEventListener('change',()=>{refreshCommercialOrders().catch(e=>toast(e.message,true));const b=$('runOrderRadarBtn');if(b)b.textContent=$('orderRadarSource').value==='files'?'Выбран импорт CSV':'⌕ Найти через API';});
 $('commercialOrdersList').addEventListener('click',async e=>{const b=e.target.closest('[data-order-open]');if(!b)return;try{await window.crm.openExternal(b.dataset.orderUrl);await window.crm.updateCommercialOrderStatus({id:Number(b.dataset.orderOpen),status:'opened'});await refreshCommercialOrders()}catch(err){toast(err.message,true)}});
 $('commercialOrdersList').addEventListener('change',async e=>{const s=e.target.closest('[data-order-status]');if(!s)return;try{await window.crm.updateCommercialOrderStatus({id:Number(s.dataset.orderStatus),status:s.value});toast('Статус заказа сохранён.')}catch(err){toast(err.message,true)}});
 $('exportProspectsBtn').addEventListener('click', () => exportCsv('prospects'));
