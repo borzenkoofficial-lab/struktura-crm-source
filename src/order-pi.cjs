@@ -67,7 +67,7 @@ function assessCommercialOrder(order = {}, analysis = null) {
     version: 1,
     score,
     label: score >= 65 ? 'Проверить в первую очередь' : score >= 40 ? 'Нужно уточнить' : 'Недостаточно подтверждений',
-    confidence: known >= 4 ? 'средняя' : 'низкая',
+    confidence: hasAnalysis ? (Number(analysis.observations_count || 0) >= 5 && Number(analysis.budget_rub || 0) > 0 ? 'средняя' : 'низкая') : known >= 4 ? 'средняя' : 'низкая',
     knownFactors: known,
     totalFactors: components.length,
     economicsStatus: hasAnalysis ? 'calculated_preliminary' : economics === null ? 'unknown' : 'needs_verification',
