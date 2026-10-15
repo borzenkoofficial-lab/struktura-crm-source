@@ -22,7 +22,20 @@ function buildProductionIntelligence(data = {}, options = {}) {
       add('warning', `Недостаточно данных: ${title}`, `По объекту «${title}» недостаточно данных для надёжного прогноза. Проверь план и отчёты смен.`, project.id ?? null);
     }
     for (const line of (Array.isArray(forecast.lines) ? forecast.lines : [])) {
-      if (line?.overPlan) add('warning', `Превышен план: ${title}`, `По работе «${String(line.name || 'Без названия')}» превышен плановый объём. Проверь исходный объём и факт.`, project.id ?? null);
+      const workName = String(line?.name || 'Без названия');
+      if (line?.overPlan) add('warning', `Превышен план: ${title}`, `По работе «${workName}» факт превышает план на ${Math.round(Number(line.actualQuantity) - Number(line.plannedQuantity))} ${String(line.unit || '')}. Проверь исходный объём, единицы измерения и факт.`, project.id ?? null);
+      if (Number(line?.observations) >= 3 && Math.abs(Number(line?.baselineDeviationPct || 0)) >= 25) {
+        const direction = Number(line.baselineDeviationPct) < 0 ? 'ниже' : 'выше';
+        add(Math.abs(Number(line.baselineDeviationPct)) >= 45 ? 'danger' : 'warning',
+          `Норма требует пересмотра: ${title}`,
+          `По работе «${workName}» обученная норма отличается от стартовой на ${Math.abs(Math.round(Number(line.baselineDeviationPct)))}% (${direction}). Основание: ${line.observations} наблюдения. Проверь сопоставимость условий, прежде чем менять прайс.`,
+          project.id ?? null);
+      }
+      if (Number(line?.observations) >= 3 && Number(line?.uncertaintyPct) >= 35) {
+        add('warning', `Нестабильная выработка: ${title}`,
+          `По работе «${workName}» разброс фактической выработки повышает неопределённость прогноза примерно до ±${Math.round(Number(line.uncertaintyPct))}%. Раздели смены по условиям и проверь причины отклонений.`,
+          project.id ?? null);
+      }
     }
     if (shiftCount > 0 && validDate(project.lastShiftDate)) {
       const age = daysBetween(project.lastShiftDate, today);
@@ -51,13 +64,17 @@ function buildProductionIntelligence(data = {}, options = {}) {
 
   const shiftCount = finiteNonNegative(totals.shifts);
   const workRecords = finiteNonNegative(totals.work_records);
+  const scoredProjects = projects.filter(project => project.planCount > 0 && project.forecast?.estimated);
+  const confidenceScore = scoredProjects.length
+    ? Math.round(scoredProjects.reduce((sum, project) => sum + Number(project.forecast.confidenceScore || 0), 0) / scoredProjects.length)
+    : 0;
   const summary = projects.length === 0
     ? 'Нет активных объектов для анализа.'
     : forecastableCount === 0
       ? 'Недостаточно данных для надёжного прогноза. Заполни планы и фиксируй фактические смены.'
-      : `Прогноз доступен по ${forecastableCount} из ${projects.length} объектов. Учтено ${shiftCount} смен и ${workRecords} записей выработки.`;
+      : `Прогноз доступен по ${forecastableCount} из ${projects.length} объектов. Учтено ${shiftCount} смен и ${workRecords} записей выработки. Надёжность данных: ${confidenceScore}/100 — ориентир полноты и устойчивости истории, не вероятность точного срока.`;
 
-  return { projectCount: projects.length, forecastableCount, shiftCount, workRecords, summary, alerts };
+  return { projectCount: projects.length, forecastableCount, shiftCount, workRecords, confidenceScore, summary, alerts };
 }
 
 function finiteNonNegative(value) {
