@@ -977,6 +977,21 @@ $('importOrdersCsvBtn').addEventListener('click',async()=>{
  try{const result=await window.crm.importCommercialOrdersCsv();if(result.canceled)return;await refreshCommercialOrders();toast(`Импорт завершён: ${result.imported} добавлено, ${result.skipped} пропущено.`)}
  catch(e){toast(`Импорт не выполнен: ${e.message}`,true)}
 });
+$('addManualOrderBtn').addEventListener('click',()=>{
+ const form=$('manualOrderForm');form.reset();
+ $('manualOrderService').value=$('orderRadarService').value||'demolition';
+ $('manualOrderRegion').value=$('orderRadarRegion').value||'Москва и Московская область';
+ $('manualOrderDialog').showModal();
+});
+$('manualOrderForm').addEventListener('submit',async event=>{
+ event.preventDefault();const form=event.currentTarget;const submit=form.querySelector('button[type="submit"]');submit.disabled=true;
+ try{
+  const result=await window.crm.createCommercialOrder({title:$('manualOrderTitle').value,source_url:$('manualOrderUrl').value,snippet:$('manualOrderSnippet').value,service:$('manualOrderService').value,region:$('manualOrderRegion').value});
+  $('manualOrderDialog').close();await refreshCommercialOrders();
+  toast(result.duplicate?'Этот заказ уже есть в радаре — дубль не создан.':'Заказ добавлен. Открой карточку, чтобы посмотреть оценку ПИ.');
+ }catch(e){toast(e.message,true)}
+ finally{submit.disabled=false}
+});
 $('refreshOrdersBtn').addEventListener('click',()=>refreshCommercialOrders().then(()=>toast('Список заказов обновлён.')).catch(e=>toast(e.message,true)));
 $('orderRadarSearch').addEventListener('input',()=>refreshCommercialOrders().catch(e=>toast(e.message,true)));
 $('orderRadarStatus').addEventListener('change',()=>refreshCommercialOrders().catch(e=>toast(e.message,true)));
