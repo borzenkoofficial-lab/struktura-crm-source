@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: struktura-installer-\${{ github.ref }}
+  group: struktura-installer-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
