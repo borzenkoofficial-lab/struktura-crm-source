@@ -18,7 +18,13 @@ function assessCommercialOrder(order = {}, analysis = null) {
   const text = title + ' ' + snippet;
   const service = Object.hasOwn(SERVICE_TERMS, order.service) ? order.service : 'demolition';
   const fitEvidence = SERVICE_TERMS[service].test(text);
-  const intentEvidence = INTENT_TERMS.test(text) || Number(order.signal_score) >= 30;
+  // Relevance score also rewards service and commercial-property terms; it is not evidence of procurement intent.
+  // Accept only explicit intent in the result text or explicit procurement labels from the source normalizer.
+  const signalLabels = Array.isArray(order.signal_labels)
+    ? order.signal_labels.map(value => String(value || ''))
+    : String(order.signal_labels || '').split('|').filter(Boolean);
+  const intentEvidence = INTENT_TERMS.test(text)
+    || signalLabels.some(label => /закупка\s*\/\s*тендер|поиск подрядчика/i.test(label));
   const hasDeadline = DEADLINE_TERMS.test(text);
   const analysisRevenue = Number(analysis?.revenue_rub);
   const analysisMargin = Number(analysis?.estimated_margin_pct);
