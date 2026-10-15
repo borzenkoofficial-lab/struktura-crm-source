@@ -1147,6 +1147,13 @@ async function refreshProduction() {
   $('productionHistory').innerHTML = data.history.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Бригада</th><th>Фактически сделано</th><th>Выработка против нормы</th><th>Простой</th><th>Условия</th><th>Примечание</th><th></th></tr></thead><tbody>${data.history.map(shift => `<tr><td>${esc(shift.shift_date)}</td><td>${esc(shift.project_title)}</td><td>${shift.workers_count} чел. × ${productionNum(shift.shift_hours,1)} ч.</td><td>${esc(shift.work_summary || '—')}<small class="table-sub">${shift.work_count} видов работ</small></td><td><div class="production-history-rates">${shift.performance.map(item => { const deviation = Number(item.deviationPct || 0); const cls = deviation >= 20 ? 'above' : deviation <= -20 ? 'below' : 'normal'; const label = deviation >= 20 ? 'Выше нормы' : deviation <= -20 ? 'Ниже нормы' : 'Близко к норме'; return `<div><span>${esc(item.work_name)}: ${productionNum(item.actualRate,2)} ${esc(item.unit)}/чел.-смену</span><small class="production-deviation ${cls}">${label} ${deviation > 0 ? '+' : ''}${deviation}% · старт ${productionNum(item.expectedRate,2)}</small></div>`; }).join('')}</div></td><td>${productionNum(shift.downtime_hours,1)} ч.</td><td>×${productionNum(shift.complexity_factor,2)}</td><td>${esc(shift.notes || '—')}</td><td><div class="table-actions"><button class="button subtle compact" data-edit-production-shift="${shift.id}">Изменить</button><button class="button subtle compact production-delete-shift" data-delete-production-shift="${shift.id}" title="Удалить ошибочный отчёт">Удалить</button></div></td></tr>`).join('')}</tbody></table></div>` : empty('Смены пока не закрывались','Заполни первый отчёт — CRM сохранит факт и начнёт уточнять производительность.');
   window._strukturaProductionProjects = data.projects;
 }
+function productionReadConditions(name) { return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(input => input.value); }
+function productionSetConditions(name, value) {
+  let conditions = value;
+  if (typeof value === 'string') { try { conditions = JSON.parse(value || '[]'); } catch (_) { conditions = []; } }
+  if (!Array.isArray(conditions)) conditions = [];
+  document.querySelectorAll(`input[name="${name}"]`).forEach(input => { input.checked = conditions.includes(input.value); });
+}
 async function openProductionPlan(projectId = '') {
   const allProjects = (await window.crm.listProjects()).filter(project => !['completed','cancelled'].includes(project.status));
   if (!allProjects.length) { toast('Сначала создай объект.'); showView('projects'); return; }
@@ -1161,6 +1168,7 @@ async function productionLoadPlanForSelected() {
     const data = await window.crm.getProductionPlan(projectId);
     $('planPeople').value = data.project.planned_people || 5;
     $('planDifficulty').value = String(data.project.complexity_factor || 1);
+    productionSetConditions('plan_condition', data.project.conditions_json);
     productionRenderRows('productionPlanLines','plan',data.lines.map(line => ({ ...line, catalog_id: line.catalog_id, baseline_productivity: line.baseline_productivity })));
   } catch (error) { toast(error.message,true); }
 }
@@ -1235,7 +1243,7 @@ $('productionPlanForm').addEventListener('submit', async e => {
   e.preventDefault(); const rows = [...$('productionPlanLines').querySelectorAll('[data-production-edit-row]')];
   const lines = rows.map(row => Object.fromEntries([...row.querySelectorAll('[data-prod-field]')].map(field => [field.dataset.prodField, field.value])));
   try {
-    const saved = await window.crm.saveProductionPlan({ project_id: $('planProjectSelect').value, planned_people: Number($('planPeople').value), complexity_factor: Number($('planDifficulty').value), lines });
+    const saved = await window.crm.saveProductionPlan({ project_id: $('planProjectSelect').value, planned_people: Number($('planPeople').value), complexity_factor: Number($('planDifficulty').value), conditions: productionReadConditions('plan_condition'), lines });
     closeDialog('productionPlanDialog'); toast(`План сохранён: ${saved.lineCount} позиций. После отчётов остаток и срок будут пересчитываться автоматически.`);
     await refreshProduction();
   } catch (error) { toast(error.message,true); }
@@ -1244,7 +1252,7 @@ $('productionShiftForm').addEventListener('submit', async e => {
   e.preventDefault(); const rows = [...$('productionShiftLines').querySelectorAll('[data-production-edit-row]')];
   const lines = rows.map(row => Object.fromEntries([...row.querySelectorAll('[data-prod-field]')].map(field => [field.dataset.prodField, field.value]))).filter(line => Number(line.quantity_done) > 0);
   if (!lines.length && !$('shiftNotes').value.trim()) { toast('Если за смену ничего не сделано, укажи причину в примечании.', true); $('shiftNotes').focus(); return; }
-  const form = e.currentTarget, data = { id: form.elements.id.value, project_id: Number($('shiftProjectSelect').value), shift_date: $('shiftDate').value, workers_count: Number($('shiftWorkers').value), shift_hours: Number($('shiftHours').value), downtime_hours: Number($('shiftDowntime').value), complexity_factor: Number($('shiftDifficulty').value), notes: $('shiftNotes').value, lines };
+  const form = e.currentTarget, data = { id: form.elements.id.value, project_id: Number($('shiftProjectSelect').value), shift_date: $('shiftDate').value, workers_count: Number($('shiftWorkers').value), shift_hours: Number($('shiftHours').value), downtime_hours: Number($('shiftDowntime').value), complexity_factor: Number($('shiftDifficulty').value), conditions: productionReadConditions('shift_condition'), notes: $('shiftNotes').value, lines };
   try {
     const saved = data.id ? await window.crm.updateWorkShift(data) : await window.crm.saveWorkShift(data);
     closeDialog('productionShiftDialog');
@@ -1296,7 +1304,7 @@ $('productionHistory').addEventListener('click', async e => {
       $('productionShiftForm').elements.id.value = shift.id;
       $('shiftDate').value = shift.shift_date; $('shiftWorkers').value = shift.workers_count;
       $('shiftHours').value = shift.shift_hours; $('shiftDowntime').value = shift.downtime_hours;
-      $('shiftDifficulty').value = String(shift.complexity_factor); $('shiftNotes').value = shift.notes || '';
+      $('shiftDifficulty').value = String(shift.complexity_factor); productionSetConditions('shift_condition', shift.conditions_json); $('shiftNotes').value = shift.notes || '';
       productionRenderRows('productionShiftLines','shift',shift.lines);
       $('productionShiftDialogTitle').textContent = 'Исправить отчёт смены';
       openDialog('productionShiftDialog'); return;
