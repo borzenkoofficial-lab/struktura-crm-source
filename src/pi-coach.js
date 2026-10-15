@@ -114,6 +114,32 @@ function buildPiCoachInsights(data = {}, options = {}) {
       'production', 'Разобрать смену');
   }
 
+  // Cross-check downtime, measured output and project-level financial risk for the same shift.
+  // This is a correlation to investigate, not proof that downtime caused a cost overrun.
+  const financeRisks = Array.isArray(finance.risks) ? finance.risks : [];
+  for (const shift of history) {
+    const shiftHours = Number(shift.shift_hours);
+    const idleHours = Number(shift.downtime_hours);
+    if (!Number.isFinite(shiftHours) || shiftHours <= 0 || !Number.isFinite(idleHours) || idleHours / shiftHours < 0.25) continue;
+    const performanceRows = (Array.isArray(shift.performance) ? shift.performance : [])
+      .map(row => ({ name: String(row.work_name || 'Работа без названия').trim(), deviation: Number(row.deviationPct) }))
+      .filter(row => Number.isFinite(row.deviation));
+    if (!performanceRows.length) continue;
+    const averageDeviation = performanceRows.reduce((sum, row) => sum + row.deviation, 0) / performanceRows.length;
+    if (averageDeviation > -15) continue;
+    const projectTitle = String(shift.project_title || '').trim();
+    const projectKey = projectTitle.toLocaleLowerCase('ru-RU');
+    const risk = projectKey ? financeRisks.find(item => String(item.title || '').trim().toLocaleLowerCase('ru-RU') === projectKey && Number.isFinite(Number(item.costRatio)) && Number(item.costRatio) >= 0.8) : null;
+    const downtimePct = Math.round(idleHours / shiftHours * 100);
+    const outputPct = Math.round(averageDeviation);
+    const riskText = risk ? ' Финансовая связь для проверки: по объекту в финансовом анализе расходы составляют ' + Math.round(Number(risk.costRatio) * 100) + '% договора. Совпадение по названию объекта не доказывает причинную связь.' : '';
+    add('production-cost-correlation-' + shift.id, risk ? 'danger' : 'warning', risk ? 97 : 91,
+      risk ? 'Простой и отставание совпали с финансовым риском' : 'Простой совпал с низкой выработкой',
+      'В смене от ' + (shift.shift_date || 'без даты') + ' простой составил ' + downtimePct + '% времени, а среднее отклонение зафиксированных работ — ' + outputPct + '% от плана. Проверь причину простоя и сопоставимость объёма работ.' + (risk ? ' Также проверь запас по расходам объекта.' : ''),
+      'Объект: ' + (projectTitle || 'не указан') + '. Простой: ' + idleHours + ' ч из ' + shiftHours + ' ч. Работы в отчёте: ' + performanceRows.map(row => row.name + ' (' + Math.round(row.deviation) + '%)').join('; ') + '.' + riskText + ' Это сигнал для проверки, а не доказательство, что простой вызвал отставание или перерасход.',
+      risk ? 'finance' : 'production', risk ? 'Проверить экономику' : 'Разобрать смену');
+  }
+
   const lowByWork = new Map();
   for (const shift of history) {
     for (const row of (Array.isArray(shift.performance) ? shift.performance : [])) {
@@ -133,6 +159,56 @@ function buildPiCoachInsights(data = {}, options = {}) {
       'Я вижу как минимум два отчёта, где выработка по работе «' + group.name + '» ниже нормы на двадцать процентов или больше. Не делаю вывод о виноватых: сначала сравни условия, состав бригады, простой, единицы измерения и сложность объекта.',
       'Наблюдений с отклонением от −20%: ' + group.rows.length + '. Среднее по последним ' + recent.length + ' подходящим наблюдениям: ' + average + '%. Примеры: ' + recent.map(row => (row.date || 'без даты') + (row.project ? ' · ' + row.project : '') + ' (' + Math.round(row.deviation) + '%)').join('; ') + '.',
       'production', 'Сравнить смены');
+  }
+
+  // Compare production only within a stable, explicitly comparable condition group.
+  // If condition fields are absent, do not invent comparability from work names alone.
+  const trendByWork = new Map();
+  for (const shift of history) {
+    const date = validIso(String(shift.shift_date || '').slice(0, 10));
+    const crew = Number(shift.workers_count);
+    const shiftHours = Number(shift.shift_hours);
+    const complexity = Number(shift.complexity_factor);
+    const downtimeHours = Number(shift.downtime_hours);
+    if (!date || !Number.isFinite(crew) || crew < 1 || !Number.isFinite(shiftHours) || shiftHours <= 0 || !Number.isFinite(complexity) || complexity <= 0 || !Number.isFinite(downtimeHours) || downtimeHours < 0) continue;
+    const downtimeRatio = downtimeHours / shiftHours;
+    const downtimeBand = downtimeRatio < 0.15 ? 'low' : downtimeRatio < 0.3 ? 'medium' : 'high';
+    const conditionKey = [crew, Math.round(complexity * 10) / 10, Math.round(shiftHours / 2), downtimeBand].join('|');
+    for (const row of (Array.isArray(shift.performance) ? shift.performance : [])) {
+      const deviation = Number(row.deviationPct);
+      const name = String(row.work_name || '').trim();
+      const unit = String(row.unit || '').trim().toLocaleLowerCase('ru-RU');
+      const itemCrew = Number(row.workers_count);
+      const itemHours = Number(row.hours);
+      if (!name || !unit || !Number.isFinite(deviation) || !Number.isFinite(itemCrew) || itemCrew !== crew || !Number.isFinite(itemHours) || itemHours <= 0) continue;
+      const key = name.toLocaleLowerCase('ru-RU') + '|' + unit + '|' + conditionKey;
+      if (!trendByWork.has(key)) trendByWork.set(key, { name, unit, rows: [], conditions: { crew, complexity: Math.round(complexity * 10) / 10, shiftHours, downtimeBand } });
+      trendByWork.get(key).rows.push({ date, deviation, project: shift.project_title || '' });
+    }
+  }
+  for (const group of trendByWork.values()) {
+    const rows = group.rows.sort((a, b) => a.date.localeCompare(b.date));
+    if (rows.length < 4) continue;
+    const previous = rows.slice(-4, -2);
+    const recent = rows.slice(-2);
+    const previousAverage = previous.reduce((sum, row) => sum + row.deviation, 0) / previous.length;
+    const recentAverage = recent.reduce((sum, row) => sum + row.deviation, 0) / recent.length;
+    const change = recentAverage - previousAverage;
+    const title = group.name;
+    const conditions = 'Сопоставимые условия: бригада ' + group.conditions.crew + ' чел.; коэффициент сложности около ' + group.conditions.complexity.toLocaleString('ru-RU') + '; смена около ' + group.conditions.shiftHours + ' ч; простой в категории «' + ({ low: 'до 15%', medium: '15–30%', high: 'свыше 30%' })[group.conditions.downtimeBand] + '». Единица работы: ' + group.unit + '.';
+    if (recentAverage <= -15 && change <= -15) {
+      add('production-trend-worsening-' + title.toLocaleLowerCase('ru-RU') + '-' + group.unit, 'warning', 89,
+        'Выработка ухудшается: ' + title,
+        'По работе «' + title + '» последние два сопоставимых наблюдения заметно хуже предыдущих двух. Проверь причины до изменения норматива или цены.',
+        'Предыдущие два наблюдения: в среднем ' + Math.round(previousAverage) + '% к плану. Последние два: в среднем ' + Math.round(recentAverage) + '% к плану. Изменение: ' + Math.round(change) + ' процентных пунктов. Последние даты: ' + recent.map(row => row.date + (row.project ? ' · ' + row.project : '')).join('; ') + '. ' + conditions + ' Сопоставимость определена по численности бригады, коэффициенту сложности, длительности смены и категории простоя; причина изменения требует проверки.',
+        'production', 'Сравнить условия');
+    } else if (previousAverage <= -20 && change >= 15 && recentAverage > previousAverage) {
+      add('production-trend-improving-' + title.toLocaleLowerCase('ru-RU') + '-' + group.unit, 'info', 61,
+        'Есть улучшение выработки: ' + title,
+        'По работе «' + title + '» последние два сопоставимых наблюдения лучше предыдущих двух. Проверь, какие изменения могли повлиять на результат.',
+        'Предыдущие два наблюдения: в среднем ' + Math.round(previousAverage) + '% к плану. Последние два: в среднем ' + Math.round(recentAverage) + '% к плану. Изменение: +' + Math.round(change) + ' процентных пунктов. Последние даты: ' + recent.map(row => row.date + (row.project ? ' · ' + row.project : '')).join('; ') + '. ' + conditions + ' Это тенденция в сохранённых данных, а не доказательство причины улучшения.',
+        'production', 'Изучить улучшение');
+    }
   }
 
   const overdueTasks = tasks.filter(task => !Number(task.is_done) && (task.urgency === 'overdue' || (validIso(String(task.due_at || '').slice(0, 10)) && ageDays(String(task.due_at).slice(0, 10), today) > 0)));

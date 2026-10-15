@@ -3,6 +3,27 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildPiCoachInsights, ageDays } = require('../src/pi-coach.js');
 
+test('PI connects shift downtime, low measured output and a matching project cost risk', () => {
+  const items = buildPiCoachInsights({
+    production: { history: [{ id: 55, shift_date: '2026-10-10', project_title: 'Объект Север', shift_hours: 8, downtime_hours: 3, performance: [
+      { work_name: 'Демонтаж стяжки', deviationPct: -25 }, { work_name: 'Вынос мусора', deviationPct: -15 }
+    ] }] },
+    finance: { risks: [{ id: 12, title: 'Объект Север', costRatio: 0.9 }] }
+  }, { today: '2026-10-15' });
+  const insight = items.find(item => item.id === 'production-cost-correlation-55');
+  assert.ok(insight);
+  assert.equal(insight.view, 'finance');
+  assert.match(insight.title, /финансовым риском/u);
+  assert.match(insight.detail, /расходы составляют 90% договора/u);
+  assert.match(insight.detail, /не доказывает причинную связь/u);
+});
+
+test('PI does not correlate shift downtime with poor output when performance evidence is absent', () => {
+  const items = buildPiCoachInsights({ production: { history: [{ id: 56, shift_date: '2026-10-10', project_title: 'Объект Юг', shift_hours: 8, downtime_hours: 4, performance: [] }] } }, { today: '2026-10-15' });
+  assert.equal(items.some(item => item.id === 'production-cost-correlation-56'), false);
+});
+
+
 test('PI coach prioritizes a documented contract overrun above routine advice', () => {
   const items = buildPiCoachInsights({
     finance: { risks: [{ id: 8, title: 'Склад', level: 'over', costRatio: 1.12, contractRub: 100000, paidExpensesRub: 80000, plannedExpensesRub: 32000 }] },
@@ -22,8 +43,8 @@ test('PI coach does not invent a production forecast when the plan is missing', 
 
 test('PI coach flags recurring low productivity only with at least two grounded records', () => {
   const production = { history: [
-    { id: 1, project_id: 1, project_title: 'Объект А', shift_date: '2026-10-14', performance: [{ work_name: 'Снятие стяжки', deviationPct: -30 }] },
-    { id: 2, project_id: 2, project_title: 'Объект Б', shift_date: '2026-10-13', performance: [{ work_name: 'Снятие стяжки', deviationPct: -24 }] },
+    { id: 1, project_id: 1, project_title: 'Объект А', shift_date: '2026-10-14', performance: [{ work_name: 'Снятие стяжки', unit: 'м²', workers_count: 5, hours: 8, deviationPct: -30 }] },
+    { id: 2, project_id: 2, project_title: 'Объект Б', shift_date: '2026-10-13', performance: [{ work_name: 'Снятие стяжки', unit: 'м²', workers_count: 5, hours: 8, deviationPct: -24 }] },
     { id: 3, project_id: 2, shift_date: '2026-10-12', performance: [{ work_name: 'Стены', deviationPct: -8 }] }
   ] };
   const items = buildPiCoachInsights({ production }, { today: '2026-10-15' });
@@ -109,6 +130,38 @@ test('PI does not warn about missing project dates for completed or cancelled pr
     { id: 2, title: 'Отменённый объект', status: 'cancelled' }
   ] }, { today: '2026-10-15' });
   assert.equal(items.some(item => item.id === 'project-dates-missing-1' || item.id === 'project-dates-missing-2'), false);
+});
+
+test('PI detects a worsening production trend only after four dated observations', () => {
+  const items = buildPiCoachInsights({ production: { history: [
+    { id: 1, shift_date: '2026-10-01', project_title: 'А', workers_count: 5, shift_hours: 8, downtime_hours: 0, complexity_factor: 1, performance: [{ work_name: 'Снятие стяжки', unit: 'м²', workers_count: 5, hours: 8, deviationPct: -5 }] },
+    { id: 2, shift_date: '2026-10-02', project_title: 'Б', workers_count: 5, shift_hours: 8, downtime_hours: 0, complexity_factor: 1, performance: [{ work_name: 'Снятие стяжки', unit: 'м²', workers_count: 5, hours: 8, deviationPct: -8 }] },
+    { id: 3, shift_date: '2026-10-03', project_title: 'В', workers_count: 5, shift_hours: 8, downtime_hours: 0, complexity_factor: 1, performance: [{ work_name: 'Снятие стяжки', unit: 'м²', workers_count: 5, hours: 8, deviationPct: -28 }] },
+    { id: 4, shift_date: '2026-10-04', project_title: 'Г', workers_count: 5, shift_hours: 8, downtime_hours: 0, complexity_factor: 1, performance: [{ work_name: 'Снятие стяжки', unit: 'м²', workers_count: 5, hours: 8, deviationPct: -32 }] }
+  ] } }, { today: '2026-10-15' });
+  const trend = items.find(item => item.id === 'production-trend-worsening-снятие стяжки-м²');
+  assert.ok(trend);
+  assert.match(trend.detail, /Предыдущие два наблюдения: в среднем -6% к плану/u);
+  assert.match(trend.detail, /Последние два: в среднем -30% к плану/u);
+});
+
+test('PI does not combine production observations from different crew conditions', () => {
+  const items = buildPiCoachInsights({ production: { history: [
+    { id: 1, shift_date: '2026-10-01', workers_count: 4, shift_hours: 8, downtime_hours: 0, complexity_factor: 1, performance: [{ work_name: 'Демонтаж перегородок', unit: 'м²', workers_count: 4, hours: 8, deviationPct: -5 }] },
+    { id: 2, shift_date: '2026-10-02', workers_count: 4, shift_hours: 8, downtime_hours: 0, complexity_factor: 1, performance: [{ work_name: 'Демонтаж перегородок', unit: 'м²', workers_count: 4, hours: 8, deviationPct: -8 }] },
+    { id: 3, shift_date: '2026-10-03', workers_count: 7, shift_hours: 8, downtime_hours: 0, complexity_factor: 1, performance: [{ work_name: 'Демонтаж перегородок', unit: 'м²', workers_count: 7, hours: 8, deviationPct: -28 }] },
+    { id: 4, shift_date: '2026-10-04', workers_count: 7, shift_hours: 8, downtime_hours: 0, complexity_factor: 1, performance: [{ work_name: 'Демонтаж перегородок', unit: 'м²', workers_count: 7, hours: 8, deviationPct: -32 }] }
+  ] } }, { today: '2026-10-15' });
+  assert.equal(items.some(item => item.id.startsWith('production-trend-worsening-демонтаж перегородок')), false);
+});
+
+test('PI does not infer a production trend from fewer than four observations', () => {
+  const items = buildPiCoachInsights({ production: { history: [
+    { id: 1, shift_date: '2026-10-01', performance: [{ work_name: 'Демонтаж стен', unit: 'м²', workers_count: 5, hours: 8, deviationPct: -5 }] },
+    { id: 2, shift_date: '2026-10-02', performance: [{ work_name: 'Демонтаж стен', unit: 'м²', workers_count: 5, hours: 8, deviationPct: -30 }] },
+    { id: 3, shift_date: '2026-10-03', performance: [{ work_name: 'Демонтаж стен', unit: 'м²', workers_count: 5, hours: 8, deviationPct: -35 }] }
+  ] } }, { today: '2026-10-15' });
+  assert.equal(items.some(item => item.id === 'production-trend-worsening-демонтаж стен-м²' || item.id === 'production-trend-improving-демонтаж стен-м²'), false);
 });
 
 test('PI flags missing schedule only for active or planned projects and explains why it matters', () => {

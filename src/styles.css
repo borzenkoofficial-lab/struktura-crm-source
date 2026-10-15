@@ -798,3 +798,33 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 .pi-coach-footer button{font-size:9px}
 .pi-coach-avatar{width:58px;height:58px;border-radius:19px}
 @media(max-width:600px){.pi-coach-popover{width:min(340px,calc(100vw - 24px));max-height:58vh;padding:12px}.pi-coach-avatar{width:54px;height:54px}}
+
+
+/* PI mascot refresh: friendly, soft and polished without obscuring the workspace. */
+.pi-companion{right:20px;bottom:20px;gap:10px}
+.pi-coach-avatar{width:70px;height:70px;border-radius:25px;background:radial-gradient(circle at 28% 18%,#fff7e8 0,#ffe3c7 25%,#f7a16f 65%,#e97852 100%);border:1px solid rgba(255,255,255,.8);box-shadow:0 12px 30px rgba(206,112,71,.25),inset 0 2px 0 rgba(255,255,255,.85);overflow:visible}
+.pi-coach-avatar:hover{transform:translateY(-3px) rotate(-2deg);box-shadow:0 16px 34px rgba(206,112,71,.32),inset 0 2px 0 rgba(255,255,255,.9)}
+.pi-avatar-aura{inset:-6px;border:1.5px solid rgba(248,163,112,.58);border-radius:29px;box-shadow:0 0 0 4px rgba(255,210,174,.13)}
+.pi-avatar-face{width:41px;height:40px;border-radius:16px 16px 18px 18px;background:linear-gradient(145deg,#fff0ce 0%,#ffd39d 54%,#ffb17d 100%);box-shadow:inset -3px -4px 0 rgba(191,104,68,.1),0 5px 10px rgba(114,65,48,.13);transform:rotate(-2deg);animation:piFaceFloat 4s ease-in-out infinite}
+.pi-avatar-face:before{left:5px;right:5px;top:-5px;height:12px;border-radius:12px 12px 5px 5px;background:linear-gradient(90deg,#e97852,#ffb36f 52%,#ed835a)}
+.pi-avatar-eye{top:14px;width:4.5px;height:5.5px;background:#65423b;box-shadow:0 1px 0 rgba(255,255,255,.35)}
+.pi-avatar-eye.eye-left{left:10px}.pi-avatar-eye.eye-right{right:10px}
+.pi-avatar-smile{left:15px;top:25px;width:11px;height:5px;border-bottom:2px solid #b45e51;border-radius:0 0 12px 12px}
+.pi-avatar-cheek{position:absolute;top:22px;width:7px;height:4px;border-radius:50%;background:rgba(237,117,111,.46);filter:blur(.3px)}
+.pi-avatar-cheek.cheek-left{left:4px}.pi-avatar-cheek.cheek-right{right:4px}
+.pi-avatar-orbit{position:absolute;pointer-events:none;border:1px solid rgba(255,255,255,.72);border-radius:50%;width:57px;height:21px;transform:rotate(-32deg)}
+.pi-avatar-orbit.orbit-one{top:16px;left:7px;opacity:.55}.pi-avatar-orbit.orbit-two{top:25px;left:8px;width:52px;height:17px;transform:rotate(38deg);opacity:.34}
+.pi-avatar-spark{color:#fff9e8;text-shadow:0 1px 4px rgba(183,91,57,.25)}
+.pi-avatar-spark.spark-one{top:5px;right:6px;font-size:15px;animation:piSparkle 2.6s ease-in-out infinite}
+.pi-avatar-spark.spark-two{left:5px;top:11px;font-size:17px;animation:piSparkle 3.1s ease-in-out infinite reverse}
+.pi-avatar-caption{right:-6px;bottom:-5px;min-width:28px;height:21px;border:2px solid #fffaf2;border-radius:9px;background:linear-gradient(145deg,#fff4d8,#ffe0bd);color:#a34f3b;font-size:10px;box-shadow:0 3px 9px rgba(117,68,47,.15)}
+.pi-avatar-status{position:absolute;right:3px;bottom:4px;width:8px;height:8px;border-radius:50%;background:#8bd5a5;border:2px solid #fff9ef;box-shadow:0 0 0 2px rgba(139,213,165,.2)}
+.pi-coach-popover{border:1px solid #f0d9ca;border-radius:21px;background:linear-gradient(155deg,#fffdf9 0%,#fff 48%,#fff8f1 100%);box-shadow:0 24px 70px rgba(102,68,54,.18),0 3px 12px rgba(102,68,54,.06)}
+.pi-coach-head{border-bottom-color:#f4e9e0}.pi-coach-eyebrow{color:#d67b53}.pi-coach-head strong{color:#4a3a38}
+.pi-coach-priority{border-radius:999px;letter-spacing:.35px;padding:5px 9px}.pi-coach-popover h3{color:#493735;letter-spacing:-.25px}.pi-coach-popover>p{color:#74615b}
+.pi-coach-evidence{border-color:#f0e4dc;background:#fffaf6;border-radius:13px}.pi-coach-evidence summary{color:#8c6555}.pi-coach-evidence p{color:#7b6b65}
+.pi-coach-actions .button{border-radius:11px}.pi-coach-footer{border-top-color:#f1e6df}.pi-coach-footer button:hover{color:#c96d49}
+@keyframes piFaceFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-2px) rotate(1deg)}}
+@keyframes piSparkle{0%,100%{opacity:.7;transform:scale(.92) rotate(0)}50%{opacity:1;transform:scale(1.13) rotate(10deg)}}
+@media(max-width:600px){.pi-companion{right:13px;bottom:14px}.pi-coach-avatar{width:62px;height:62px;border-radius:22px}.pi-avatar-face{transform:scale(.94)}.pi-coach-popover{border-radius:18px}}
+@media(prefers-reduced-motion:reduce){.pi-avatar-face,.pi-avatar-spark{animation:none!important}}
