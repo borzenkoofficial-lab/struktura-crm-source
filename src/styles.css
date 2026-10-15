@@ -364,7 +364,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(max-width:560px){.pi-explainer{padding:17px;gap:18px}.pi-explainer-copy h3{font-size:21px}.pi-home-actions{align-items:flex-start;flex-direction:column}.notification-status{text-align:left}.pi-mockup{padding:12px}.pi-mockup-metrics{gap:8px}.notification-settings-modal form{padding:17px}}
 
 
-/* GRUZLI CRM — unified premium redesign layer */
+/* STRUKTURA CRM — unified premium redesign layer */
 :root{
   --g-ink:#182436;--g-muted:#778397;--g-line:#e2e8f0;--g-surface:#fff;
   --g-bg:#f3f6fa;--g-navy:#101c2c;--g-navy-2:#17263a;--g-orange:#f0643b;
