@@ -551,3 +551,15 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 .pi-economics-modal label{display:flex;flex-direction:column;gap:5px;min-width:0}
 .pi-economics-modal input,.pi-economics-modal select{width:100%;min-width:0}
 .pi-economics-modal small{font-size:11px;color:#7b8797;line-height:1.4}
+
+/* Production Intelligence: evidence-led action queue and data confidence. */
+.pi-recommendation-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;align-items:baseline;margin:0 0 8px;padding:0 1px}
+.pi-recommendation-head strong{font-size:12px;color:var(--text,#253448)}
+.pi-recommendation-head span{font-size:10px;color:var(--muted,#78869a)}
+.pi-recommendation{display:grid;gap:4px;padding:11px 13px;margin:0 0 7px;border:1px solid #dce6ee;border-radius:9px;background:#f7fafc}
+.pi-recommendation.high{border-color:#edc8c5;background:#fff6f5}
+.pi-recommendation strong{font-size:11px;color:#30465d}
+.pi-recommendation.high strong{color:#963f39}
+.pi-recommendation span{font-size:11px;line-height:1.5;color:#627286}
+.pi-recommendation small{font-size:11px;line-height:1.5;color:#315f4a}
+.pi-alert-list{display:grid;gap:8px;margin-top:8px}
