@@ -554,3 +554,11 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 
 /* Renderer-independent fallback: a broken preload/renderer must not leave the launch cover blocking the app forever. */
 @keyframes startup-splash-failsafe{to{opacity:0;visibility:hidden;pointer-events:none}}
+
+/* Additional income: management accounting, separate from project-linked payments. */
+.income-period-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}
+.income-period-card{background:var(--panel,#fff);border:1px solid var(--line,#e5eaf0);border-radius:12px;padding:16px;min-width:0}
+.income-period-card span,.income-period-card small{display:block;color:var(--muted,#778397);font-size:12px}
+.income-period-card strong{display:block;font-size:22px;margin:8px 0;overflow-wrap:anywhere}
+.income-classification-note{font-size:12px;line-height:1.5;color:var(--muted,#778397);margin:8px 0 14px}
+@media(max-width:700px){.income-period-grid{grid-template-columns:1fr}}
