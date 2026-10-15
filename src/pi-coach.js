@@ -165,6 +165,29 @@ function buildPiCoachInsights(data = {}, options = {}) {
       'browser', 'Проверить заказ');
   }
 
+  const quotes = (Array.isArray(data.quotes) ? data.quotes : []).slice().sort((a, b) => String(b.prepared_at || '').localeCompare(String(a.prepared_at || '')));
+  const lowMarginQuotes = quotes.filter(quote => Number(quote.revenue_rub) > 0 && Number.isFinite(Number(quote.margin_pct)) && Number(quote.margin_pct) < 10);
+  const lossQuotes = quotes.filter(quote => Number(quote.profit_rub) < 0);
+  if (lossQuotes.length) {
+    const quote = lossQuotes[0];
+    add('quote-loss-' + quote.id, 'danger', 99, 'КП с расчётным убытком',
+      'В истории коммерческих предложений есть документ «' + (quote.title || 'без названия') + '» с отрицательной расчётной прибылью. Перед повторным использованием пересмотри цену, себестоимость, объём и скидку. Проверь исходные данные: ошибка в себестоимости тоже может дать ложный сигнал.',
+      'КП сохранено ' + String(quote.prepared_at || '').slice(0, 10) + '. Цена: ' + rub(quote.revenue_rub) + '. Расчётная себестоимость: ' + rub(quote.cost_rub) + '. Расчётная прибыль: ' + rub(quote.profit_rub) + '. Маржа: ' + Number(quote.margin_pct).toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + '%. Это расчёт при создании PDF, не подтверждение фактической прибыли.',
+      'projects', 'Проверить смету');
+  } else if (lowMarginQuotes.length) {
+    const quote = lowMarginQuotes[0];
+    add('quote-low-margin-' + quote.id, 'warning', 87, 'Низкая маржа в сохранённом КП',
+      'В истории есть коммерческое предложение «' + (quote.title || 'без названия') + '» с расчётной маржой ниже десяти процентов. Перед отправкой или повторным использованием проверь себестоимость, налоги, скидку и условия работ. Низкая маржа сама по себе не доказывает убыток, но оставляет мало запаса.',
+      'Дата создания: ' + String(quote.prepared_at || '').slice(0, 10) + '. Цена: ' + rub(quote.revenue_rub) + '. Себестоимость: ' + rub(quote.cost_rub) + '. Расчётная прибыль: ' + rub(quote.profit_rub) + '. Маржа: ' + Number(quote.margin_pct).toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + '%.',
+      'projects', 'Проверить смету');
+  }
+  if (quotes.length >= 3 && lowMarginQuotes.length >= 2) {
+    add('quote-pattern-low-margin', 'warning', 85, 'Низкая маржа повторяется в КП',
+      'В сохранённой истории несколько коммерческих предложений имеют расчётную маржу ниже десяти процентов. Проверь, не занижена ли себестоимость работ, учтены ли вывоз, ручной перенос, простои, налоги и запас на непредвиденные условия.',
+      'КП в истории: ' + quotes.length + '. Документов с маржой ниже 10%: ' + lowMarginQuotes.length + '. Анализ относится только к сохранённым PDF-КП после включения архива и не охватывает документы, созданные раньше или вне CRM.',
+      'projects', 'Разобрать историю КП');
+  }
+
   if (!insights.length) {
     const recordCount = projects.length + leads.length + history.length + tasks.length + orders.length;
     add('data-quality-overview', 'info', 20, recordCount ? 'Сейчас нет подтверждённого критичного сигнала' : 'Начнём с данных бизнеса',
