@@ -264,7 +264,7 @@ async function refreshPiCoach(options = {}) {
     if (!$('piCoachPopover').hidden) {
       if (options.force === true && unseen) {
         piCoachIndex = piCoachInsights.findIndex(item => item.id === unseen.id);
-        piCoachOpen(piCoachIndex, false);
+        piCoachOpen(piCoachIndex, true);
         piCoachMarkSeen(unseen.id);
       } else piCoachRender();
       return;
@@ -272,7 +272,7 @@ async function refreshPiCoach(options = {}) {
     const canAutoOpen = !piCoachLastAutoAt || now - piCoachLastAutoAt >= 20 * 60 * 1000;
     if (unseen && canAutoOpen && (options.force === true || piCoachLastAutoAt === 0 || unseen.severity === 'danger')) {
       piCoachIndex = piCoachInsights.findIndex(item => item.id === unseen.id);
-      piCoachOpen(piCoachIndex, false);
+      piCoachOpen(piCoachIndex, true);
       piCoachMarkSeen(unseen.id);
       piCoachLastAutoAt = now;
     }
