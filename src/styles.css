@@ -196,7 +196,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 
 
 /* STRUKTURA startup sequence — lightweight, offline and reduced-motion aware */
-.startup-splash{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;overflow:hidden;background:radial-gradient(ellipse at 50% 43%,#263c51 0%,#17283a 42%,#101c2a 100%);color:#f7f9fc;opacity:1;visibility:visible;transition:opacity .48s cubic-bezier(.2,.7,.2,1),visibility .48s;isolation:isolate}
+.startup-splash{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;overflow:hidden;background:radial-gradient(ellipse at 50% 43%,#263c51 0%,#17283a 42%,#101c2a 100%);color:#f7f9fc;opacity:1;visibility:visible;transition:opacity .48s cubic-bezier(.2,.7,.2,1),visibility .48s;isolation:isolate;animation:startup-splash-failsafe 0s linear 12s forwards}
 .startup-splash:before,.startup-splash:after{content:"";position:absolute;inset:0;pointer-events:none}
 .startup-splash:before{opacity:.22;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(ellipse at center,#000 0%,transparent 76%)}
 .startup-splash:after{border:1px solid rgba(255,255,255,.045);inset:18px;border-radius:18px}
@@ -551,3 +551,6 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 .pi-economics-modal label{display:flex;flex-direction:column;gap:5px;min-width:0}
 .pi-economics-modal input,.pi-economics-modal select{width:100%;min-width:0}
 .pi-economics-modal small{font-size:11px;color:#7b8797;line-height:1.4}
+
+/* Renderer-independent fallback: a broken preload/renderer must not leave the launch cover blocking the app forever. */
+@keyframes startup-splash-failsafe{to{opacity:0;visibility:hidden;pointer-events:none}}
