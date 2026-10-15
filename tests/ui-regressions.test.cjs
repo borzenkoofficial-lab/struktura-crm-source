@@ -504,3 +504,46 @@ test('PI flags unstable output when comparable observations vary sharply', () =>
   assert.equal(result.dataQuality.unstableWorkTypes, 1);
   assert.ok(result.alerts.some(alert => alert.title.includes('Нестабильная выработка')));
 });
+
+
+test('PI proposes conservative local norm calibration only after five valid observations', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.js');
+  const history = [0, 1, 2, 3, 4].map(index => ({
+    project_id: 1,
+    shift_date: `2026-10-${String(15 - index).padStart(2, '0')}`,
+    shift_hours: 8,
+    downtime_hours: 0,
+    performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 70, expectedRate: 100, deviationPct: -30 }]
+  }));
+  const result = buildProductionIntelligence({
+    projects: [{ id: 1, title: 'Тест', planCount: 1, forecast: { estimated: true, lines: [] }, shiftCount: 5, lastShiftDate: '2026-10-15' }],
+    history,
+    totals: { shifts: 5, work_records: 5 }
+  }, { today: '2026-10-15' });
+  const model = result.learningModels.find(item => item.workName === 'Демонтаж стяжки');
+  assert.equal(model.observations, 5);
+  assert.equal(model.observedFactor, 0.7);
+  assert.equal(model.suggestedFactor, 0.85);
+  assert.equal(model.status, 'candidate');
+  assert.match(result.learningSummary, /не применяются автоматически/);
+});
+
+test('PI keeps sparse calibration data in collection mode and never suggests an extreme correction', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.js');
+  const history = [0, 1, 2].map(index => ({
+    project_id: 1,
+    shift_date: `2026-10-${String(15 - index).padStart(2, '0')}`,
+    shift_hours: 8,
+    downtime_hours: 0,
+    performance: [{ work_name: 'Вынос вручную', unit: 'м³', actualRate: 150, expectedRate: 100, deviationPct: 50 }]
+  }));
+  const result = buildProductionIntelligence({
+    projects: [{ id: 1, title: 'Тест', planCount: 1, forecast: { estimated: true, lines: [] }, shiftCount: 3, lastShiftDate: '2026-10-15' }],
+    history,
+    totals: { shifts: 3, work_records: 3 }
+  }, { today: '2026-10-15' });
+  const model = result.learningModels.find(item => item.workName === 'Вынос вручную');
+  assert.equal(model.status, 'watch');
+  assert.equal(model.suggestedFactor, 1.1875 > 1.15 ? 1.15 : 1.15);
+  assert.equal(result.learningSummary.includes('не предлагает менять нормы'), true);
+});
