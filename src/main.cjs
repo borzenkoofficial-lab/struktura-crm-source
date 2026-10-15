@@ -659,6 +659,18 @@ ipcMain.handle('orders:manualSearchUrl', (_event,input={}) => {
  const region=clean(input.region,120)||'Москва и Московская область';
  return buildManualOrderSearchUrl(service,region,sourceType);
 });
+ipcMain.handle('orders:createManual', (_event,input={}) => {
+ const title=clean(input.title,240),url=clean(input.source_url,700),snippet=clean(input.snippet,1200);
+ const service=services.includes(input.service)?input.service:'demolition';
+ const region=clean(input.region,120)||'Москва и Московская область';
+ if(!title)throw new Error('Укажи название заказа.');
+ const order=normalizeOrderResult({title,url,description:snippet},'Добавлено вручную',service,region);
+ if(!order)throw new Error('Не удалось проверить ссылку. Укажи действительный HTTP(S)-адрес первоисточника.');
+ const existing=db.prepare('SELECT id FROM commercial_orders WHERE source_url=?').get(order.source_url);
+ if(existing)return {id:existing.id,duplicate:true};
+ const result=db.prepare(`INSERT INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`).run({...order,search_query:'Добавлено вручную',signal_labels:order.signal_labels.join('|')});
+ return {id:Number(result.lastInsertRowid),duplicate:false};
+});
 ipcMain.handle('orders:importCsv', async () => {
  const picked=await dialog.showOpenDialog({title:'Импорт коммерческих заказов из CSV',properties:['openFile'],filters:[{name:'CSV / текстовые таблицы',extensions:['csv','txt']}]});
  if(picked.canceled||!picked.filePaths[0])return {canceled:true};
