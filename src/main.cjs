@@ -372,6 +372,7 @@ ipcMain.handle('production:rateModels', (_event, input = {}) => {
   const targetCrewSize = Number(input.target_crew_size ?? 5);
   if (!Number.isInteger(targetCrewSize) || targetCrewSize < 1 || targetCrewSize > 200) throw new Error('Размер расчётной бригады должен быть от 1 до 200 человек.');
   const ids = [...new Set(input.catalog_ids.map(id => clean(id, 120)).filter(Boolean))];
+  const targetConditions = normalizeConditions(input.target_conditions);
   if (!ids.length) return [];
   const observationsByCatalog = {};
   const observations = db.prepare(`SELECT wsi.catalog_id, wsi.quantity_done, wsi.workers_count, wsi.hours, ws.complexity_factor, ws.conditions_json
@@ -379,7 +380,7 @@ ipcMain.handle('production:rateModels', (_event, input = {}) => {
     ORDER BY ws.shift_date DESC, ws.id DESC`).all();
   for (const row of observations) (observationsByCatalog[row.catalog_id] ||= []).push(row);
   return ids.map(catalogId => {
-    const model = buildRateModel({ baselineProductivity: 1, observations: observationsByCatalog[catalogId] || [], targetCrewSize });
+    const model = buildRateModel({ baselineProductivity: 1, observations: observationsByCatalog[catalogId] || [], targetCrewSize, targetConditions });
     return { catalog_id: catalogId, observations: model.observations, availableObservations: model.availableObservations, matchedObservations: model.matchedObservations, conditionMatchSufficient: model.conditionMatchSufficient, observedMedian: model.observedMedian, confidence: model.confidence, crewScalingApplied: model.crewScalingApplied, referenceCrewSize: model.referenceCrewSize, targetCrewSize };
   });
 });
