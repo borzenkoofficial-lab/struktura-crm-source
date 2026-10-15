@@ -435,7 +435,7 @@ test('additional income CRUD is wired end-to-end and contributes to cash totals 
 });
 
 
-test('PI compares recent production performance, detects persistent low output and unstable history', () => {
+test('PI compares recent production performance, detects persistent low output and declining trend', () => {
   const { buildProductionIntelligence } = require('../src/production-intelligence.js');
   const history = [
     { project_id: 1, shift_date: '2026-10-15', shift_hours: 8, downtime_hours: 0, performance: [{ work_name: 'Демонтаж стяжки', unit: 'м²', actualRate: 70, expectedRate: 100, deviationPct: -30 }] },
