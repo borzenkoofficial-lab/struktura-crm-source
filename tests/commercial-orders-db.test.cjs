@@ -98,3 +98,19 @@ test('migrates source_type onto an existing commercial_orders table', t => {
   assert.equal(db.prepare('SELECT source_type FROM commercial_orders WHERE id=1').get().source_type, 'web');
   assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_commercial_orders_source_type'").get().name, 'idx_commercial_orders_source_type');
 });
+
+test('stores preliminary economics per order and cascades it on order deletion', t => {
+  const directory = temporaryDirectory();
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const db = openDatabase(directory);
+  t.after(() => db.close());
+  const orderId = db.prepare("INSERT INTO commercial_orders(title,source_url) VALUES (?,?)")
+    .run('Заказ для расчёта ПИ', 'https://example.ru/economics').lastInsertRowid;
+  db.prepare(`INSERT INTO commercial_order_analysis(
+    order_id,work_name,quantity,baseline_productivity,effective_productivity,crew_size,
+    estimated_days,revenue_rub,estimated_cost_rub,estimated_profit_rub,estimated_margin_pct
+  ) VALUES (?,?,?,?,?,?,?,?,?,?,?)`).run(orderId,'Демонтаж стяжки',100,8,6.8,5,3.4,50000,35000,15000,30);
+  assert.equal(db.prepare('SELECT estimated_margin_pct FROM commercial_order_analysis WHERE order_id=?').get(orderId).estimated_margin_pct,30);
+  db.prepare('DELETE FROM commercial_orders WHERE id=?').run(orderId);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM commercial_order_analysis WHERE order_id=?').get(orderId).count,0);
+});
