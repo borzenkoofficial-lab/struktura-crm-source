@@ -401,3 +401,16 @@ test('PI does not combine recurring underperformance across different work condi
   });
   assert.equal(result.alerts.some(alert => /повторяющееся отставание/iu.test(alert.title)), false);
 });
+
+
+test('estimate passes selected conditions into the production learning model', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'utf8');
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  const main = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
+  assert.match(html, /name="estimate_condition" value="no_elevator"/);
+  assert.match(renderer, /productionRateModels\(ids, targetCrewSize, productionReadConditions\('estimate_condition'\)\)/);
+  assert.match(renderer, /input\[name="estimate_condition"\].*addEventListener/);
+  assert.match(preload, /target_conditions: targetConditions/);
+  assert.match(main, /targetConditions = normalizeConditions\(input\.target_conditions\)/);
+});
