@@ -140,6 +140,46 @@ function buildPiCoachInsights(data = {}, options = {}) {
       risk ? 'finance' : 'production', risk ? 'Проверить экономику' : 'Разобрать смену');
   }
 
+  // Find repeated downtime causes from operator-entered shift notes. Categories are
+  // deterministic keyword matches; unknown notes are deliberately left unclassified.
+  const downtimeCauseRules = [
+    { key: 'access', label: 'доступ и допуск на объект', pattern: /допуск|пропуск|доступ|охрана|не пустил|не допускают|согласовани[ея]/iu, action: 'До следующей смены подтвердить пропуска, окно работ и ответственного за допуск.' },
+    { key: 'removal', label: 'вывоз и контейнер', pattern: /вывоз|контейнер|машин[аы]|самосвал|утилизац|погрузк/iu, action: 'Подтвердить машину/контейнер и время подачи до начала смены.' },
+    { key: 'tools', label: 'инструмент и оборудование', pattern: /инструмент|перфоратор|отбойник|оборудовани[ея]|поломк|сломал|нет диска|расходник/iu, action: 'Проверить комплект инструмента, расходники и резервное оборудование перед выездом.' },
+    { key: 'front', label: 'нет фронта работ или ожидание заказчика', pattern: /фронт работ|нет работ|не готов участок|ожидани[ея] заказчик|заказчик не|другие подрядчик|смежник/iu, action: 'Согласовать готовность участка и очередность со смежниками до выхода бригады.' },
+    { key: 'materials', label: 'материалы и снабжение', pattern: /материал|снабжени|доставка|не привезли|не доставили|закупк/iu, action: 'Подтвердить наличие и доставку материалов до планирования смены.' },
+    { key: 'elevator', label: 'подъём, лифт и ручной пронос', pattern: /лифт|подъ[её]м|пронос|лестниц|этаж|без лифта/iu, action: 'Заранее согласовать маршрут выноса, лифт и место накопления отходов.' }
+  ];
+  const repeatedDowntime = new Map();
+  for (const shift of history) {
+    const hours = Number(shift.shift_hours);
+    const idle = Number(shift.downtime_hours);
+    const crew = Number(shift.workers_count);
+    const note = String(shift.notes || '').trim();
+    if (!note || !Number.isFinite(hours) || hours <= 0 || !Number.isFinite(idle) || idle <= 0 || idle / hours < 0.1) continue;
+    const rule = downtimeCauseRules.find(item => item.pattern.test(note));
+    if (!rule) continue;
+    if (!repeatedDowntime.has(rule.key)) repeatedDowntime.set(rule.key, { rule, rows: [], crewHours: 0 });
+    const group = repeatedDowntime.get(rule.key);
+    group.rows.push({ date: String(shift.shift_date || 'без даты'), project: String(shift.project_title || 'объект не указан'), idle, hours, crew });
+    if (Number.isFinite(crew) && crew > 0) group.crewHours += crew * idle;
+  }
+  for (const group of repeatedDowntime.values()) {
+    if (group.rows.length < 2) continue;
+    const rows = group.rows.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4);
+    const totalIdle = rows.reduce((sum, row) => sum + row.idle, 0);
+    const knownCrewHours = rows.every(row => Number.isFinite(row.crew) && row.crew > 0);
+    const crewHours = rows.reduce((sum, row) => sum + (Number.isFinite(row.crew) && row.crew > 0 ? row.crew * row.idle : 0), 0);
+    const financeRisks = Array.isArray(finance.risks) ? finance.risks : [];
+    const riskRows = rows.filter(row => financeRisks.some(risk => String(risk.title || '').trim().toLocaleLowerCase('ru-RU') === row.project.trim().toLocaleLowerCase('ru-RU') && Number.isFinite(Number(risk.costRatio)) && Number(risk.costRatio) >= 0.8));
+    const financeWarning = riskRows.length ? ' Среди затронутых объектов есть объект с финансовым риском: проверь остаток бюджета и фактические расходы.' : '';
+    add('production-repeat-downtime-' + group.rule.key, riskRows.length ? 'danger' : 'warning', riskRows.length ? 95 : 86,
+      'Повторяется причина простоя: ' + group.rule.label,
+      'В заметках смен повторяется причина «' + group.rule.label + '». Зафиксировано ' + group.rows.length + ' смен с таким сигналом. ' + group.rule.action + financeWarning,
+      'Причина распознана по словам в заметках смен; это предварительная классификация, проверь её по первичным записям. Всего совпадений в истории: ' + group.rows.length + '. В последних ' + rows.length + ' совпавших сменах: ' + totalIdle.toLocaleString('ru-RU') + ' ч простоя.' + (knownCrewHours ? ' Это соответствует примерно ' + crewHours.toLocaleString('ru-RU') + ' человеко-часам простоя бригады.' : ' Человеко-часы не рассчитаны: в части отчётов нет численности бригады.') + ' Примеры: ' + rows.map(row => row.date + ' · ' + row.project + ' (' + row.idle + ' ч простоя)').join('; ') + '. Денежный ущерб не оцениваю без фактической стоимости человеко-часа и подтверждённой связи с расходами.',
+      riskRows.length ? 'finance' : 'production', 'Разобрать причину');
+  }
+
   const lowByWork = new Map();
   for (const shift of history) {
     for (const row of (Array.isArray(shift.performance) ? shift.performance : [])) {
