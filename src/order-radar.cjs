@@ -45,10 +45,10 @@ function buildOrderQueries(service = 'demolition', region = 'Москва и М�
   const terms = service === 'finishing' ? 'отделка ремонт fit-out' : service === 'raised_floor' ? 'фальшпол технический пол' : 'демонтаж разборка';
   const sourceQueries = {
     all: [
-      `(${terms}) (тендер OR закупка OR заказчик OR подрядчик) ${region}`,
-      `site:t.me OR site:telegram.me (${terms}) (заказ OR подрядчик OR тендер OR закупка) ${region}`,
-      `site:avito.ru (${terms}) (заказ OR подрядчик OR услуги) ${region}`,
-      `(site:zakupki.gov.ru OR site:roseltorg.ru OR site:b2b-center.ru OR site:rts-tender.ru) (${terms}) (тендер OR закупка) ${region}`
+      `(${terms}) (тендер OR закупка OR заказчик OR подрядчик)`,
+      `(site:t.me OR site:telegram.me) (${terms}) (заказ OR подрядчик OR тендер OR закупка)`,
+      `site:avito.ru (${terms}) (заказ OR подрядчик OR услуги)`,
+      `(site:zakupki.gov.ru OR site:roseltorg.ru OR site:b2b-center.ru OR site:rts-tender.ru) (${terms}) (тендер OR закупка)`
     ],
     web: base,
     telegram: [`site:t.me (${terms}) (заказ OR подрядчик OR тендер OR закупка)`, `site:telegram.me (${terms}) (ищем подрядчика OR заказ)`],
