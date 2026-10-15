@@ -562,3 +562,8 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 .income-period-card strong{display:block;font-size:22px;margin:8px 0;overflow-wrap:anywhere}
 .income-classification-note{font-size:12px;line-height:1.5;color:var(--muted,#778397);margin:8px 0 14px}
 @media(max-width:700px){.income-period-grid{grid-template-columns:1fr}}
+
+/* PI learning quality: forecast range and explicit uncertainty */
+.production-forecast-range{display:block;margin-top:3px;padding-top:8px;border-top:1px solid #f0e5df;color:#8c604d!important;font-weight:650;font-variant-numeric:tabular-nums}
+.pi-production-panel .pi-home-summary{line-height:1.65}
+.production-work-progress-meta{flex-wrap:wrap}
