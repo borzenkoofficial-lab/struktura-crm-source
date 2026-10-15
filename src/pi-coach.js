@@ -218,7 +218,7 @@ function buildPiCoachInsights(data = {}, options = {}) {
     const revenue = Number(quote.revenue_rub);
     const cost = Number(quote.cost_rub);
     const storedProfit = Number(quote.profit_rub);
-    if (!Number.isFinite(revenue) || !Number.isFinite(cost) || !Number.isFinite(storedProfit) || revenue <= 0 || cost < 0) continue;
+    if (quote.profit_rub == null || quote.profit_rub === '' || !Number.isFinite(revenue) || !Number.isFinite(cost) || !Number.isFinite(storedProfit) || revenue <= 0 || cost < 0) continue;
     const calculatedProfit = revenue - cost;
     const tolerance = Math.max(2, revenue * 0.005);
     const title = String(quote.title || ('КП №' + quote.id));
@@ -230,7 +230,7 @@ function buildPiCoachInsights(data = {}, options = {}) {
         'projects', 'Проверить КП');
     }
     const storedMargin = Number(quote.margin_pct);
-    if (Number.isFinite(storedMargin)) {
+    if (quote.margin_pct != null && quote.margin_pct !== '' && Number.isFinite(storedMargin)) {
       const calculatedMargin = calculatedProfit / revenue * 100;
       if (Math.abs(calculatedMargin - storedMargin) > 1.5) {
         add('quote-margin-mismatch-' + quote.id, 'warning', 91, 'Маржа в КП требует сверки: ' + title,
