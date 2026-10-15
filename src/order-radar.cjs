@@ -5,19 +5,19 @@ const ORDER_QUERIES = {
     'тендер закупка демонтаж коммерческих помещений',
     '"ищем подрядчика" демонтаж офисов',
     'закупка демонтаж ремонт реконструкция коммерческий объект',
-    'site:b2b-center.ru демонтаж ремонт'
+    'site:zakupki.gov.ru OR site:roseltorg.ru OR site:b2b-center.ru демонтаж'
   ],
   finishing: [
     'тендер закупка отделка офисов fit out',
     '"ищем подрядчика" отделочные работы коммерческие помещения',
     'закупка ремонт реконструкция коммерческий объект',
-    'site:b2b-center.ru отделка ремонт'
+    'site:zakupki.gov.ru OR site:roseltorg.ru OR site:b2b-center.ru отделка'
   ],
   raised_floor: [
     'тендер закупка демонтаж фальшпол',
     'заказчик ищет подрядчика фальшпол серверная',
     'закупка ремонт серверной коммерческий объект',
-    'site:b2b-center.ru фальшпол демонтаж'
+    'site:zakupki.gov.ru OR site:roseltorg.ru OR site:b2b-center.ru фальшпол'
   ]
 };
 
