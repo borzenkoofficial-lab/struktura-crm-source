@@ -38,6 +38,26 @@ test('PI coach flags overdue unpaid expenses and unscheduled receivables with so
   assert.ok(items.some(item => item.id === 'finance-unscheduled-receivables' && /80 000|80 000/u.test(item.detail)));
 });
 
+test('PI coach compares expense periods and flags material refund patterns from saved finance records', () => {
+  const items = buildPiCoachInsights({
+    payments: [
+      { payment_type: 'incoming', amount_rub: 50000 },
+      { payment_type: 'incoming', amount_rub: 50000 },
+      { payment_type: 'refund', amount_rub: 15000 }
+    ],
+    expenses: [
+      { expense_date: '2026-10-01', amount_rub: 5000 },
+      { expense_date: '2026-10-03', amount_rub: 4000 },
+      { expense_date: '2026-10-05', amount_rub: 3000 },
+      { expense_date: '2026-09-10', amount_rub: 4000 },
+      { expense_date: '2026-09-15', amount_rub: 4000 },
+      { expense_date: '2026-09-20', amount_rub: 4000 }
+    ]
+  }, { today: '2026-10-15' });
+  assert.ok(items.some(item => item.id === 'finance-refund-pattern'));
+  assert.ok(items.some(item => item.id === 'finance-expense-growth'));
+});
+
 test('PI coach uses saved commercial proposal history to flag low-margin and loss-making quotes', () => {
   const items = buildPiCoachInsights({ quotes: [
     { id: 11, title: 'КП склад', prepared_at: '2026-10-15T10:00:00.000Z', revenue_rub: 100000, cost_rub: 105000, profit_rub: -5000, margin_pct: -5 },
