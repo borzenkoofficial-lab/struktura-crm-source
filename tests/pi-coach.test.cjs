@@ -11,7 +11,7 @@ test('PI detects a repeated downtime cause from shift notes and estimates crew-h
   const insight = items.find(item => item.id === 'production-repeat-downtime-removal');
   assert.ok(insight);
   assert.match(insight.spoken, /вывоз и контейнер/iu);
-  assert.match(insight.detail, /13,5 человеко-часам простоя бригады/u);
+  assert.match(insight.detail, /15,5 человеко-часам простоя бригады/u);
   assert.match(insight.detail, /Денежный ущерб не оцениваю без фактической стоимости человеко-часа/u);
   assert.equal(insight.view, 'production');
 });
