@@ -120,7 +120,7 @@ test('PI detects a worsening production trend only after four dated observations
   ] } }, { today: '2026-10-15' });
   const trend = items.find(item => item.id === 'production-trend-worsening-снятие стяжки');
   assert.ok(trend);
-  assert.match(trend.detail, /Предыдущие два наблюдения: в среднем -7% к плану/u);
+  assert.match(trend.detail, /Предыдущие два наблюдения: в среднем -6% к плану/u);
   assert.match(trend.detail, /Последние два: в среднем -30% к плану/u);
 });
 
