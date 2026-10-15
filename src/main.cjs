@@ -349,6 +349,18 @@ ipcMain.handle('production:overview', () => {
   return { projects: resultProjects, history, totals: { ...totals, person_shifts: Number(totals.person_shifts || 0) }, modelItems: observations.length };
 });
 
+ipcMain.handle('pi:coachHistory', () => {
+  const rows = db.prepare('SELECT ws.id, ws.project_id, p.title project_title, ws.shift_date, ws.workers_count, ws.shift_hours, ws.downtime_hours, ws.complexity_factor, ws.notes ' +
+    'FROM work_shifts ws JOIN projects p ON p.id=ws.project_id ORDER BY ws.shift_date DESC, ws.id DESC').all();
+  const getPerformance = db.prepare('SELECT work_name, unit, quantity_done, workers_count, hours, baseline_productivity FROM work_shift_items WHERE shift_id=? ORDER BY id');
+  return rows.map(shift => ({ ...shift, performance: getPerformance.all(shift.id).map(item => {
+    const actualRate = Number(item.quantity_done) / (Number(item.workers_count) * Number(item.hours) / 8);
+    const expectedRate = Number(item.baseline_productivity) / Number(shift.complexity_factor || 1);
+    const deviation = expectedRate > 0 ? (actualRate / expectedRate - 1) * 100 : 0;
+    return { ...item, actualRate: Math.round(actualRate * 100) / 100, expectedRate: Math.round(expectedRate * 100) / 100, deviationPct: Math.round(deviation) };
+  }) }));
+});
+
 ipcMain.handle('production:exportReportPdf', async (_event, input = {}) => {
   const projectId = Number(input.project_id);
   const documentType = input.document_type === 'act' ? 'act' : 'report';
