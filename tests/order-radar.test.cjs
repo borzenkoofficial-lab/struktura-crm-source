@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, classifyOrderSource } = require('../src/order-radar.cjs');
+const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, classifyOrderSource, leadSourceForOrderType } = require('../src/order-radar.cjs');
 
 test('builds four order queries with selected service and region', () => {
   const queries = buildOrderQueries('demolition', 'Москва и МО');
@@ -145,6 +145,15 @@ test('classifies original source domains without trusting search query text', ()
   assert.equal(classifyOrderSource('https://www.avito.ru/moskva/item'), 'avito');
   assert.equal(classifyOrderSource('https://zakupki.gov.ru/epz/order/1'), 'tenders');
   assert.equal(classifyOrderSource('https://example.ru/order'), 'web');
+});
+
+test('maps discovered source types into supported CRM lead sources', () => {
+  assert.equal(leadSourceForOrderType('avito'), 'avito');
+  assert.equal(leadSourceForOrderType('telegram'), 'telegram');
+  assert.equal(leadSourceForOrderType('web'), 'website');
+  assert.equal(leadSourceForOrderType('tenders'), 'website');
+  assert.equal(leadSourceForOrderType('files'), 'other');
+  assert.equal(leadSourceForOrderType('unknown'), 'website');
 });
 
 test('builds manual search links without requiring an API key', () => {
