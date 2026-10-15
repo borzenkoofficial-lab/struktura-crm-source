@@ -113,6 +113,30 @@ CREATE TABLE IF NOT EXISTS commercial_orders (
 CREATE INDEX IF NOT EXISTS idx_commercial_orders_status ON commercial_orders(status);
 CREATE INDEX IF NOT EXISTS idx_commercial_orders_service ON commercial_orders(service);
 CREATE INDEX IF NOT EXISTS idx_commercial_orders_last_seen ON commercial_orders(last_seen_at DESC);
+CREATE TABLE IF NOT EXISTS commercial_order_analysis (
+  order_id INTEGER PRIMARY KEY REFERENCES commercial_orders(id) ON DELETE CASCADE,
+  catalog_id TEXT NOT NULL DEFAULT '',
+  work_name TEXT NOT NULL,
+  unit TEXT NOT NULL DEFAULT 'м²',
+  quantity REAL NOT NULL CHECK(quantity > 0),
+  budget_rub REAL NOT NULL DEFAULT 0 CHECK(budget_rub >= 0),
+  price_per_unit REAL NOT NULL DEFAULT 0 CHECK(price_per_unit >= 0),
+  cost_per_unit REAL NOT NULL DEFAULT 0 CHECK(cost_per_unit >= 0),
+  baseline_productivity REAL NOT NULL CHECK(baseline_productivity > 0),
+  effective_productivity REAL NOT NULL CHECK(effective_productivity > 0),
+  crew_size INTEGER NOT NULL CHECK(crew_size BETWEEN 1 AND 200),
+  wage_per_worker_shift REAL NOT NULL DEFAULT 0 CHECK(wage_per_worker_shift >= 0),
+  other_costs_rub REAL NOT NULL DEFAULT 0 CHECK(other_costs_rub >= 0),
+  difficulty_factor REAL NOT NULL DEFAULT 1 CHECK(difficulty_factor BETWEEN 0.25 AND 5),
+  reserve_percent REAL NOT NULL DEFAULT 15 CHECK(reserve_percent BETWEEN 0 AND 100),
+  observations_count INTEGER NOT NULL DEFAULT 0 CHECK(observations_count >= 0),
+  estimated_days REAL NOT NULL CHECK(estimated_days > 0),
+  revenue_rub REAL NOT NULL CHECK(revenue_rub >= 0),
+  estimated_cost_rub REAL NOT NULL CHECK(estimated_cost_rub >= 0),
+  estimated_profit_rub REAL NOT NULL,
+  estimated_margin_pct REAL NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 CREATE TABLE IF NOT EXISTS competitor_listings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   source_name TEXT NOT NULL,
@@ -209,8 +233,8 @@ function openDatabase(userDataPath) {
   const prospectColumns = new Set(db.prepare('PRAGMA table_info(prospects)').all().map(column => column.name));
   if (!prospectColumns.has('service')) db.exec("ALTER TABLE prospects ADD COLUMN service TEXT NOT NULL DEFAULT 'demolition' CHECK(service IN ('demolition','finishing','raised_floor'))");
   db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_service ON prospects(service)');
-  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','4')").run();
-  db.prepare("UPDATE settings SET value='4' WHERE key='schema_version'").run();
+  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','5')").run();
+  db.prepare("UPDATE settings SET value='5' WHERE key='schema_version'").run();
   return db;
 }
 
