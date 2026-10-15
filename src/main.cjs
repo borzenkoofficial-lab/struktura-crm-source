@@ -191,9 +191,11 @@ ipcMain.handle('dashboard:summary', () => {
   const projects = db.prepare("SELECT COUNT(*) count FROM projects WHERE status IN ('planned','active')").get().count;
   const contract = db.prepare("SELECT COALESCE(SUM(contract_rub),0) total FROM projects WHERE status != 'cancelled'").get().total;
   const received = db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END),0) total FROM payments").get().total;
+  const otherIncome = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM income_records').get().total;
+  const totalReceived = received + otherIncome;
   const expenses = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=1').get().total;
   const clients = db.prepare('SELECT COUNT(*) count FROM clients').get().count;
-  return { leads, projects, contract, received, expenses, clients, cash: received - expenses };
+  return { leads, projects, contract, received: totalReceived, expenses, clients, cash: totalReceived - expenses };
 });
 ipcMain.handle('clients:list', () => db.prepare('SELECT * FROM clients ORDER BY id DESC LIMIT 1000').all());
 ipcMain.handle('clients:create', (_event, input = {}) => {
@@ -488,6 +490,25 @@ ipcMain.handle('production:deleteShift', (_event, shiftIdValue) => {
   return { deleted: true, shift_id: shiftId };
 });
 
+ipcMain.handle('income:list', () => db.prepare('SELECT * FROM income_records ORDER BY income_date DESC, id DESC LIMIT 2000').all());
+ipcMain.handle('income:create', (_event, input = {}) => {
+  const amountRub = amount(input.amount_rub), date = clean(input.income_date, 10), source = clean(input.source, 180);
+  if (!validDate(date) || !date) throw new Error('Укажи корректную дату дохода.');
+  if (!source) throw new Error('Укажи источник дохода.');
+  const type = input.record_type === 'internal' ? 'internal' : 'official';
+  const result = db.prepare('INSERT INTO income_records(amount_rub,income_date,record_type,source,note) VALUES (?,?,?,?,?)').run(amountRub,date,type,source,clean(input.note,500));
+  return db.prepare('SELECT * FROM income_records WHERE id=?').get(result.lastInsertRowid);
+});
+ipcMain.handle('income:update', (_event, input = {}) => {
+  const id = Number(input.id);
+  if (!Number.isSafeInteger(id) || id < 1 || !db.prepare('SELECT id FROM income_records WHERE id=?').get(id)) throw new Error('Запись дохода не найдена.');
+  const amountRub = amount(input.amount_rub), date = clean(input.income_date,10), source = clean(input.source,180);
+  if (!validDate(date) || !date) throw new Error('Укажи корректную дату дохода.');
+  if (!source) throw new Error('Укажи источник дохода.');
+  const type = input.record_type === 'internal' ? 'internal' : 'official';
+  db.prepare('UPDATE income_records SET amount_rub=?,income_date=?,record_type=?,source=?,note=? WHERE id=?').run(amountRub,date,type,source,clean(input.note,500),id);
+  return db.prepare('SELECT * FROM income_records WHERE id=?').get(id);
+});
 ipcMain.handle('payments:list', () => db.prepare(`SELECT py.*, p.title project_title FROM payments py JOIN projects p ON p.id=py.project_id ORDER BY py.payment_date DESC, py.id DESC LIMIT 2000`).all());
 ipcMain.handle('payments:create', (_event, input = {}) => {
   const projectId = Number(input.project_id);
@@ -517,9 +538,11 @@ ipcMain.handle('finance:insights', () => {
   const projects = db.prepare(`SELECT p.*, COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub FROM projects p WHERE p.status != 'cancelled'`).all();
   const expenses = db.prepare('SELECT * FROM expenses ORDER BY expense_date ASC').all();
   const received = db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END),0) total FROM payments").get().total;
+  const otherIncome = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM income_records').get().total;
+  const totalReceived = received + otherIncome;
   const paid = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=1').get().total;
   const now = new Date(); const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  return buildFinanceInsights({ today, cash: received - paid, projects, expenses });
+  return buildFinanceInsights({ today, cash: totalReceived - paid, projects, expenses });
 });
 ipcMain.handle('expenses:create', (_event, input = {}) => {
   const description = clean(input.description,180);
