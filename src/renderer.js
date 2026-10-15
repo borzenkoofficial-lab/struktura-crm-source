@@ -1353,8 +1353,23 @@ function hideStartupSplash() {
 }
 // Never leave the launch screen covering the app if initial data loading stalls.
 window.setTimeout(hideStartupSplash, 8000);
-refreshDashboard()
-  .catch(e => toast(`Не удалось загрузить обзор: ${e.message}`, true))
+Promise.race([
+  refreshDashboard(),
+  new Promise((_, reject) => window.setTimeout(() => reject(new Error('Превышено время ожидания загрузки обзора (10 секунд). Проверьте локальную базу и перезапустите программу.')), 10000))
+])
+  .catch(e => {
+    toast(`Не удалось загрузить обзор: ${e.message}`, true);
+    const target = $('recentLeads');
+    if (target) {
+      target.textContent = '';
+      const errorBox = document.createElement('div');
+      errorBox.className = 'empty-state';
+      const heading = document.createElement('strong'); heading.textContent = 'Не удалось загрузить данные';
+      const detail = document.createElement('span'); detail.textContent = e.message || 'Неизвестная ошибка';
+      const retry = document.createElement('button'); retry.className = 'button subtle'; retry.type = 'button'; retry.textContent = 'Перезапустить интерфейс'; retry.addEventListener('click', () => location.reload());
+      errorBox.append(heading, detail, retry); target.append(errorBox);
+    }
+  })
   .finally(hideStartupSplash);
 refreshSearchApiStatus();
 refreshNotificationSettings().catch(() => { $('notificationStatus').textContent = 'Настройки уведомлений недоступны'; });
