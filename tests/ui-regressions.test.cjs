@@ -369,3 +369,18 @@ test('client and prospect create, update and CSV import validate contact email a
   assert.ok(main.includes('email: normalizeContactEmail(input.email)'));
   assert.ok(main.includes('email: normalizeContactEmail(item.email)'));
 });
+
+
+test('Windows app startup hides the legacy menu and reports startup failures', () => {
+  assert.match(main, /Menu\\.setApplicationMenu\\(null\\)/);
+  assert.match(main, /win\\.setMenuBarVisibility\\(false\\)/);
+  assert.match(main, /Failed to load CRM interface/);
+  assert.match(main, /Struktura CRM startup failed/);
+});
+
+test('startup splash has an independent CSS failsafe if renderer JavaScript never runs', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /startup-splash-failsafe/);
+  assert.match(css, /12s/);
+  assert.match(renderer, /Превышено время ожидания загрузки обзора/);
+});
