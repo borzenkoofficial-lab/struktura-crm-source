@@ -436,6 +436,7 @@ test('additional income CRUD is wired end-to-end and contributes to cash totals 
 
 
 test('PI forecast reports a range, confidence indicator, baseline drift and unstable output warnings', () => {
+  const pi = fs.readFileSync(path.join(__dirname, '../src/production-intelligence.js'), 'utf8');
   assert.match(renderer, /forecastLowTeamShiftsRemaining/);
   assert.match(renderer, /forecastHighTeamShiftsRemaining/);
   assert.match(renderer, /индекс надёжности данных/);
