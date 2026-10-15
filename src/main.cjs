@@ -16,7 +16,7 @@ const Database = require('better-sqlite3');
 const { parseCsv, prospectDuplicateKeys, safeCsvCell } = require('./csv.cjs');
 const { crawlSites } = require('./site-crawler.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
-const { buildOrderQueries, normalizeBraveOrderResult, deduplicateOrders } = require('./order-radar.cjs');
+const { buildOrderQueries, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders } = require('./order-radar.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
 const { normalizeTaskInput } = require('./task-utils.cjs');
 const { normalizeContactEmail } = require('./contact-utils.cjs');
@@ -640,7 +640,7 @@ ipcMain.handle('orders:search',async(_event,input={})=>{
    const prior=db.prepare('SELECT id,status FROM commercial_orders WHERE source_url=?').get(item.source_url);
    const values={...item,signal_labels:item.signal_labels.join('|')};
    if(!prior){const result=insert.run(values);if(result.changes)added++;else {const current=db.prepare('SELECT status FROM commercial_orders WHERE source_url=?').get(item.source_url);if(current&&['relevant','rejected'].includes(current.status)){touch.run(item.source_url);protectedCount++}else if(current){update.run(values);refreshed++}};continue}
-   if(['relevant','rejected'].includes(prior.status)){touch.run(item.source_url);protectedCount++;continue}
+   if(orderRefreshAction(prior.status)==='protect'){touch.run(item.source_url);protectedCount++;continue}
    update.run(values);refreshed++;
   }
   db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)')
