@@ -631,10 +631,24 @@ ipcMain.handle('orders:search',async(_event,input={})=>{
  const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const queries=buildOrderQueries(service,region);const found=[],errors=[];
  for(const query of queries){try{const results=await searchBrave(query,apiKey,{count:10});found.push(...results.map(x=>normalizeBraveOrderResult(x,query,service,region)).filter(Boolean))}catch(e){errors.push({query,error:clean(e.message,240)})}}
  const unique=deduplicateOrders(found);
- const upsert=db.prepare(`INSERT INTO commercial_orders(title,source_url,source_name,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new') ON CONFLICT(source_url) DO UPDATE SET title=excluded.title,source_name=excluded.source_name,snippet=excluded.snippet,search_query=excluded.search_query,service=excluded.service,region=excluded.region,signal_score=excluded.signal_score,signal_labels=excluded.signal_labels,relevance=excluded.relevance,last_seen_at=CURRENT_TIMESTAMP WHERE commercial_orders.status NOT IN ('relevant','rejected')`);
- let added=0,refreshed=0;const tx=db.transaction(items=>{for(const item of items){const prior=db.prepare('SELECT id FROM commercial_orders WHERE source_url=?').get(item.source_url);upsert.run({...item,signal_labels:item.signal_labels.join('|')});if(prior)refreshed++;else added++}db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)').run('Brave Search API','commercial-order-radar',added,refreshed,errors.length,`Получено: ${found.length}; уникальных ссылок: ${unique.length}; запросов: ${queries.length}; ошибок: ${errors.length}`)});
- tx(unique);if(!unique.length&&errors.length===queries.length)throw new Error('Не удалось найти заказы. '+errors.map(x=>x.error).join(' | '));
- return {queries,received:found.length,unique:unique.length,added,refreshed,errors};
+ const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`);
+ const update=db.prepare(`UPDATE commercial_orders SET title=@title,source_name=@source_name,snippet=@snippet,search_query=@search_query,service=@service,region=@region,signal_score=@signal_score,signal_labels=@signal_labels,relevance=@relevance,last_seen_at=CURRENT_TIMESTAMP WHERE source_url=@source_url AND status NOT IN ('relevant','rejected')`);
+ const touch=db.prepare('UPDATE commercial_orders SET last_seen_at=CURRENT_TIMESTAMP WHERE source_url=?');
+ let added=0,refreshed=0,protectedCount=0;
+ const tx=db.transaction(items=>{
+  for(const item of items){
+   const prior=db.prepare('SELECT id,status FROM commercial_orders WHERE source_url=?').get(item.source_url);
+   const values={...item,signal_labels:item.signal_labels.join('|')};
+   if(!prior){const result=insert.run(values);if(result.changes)added++;else {const current=db.prepare('SELECT status FROM commercial_orders WHERE source_url=?').get(item.source_url);if(current&&['relevant','rejected'].includes(current.status)){touch.run(item.source_url);protectedCount++}else if(current){update.run(values);refreshed++}};continue}
+   if(['relevant','rejected'].includes(prior.status)){touch.run(item.source_url);protectedCount++;continue}
+   update.run(values);refreshed++;
+  }
+  db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)')
+   .run('Brave Search API','commercial-order-radar',added,refreshed+protectedCount,errors.length,`Получено: ${found.length}; уникальных ссылок: ${unique.length}; добавлено: ${added}; обновлено: ${refreshed}; защищено от перезаписи: ${protectedCount}; запросов: ${queries.length}; ошибок: ${errors.length}`);
+ });
+ tx(unique);
+ if(!unique.length&&errors.length===queries.length)throw new Error('Не удалось найти заказы. '+errors.map(x=>x.error).join(' | '));
+ return {queries,received:found.length,unique:unique.length,added,refreshed,protected:protectedCount,errors};
 });
 ipcMain.handle('orders:updateStatus',(_event,input={})=>{
  const id=Number(input.id),status=['new','opened','relevant','rejected'].includes(input.status)?input.status:'';
