@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'utf8');
 const main = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
@@ -368,4 +369,67 @@ test('client and prospect create, update and CSV import validate contact email a
   assert.match(main, /require\('\.\/contact-utils\.cjs'\)/);
   assert.ok(main.includes('email: normalizeContactEmail(input.email)'));
   assert.ok(main.includes('email: normalizeContactEmail(item.email)'));
+});
+
+
+test('Windows app startup hides the legacy menu and reports startup failures', () => {
+  assert.match(main, /Menu\.setApplicationMenu\(null\)/);
+  assert.match(main, /win\.setMenuBarVisibility\(false\)/);
+  assert.match(main, /Failed to load CRM interface/);
+  assert.match(main, /Struktura CRM startup failed/);
+});
+
+test('startup splash has an independent CSS failsafe if renderer JavaScript never runs', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /startup-splash-failsafe/);
+  assert.match(css, /12s/);
+  assert.match(renderer, /Превышено время ожидания загрузки обзора/);
+});
+
+
+test('primary navigation is registered before optional renderer widgets initialize', () => {
+  const early = renderer.indexOf('Register primary navigation before the rest of renderer initialization');
+  const laterWidgets = renderer.indexOf("window.crm.onBrowserState(updateBrowserState)");
+  assert.notEqual(early, -1, 'early navigation delegate exists');
+  assert.ok(laterWidgets > early, 'navigation is wired before browser widget initialization');
+  assert.match(renderer, /event\.target\.closest\('\[data-view\]'\)/);
+  assert.match(renderer, /window\.addEventListener\('error'/);
+  assert.doesNotMatch(renderer, /document\.querySelectorAll\('\[data-view\]'\)\.forEach\(b => b\.addEventListener/);
+});
+
+test('renderer and Electron entry scripts pass Node syntax validation', () => {
+  const files = [
+    '../src/main.cjs', '../src/preload.cjs', '../src/renderer.js',
+    '../src/production-intelligence.js', '../src/prospect-scoring.js',
+    '../src/prospect-radar.js', '../src/estimate-calculator.js'
+  ];
+  for (const relative of files) {
+    const file = path.join(__dirname, relative);
+    const result = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
+    assert.equal(result.status, 0, `Syntax check failed for ${relative}: ${result.stderr || result.stdout}`);
+  }
+});
+
+
+test('additional income CRUD is wired end-to-end and contributes to cash totals exactly once', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  const db = fs.readFileSync(path.join(__dirname, '../src/db.cjs'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'utf8');
+  assert.match(html, /id="addIncomeBtn"/);
+  assert.match(html, /id="incomeForm"/);
+  assert.match(html, /name="record_type"/);
+  assert.match(renderer, /window\.crm\.listIncomeRecords\(\)/);
+  assert.match(renderer, /window\.crm\.createIncomeRecord\(data\)/);
+  assert.match(renderer, /window\.crm\.updateIncomeRecord\(data\)/);
+  assert.match(preload, /listIncomeRecords: \(\) => ipcRenderer\.invoke\('income:list'\)/);
+  assert.match(preload, /createIncomeRecord: \(data\) => ipcRenderer\.invoke\('income:create', data\)/);
+  assert.match(preload, /updateIncomeRecord: \(data\) => ipcRenderer\.invoke\('income:update', data\)/);
+  assert.match(main, /ipcMain\.handle\('income:list'/);
+  assert.match(main, /ipcMain\.handle\('income:create'/);
+  assert.match(main, /ipcMain\.handle\('income:update'/);
+  assert.match(db, /CREATE TABLE IF NOT EXISTS income_records/);
+  assert.match(main, /const totalReceived = received \+ otherIncome/);
+  assert.match(main, /cash: totalReceived - expenses/);
+  assert.match(main, /cash: totalReceived - paid/);
 });

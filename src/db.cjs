@@ -57,6 +57,16 @@ CREATE TABLE IF NOT EXISTS payments (
   note TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS income_records (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ amount_rub INTEGER NOT NULL CHECK(amount_rub > 0),
+ income_date TEXT NOT NULL,
+ record_type TEXT NOT NULL DEFAULT 'official' CHECK(record_type IN ('official','internal')),
+ source TEXT NOT NULL,
+ note TEXT NOT NULL DEFAULT '',
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_income_records_date ON income_records(income_date);
 CREATE TABLE IF NOT EXISTS expenses (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,

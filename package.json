@@ -1,13 +1,13 @@
 {
   "name": "struktura-crm",
-  "version": "1.14.0",
+  "version": "1.14.2",
   "private": true,
-  "description": "GRUZLI CRM — локальная настольная система управления клиентами, объектами, производством, сметами и финансами",
+  "description": "Struktura CRM — локальная настольная система управления клиентами, объектами, производством, сметами и финансами",
   "main": "src/main.cjs",
   "scripts": {
     "start": "electron .",
     "test": "node --test tests/*.test.cjs",
-    "dist:win": "electron-builder --win nsis"
+    "dist:win": "node scripts/create-installer-assets.cjs && electron-builder --win nsis"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",
@@ -19,7 +19,7 @@
   },
   "build": {
     "appId": "ru.struktura.crm",
-    "productName": "GRUZLI CRM",
+    "productName": "Struktura CRM",
     "asar": true,
     "files": [
       "src/**/*",
@@ -34,13 +34,19 @@
           ]
         }
       ],
-      "artifactName": "GRUZLI-CRM-Setup-${version}.${ext}"
+      "artifactName": "Struktura-CRM-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "installerIcon": "build/struktura.ico",
+      "uninstallerIcon": "build/struktura.ico",
+      "installerHeader": "build/installer-header.bmp",
+      "installerSidebar": "build/installer-sidebar.bmp",
+      "uninstallerSidebar": "build/installer-sidebar.bmp",
+      "include": "build/installer.nsh"
     },
     "publish": [
       {
@@ -49,6 +55,6 @@
         "repo": "struktura-crm-source"
       }
     ],
-    "artifactName": "GRUZLI-CRM-Setup-${version}.${ext}"
+    "artifactName": "Struktura-CRM-Setup-${version}.${ext}"
   }
 }

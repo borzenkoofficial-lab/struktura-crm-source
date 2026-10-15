@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, safeStorage, session, Notification } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, safeStorage, session, Notification, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -115,14 +115,18 @@ function createBrowserView(win) {
 function createWindow() {
   const win = new BrowserWindow({
     width: 1440, height: 920, minWidth: 1020, minHeight: 680,
-    title: 'GRUZLI CRM', backgroundColor: '#f5f7fa',
+    title: 'Struktura CRM', backgroundColor: '#f5f7fa', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
+  win.setMenuBarVisibility(false);
   mainWindow = win;
   createBrowserView(win);
   win.on('resize', () => { if (browserIsVisible) sendBrowserState(); });
   win.on('closed', () => { mainWindow = null; browserView = null; browserIsVisible = false; });
-  win.loadFile(path.join(__dirname, 'index.html'));
+  win.loadFile(path.join(__dirname, 'index.html')).catch(error => {
+    console.error('Failed to load CRM interface:', error);
+    dialog.showErrorBox('Не удалось открыть Struktura CRM', `Не удалось загрузить интерфейс приложения.\\n\\n${error.message || error}`);
+  });
 }
 function getSetting(key, fallback) {
   const row = db.prepare('SELECT value FROM settings WHERE key=?').get(key);
@@ -145,7 +149,7 @@ function checkAndSendReminders() {
     const now = new Date();
     const reminders = buildReminders({ tasks, projects, now, settings, lastSent });
     for (const item of reminders) {
-      const notice = new Notification({ title: `GRUZLI CRM · ${item.title}`, body: item.body, silent: false });
+      const notice = new Notification({ title: `STRUKTURA CRM · ${item.title}`, body: item.body, silent: false });
       notice.on('click', () => { if (mainWindow && !mainWindow.isDestroyed()) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); } });
       notice.show();
       lastSent[item.key] = now.toISOString();
@@ -157,12 +161,18 @@ function checkAndSendReminders() {
 }
 let reminderInterval;
 app.whenReady().then(() => {
+  // Remove Electron's legacy File/Edit/View/Window/Help menu; keep native Windows controls.
+  Menu.setApplicationMenu(null);
   db = openDatabase(app.getPath('userData'));
   if (!getSetting('reminder_settings', null)) setSetting('reminder_settings', DEFAULT_REMINDER_SETTINGS);
   createWindow();
   checkAndSendReminders();
   reminderInterval = setInterval(checkAndSendReminders, 15 * 60 * 1000);
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+}).catch(error => {
+  console.error('Struktura CRM startup failed:', error);
+  dialog.showErrorBox('Ошибка запуска Struktura CRM', `Приложение не смогло подготовить локальную базу данных.\\n\\n${error.message || error}`);
+  app.quit();
 });
 app.on('before-quit', () => { if (reminderInterval) clearInterval(reminderInterval); if (db) db.close(); });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
@@ -181,9 +191,11 @@ ipcMain.handle('dashboard:summary', () => {
   const projects = db.prepare("SELECT COUNT(*) count FROM projects WHERE status IN ('planned','active')").get().count;
   const contract = db.prepare("SELECT COALESCE(SUM(contract_rub),0) total FROM projects WHERE status != 'cancelled'").get().total;
   const received = db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END),0) total FROM payments").get().total;
+  const otherIncome = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM income_records').get().total;
+  const totalReceived = received + otherIncome;
   const expenses = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=1').get().total;
   const clients = db.prepare('SELECT COUNT(*) count FROM clients').get().count;
-  return { leads, projects, contract, received, expenses, clients, cash: received - expenses };
+  return { leads, projects, contract, received: totalReceived, expenses, clients, cash: totalReceived - expenses };
 });
 ipcMain.handle('clients:list', () => db.prepare('SELECT * FROM clients ORDER BY id DESC LIMIT 1000').all());
 ipcMain.handle('clients:create', (_event, input = {}) => {
@@ -357,7 +369,7 @@ ipcMain.handle('production:exportReportPdf', async (_event, input = {}) => {
   const payments = input.internal === true && documentType === 'report' ? db.prepare('SELECT payment_date, payment_type, amount_rub, note FROM payments WHERE project_id=? AND payment_date BETWEEN ? AND ? ORDER BY payment_date, id').all(projectId, startDate, endDate) : [];
   const expenses = input.internal === true && documentType === 'report' ? db.prepare('SELECT expense_date, description, category, amount_rub, is_paid FROM expenses WHERE project_id=? AND expense_date BETWEEN ? AND ? ORDER BY expense_date, id').all(projectId, startDate, endDate) : [];
   const html = buildProductionReportHtml({ project, startDate, endDate, documentType, internal: input.internal === true, plan, shifts, actualByPeriod, payments, expenses });
-  const defaultName = `GRUZLI-${documentType === 'act' ? 'Акт-работ' : 'Отчёт'}-${project.title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,50)}-${startDate}-${endDate}.pdf`;
+  const defaultName = `STRUKTURA-${documentType === 'act' ? 'Акт-работ' : 'Отчёт'}-${project.title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,50)}-${startDate}-${endDate}.pdf`;
   const { canceled, filePath } = await dialog.showSaveDialog({ title: documentType === 'act' ? 'Сохранить акт фиксации работ в PDF' : 'Сохранить производственный отчёт в PDF', defaultPath: defaultName, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (canceled || !filePath) return { canceled: true };
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
@@ -478,6 +490,25 @@ ipcMain.handle('production:deleteShift', (_event, shiftIdValue) => {
   return { deleted: true, shift_id: shiftId };
 });
 
+ipcMain.handle('income:list', () => db.prepare('SELECT * FROM income_records ORDER BY income_date DESC, id DESC LIMIT 2000').all());
+ipcMain.handle('income:create', (_event, input = {}) => {
+  const amountRub = amount(input.amount_rub), date = clean(input.income_date, 10), source = clean(input.source, 180);
+  if (!validDate(date) || !date) throw new Error('Укажи корректную дату дохода.');
+  if (!source) throw new Error('Укажи источник дохода.');
+  const type = input.record_type === 'internal' ? 'internal' : 'official';
+  const result = db.prepare('INSERT INTO income_records(amount_rub,income_date,record_type,source,note) VALUES (?,?,?,?,?)').run(amountRub,date,type,source,clean(input.note,500));
+  return db.prepare('SELECT * FROM income_records WHERE id=?').get(result.lastInsertRowid);
+});
+ipcMain.handle('income:update', (_event, input = {}) => {
+  const id = Number(input.id);
+  if (!Number.isSafeInteger(id) || id < 1 || !db.prepare('SELECT id FROM income_records WHERE id=?').get(id)) throw new Error('Запись дохода не найдена.');
+  const amountRub = amount(input.amount_rub), date = clean(input.income_date,10), source = clean(input.source,180);
+  if (!validDate(date) || !date) throw new Error('Укажи корректную дату дохода.');
+  if (!source) throw new Error('Укажи источник дохода.');
+  const type = input.record_type === 'internal' ? 'internal' : 'official';
+  db.prepare('UPDATE income_records SET amount_rub=?,income_date=?,record_type=?,source=?,note=? WHERE id=?').run(amountRub,date,type,source,clean(input.note,500),id);
+  return db.prepare('SELECT * FROM income_records WHERE id=?').get(id);
+});
 ipcMain.handle('payments:list', () => db.prepare(`SELECT py.*, p.title project_title FROM payments py JOIN projects p ON p.id=py.project_id ORDER BY py.payment_date DESC, py.id DESC LIMIT 2000`).all());
 ipcMain.handle('payments:create', (_event, input = {}) => {
   const projectId = Number(input.project_id);
@@ -507,9 +538,11 @@ ipcMain.handle('finance:insights', () => {
   const projects = db.prepare(`SELECT p.*, COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub FROM projects p WHERE p.status != 'cancelled'`).all();
   const expenses = db.prepare('SELECT * FROM expenses ORDER BY expense_date ASC').all();
   const received = db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END),0) total FROM payments").get().total;
+  const otherIncome = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM income_records').get().total;
+  const totalReceived = received + otherIncome;
   const paid = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=1').get().total;
   const now = new Date(); const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  return buildFinanceInsights({ today, cash: received - paid, projects, expenses });
+  return buildFinanceInsights({ today, cash: totalReceived - paid, projects, expenses });
 });
 ipcMain.handle('expenses:create', (_event, input = {}) => {
   const description = clean(input.description,180);
@@ -867,7 +900,7 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   };
   if (!allowed[kind]) throw new Error('Неизвестный тип экспорта.');
   const [label, sql, file] = allowed[kind];
-  const { canceled, filePath } = await dialog.showSaveDialog({ title: `GRUZLI CRM · Экспорт: ${label}`, defaultPath: `gruzli-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
+  const { canceled, filePath } = await dialog.showSaveDialog({ title: `STRUKTURA CRM · Экспорт: ${label}`, defaultPath: `gruzli-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
   if (canceled || !filePath) return { canceled: true };
   const rows = db.prepare(sql).all();
   const columns = rows.length ? Object.keys(rows[0]) : sql.match(/SELECT (.+?) FROM/)[1].split(',').map(s=>s.trim());
@@ -876,7 +909,7 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   return { canceled: false, filePath, count: rows.length };
 });
 ipcMain.handle('backup:create', async () => {
-  const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить резервную копию', defaultPath: `GRUZLI-CRM-backup-${new Date().toISOString().slice(0,10)}.sqlite`, filters: [{ name: 'SQLite database', extensions: ['sqlite','db'] }] });
+  const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить резервную копию', defaultPath: `STRUKTURA-CRM-backup-${new Date().toISOString().slice(0,10)}.sqlite`, filters: [{ name: 'SQLite database', extensions: ['sqlite','db'] }] });
   if (canceled || !filePath) return { canceled: true };
   db.pragma('wal_checkpoint(FULL)');
   await db.backup(filePath);
@@ -887,7 +920,7 @@ ipcMain.handle('backup:create', async () => {
 // as an automatic rollback copy and reopen the live connection after the file swap.
 ipcMain.handle('backup:restore', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
-    title: 'Выберите резервную копию GRUZLI CRM',
+    title: 'Выберите резервную копию STRUKTURA CRM',
     properties: ['openFile'],
     filters: [{ name: 'SQLite database', extensions: ['sqlite', 'db'] }]
   });
@@ -904,7 +937,7 @@ ipcMain.handle('backup:restore', async () => {
     const tables = new Set(candidate.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
     const required = ['clients', 'leads', 'projects', 'payments', 'expenses', 'settings'];
     const missing = required.filter(name => !tables.has(name));
-    if (missing.length) throw new Error(`Это не резервная копия GRUZLI CRM: отсутствуют таблицы ${missing.join(', ')}.`);
+    if (missing.length) throw new Error(`Это не резервная копия STRUKTURA CRM: отсутствуют таблицы ${missing.join(', ')}.`);
     candidate.close(); candidate = null;
   } catch (error) {
     if (candidate) { try { candidate.close(); } catch {} }
@@ -920,7 +953,7 @@ ipcMain.handle('backup:restore', async () => {
   if (answer.response !== 1) return { canceled: true };
 
   const userDataPath = app.getPath('userData');
-  const safetyPath = path.join(userDataPath, `GRUZLI-CRM-before-restore-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`);
+  const safetyPath = path.join(userDataPath, `STRUKTURA-CRM-before-restore-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`);
   const walPath = `${livePath}-wal`, shmPath = `${livePath}-shm`;
   db.pragma('wal_checkpoint(FULL)');
   await db.backup(safetyPath);
@@ -1043,7 +1076,7 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   const preparedDate = new Date().toLocaleDateString('ru-RU');
   const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${quoteEscape(title)}</title><style>
   @page{size:A4;margin:13mm 13mm 15mm}*{box-sizing:border-box}body{font-family:Arial,'DejaVu Sans',sans-serif;color:#202a35;font-size:9pt;line-height:1.48;margin:0;background:#fff}header{position:relative;overflow:hidden;background:#172b3a;color:#fff;padding:21px 23px 20px;border-radius:2px;margin-bottom:18px;min-height:168px}header:after{content:"";position:absolute;right:-26px;top:-42px;width:205px;height:205px;border:1px solid rgba(255,255,255,.18);border-radius:50%;box-shadow:0 0 0 22px rgba(255,255,255,.035),0 0 0 45px rgba(255,255,255,.025)}.brand{font-size:23pt;letter-spacing:2.5px;font-weight:800;color:#fff;position:relative;z-index:1}.tag{font-size:7.2pt;letter-spacing:1.5px;color:#f1a36e;font-weight:bold;margin-top:4px;position:relative;z-index:1}.doctype{font-size:8pt;color:#c8d5dc;letter-spacing:1.4px;margin-top:22px;position:relative;z-index:1}.title{font-size:19pt;line-height:1.2;margin:5px 0 0;color:#fff;max-width:82%;position:relative;z-index:1}.hero-mark{position:absolute;right:19px;bottom:18px;width:95px;height:76px;border:1px solid rgba(255,255,255,.26);z-index:1;transform:skewY(-8deg)}.hero-mark:before,.hero-mark:after{content:"";position:absolute;border:1px solid rgba(241,163,110,.8)}.hero-mark:before{inset:12px -10px -10px 12px}.hero-mark:after{left:30px;top:-1px;bottom:-1px;border-width:0 0 0 1px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:7px 17px;margin:0 0 17px}.meta div{padding:7px 9px;background:#f4f6f7;border-left:2px solid #e38b55;min-height:43px}.label{display:block;font-size:7pt;letter-spacing:.65px;color:#687985;margin-bottom:2px;font-weight:700;text-transform:uppercase}.meta-value{overflow-wrap:anywhere}.section{font-size:10pt;font-weight:800;margin:17px 0 8px;color:#203747;display:flex;align-items:center;gap:8px}.section:before{content:"";width:4px;height:15px;background:#e38b55;display:inline-block}table{width:100%;border-collapse:collapse;font-size:8pt}thead{display:table-header-group}th{background:#203747;color:white;text-align:left;padding:8px 6px;font-weight:700}th:first-child{border-radius:2px 0 0 0}td{padding:7px 6px;border-bottom:1px solid #e4e9ec;vertical-align:top}tbody tr:nth-child(even){background:#f6f8f9}.num{text-align:right;white-space:nowrap}small{display:block;color:#6e7d87;font-size:7.3pt;margin-top:3px}.totals{margin:17px 0 0 auto;width:53%;background:#f3f6f7;padding:12px 14px;border-top:3px solid #e38b55}.total-label{color:#687985;font-size:7.5pt;font-weight:700;letter-spacing:.6px}.total{font-size:21pt;line-height:1.25;font-weight:800;color:#203747;margin-top:3px}.discount{font-size:8pt;color:#637079;margin-top:5px}.terms{margin-top:18px;padding:11px 12px;background:#f7f8f8;border-left:2px solid #cbd6dc;color:#596974;font-size:7.8pt}.terms strong{color:#203747}.signatures{display:grid;grid-template-columns:1.2fr .8fr;gap:15px;margin-top:19px;break-inside:avoid;page-break-inside:avoid}.sign-main{padding-top:8px}.sign-title{font-size:8pt;font-weight:800;color:#203747;margin-bottom:8px}.executor{font-size:9pt;font-weight:700;margin-bottom:18px}.signature-line{display:flex;align-items:end;gap:8px;margin-top:10px}.line{border-bottom:1px solid #667782;flex:1;height:22px}.line-label{font-size:7pt;color:#687985;white-space:nowrap}.stamp-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center}.stamp{width:100px;height:100px;border:1.5px dashed #9aaab3;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#8b9ba4;font-size:7pt;line-height:1.4;padding:12px;position:relative}.stamp:before{content:"";position:absolute;inset:5px;border:1px dashed #c0cbd1;border-radius:50%}.stamp-label{font-size:7pt;color:#687985;margin-top:5px}.footer{margin-top:17px;color:#82909a;font-size:6.8pt;border-top:1px solid #e2e7ea;padding-top:8px;display:flex;justify-content:space-between;gap:10px}tr{break-inside:avoid;page-break-inside:avoid}.terms,.totals{break-inside:avoid;page-break-inside:avoid}@media print{header{print-color-adjust:exact;-webkit-print-color-adjust:exact}.meta div,.totals,.terms,th{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
-  </style></head><body><header><div class="brand">GRUZLI</div><div class="tag">ДЕМОНТАЖ · ОТДЕЛКА · ФАЛЬШПОЛЫ</div><div class="doctype">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</div><div class="title">${quoteEscape(title)}</div><div class="hero-mark" aria-hidden="true"></div></header><div class="meta"><div><span class="label">Заказчик</span><span class="meta-value">${quoteEscape(customer || 'Не указан')}</span></div><div><span class="label">Контакт заказчика</span><span class="meta-value">${quoteEscape(contact || 'Не указан')}</span></div><div><span class="label">Адрес объекта</span><span class="meta-value">${quoteEscape(address || 'Будет уточнён')}</span></div><div><span class="label">Дата подготовки</span><span class="meta-value">${quoteEscape(preparedDate)}</span></div></div><div class="section">Состав и стоимость работ</div><table><thead><tr><th style="width:5%">№</th><th>Наименование работ</th><th>Ед.</th><th class="num">Кол-во</th><th class="num">Цена</th><th class="num">Сумма</th></tr></thead><tbody>${rows}</tbody></table><div class="totals"><div class="total-label">ИТОГО ПО ПРЕДЛОЖЕНИЮ</div><div class="total">${quoteMoney(total)}</div>${discount ? `<div class="discount">Скидка учтена в расчёте: ${quoteMoney(discount)}</div>` : ''}</div><div class="terms"><strong>Условия предложения</strong><br>Срок действия: ${quoteEscape(validity)}. Сроки выполнения, порядок оплаты и окончательный объём работ согласовываются сторонами до начала работ. Стоимость может быть уточнена после осмотра объекта и подтверждения объёмов. Дополнительные работы, не указанные в таблице, согласовываются отдельно. Настоящее коммерческое предложение не является договором подряда.</div><div class="signatures"><div class="sign-main"><div class="sign-title">ИСПОЛНИТЕЛЬ</div><div class="executor">ИП Борзенко Семен Сергеевич</div><div class="signature-line"><span class="line-label">Подпись</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Ф. И. О.</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Дата</span><span class="line"></span></div></div><div class="stamp-wrap"><div class="stamp">МЕСТО<br>ДЛЯ ПЕЧАТИ<br><span style="font-size:6pt">при наличии</span></div><div class="stamp-label">М. П.</div></div></div><div class="footer"><span>Сформировано в GRUZLI CRM</span><span>Демонтаж · Отделка · Фальшполы</span></div></body></html>`;
+  </style></head><body><header><div class="brand">STRUKTURA</div><div class="tag">ДЕМОНТАЖ · ОТДЕЛКА · ФАЛЬШПОЛЫ</div><div class="doctype">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</div><div class="title">${quoteEscape(title)}</div><div class="hero-mark" aria-hidden="true"></div></header><div class="meta"><div><span class="label">Заказчик</span><span class="meta-value">${quoteEscape(customer || 'Не указан')}</span></div><div><span class="label">Контакт заказчика</span><span class="meta-value">${quoteEscape(contact || 'Не указан')}</span></div><div><span class="label">Адрес объекта</span><span class="meta-value">${quoteEscape(address || 'Будет уточнён')}</span></div><div><span class="label">Дата подготовки</span><span class="meta-value">${quoteEscape(preparedDate)}</span></div></div><div class="section">Состав и стоимость работ</div><table><thead><tr><th style="width:5%">№</th><th>Наименование работ</th><th>Ед.</th><th class="num">Кол-во</th><th class="num">Цена</th><th class="num">Сумма</th></tr></thead><tbody>${rows}</tbody></table><div class="totals"><div class="total-label">ИТОГО ПО ПРЕДЛОЖЕНИЮ</div><div class="total">${quoteMoney(total)}</div>${discount ? `<div class="discount">Скидка учтена в расчёте: ${quoteMoney(discount)}</div>` : ''}</div><div class="terms"><strong>Условия предложения</strong><br>Срок действия: ${quoteEscape(validity)}. Сроки выполнения, порядок оплаты и окончательный объём работ согласовываются сторонами до начала работ. Стоимость может быть уточнена после осмотра объекта и подтверждения объёмов. Дополнительные работы, не указанные в таблице, согласовываются отдельно. Настоящее коммерческое предложение не является договором подряда.</div><div class="signatures"><div class="sign-main"><div class="sign-title">ИСПОЛНИТЕЛЬ</div><div class="executor">ИП Борзенко Семен Сергеевич</div><div class="signature-line"><span class="line-label">Подпись</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Ф. И. О.</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Дата</span><span class="line"></span></div></div><div class="stamp-wrap"><div class="stamp">МЕСТО<br>ДЛЯ ПЕЧАТИ<br><span style="font-size:6pt">при наличии</span></div><div class="stamp-label">М. П.</div></div></div><div class="footer"><span>Сформировано в STRUKTURA CRM</span><span>Демонтаж · Отделка · Фальшполы</span></div></body></html>`;
   const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить коммерческое предложение в PDF', defaultPath: `${title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,80)}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (canceled || !filePath) return { canceled: true };
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });

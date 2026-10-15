@@ -14,7 +14,7 @@ function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', plans: 'Тариф и интеграции' };
-  $('pageTitle').textContent = titles[name] || 'GRUZLI CRM';
+  $('pageTitle').textContent = titles[name] || 'STRUKTURA CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
   const view = $(`view-${name}`);
   if (loaders[name] && view) {
@@ -30,6 +30,20 @@ function showView(name) {
   if (name === 'browser') { showIntegratedBrowser().catch(e => toast(`Не удалось открыть браузер: ${e.message}`, true)); }
   else { window.crm.setBrowserVisibility({ visible: false }).catch(() => {}); }
 }
+// Register primary navigation before the rest of renderer initialization. If a later widget
+// fails during setup, the workspace navigation remains usable and the error is observable.
+document.addEventListener('click', event => {
+  const button = event.target.closest('[data-view]');
+  if (!button) return;
+  event.preventDefault();
+  showView(button.dataset.view);
+}, true);
+window.addEventListener('error', event => {
+  console.error('Struktura CRM renderer error:', event.error || event.message);
+  const toastNode = $('toast');
+  if (toastNode) toast('Ошибка интерфейса. Подробности записаны в журнал приложения.', true);
+});
+
 function renderSectionLoadError(name) {
   const targets = {
     dashboard: ['recentLeads'],
@@ -215,9 +229,18 @@ function renderFinanceInsights(data) {
   $('financeAlerts').innerHTML = alerts.length ? alerts.map(a => `<article class="finance-alert ${a.level}"><strong>${esc(a.title)}</strong><span>${esc(a.body)}</span></article>`).join('') : '<div class="empty-state compact-empty"><strong>Критичных сигналов по введённым данным нет</strong><span>Это не гарантия платёжеспособности: проверь полноту учёта.</span></div>';
 }
 async function refreshFinance() {
-  const [summary, payments, expenses, insights] = await Promise.all([window.crm.summary(), window.crm.listPayments(), window.crm.listExpenses(), window.crm.financeInsights()]);
+  const [summary, payments, expenses, insights, incomeRecords] = await Promise.all([window.crm.summary(), window.crm.listPayments(), window.crm.listExpenses(), window.crm.financeInsights(), window.crm.listIncomeRecords()]);
   renderFinanceInsights(insights);
   $('financeReceived').textContent = fmt(summary.received); $('financeExpenses').textContent = fmt(summary.expenses); $('financeCash').textContent = fmt(summary.cash);
+  const now = new Date(), monthKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`, yearKey = String(now.getFullYear());
+  const totalFor = rows => rows.reduce((sum,row) => sum + Number(row.amount_rub || 0),0);
+  const monthRows = incomeRecords.filter(row => String(row.income_date || '').startsWith(monthKey));
+  const yearRows = incomeRecords.filter(row => String(row.income_date || '').startsWith(yearKey));
+  $('incomeMonthTotal').textContent = fmt(totalFor(monthRows)); $('incomeYearTotal').textContent = fmt(totalFor(yearRows));
+  $('incomeMonthDetail').textContent = `Официально: ${fmt(totalFor(monthRows.filter(row=>row.record_type==='official')))} · внутренний учёт: ${fmt(totalFor(monthRows.filter(row=>row.record_type==='internal')))}`;
+  $('incomeYearDetail').textContent = `Официально: ${fmt(totalFor(yearRows.filter(row=>row.record_type==='official')))} · внутренний учёт: ${fmt(totalFor(yearRows.filter(row=>row.record_type==='internal')))}`;
+  $('incomeTable').innerHTML = incomeRecords.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Источник</th><th>Категория</th><th>Сумма</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${incomeRecords.map(row=>`<tr><td>${esc(row.income_date)}</td><td>${esc(row.source)}</td><td><span class="pill ${row.record_type==='internal'?'estimate':'won'}">${row.record_type==='internal'?'Внутренний учёт':'Официальный учёт'}</span></td><td>+${fmt(row.amount_rub)}</td><td>${esc(row.note||'—')}</td><td><button type="button" class="button subtle compact" data-edit-income="${row.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Дополнительных поступлений пока нет','Нажми «Добавить доход», чтобы зафиксировать поступление вне списка платежей по объектам.');
+
   $('paymentsTable').innerHTML = payments.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Операция</th><th>Сумма</th><th>Способ</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${payments.map(p => `<tr><td>${esc(p.payment_date)}</td><td>${esc(p.project_title)}</td><td>${p.payment_type === 'refund' ? '<span class="pill lost">Возврат</span>' : '<span class="pill won">Поступление</span>'}</td><td>${p.payment_type === 'refund' ? '−' : '+'}${fmt(p.amount_rub)}</td><td>${esc(({cash:'Наличные',bank:'На счёт',transfer:'Перевод',other:'Другое'})[p.method] || p.method)}</td><td>${esc(p.note || '—')}</td><td><button type="button" class="button subtle compact" data-edit-payment="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Платежей пока нет','Добавь объект, затем записывай авансы и окончательные расчёты.');
   $('expensesTable').innerHTML = expenses.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Расход</th><th>Объект</th><th>Категория</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${esc(e.expense_date)}</td><td>${esc(e.description)}</td><td>${esc(e.project_title || 'Общий')}</td><td>${esc(expenseLabels[e.category] || e.category)}</td><td>${fmt(e.amount_rub)}</td><td><span class="pill ${e.is_paid ? 'won' : 'estimate'}">${e.is_paid ? 'Оплачено' : 'Запланировано'}</span></td><td><button type="button" class="button subtle compact" data-edit-expense="${e.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Расходов пока нет','Записывай материалы, рабочих, транспорт и другие расходы.');
   await refreshProjects();
@@ -598,7 +621,7 @@ function empty(title, detail) { return `<div class="empty-state"><div class="emp
 function openDialog(id) { $(id).showModal(); }
 function closeDialog(id) { $(id).close(); }
 async function exportCsv(kind) { try { const r = await window.crm.exportDataCsv(kind); if (!r.canceled) toast(`Экспорт завершён: строк ${r.count}.`); } catch (e) { toast(e.message, true); } }
-document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+// Primary navigation is registered near showView() before widget initialization.
 const commandPalette = $('commandPaletteDialog');
 const commandSearch = $('commandPaletteSearch');
 $('openCommandPaletteBtn')?.addEventListener('click', openCommandPalette);
@@ -894,6 +917,23 @@ $('paymentsTable').addEventListener('click', async event => {
     for (const key of ['id','project_id','amount_rub','payment_type','payment_date','method','note']) form.elements[key].value = payment[key] ?? '';
     $('paymentDialogTitle').textContent = 'Изменить платёж'; $('paymentDialog').showModal();
   } catch (error) { toast(error.message,true); }
+});
+$('addIncomeBtn').addEventListener('click', () => {
+  const form=$('incomeForm'); form.reset(); form.elements.id.value='';
+  const now=new Date(); form.elements.income_date.value=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  $('incomeDialogTitle').textContent='Добавить доход'; openDialog('incomeDialog');
+});
+$('incomeForm').addEventListener('submit',async e=>{
+  e.preventDefault(); const form=e.currentTarget,data=Object.fromEntries(new FormData(form));
+  try { if(data.id) await window.crm.updateIncomeRecord(data); else await window.crm.createIncomeRecord(data); form.reset(); closeDialog('incomeDialog'); toast(data.id?'Доход обновлён.':'Доход сохранён.'); await refreshFinance(); }
+  catch(error){toast(error.message,true);}
+});
+$('incomeTable').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-edit-income]'); if(!button)return;
+  try { const rows=await window.crm.listIncomeRecords(),row=rows.find(item=>item.id===Number(button.dataset.editIncome)); if(!row)throw new Error('Запись дохода не найдена.');
+    const form=$('incomeForm'); for(const key of ['id','amount_rub','income_date','record_type','source','note']) form.elements[key].value=row[key]??'';
+    $('incomeDialogTitle').textContent='Изменить доход'; openDialog('incomeDialog');
+  } catch(error){toast(error.message,true);}
 });
 $('expenseForm').addEventListener('submit', async e => {
   e.preventDefault(); const form = e.currentTarget, data = Object.fromEntries(new FormData(form));
@@ -1241,7 +1281,7 @@ $('productionShiftForm').addEventListener('submit', async e => {
   try {
     const saved = data.id ? await window.crm.updateWorkShift(data) : await window.crm.saveWorkShift(data);
     closeDialog('productionShiftDialog');
-    toast(data.id ? \`Отчёт смены №\${saved.shift_id} исправлен.\` : \`Смена №\${saved.shift_id} закрыта. Факт сохранён; производственная модель и прогноз обновлены.\`);
+    toast(data.id ? `Отчёт смены №${saved.shift_id} исправлен.` : `Смена №${saved.shift_id} закрыта. Факт сохранён; производственная модель и прогноз обновлены.`);
     await Promise.all([refreshProduction(), refreshEstimateLearningRates()]);
   } catch (error) { toast(error.message,true); }
 });
@@ -1296,8 +1336,8 @@ $('productionHistory').addEventListener('click', async e => {
     }
     if (!deleteButton) return;
     const id = Number(deleteButton.dataset.deleteProductionShift);
-    if (!confirm(\`Удалить отчёт смены №\${id}? Объём исчезнет из истории и будет исключён из расчёта производительности. Это действие нельзя отменить.\`)) return;
-    await window.crm.deleteWorkShift(id); toast(\`Отчёт смены №\${id} удалён.\`);
+    if (!confirm(`Удалить отчёт смены №${id}? Объём исчезнет из истории и будет исключён из расчёта производительности. Это действие нельзя отменить.`)) return;
+    await window.crm.deleteWorkShift(id); toast(`Отчёт смены №${id} удалён.`);
     await Promise.all([refreshProduction(), refreshEstimateLearningRates()]);
   } catch (error) { toast(error.message,true); }
 });
@@ -1353,8 +1393,23 @@ function hideStartupSplash() {
 }
 // Never leave the launch screen covering the app if initial data loading stalls.
 window.setTimeout(hideStartupSplash, 8000);
-refreshDashboard()
-  .catch(e => toast(`Не удалось загрузить обзор: ${e.message}`, true))
+Promise.race([
+  refreshDashboard(),
+  new Promise((_, reject) => window.setTimeout(() => reject(new Error('Превышено время ожидания загрузки обзора (10 секунд). Проверьте локальную базу и перезапустите программу.')), 10000))
+])
+  .catch(e => {
+    toast(`Не удалось загрузить обзор: ${e.message}`, true);
+    const target = $('recentLeads');
+    if (target) {
+      target.textContent = '';
+      const errorBox = document.createElement('div');
+      errorBox.className = 'empty-state';
+      const heading = document.createElement('strong'); heading.textContent = 'Не удалось загрузить данные';
+      const detail = document.createElement('span'); detail.textContent = e.message || 'Неизвестная ошибка';
+      const retry = document.createElement('button'); retry.className = 'button subtle'; retry.type = 'button'; retry.textContent = 'Перезапустить интерфейс'; retry.addEventListener('click', () => location.reload());
+      errorBox.append(heading, detail, retry); target.append(errorBox);
+    }
+  })
   .finally(hideStartupSplash);
 refreshSearchApiStatus();
 refreshNotificationSettings().catch(() => { $('notificationStatus').textContent = 'Настройки уведомлений недоступны'; });
