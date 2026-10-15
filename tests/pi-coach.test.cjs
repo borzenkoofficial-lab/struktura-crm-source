@@ -1,3 +1,23 @@
+test('PI connects shift downtime, low measured output and a matching project cost risk', () => {
+  const items = buildPiCoachInsights({
+    production: { history: [{ id: 55, shift_date: '2026-10-10', project_title: 'Объект Север', shift_hours: 8, downtime_hours: 3, performance: [
+      { work_name: 'Демонтаж стяжки', deviationPct: -25 }, { work_name: 'Вынос мусора', deviationPct: -15 }
+    ] }] },
+    finance: { risks: [{ id: 12, title: 'Объект Север', costRatio: 0.9 }] }
+  }, { today: '2026-10-15' });
+  const insight = items.find(item => item.id === 'production-cost-correlation-55');
+  assert.ok(insight);
+  assert.equal(insight.view, 'finance');
+  assert.match(insight.title, /финансовом риске/u);
+  assert.match(insight.detail, /расходы составляют 90% договора/u);
+  assert.match(insight.detail, /не доказывает причинную связь/u);
+});
+
+test('PI does not correlate shift downtime with poor output when performance evidence is absent', () => {
+  const items = buildPiCoachInsights({ production: { history: [{ id: 56, shift_date: '2026-10-10', project_title: 'Объект Юг', shift_hours: 8, downtime_hours: 4, performance: [] }] } }, { today: '2026-10-15' });
+  assert.equal(items.some(item => item.id === 'production-cost-correlation-56'), false);
+});
+
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
