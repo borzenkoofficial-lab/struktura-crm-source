@@ -385,3 +385,19 @@ test('production plans and shift reports expose structured conditions and persis
   assert.match(db, /ALTER TABLE projects ADD COLUMN conditions_json TEXT NOT NULL DEFAULT '\[\]'/);
   assert.match(db, /ALTER TABLE work_shifts ADD COLUMN conditions_json TEXT NOT NULL DEFAULT '\[\]'/);
 });
+
+
+test('PI does not combine recurring underperformance across different work conditions', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.cjs');
+  const result = buildProductionIntelligence({
+    projects: [{ id: 11, title: 'Офис', planCount: 1, shiftCount: 4, forecast: { estimated: true, lines: [] } }],
+    history: [
+      { project_id: 11, conditions_json: '["manual_carry"]', performance: [{ work_name: 'Стяжка', deviationPct: -30 }] },
+      { project_id: 11, conditions_json: '["manual_carry"]', performance: [{ work_name: 'Стяжка', deviationPct: -25 }] },
+      { project_id: 11, conditions_json: '["no_elevator"]', performance: [{ work_name: 'Стяжка', deviationPct: -40 }] },
+      { project_id: 11, conditions_json: '[]', performance: [{ work_name: 'Стяжка', deviationPct: -5 }] }
+    ],
+    totals: { shifts: 4, work_records: 4 }
+  });
+  assert.equal(result.alerts.some(alert => /повторяющееся отставание/iu.test(alert.title)), false);
+});
