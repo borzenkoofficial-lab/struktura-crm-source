@@ -40,6 +40,7 @@ test('adds the commercial order link when migrating an existing leads table', t 
   legacy.exec(`
     CREATE TABLE leads (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
       title TEXT NOT NULL,
       service TEXT NOT NULL,
       source TEXT NOT NULL,
@@ -53,11 +54,13 @@ test('adds the commercial order link when migrating an existing leads table', t 
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  legacy.prepare("INSERT INTO leads(title,service,source) VALUES ('Старая заявка','demolition','phone')").run();
   legacy.close();
 
   const db = openDatabase(directory);
   t.after(() => db.close());
   const columns = db.prepare('PRAGMA table_info(leads)').all().map(column => column.name);
   assert.ok(columns.includes('commercial_order_id'));
-  assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_leads_commercial_order'").get());
+  assert.equal(db.prepare('SELECT title,commercial_order_id FROM leads WHERE id=1').get().commercial_order_id, null);
+  assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_leads_commercial_order'").get().name, 'idx_leads_commercial_order');
 });
