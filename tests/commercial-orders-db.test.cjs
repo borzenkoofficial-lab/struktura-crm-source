@@ -65,3 +65,36 @@ test('adds the commercial order link when migrating an existing leads table', t 
   assert.equal(db.prepare('SELECT title,commercial_order_id FROM leads WHERE id=1').get().commercial_order_id, null);
   assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_leads_commercial_order'").get().name, 'idx_leads_commercial_order');
 });
+
+test('migrates source_type onto an existing commercial_orders table', t => {
+  const directory = temporaryDirectory();
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const legacy = new Database(path.join(directory, 'struktura-crm.sqlite'));
+  legacy.exec(`
+    CREATE TABLE commercial_orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      source_url TEXT NOT NULL UNIQUE,
+      source_name TEXT NOT NULL DEFAULT '',
+      snippet TEXT NOT NULL DEFAULT '',
+      search_query TEXT NOT NULL DEFAULT '',
+      service TEXT NOT NULL DEFAULT 'demolition',
+      region TEXT NOT NULL DEFAULT 'Москва и Московская область',
+      signal_score INTEGER NOT NULL DEFAULT 0,
+      signal_labels TEXT NOT NULL DEFAULT '',
+      relevance TEXT NOT NULL DEFAULT 'review',
+      status TEXT NOT NULL DEFAULT 'new',
+      first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    INSERT INTO commercial_orders(title,source_url) VALUES ('Старый заказ','https://example.ru/old');
+  `);
+  legacy.close();
+
+  const db = openDatabase(directory);
+  t.after(() => db.close());
+  const columns = db.prepare('PRAGMA table_info(commercial_orders)').all().map(column => column.name);
+  assert.ok(columns.includes('source_type'));
+  assert.equal(db.prepare('SELECT source_type FROM commercial_orders WHERE id=1').get().source_type, 'web');
+  assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_commercial_orders_source_type'").get().name, 'idx_commercial_orders_source_type');
+});
