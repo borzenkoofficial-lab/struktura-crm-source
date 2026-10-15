@@ -111,6 +111,28 @@ test('PI does not warn about missing project dates for completed or cancelled pr
   assert.equal(items.some(item => item.id === 'project-dates-missing-1' || item.id === 'project-dates-missing-2'), false);
 });
 
+test('PI detects a worsening production trend only after four dated observations', () => {
+  const items = buildPiCoachInsights({ production: { history: [
+    { id: 1, shift_date: '2026-10-01', project_title: 'А', performance: [{ work_name: 'Снятие стяжки', deviationPct: -5 }] },
+    { id: 2, shift_date: '2026-10-02', project_title: 'Б', performance: [{ work_name: 'Снятие стяжки', deviationPct: -8 }] },
+    { id: 3, shift_date: '2026-10-03', project_title: 'В', performance: [{ work_name: 'Снятие стяжки', deviationPct: -28 }] },
+    { id: 4, shift_date: '2026-10-04', project_title: 'Г', performance: [{ work_name: 'Снятие стяжки', deviationPct: -32 }] }
+  ] } }, { today: '2026-10-15' });
+  const trend = items.find(item => item.id === 'production-trend-worsening-снятие стяжки');
+  assert.ok(trend);
+  assert.match(trend.detail, /Предыдущие два наблюдения: в среднем -7% к плану/u);
+  assert.match(trend.detail, /Последние два: в среднем -30% к плану/u);
+});
+
+test('PI does not infer a production trend from fewer than four observations', () => {
+  const items = buildPiCoachInsights({ production: { history: [
+    { id: 1, shift_date: '2026-10-01', performance: [{ work_name: 'Демонтаж стен', deviationPct: -5 }] },
+    { id: 2, shift_date: '2026-10-02', performance: [{ work_name: 'Демонтаж стен', deviationPct: -30 }] },
+    { id: 3, shift_date: '2026-10-03', performance: [{ work_name: 'Демонтаж стен', deviationPct: -35 }] }
+  ] } }, { today: '2026-10-15' });
+  assert.equal(items.some(item => item.id === 'production-trend-worsening-демонтаж стен' || item.id === 'production-trend-improving-демонтаж стен'), false);
+});
+
 test('PI flags missing schedule only for active or planned projects and explains why it matters', () => {
   const items = buildPiCoachInsights({ projects: [
     { id: 7, title: 'Склад', status: 'active', start_date: '', end_date: '' }
