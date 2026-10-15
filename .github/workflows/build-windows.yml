@@ -9,6 +9,8 @@ on:
         type: boolean
         default: false
   push:
+    branches:
+      - 'installer-build/**'
     tags:
       - 'v*'
 
@@ -38,7 +40,7 @@ jobs:
   build-windows:
     name: Build Windows installer
     needs: test
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.build_installer)
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/installer-build/') || (github.event_name == 'workflow_dispatch' && inputs.build_installer)
     runs-on: windows-latest
     timeout-minutes: 20
     steps:

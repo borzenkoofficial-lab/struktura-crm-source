@@ -1,4 +1,4 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, safeStorage, session, Notification } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, safeStorage, session, Notification, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -111,9 +111,10 @@ function createBrowserView(win) {
 function createWindow() {
   const win = new BrowserWindow({
     width: 1440, height: 920, minWidth: 1020, minHeight: 680,
-    title: 'GRUZLI CRM', backgroundColor: '#f5f7fa',
+    title: 'GRUZLI CRM', backgroundColor: '#f5f7fa', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
+  win.setMenuBarVisibility(false);
   mainWindow = win;
   createBrowserView(win);
   win.on('resize', () => { if (browserIsVisible) sendBrowserState(); });
@@ -153,6 +154,8 @@ function checkAndSendReminders() {
 }
 let reminderInterval;
 app.whenReady().then(() => {
+  // Keep the native Windows title bar and its system controls, but remove the legacy File/Edit/View/Help menu.
+  Menu.setApplicationMenu(null);
   db = openDatabase(app.getPath('userData'));
   if (!getSetting('reminder_settings', null)) setSetting('reminder_settings', DEFAULT_REMINDER_SETTINGS);
   createWindow();
