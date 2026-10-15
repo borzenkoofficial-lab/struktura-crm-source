@@ -566,3 +566,11 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 
 .pi-alert.info{border-color:#c9dceb;background:#f3f9fd}
 .pi-alert.info strong,.pi-alert.info span{color:#315f80}
+
+.pi-condition-group{border:1px solid var(--line,#dfe7ef);border-radius:10px;padding:12px 14px;margin:12px 0 16px;min-width:0}
+.pi-condition-group legend{padding:0 5px;font-size:11px;font-weight:750;color:var(--text,#34465b)}
+.pi-condition-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 14px}
+.pi-condition-grid label{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text,#34465b)}
+.pi-condition-grid input{accent-color:#315e7a;width:15px;height:15px;margin:0}
+.pi-condition-group small{display:block;margin-top:9px;font-size:10px;line-height:1.5;color:var(--muted,#78869a)}
+@media(max-width:600px){.pi-condition-grid{grid-template-columns:1fr}}
