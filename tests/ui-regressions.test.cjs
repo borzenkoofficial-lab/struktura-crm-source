@@ -372,8 +372,8 @@ test('client and prospect create, update and CSV import validate contact email a
 
 
 test('Windows app startup hides the legacy menu and reports startup failures', () => {
-  assert.match(main, /Menu\\.setApplicationMenu\\(null\\)/);
-  assert.match(main, /win\\.setMenuBarVisibility\\(false\\)/);
+  assert.match(main, /Menu\.setApplicationMenu\(null\)/);
+  assert.match(main, /win\.setMenuBarVisibility\(false\)/);
   assert.match(main, /Failed to load CRM interface/);
   assert.match(main, /Struktura CRM startup failed/);
 });
