@@ -2,15 +2,8 @@ name: Validate and Build Windows Installer
 
 on:
   push:
-    branches:
-      - 'fix/**'
-      - 'installer-build/**'
     tags:
       - 'v*'
-  pull_request:
-    branches:
-      - main
-      - 'fix/**'
   workflow_dispatch:
     inputs:
       build_installer:
