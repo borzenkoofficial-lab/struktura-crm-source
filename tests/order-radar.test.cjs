@@ -88,3 +88,23 @@ test('protects manually reviewed statuses while allowing ordinary records to ref
   assert.equal(orderRefreshAction('relevant'), 'protect');
   assert.equal(orderRefreshAction('rejected'), 'protect');
 });
+
+
+test('does not classify unrelated tenders as potential orders without matching service evidence', () => {
+  const order = normalizeOrderResult({
+    title: 'Тендер на поставку офисной мебели',
+    url: 'https://example.ru/tender/123',
+    description: 'Открытая закупка для коммерческого объекта'
+  }, 'тендер демонтаж', 'demolition', 'Москва');
+  assert.equal(order.relevance, 'review');
+});
+
+test('requires matching service evidence and recognizes raised-floor procurement', () => {
+  const order = normalizeOrderResult({
+    title: 'Закупка на монтаж фальшпола',
+    url: 'https://example.ru/tender/floor',
+    description: 'Заказчик проводит тендер на устройство технического пола'
+  }, 'тендер фальшпол', 'raised_floor', 'Москва');
+  assert.equal(order.relevance, 'potential_order');
+  assert.ok(order.signal_labels.includes('Фальшполы'));
+});
