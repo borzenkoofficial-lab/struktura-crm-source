@@ -484,3 +484,23 @@ test('PI labels invalid or missing productivity data instead of treating it as z
   assert.equal(result.dataQuality.invalidPerformanceObservations, 1);
   assert.equal(result.dataQuality.comparableWorkTypes, 0);
 });
+
+
+test('PI flags unstable output when comparable observations vary sharply', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.js');
+  const deviations = [-40, -5, -45, -2, -3, -1];
+  const history = deviations.map((deviation, index) => ({
+    project_id: 1,
+    shift_date: `2026-10-${String(15 - index).padStart(2, '0')}`,
+    shift_hours: 8,
+    downtime_hours: 0,
+    performance: [{ work_name: 'Вынос вручную', unit: 'м³', actualRate: 100 + deviation, expectedRate: 100, deviationPct: deviation }]
+  }));
+  const result = buildProductionIntelligence({
+    projects: [{ id: 1, title: 'Тест', planCount: 1, forecast: { estimated: true, lines: [] }, shiftCount: 6, lastShiftDate: '2026-10-15' }],
+    history,
+    totals: { shifts: 6, work_records: 6 }
+  }, { today: '2026-10-15' });
+  assert.equal(result.dataQuality.unstableWorkTypes, 1);
+  assert.ok(result.alerts.some(alert => alert.title.includes('Нестабильная выработка')));
+});
