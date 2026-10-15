@@ -30,6 +30,17 @@ test('rejects invalid URLs and removes duplicate source links', () => {
   assert.equal(deduplicateOrders([order, order]).length, 1);
 });
 
+test('does not mistake a seller commercial proposal for a procurement request', () => {
+  const order = normalizeOrderResult({
+    title: 'Коммерческое предложение на демонтаж офисов',
+    url: 'https://example.ru/services/demolition',
+    description: 'Наша компания предлагает услуги демонтажа коммерческих помещений.'
+  }, 'демонтаж коммерческих помещений', 'demolition', 'Москва');
+  assert.equal(order.relevance, 'review');
+  assert.ok(!order.signal_labels.includes('Закупка / тендер'));
+  assert.ok(!order.signal_labels.includes('Поиск подрядчика'));
+});
+
 test('search keywords alone do not turn generic results into potential orders', () => {
   const order = normalizeOrderResult(
     { title: 'Компания', url: 'https://example.ru', description: 'Профиль компании' },
