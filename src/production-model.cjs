@@ -7,7 +7,7 @@ function median(values) {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
-function buildRateModel({ baselineProductivity, observations = [], targetDifficulty = 1, targetCrewSize = 5 } = {}) {
+function buildRateModel({ baselineProductivity, observations = [], targetDifficulty = 1, targetCrewSize = 5, targetConditions = [] } = {}) {
   const baseline = Number(baselineProductivity);
   const difficulty = Number(targetDifficulty);
   const crewTarget = Number(targetCrewSize);
@@ -15,16 +15,21 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
   if (!Number.isFinite(difficulty) || difficulty <= 0) throw new Error('Коэффициент сложности должен быть больше нуля.');
   if (!Number.isFinite(crewTarget) || crewTarget < 1 || crewTarget > 200) throw new Error('Размер целевой бригады должен быть от 1 до 200 человек.');
 
-  const entries = observations.map((o) => {
+  const targetConditionKey = conditionKey(targetConditions);
+  const allEntries = observations.map((o) => {
     const quantity = Number(o.quantity_done ?? o.quantity);
     const workers = Number(o.workers_count ?? o.workers);
     const hours = Number(o.hours ?? o.hours_per_worker);
     const factor = Number(o.complexity_factor ?? 1);
     if (![quantity, workers, hours, factor].every(Number.isFinite) || quantity <= 0 || workers <= 0 || hours <= 0 || factor <= 0) return null;
     // Convert the observed speed back to a normal-condition rate before comparing sites.
-    return { rate: (quantity / (workers * hours / 8)) * factor, crewSize: workers };
+    return { rate: (quantity / (workers * hours / 8)) * factor, crewSize: workers, conditionKey: conditionKey(o.conditions_json ?? o.conditions) };
   }).filter((entry) => entry && Number.isFinite(entry.rate) && entry.rate > 0);
-
+  const conditionsExistInHistory = allEntries.some(entry => entry.conditionKey !== '');
+  const requireConditionMatch = targetConditionKey !== '' || conditionsExistInHistory;
+  const matchedEntries = allEntries.filter(entry => entry.conditionKey === targetConditionKey);
+  const conditionMatchSufficient = !requireConditionMatch || matchedEntries.length >= 2;
+  const entries = requireConditionMatch ? (conditionMatchSufficient ? matchedEntries : []) : allEntries;
   const rawObservedMedian = median(entries.map((entry) => entry.rate));
   const count = entries.length;
   const crewSizeCounts = new Map();
@@ -61,9 +66,10 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
     ? baseline
     : baseline * (1 - observedWeight) + crewAdjustedObservedMedian * observedWeight;
   const effectiveProductivity = learnedNormalRate / difficulty;
-  const confidence = count >= 5 ? 'По практике · 5+ наблюдений'
-    : count >= 3 ? 'Уточняется · 3–4 наблюдения'
-      : count > 0 ? 'Предварительно · 1–2 наблюдения' : 'Стартовая норма · без факта';
+  const confidence = !conditionMatchSufficient ? 'Стартовая норма · недостаточно смен с такими же условиями'
+    : count >= 5 ? 'По практике · 5+ сопоставимых наблюдений'
+      : count >= 3 ? 'Уточняется · 3–4 сопоставимых наблюдения'
+        : count > 0 ? 'Предварительно · 1–2 сопоставимых наблюдения' : 'Стартовая норма · без факта';
   return {
     baselineProductivity: baseline,
     observedMedian: crewAdjustedObservedMedian == null ? null : round(crewAdjustedObservedMedian, 3),
@@ -71,6 +77,11 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
     learnedNormalRate: round(learnedNormalRate, 3),
     effectiveProductivity: round(effectiveProductivity, 3),
     observations: count,
+    availableObservations: allEntries.length,
+    matchedObservations: matchedEntries.length,
+    conditionMatchRequired: requireConditionMatch,
+    conditionMatchSufficient,
+    targetConditions: targetConditionKey ? targetConditionKey.split('|') : [],
     confidence,
     observedWeight,
     referenceCrewSize: referenceCrewSize == null ? null : round(referenceCrewSize, 1),
@@ -80,7 +91,7 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
   };
 }
 
-function forecastRemainingWork({ planItems = [], actualByCatalog = {}, observationsByCatalog = {}, targetDifficulty = 1, crewSize = 5 } = {}) {
+function forecastRemainingWork({ planItems = [], actualByCatalog = {}, observationsByCatalog = {}, targetDifficulty = 1, crewSize = 5, targetConditions = [] } = {}) {
   const crew = Number(crewSize);
   if (!Number.isFinite(crew) || crew < 1 || crew > 200) throw new Error('Размер бригады должен быть от одного до 200 человек.');
   const lines = planItems.map((item) => {
@@ -91,7 +102,8 @@ function forecastRemainingWork({ planItems = [], actualByCatalog = {}, observati
       baselineProductivity: Number(item.baseline_productivity ?? item.productivity),
       observations: observationsByCatalog[item.catalog_id] || [],
       targetDifficulty,
-      targetCrewSize: crew
+      targetCrewSize: crew,
+      targetConditions
     });
     const laborShiftsRemaining = remaining > 0 ? remaining / model.effectiveProductivity : 0;
     return {
@@ -117,6 +129,13 @@ function forecastRemainingWork({ planItems = [], actualByCatalog = {}, observati
     observations: lines.reduce((sum, line) => sum + line.observations, 0),
     estimated: lines.length > 0
   };
+}
+
+function conditionKey(value) {
+  let items = value;
+  if (typeof value === 'string') { try { items = JSON.parse(value); } catch (_) { items = []; } }
+  if (!Array.isArray(items)) return '';
+  return [...new Set(items.map(item => String(item || '').trim()).filter(Boolean))].sort().join('|');
 }
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
