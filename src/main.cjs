@@ -17,6 +17,7 @@ const { parseCsv, prospectDuplicateKeys, safeCsvCell } = require('./csv.cjs');
 const { crawlSites } = require('./site-crawler.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
 const { buildOrderQueries, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders } = require('./order-radar.cjs');
+const { assessCommercialOrder } = require('./order-pi.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
 const { normalizeTaskInput } = require('./task-utils.cjs');
 const { normalizeContactEmail } = require('./contact-utils.cjs');
@@ -624,7 +625,7 @@ ipcMain.handle('orders:list', (_event,input={})=>{
  const terms=clean(input.search,180).toLowerCase();const where=[],params=[];
  if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}
  if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%')}
- return db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC LIMIT 500`).all(...params).map(r=>({...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean)}));
+ return db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC LIMIT 500`).all(...params).map(r=>({...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean),pi_assessment:assessCommercialOrder(r)}));
 });
 ipcMain.handle('orders:search',async(_event,input={})=>{
  const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');
