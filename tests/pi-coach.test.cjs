@@ -1,3 +1,8 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { buildPiCoachInsights, ageDays } = require('../src/pi-coach.js');
+
 test('PI connects shift downtime, low measured output and a matching project cost risk', () => {
   const items = buildPiCoachInsights({
     production: { history: [{ id: 55, shift_date: '2026-10-10', project_title: 'Объект Север', shift_hours: 8, downtime_hours: 3, performance: [
@@ -18,10 +23,6 @@ test('PI does not correlate shift downtime with poor output when performance evi
   assert.equal(items.some(item => item.id === 'production-cost-correlation-56'), false);
 });
 
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { buildPiCoachInsights, ageDays } = require('../src/pi-coach.js');
 
 test('PI coach prioritizes a documented contract overrun above routine advice', () => {
   const items = buildPiCoachInsights({
