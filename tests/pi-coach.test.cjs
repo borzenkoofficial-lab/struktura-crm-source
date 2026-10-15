@@ -49,9 +49,9 @@ test('PI coach compares expense periods and flags material refund patterns from 
       { expense_date: '2026-10-01', amount_rub: 5000 },
       { expense_date: '2026-10-03', amount_rub: 4000 },
       { expense_date: '2026-10-05', amount_rub: 3000 },
-      { expense_date: '2026-09-10', amount_rub: 4000 },
-      { expense_date: '2026-09-15', amount_rub: 4000 },
-      { expense_date: '2026-09-20', amount_rub: 4000 }
+      { expense_date: '2026-08-20', amount_rub: 4000 },
+      { expense_date: '2026-09-01', amount_rub: 4000 },
+      { expense_date: '2026-09-10', amount_rub: 4000 }
     ]
   }, { today: '2026-10-15' });
   assert.ok(items.some(item => item.id === 'finance-refund-pattern'));
