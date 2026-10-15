@@ -743,3 +743,39 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 @media(max-width:1100px){#view-projects .estimate-meta-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#view-projects .estimate-pro-results{grid-template-columns:repeat(2,minmax(0,1fr))}#view-projects .estimate-pro-results>div:last-child{grid-column:span 2}}
 @media(max-width:760px){#view-projects .estimate-pro-head,#view-projects .estimate-pro-body{padding:17px}#view-projects .estimate-two-columns{grid-template-columns:1fr}#view-projects .estimate-actual-results{grid-template-columns:repeat(2,minmax(0,1fr))}#view-projects .estimate-add-row{grid-template-columns:1fr}#view-projects .estimate-add-row .button{width:100%}#view-projects .object-list-head{align-items:flex-start;flex-direction:column}#view-projects .estimate-actions{justify-content:stretch}#view-projects .estimate-actions .button{flex:1}}
 @media(max-width:480px){#view-projects .estimate-meta-grid,#view-projects .estimate-pro-results{grid-template-columns:1fr}#view-projects .estimate-pro-results>div:last-child{grid-column:auto}#view-projects .estimate-actual-results{grid-template-columns:1fr}#view-projects .estimate-duration-panel,#view-projects .estimate-calibration-panel,#view-projects .estimate-actual-panel,#view-projects .estimate-subpanel,#view-projects .estimate-advisor{padding:13px}#view-projects .object-block-title small{font-size:10px}#view-projects .estimate-actions{flex-direction:column}#view-projects .estimate-actions .button{width:100%}}
+
+
+/* PI voice companion — grounded popovers, no random prompts */
+.pi-companion{position:fixed;right:24px;bottom:24px;z-index:80;display:flex;align-items:flex-end;flex-direction:column;gap:12px;pointer-events:none}
+.pi-coach-avatar,.pi-coach-popover{pointer-events:auto}
+.pi-coach-avatar{position:relative;width:66px;height:66px;border:0;border-radius:22px;background:linear-gradient(145deg,#1e3448,#152638);box-shadow:0 12px 34px rgba(18,37,56,.28);display:grid;place-items:center;cursor:pointer;isolation:isolate;transition:transform .2s,box-shadow .2s}
+.pi-coach-avatar:hover{transform:translateY(-3px);box-shadow:0 16px 38px rgba(18,37,56,.35)}
+.pi-avatar-aura{position:absolute;inset:-5px;border:1px solid rgba(239,133,78,.55);border-radius:26px;z-index:-1;animation:piAuraPulse 3.4s ease-in-out infinite}
+.pi-avatar-face{position:relative;width:37px;height:37px;border-radius:13px 13px 15px 15px;background:linear-gradient(145deg,#ffcf9f,#f28a55);box-shadow:inset -4px -5px 0 rgba(177,75,38,.12),0 4px 10px #081a2a55;transform:rotate(-3deg)}
+.pi-avatar-face:before{content:"";position:absolute;left:7px;right:7px;top:-4px;height:11px;border-radius:9px 9px 4px 4px;background:#f5a06b}
+.pi-avatar-eye{position:absolute;top:13px;width:4px;height:5px;border-radius:4px;background:#25394a}
+.pi-avatar-eye.eye-left{left:10px}.pi-avatar-eye.eye-right{right:10px}
+.pi-avatar-smile{position:absolute;left:13px;top:23px;width:11px;height:5px;border-bottom:2px solid #9c4d36;border-radius:0 0 10px 10px}
+.pi-avatar-caption{position:absolute;right:-5px;bottom:-5px;min-width:25px;height:20px;padding:0 5px;border:2px solid #fff;border-radius:8px;background:#f28a55;color:#fff;font-size:10px;font-weight:900;display:grid;place-items:center}
+.pi-avatar-spark{position:absolute;color:#ffb17d;font-weight:900}.pi-avatar-spark.spark-one{top:6px;right:8px;font-size:13px}.pi-avatar-spark.spark-two{left:7px;top:12px;font-size:22px}
+.pi-coach-popover{width:min(390px,calc(100vw - 28px));max-height:min(74vh,620px);overflow:auto;background:#fff;border:1px solid #dce5ed;border-radius:18px;box-shadow:0 22px 70px rgba(20,39,58,.22);padding:17px 18px 13px;animation:piCoachEnter .22s ease-out}
+.pi-coach-popover[hidden]{display:none}
+.pi-coach-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding-bottom:12px;border-bottom:1px solid #edf1f5}
+.pi-coach-head strong{display:block;font-size:13px;color:#23364b;margin-top:5px}
+.pi-coach-eyebrow{font-size:9px;letter-spacing:.9px;font-weight:850;color:#d87845}
+.pi-coach-head button{border:0;background:#f3f6f8;color:#607083;border-radius:9px;width:28px;height:28px;font-size:20px;line-height:1;cursor:pointer}
+.pi-coach-priority{display:inline-flex;margin-top:14px;padding:5px 8px;border-radius:7px;background:#f2f5f8;color:#53677b;font-size:9px;font-weight:850;letter-spacing:.65px}
+.pi-coach-priority.danger{background:#fff0ed;color:#b53c2f}.pi-coach-priority.warning{background:#fff5e6;color:#9a5a11}.pi-coach-priority.opportunity{background:#eaf8f0;color:#18754b}
+.pi-coach-popover h3{font-size:18px;line-height:1.3;letter-spacing:-.35px;margin:10px 0 8px;color:#203246}
+.pi-coach-popover>p{font-size:12px;line-height:1.7;color:#536478;margin:0 0 12px}
+.pi-coach-evidence{border:1px solid #e8edf2;border-radius:10px;padding:9px 10px;background:#f8fafc}
+.pi-coach-evidence summary{font-size:10px;font-weight:800;color:#435970;cursor:pointer}
+.pi-coach-evidence p{font-size:10px;line-height:1.65;color:#68798a;white-space:pre-wrap;margin:8px 0 0}
+.pi-coach-actions{display:flex;gap:8px;margin-top:12px}.pi-coach-actions .button{min-height:37px;flex:1;justify-content:center;font-size:11px}
+.pi-coach-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:10px;margin-top:10px;border-top:1px solid #edf1f5}
+.pi-coach-footer button{border:0;background:transparent;color:#65768a;font-size:10px;font-weight:750;cursor:pointer;padding:5px 0}
+.pi-coach-footer button:hover{color:#d87845}
+@keyframes piAuraPulse{0%,100%{transform:scale(1);opacity:.65}50%{transform:scale(1.06);opacity:1}}
+@keyframes piCoachEnter{from{opacity:0;transform:translateY(9px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:600px){.pi-companion{right:13px;bottom:14px}.pi-coach-avatar{width:58px;height:58px;border-radius:19px}.pi-coach-popover{width:min(370px,calc(100vw - 26px));padding:14px}.pi-coach-popover h3{font-size:16px}.pi-coach-actions{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){.pi-avatar-aura,.pi-coach-popover{animation:none!important}.pi-coach-avatar{transition:none}}
