@@ -544,6 +544,6 @@ test('PI keeps sparse calibration data in collection mode and never suggests an 
   }, { today: '2026-10-15' });
   const model = result.learningModels.find(item => item.workName === 'Вынос вручную');
   assert.equal(model.status, 'watch');
-  assert.equal(model.suggestedFactor, 1.1875 > 1.15 ? 1.15 : 1.15);
+  assert.equal(model.suggestedFactor, 1);
   assert.equal(result.learningSummary.includes('не предлагает менять нормы'), true);
 });
