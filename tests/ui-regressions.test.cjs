@@ -567,3 +567,17 @@ test('product presentation includes responsive 3D visuals and respects reduced-m
   assert.match(styles, /@keyframes about-slab-float/);
   assert.match(styles, /@media\(prefers-reduced-motion:reduce\)\{\.about-view/);
 });
+
+test('objects workspace is divided into numbered, responsive sections with a separate object list', () => {
+  const projectView = html.slice(html.indexOf('id="view-projects"'), html.indexOf('id="view-production"'));
+  for (const heading of [
+    'Паспорт сметы', 'Состав работ и объёмы', 'Планирование сроков',
+    'Фактическая производительность', 'Себестоимость и расходы',
+    'Итоговая экономика', 'Контроль объекта: план / факт', 'Действия по смете'
+  ]) assert.ok(projectView.includes(heading), `objects workflow includes "${heading}"`);
+  assert.match(projectView, /class="object-list-head"[\s\S]*?<div class="panel table-panel"><div id="projectsTable"/);
+  const styles = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(styles, /#view-projects \.object-block-title/);
+  assert.match(styles, /@media\(max-width:480px\)\{#view-projects/);
+  assert.match(styles, /#view-projects \.estimate-pro-results/);
+});
