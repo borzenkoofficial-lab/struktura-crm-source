@@ -164,7 +164,7 @@ function renderProductionIntelligence(data, summaryId, alertsId) {
       recommendations.slice(0, 3).map(item => `<article class="pi-recommendation ${item.priority === 'high' ? 'high' : ''}"><strong>${esc(item.title)}</strong><span>${esc(item.reason)}</span><small>Следующий шаг: ${esc(item.nextStep)}</small></article>`).join('')
     : `<div class="pi-recommendation-head"><strong>Что сделать в первую очередь</strong><span>Достоверность данных: ${esc(quality.confidence || 'не оценена')} · покрытие прогноза: ${Number(quality.forecastCoveragePct || 0)}%</span></div>`;
   const alertsHtml = result.alerts.length
-    ? `<div class="pi-alert-list">${result.alerts.slice(0, 5).map(alert => `<article class="pi-alert ${alert.level === 'danger' ? 'danger' : 'warning'}"><strong>${esc(alert.title)}</strong><span>${esc(alert.message)}</span></article>`).join('')}</div>`
+    ? `<div class="pi-alert-list">${result.alerts.slice(0, 5).map(alert => `<article class="pi-alert ${alert.level === 'danger' ? 'danger' : alert.level === 'info' ? 'info' : 'warning'}"><strong>${esc(alert.title)}</strong><span>${esc(alert.message)}</span></article>`).join('')}</div>`
     : '<div class="pi-no-alerts">По введённым данным явных отклонений не найдено. Это не гарантия отсутствия проблем — полнота учёта важна.</div>';
   alerts.innerHTML = recommendationHtml + alertsHtml;
 }
