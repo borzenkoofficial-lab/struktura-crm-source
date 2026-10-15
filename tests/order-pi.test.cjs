@@ -65,6 +65,7 @@ test('uses saved preliminary economics in PI ranking without claiming real win p
   assert.equal(result.economicsStatus, 'calculated_preliminary');
   assert.equal(result.deadlineStatus, 'production_duration_estimated');
   assert.equal(result.winProbabilityStatus, 'not_calculated');
+  assert.equal(result.confidence, 'низкая');
   assert.ok(result.components.find(item => item.key === 'economics').value > 0);
   assert.ok(result.reasons.some(reason => reason.includes('Расчётная маржа')));
   assert.ok(!result.nextQuestions.includes('Уточнить бюджет или цену договора'));
