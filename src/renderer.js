@@ -13,7 +13,7 @@ function dateToday() { return new Date().toISOString().slice(0,10); }
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', plans: 'Тариф и интеграции' };
+  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', plans: 'Тариф и интеграции', about: 'О продукте STRUKTURA' };
   $('pageTitle').textContent = titles[name] || 'STRUKTURA CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
   const view = $(`view-${name}`);
@@ -169,10 +169,16 @@ function renderProductionIntelligence(data, summaryId, alertsId) {
   if (typeof builder !== 'function') return;
   const result = builder(data);
   const summary = $(summaryId), alerts = $(alertsId);
-  if (summary) summary.textContent = result.summary;
+  if (summary) {
+    const q = result.dataQuality || {};
+    const quality = `Качество данных: ${Number(q.validPerformanceObservations || 0)} пригодных наблюдений${Number(q.invalidPerformanceObservations || 0) ? `, ${Number(q.invalidPerformanceObservations)} исключено из-за неполных или некорректных данных` : ''}. Сравнение устойчивой выработки доступно для ${Number(q.comparableWorkTypes || 0)} видов работ.`;
+    const calibration = (result.learningModels || []).filter(model => model.status === 'candidate').slice(0, 3)
+      .map(model => `${model.workName}: предложенный коэффициент ${model.suggestedFactor} (${model.observations} наблюдений)`).join('; ');
+    summary.textContent = `${result.summary} ${quality} ${result.learningSummary || ''}${calibration ? ` Кандидаты: ${calibration}.` : ''}`;
+  }
   if (!alerts) return;
   alerts.innerHTML = result.alerts.length
-    ? result.alerts.slice(0, 5).map(alert => `<article class="pi-alert ${alert.level === 'danger' ? 'danger' : 'warning'}"><strong>${esc(alert.title)}</strong><span>${esc(alert.message)}</span></article>`).join('')
+    ? result.alerts.slice(0, 8).map(alert => `<article class="pi-alert ${alert.level === 'danger' ? 'danger' : 'warning'}"><strong>${esc(alert.title)}</strong><span>${esc(alert.message)}</span></article>`).join('')
     : '<div class="pi-no-alerts">По введённым данным явных отклонений не найдено. Это не гарантия отсутствия проблем — полнота учёта важна.</div>';
 }
 async function refreshNotificationSettings() {
@@ -182,6 +188,236 @@ async function refreshNotificationSettings() {
   for (const key of ['startHour','endHour','staleShiftDays','repeatEveryHours']) form.elements[key].value = settings[key];
   $('notificationStatus').textContent = settings.enabled ? `Включены · ${String(settings.startHour).padStart(2,'0')}:00–${String(settings.endHour).padStart(2,'0')}:00 · проверка каждые 15 мин.` : 'Уведомления выключены';
 }
+let piCoachInsights = [];
+let piCoachContext = {};
+let piCoachIndex = 0;
+let piCoachLastAutoAt = 0;
+let piCoachFetchPromise = null;
+let piCoachVoiceEnabled = localStorage.getItem('struktura-pi-voice-enabled') !== '0';
+function piCoachTodayKey() { return dateToday(); }
+function piCoachSeenKey() { return 'struktura-pi-seen-' + piCoachTodayKey(); }
+function piCoachSeenIds() { try { const value = JSON.parse(localStorage.getItem(piCoachSeenKey()) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } }
+function piCoachMarkSeen(id) { const seen = new Set(piCoachSeenIds()); seen.add(id); localStorage.setItem(piCoachSeenKey(), JSON.stringify([...seen].slice(-100))); }
+function piCoachCurrent() { return piCoachInsights[piCoachIndex] || null; }
+function piCoachSpeak(text) {
+  if (!piCoachVoiceEnabled || !('speechSynthesis' in window) || !text) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(String(text));
+  utterance.lang = 'ru-RU'; utterance.rate = 0.96; utterance.pitch = 1.04; utterance.volume = 1;
+  const voices = window.speechSynthesis.getVoices();
+  const russian = voices.find(voice => /^ru(-|_)/i.test(voice.lang)) || voices.find(voice => /russian|русск/i.test(voice.name));
+  if (russian) utterance.voice = russian;
+  window.speechSynthesis.speak(utterance);
+}
+function piCoachRender() {
+  const item = piCoachCurrent();
+  if (!item) return;
+  $('piCoachPriority').textContent = ({ danger: 'ТРЕБУЕТ ВНИМАНИЯ', warning: 'ПРОВЕРИТЬ', opportunity: 'ВОЗМОЖНОСТЬ', info: 'АНАЛИЗ ДАННЫХ' })[item.severity] || 'АНАЛИЗ ДАННЫХ';
+  $('piCoachPriority').className = 'pi-coach-priority ' + item.severity;
+  $('piCoachTitle').textContent = item.title;
+  $('piCoachSpoken').textContent = item.spoken;
+  $('piCoachEvidence').textContent = item.detail;
+  $('piCoachEvidenceWrap').open = false;
+  $('piCoachActionBtn').textContent = item.actionLabel || 'Разобрать';
+  $('piCoachNextBtn').textContent = piCoachInsights.length > 1 ? 'Следующий совет · ' + (piCoachIndex + 1) + '/' + piCoachInsights.length + ' →' : 'Других сигналов нет';
+  $('piCoachNextBtn').disabled = piCoachInsights.length < 2;
+  $('piCoachVoiceToggle').textContent = piCoachVoiceEnabled ? 'Голос: включён' : 'Голос: выключен';
+  $('piCoachVoiceToggle').setAttribute('aria-pressed', String(piCoachVoiceEnabled));
+}
+function piCoachOpen(index = piCoachIndex, speak = false) {
+  if (!piCoachInsights.length) return;
+  piCoachIndex = (index + piCoachInsights.length) % piCoachInsights.length;
+  piCoachRender();
+  $('piCoachPopover').hidden = false;
+  $('piCoachAvatarBtn').setAttribute('aria-expanded', 'true');
+  if (speak && piCoachVoiceEnabled) piCoachSpeak(piCoachCurrent()?.spoken);
+}
+function piCoachClose() {
+  $('piCoachPopover').hidden = true;
+  $('piCoachAvatarBtn').setAttribute('aria-expanded', 'false');
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+async function refreshPiCoach(options = {}) {
+  if (piCoachFetchPromise) return piCoachFetchPromise;
+  piCoachFetchPromise = (async () => {
+    const calls = await Promise.allSettled([
+      window.crm.summary(), window.crm.listProjects(), window.crm.listLeads(),
+      window.crm.listTasks({ filter: 'all' }), window.crm.listCommercialOrders({}),
+      window.crm.productionOverview(), window.crm.financeInsights(), window.crm.estimateHistory(), window.crm.piCoachHistory(),
+      window.crm.listPayments(), window.crm.listExpenses(), window.crm.listIncomeRecords()
+    ]);
+    const value = (index, fallback) => calls[index].status === 'fulfilled' ? calls[index].value : fallback;
+    const [summary, projects, leads, tasks, orders, production, finance, quotes, coachHistory, payments, expenses, incomeRecords] = [
+      value(0, {}), value(1, []), value(2, []), value(3, []), value(4, []),
+      value(5, { projects: [], history: [], totals: {} }), value(6, {}),
+      value(7, []), value(8, []), value(9, []), value(10, []), value(11, [])
+    ];
+    production.history = coachHistory;
+    const builder = window.StrukturaPiCoach?.buildPiCoachInsights;
+    if (typeof builder !== 'function') return;
+    piCoachContext = { summary, projects, leads, tasks, orders, production, finance, quotes, payments, expenses, incomeRecords };
+    const next = builder(piCoachContext);
+    const oldCurrent = piCoachCurrent()?.id;
+    piCoachInsights = next;
+    const oldIndex = oldCurrent ? piCoachInsights.findIndex(item => item.id === oldCurrent) : -1;
+    piCoachIndex = oldIndex >= 0 ? oldIndex : 0;
+    const now = Date.now();
+    const seen = new Set(piCoachSeenIds());
+    const unseen = piCoachInsights.find(item => !seen.has(item.id));
+    if (!$('piCoachPopover').hidden) {
+      if (options.force === true && unseen) {
+        piCoachIndex = piCoachInsights.findIndex(item => item.id === unseen.id);
+        piCoachOpen(piCoachIndex, true);
+        piCoachMarkSeen(unseen.id);
+      } else piCoachRender();
+      return;
+    }
+    const canAutoOpen = !piCoachLastAutoAt || now - piCoachLastAutoAt >= 20 * 60 * 1000;
+    if (unseen && canAutoOpen && (options.force === true || piCoachLastAutoAt === 0 || unseen.severity === 'danger')) {
+      piCoachIndex = piCoachInsights.findIndex(item => item.id === unseen.id);
+      piCoachOpen(piCoachIndex, true);
+      piCoachMarkSeen(unseen.id);
+      piCoachLastAutoAt = now;
+    }
+  })().finally(() => { piCoachFetchPromise = null; });
+  return piCoachFetchPromise;
+}
+$('piCoachAvatarBtn').addEventListener('click', () => {
+  if ($('piCoachPopover').hidden) piCoachOpen(piCoachIndex, true);
+  else piCoachSpeak(piCoachCurrent()?.spoken);
+});
+$('piCoachCloseBtn').addEventListener('click', piCoachClose);
+$('piCoachSpeakBtn').addEventListener('click', () => {
+  if (!piCoachVoiceEnabled) {
+    piCoachVoiceEnabled = true; localStorage.setItem('struktura-pi-voice-enabled', '1'); piCoachRender();
+  }
+  piCoachSpeak(piCoachCurrent()?.spoken);
+});
+$('piCoachVoiceToggle').addEventListener('click', () => {
+  piCoachVoiceEnabled = !piCoachVoiceEnabled;
+  localStorage.setItem('struktura-pi-voice-enabled', piCoachVoiceEnabled ? '1' : '0');
+  if (!piCoachVoiceEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+  piCoachRender();
+  if (piCoachVoiceEnabled) piCoachSpeak(piCoachCurrent()?.spoken);
+});
+function piCoachNormalize(value) {
+  return String(value || '').toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+}
+function piCoachFindInsight(views) {
+  return piCoachInsights.find(item => views.includes(item.view)) || null;
+}
+function piCoachAnswerVoice(rawQuery) {
+  const query = piCoachNormalize(rawQuery);
+  if (!query) { piCoachSpeak('Я не расслышала вопрос. Повтори, пожалуйста.'); return; }
+  if (/^(дальше|следующ|еще совет|ещё совет)/u.test(query)) {
+    if (piCoachInsights.length > 1) piCoachOpen(piCoachIndex + 1, true);
+    else piCoachSpeak('Сейчас у меня нет другого подтверждённого сигнала. После новых данных я обновлю советы.');
+    return;
+  }
+  if (/подроб|почему|на чем основан|доказательств/u.test(query)) {
+    piCoachSpeak(piCoachCurrent()?.detail || 'Сначала загрузи данные бизнеса.');
+    return;
+  }
+  if (/привет|здравств|что ты умеешь|помоги|чем можешь/u.test(query)) {
+    piCoachSpeak('Я ПИ, производственный интеллект STRUKTURA. Я сопоставляю сохранённые объекты, договоры, коммерческие предложения, платежи, расходы, заявки, задачи и отчёты смен. Могу подсветить риск и объяснить, на каких данных основан совет. Я не придумываю отсутствующие цифры.');
+    return;
+  }
+  const sections = [
+    { pattern: /финанс|деньг|касс|платеж|оплат|долг/u, view: 'finance', label: 'финансам' },
+    { pattern: /производств|смен|выработ|просто|план факт/u, view: 'production', label: 'производству' },
+    { pattern: /заявк|клиент|воронк|лид/u, view: 'leads', label: 'заявкам' },
+    { pattern: /задач|просроч/u, view: 'tasks', label: 'задачам' },
+    { pattern: /заказ|тендер/u, view: 'browser', label: 'заказам' },
+    { pattern: /кп|смет|предложен|марж|себестоим|цен/u, view: 'projects', label: 'сметам и КП' }
+  ];
+  const section = sections.find(item => item.pattern.test(query));
+  const projectList = Array.isArray(piCoachContext.projects) ? piCoachContext.projects : [];
+  const project = projectList.find(item => {
+    const title = piCoachNormalize(item.title);
+    return title.length >= 3 && query.includes(title);
+  }) || projectList.find(item => {
+    const tokens = piCoachNormalize(item.title).split(' ').filter(word => word.length >= 4);
+    return tokens.some(word => query.split(' ').includes(word));
+  });
+  if (project && (/объект|договор|проект|прибыл|расход|оплат|сколько|что по/u.test(query) || !section)) {
+    const contract = Number(project.contract_rub) || 0;
+    const received = Number(project.received_rub) || 0;
+    const paid = Number(project.paid_expenses_rub) || 0;
+    const planned = Number(project.planned_expenses_rub) || 0;
+    const remaining = Math.max(0, contract - received);
+    const margin = contract > 0 ? Math.round((contract - paid - planned) / contract * 100) : null;
+    const prodProject = (piCoachContext.production?.projects || []).find(item => Number(item.id) === Number(project.id));
+    let answer = 'По объекту «' + project.title + '». Статус: ' + (project.status || 'не указан') + '. Договор: ' + fmt(contract) + '. Получено: ' + fmt(received) + '. Остаток к получению по договору: ' + fmt(remaining) + '. Оплаченные расходы: ' + fmt(paid) + '. Неоплаченные или запланированные расходы: ' + fmt(planned) + '.';
+    if (margin !== null) answer += ' Расчётный запас договора после этих расходов — ' + margin + ' процентов. Это не окончательная прибыль: могут быть не внесены налоги и другие затраты.';
+    if (prodProject) answer += prodProject.planCount > 0 ? ' В производственном плане ' + prodProject.planCount + ' видов работ; отчётов смен: ' + prodProject.shiftCount + '. Последний отчёт: ' + (prodProject.lastShiftDate || 'не указан') + '.' : ' Производственный план пока не заполнен.';
+    piCoachSpeak(answer);
+    return;
+  }
+  if (section) {
+    if (/открой|покажи|перейди/u.test(query)) showView(section.view);
+    const insight = piCoachFindInsight([section.view]);
+    if (section.view === 'finance' && !piCoachInsights.some(item => item.view === 'finance')) {
+      const finance = piCoachContext.finance || {};
+      const forecast = Array.isArray(finance.forecasts) ? finance.forecasts.find(item => Number(item.days) === 7) : null;
+      piCoachSpeak('По финансам. Расчётный денежный остаток: ' + fmt(finance.cash) + '. Остаток по договорам к получению: ' + fmt(finance.receivablesTotal) + '. Неоплаченные расходы: ' + fmt(finance.unpaidTotal) + '.' + (forecast ? ' Прогноз остатка на семь дней: ' + fmt(forecast.projectedCash) + ', при условии что учтённые поступления и расходы произойдут в срок.' : ' Прогноз на семь дней недоступен.'));
+      return;
+    }
+    if (section.view === 'production' && !piCoachInsights.some(item => item.view === 'production')) {
+      const totals = piCoachContext.production?.totals || {};
+      piCoachSpeak('По производству: активных объектов в плане ' + ((piCoachContext.production?.projects || []).length) + ', отчётов смен в доступной истории ' + (totals.shifts || 0) + ', учтённых записей по работам ' + (totals.work_records || 0) + '. Пока нет отдельного сигнала с более высоким приоритетом.');
+      return;
+    }
+    if (section.view === 'projects') {
+      const quotes = piCoachContext.quotes || [];
+      if (quotes.length) {
+        const quote = quotes[0];
+        piCoachSpeak('В архиве ' + quotes.length + ' коммерческих предложений. Последнее — «' + (quote.title || 'без названия') + '», дата ' + String(quote.prepared_at || '').slice(0, 10) + '. Цена ' + fmt(quote.revenue_rub) + ', расчётная прибыль ' + fmt(quote.profit_rub) + ', маржа ' + Number(quote.margin_pct || 0).toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + ' процентов. Архив включает PDF, сохранённые после версии 1.16.0.');
+        return;
+      }
+    }
+    if (insight) piCoachSpeak(insight.spoken);
+    else piCoachSpeak('По ' + section.label + ' сейчас нет отдельного подтверждённого предупреждения. Это не значит, что проблем нет: я опираюсь только на внесённые данные.');
+    return;
+  }
+  piCoachSpeak('Я пока не поняла вопрос. Спроси, например: что по финансам, что по производству, сколько КП в архиве, или назови объект.');
+}
+$('piCoachListenBtn').addEventListener('click', () => {
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Recognition) {
+    piCoachSpeak('Голосовой ввод не поддерживается этой сборкой Windows или движком речи. Озвучивание советов доступно кнопкой Послушать.');
+    toast('Голосовой ввод недоступен в этой сборке. Озвучивание советов работает отдельно.', true);
+    return;
+  }
+  const button = $('piCoachListenBtn');
+  const recognition = new Recognition();
+  recognition.lang = 'ru-RU'; recognition.interimResults = false; recognition.maxAlternatives = 1;
+  button.disabled = true; button.textContent = '● Слушаю…';
+  recognition.onresult = event => {
+    const query = event.results?.[0]?.[0]?.transcript || '';
+    button.textContent = '🎙 Сказать ПИ';
+    piCoachAnswerVoice(query);
+  };
+  recognition.onerror = event => {
+    button.textContent = '🎙 Сказать ПИ';
+    if (event.error !== 'no-speech' && event.error !== 'aborted') toast('Не удалось распознать речь: ' + event.error, true);
+    else piCoachSpeak('Я не расслышала вопрос. Нажми на микрофон и повтори.');
+  };
+  recognition.onend = () => { button.disabled = false; button.textContent = '🎙 Сказать ПИ'; };
+  try { recognition.start(); }
+  catch (error) { button.disabled = false; button.textContent = '🎙 Сказать ПИ'; toast('Не удалось запустить микрофон: ' + error.message, true); }
+});
+
+$('piCoachNextBtn').addEventListener('click', () => {
+  if (piCoachInsights.length > 1) piCoachOpen(piCoachIndex + 1, true);
+});
+$('piCoachActionBtn').addEventListener('click', () => {
+  const item = piCoachCurrent();
+  if (!item) return;
+  piCoachClose();
+  showView(item.view || 'dashboard');
+});
+if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = () => {};
+
 async function refreshDashboard() {
   const s = await window.crm.summary();
   $('statLeads').textContent = s.leads; $('statProjects').textContent = s.projects;
@@ -190,6 +426,7 @@ async function refreshDashboard() {
   const leads = await window.crm.listLeads();
   $('recentLeads').innerHTML = leads.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th></tr></thead><tbody>${leads.slice(0,5).map(l => `<tr><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><span class="pill ${esc(l.status)}">${esc(statusLabels[l.status] || l.status)}</span></td><td>${fmt(l.budget_rub)}</td></tr>`).join('')}</tbody></table>` : `<div class="empty-state"><div class="empty-icon">◉</div><strong>Пока нет заявок</strong><span>Добавь первое обращение — оно появится здесь.</span><button class="button primary" data-goto="leads">Добавить заявку</button></div>`;
   try { const production = await window.crm.productionOverview(); renderProductionIntelligence(production, 'piHomeSummary', 'piHomeAlerts'); } catch (error) { $('piHomeSummary').textContent = 'Не удалось загрузить данные производства.'; $('piHomeAlerts').innerHTML = `<div class="pi-no-alerts">${esc(error.message)}</div>`; }
+  refreshPiCoach().catch(() => {});
 }
 async function refreshLeads() {
   const rows = await window.crm.listLeads(); const q = ($('leadSearch')?.value || '').toLowerCase(); const status = $('leadStatusFilter')?.value || '';
@@ -741,7 +978,7 @@ $('estimateCopyBtn').addEventListener('click', estimateCopySummary);
 $('estimateCsvBtn').addEventListener('click', estimateDownloadCsv);
 $('estimatePdfBtn').addEventListener('click', async () => {
   const r = refreshEstimate(); if (!r) return;
-  try { const saved = await window.crm.exportQuotePdf({ title: $('estimateTitle').value, customer: $('estimateCustomer').value, address: $('estimateAddress').value, contact: $('estimateContact').value, validity: $('estimateValidity').value, lines: r.lineItems.map(x => ({name:x.name,unit:x.unit,quantity:x.quantity,price:x.price})), revenue: r.revenue, discount: r.discount }); if (saved?.canceled) return; toast('КП в PDF сохранено.'); } catch (error) { toast(`Не удалось сформировать PDF: ${error.message}`, true); }
+  try { const saved = await window.crm.exportQuotePdf({ title: $('estimateTitle').value, customer: $('estimateCustomer').value, address: $('estimateAddress').value, contact: $('estimateContact').value, validity: $('estimateValidity').value, lines: r.lineItems.map(x => ({name:x.name,unit:x.unit,quantity:x.quantity,price:x.price})), revenue: r.revenue, discount: r.discount, estimatedCostRub: r.totalCost, estimatedProfitRub: r.profit, marginPct: r.actualMargin }); if (saved?.canceled) return; toast('КП в PDF сохранено и добавлено в историю ПИ.'); await refreshPiCoach({ force: true }).catch(() => {}); } catch (error) { toast(`Не удалось сформировать PDF: ${error.message}`, true); }
 });
 $('estimateCreateProjectBtn').addEventListener('click', () => {
   const result = refreshEstimate(); if (!result) return;

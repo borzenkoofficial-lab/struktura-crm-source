@@ -349,6 +349,18 @@ ipcMain.handle('production:overview', () => {
   return { projects: resultProjects, history, totals: { ...totals, person_shifts: Number(totals.person_shifts || 0) }, modelItems: observations.length };
 });
 
+ipcMain.handle('pi:coachHistory', () => {
+  const rows = db.prepare('SELECT ws.id, ws.project_id, p.title project_title, ws.shift_date, ws.workers_count, ws.shift_hours, ws.downtime_hours, ws.complexity_factor, ws.notes ' +
+    'FROM work_shifts ws JOIN projects p ON p.id=ws.project_id ORDER BY ws.shift_date DESC, ws.id DESC').all();
+  const getPerformance = db.prepare('SELECT work_name, unit, quantity_done, workers_count, hours, baseline_productivity FROM work_shift_items WHERE shift_id=? ORDER BY id');
+  return rows.map(shift => ({ ...shift, performance: getPerformance.all(shift.id).map(item => {
+    const actualRate = Number(item.quantity_done) / (Number(item.workers_count) * Number(item.hours) / 8);
+    const expectedRate = Number(item.baseline_productivity) / Number(shift.complexity_factor || 1);
+    const deviation = expectedRate > 0 ? (actualRate / expectedRate - 1) * 100 : 0;
+    return { ...item, actualRate: Math.round(actualRate * 100) / 100, expectedRate: Math.round(expectedRate * 100) / 100, deviationPct: Math.round(deviation) };
+  }) }));
+});
+
 ipcMain.handle('production:exportReportPdf', async (_event, input = {}) => {
   const projectId = Number(input.project_id);
   const documentType = input.document_type === 'act' ? 'act' : 'report';
@@ -373,7 +385,17 @@ ipcMain.handle('production:exportReportPdf', async (_event, input = {}) => {
   const { canceled, filePath } = await dialog.showSaveDialog({ title: documentType === 'act' ? 'Сохранить акт фиксации работ в PDF' : 'Сохранить производственный отчёт в PDF', defaultPath: defaultName, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (canceled || !filePath) return { canceled: true };
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
-  try { await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html)); const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } }); fs.writeFileSync(filePath, data); return { canceled: false, filePath }; }
+  try {
+    await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+    fs.writeFileSync(filePath, data);
+    const costRub = Math.max(0, Number(input.estimatedCostRub) || 0);
+    const profitRub = Number.isFinite(Number(input.estimatedProfitRub)) ? Number(input.estimatedProfitRub) : total - costRub;
+    const marginPct = Number.isFinite(Number(input.marginPct)) ? Number(input.marginPct) : (total > 0 ? profitRub / total * 100 : 0);
+    db.prepare(`INSERT INTO quote_history(title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json,file_path) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(title, customer, address, new Date().toISOString(), total, costRub, profitRub, marginPct, discount, lines.length, JSON.stringify(lines.map(line => ({ name: clean(line.name,180), unit: clean(line.unit,24), quantity: Math.max(0, Number(line.quantity) || 0), price: Math.max(0, Number(line.price) || 0) }))), filePath);
+    return { canceled: false, filePath, historySaved: true };
+  }
   finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
 });
 
@@ -1064,6 +1086,8 @@ ipcMain.handle('app:openExternal', async (_event, value) => {
 
 function quoteEscape(value) { return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 function quoteMoney(value) { return `${Math.round(Number(value) || 0).toLocaleString('ru-RU')} ₽`; }
+ipcMain.handle('estimate:history', () => db.prepare(`SELECT id,title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json FROM quote_history ORDER BY prepared_at DESC,id DESC`).all().map(row => ({ ...row, lines: (() => { try { return JSON.parse(row.lines_json || '[]'); } catch { return []; } })() })));
+
 ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   const lines = Array.isArray(input.lines) ? input.lines.slice(0, 500) : [];
   if (!lines.length) throw new Error('Добавь в смету хотя бы одну работу перед созданием КП.');

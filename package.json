@@ -1,6 +1,6 @@
 {
   "name": "struktura-crm",
-  "version": "1.14.2",
+  "version": "1.16.0",
   "private": true,
   "description": "Struktura CRM — локальная настольная система управления клиентами, объектами, производством, сметами и финансами",
   "main": "src/main.cjs",
