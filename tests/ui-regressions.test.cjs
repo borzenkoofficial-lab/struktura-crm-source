@@ -592,6 +592,7 @@ test('PI voice companion is present, data-driven, and supports speech plus evide
   assert.match(renderer, /SpeechSynthesisUtterance/);
   assert.match(renderer, /window\.crm\.estimateHistory\(\)/);
   assert.match(renderer, /window\.crm\.productionOverview\(\)/);
+  assert.match(renderer, /window\.crm\.piCoachHistory\(\)/);
   assert.match(renderer, /window\.crm\.financeInsights\(\)/);
   assert.match(renderer, /20 \* 60 \* 1000/);
   const styles = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
@@ -605,5 +606,7 @@ test('exported quote history is stored locally and exposed through a narrow prel
   assert.match(database, /CREATE TABLE IF NOT EXISTS quote_history/);
   assert.match(main, /ipcMain\.handle\('estimate:history'/);
   assert.match(main, /INSERT INTO quote_history/);
+  assert.match(main, /ipcMain\.handle\('pi:coachHistory'/);
+  assert.match(preload, /piCoachHistory: \(\) => ipcRenderer\.invoke\('pi:coachHistory'\)/);
   assert.match(preload, /estimateHistory: \(\) => ipcRenderer\.invoke\('estimate:history'\)/);
 });
