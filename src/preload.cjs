@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('crm', {
   updateProjectStatus: (data) => ipcRenderer.invoke('projects:updateStatus', data),
   createProjectWithPlan: (data) => ipcRenderer.invoke('projects:createWithPlan', data),
   productionOverview: () => ipcRenderer.invoke('production:overview'),
+  piCoachHistory: () => ipcRenderer.invoke('pi:coachHistory'),
   exportProductionReportPdf: (data) => ipcRenderer.invoke('production:exportReportPdf', data),
   productionRateModels: (catalogIds, targetCrewSize) => ipcRenderer.invoke('production:rateModels', { catalog_ids: catalogIds, target_crew_size: targetCrewSize }),
   getProductionPlan: (projectId) => ipcRenderer.invoke('production:getPlan', projectId),
