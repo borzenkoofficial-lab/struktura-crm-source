@@ -581,3 +581,29 @@ test('objects workspace is divided into numbered, responsive sections with a sep
   assert.match(styles, /@media\(max-width:480px\)\{#view-projects/);
   assert.match(styles, /#view-projects \.estimate-pro-results/);
 });
+
+
+test('PI voice companion is present, data-driven, and supports speech plus evidence', () => {
+  assert.match(html, /id="piCoachAvatarBtn"/);
+  assert.match(html, /id="piCoachPopover"/);
+  assert.match(html, /id="piCoachSpeakBtn"/);
+  assert.match(html, /id="piCoachEvidence"/);
+  assert.match(html, /src="pi-coach\.js"/);
+  assert.match(renderer, /SpeechSynthesisUtterance/);
+  assert.match(renderer, /window\.crm\.estimateHistory\(\)/);
+  assert.match(renderer, /window\.crm\.productionOverview\(\)/);
+  assert.match(renderer, /window\.crm\.financeInsights\(\)/);
+  assert.match(renderer, /20 \* 60 \* 1000/);
+  const styles = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(styles, /\.pi-coach-avatar/);
+  assert.match(styles, /prefers-reduced-motion:reduce/);
+});
+
+test('exported quote history is stored locally and exposed through a narrow preload API', () => {
+  const database = fs.readFileSync(path.join(__dirname, '../src/db.cjs'), 'utf8');
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  assert.match(database, /CREATE TABLE IF NOT EXISTS quote_history/);
+  assert.match(main, /ipcMain\.handle\('estimate:history'/);
+  assert.match(main, /INSERT INTO quote_history/);
+  assert.match(preload, /estimateHistory: \(\) => ipcRenderer\.invoke\('estimate:history'\)/);
+});
