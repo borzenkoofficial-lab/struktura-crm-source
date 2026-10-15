@@ -26,6 +26,7 @@ const SIGNALS = [
   { key: 'contractor', label: 'Поиск подрядчика', weight: 30, re: /ищ.{0,12}подрядчик|требуется подрядчик|приглашаем подрядчик|выбор подрядчик|подрядн.{0,12}организац/iu },
   { key: 'demolition', label: 'Демонтаж', weight: 25, re: /демонтаж|демонтир|разборк.{0,12}(помещ|перегород|покрыт|здан)/iu },
   { key: 'renovation', label: 'Ремонт / реконструкция', weight: 15, re: /ремонт|реконструкц|отделк|fit.?out|капитальн.{0,12}ремонт/iu },
+  { key: 'raised_floor', label: 'Фальшполы', weight: 25, re: /фальшпол|поднят.{0,8}пол|двойн.{0,8}пол|техническ.{0,8}пол/iu },
   { key: 'commercial', label: 'Коммерческий объект', weight: 10, re: /офис|магазин|торгов.{0,12}центр|бизнес.?центр|склад|коммерческ.{0,12}помещ|нежил.{0,12}помещ/iu }
 ];
 
@@ -53,6 +54,13 @@ function normalizeOrderResult(item = {}, query = '', service = 'demolition', reg
   const evidence = title + ' ' + snippet;
   const signals = SIGNALS.filter(signal => signal.re.test(evidence));
   const score = Math.min(100, signals.reduce((sum, signal) => sum + signal.weight, 0));
+  const serviceSignal = {
+    demolition: 'demolition',
+    finishing: 'renovation',
+    raised_floor: 'raised_floor'
+  }[service] || 'demolition';
+  const hasServiceEvidence = signals.some(signal => signal.key === serviceSignal);
+  const hasProcurementEvidence = signals.some(signal => ['tender', 'contractor'].includes(signal.key));
 
   return {
     title,
@@ -64,7 +72,7 @@ function normalizeOrderResult(item = {}, query = '', service = 'demolition', reg
     region: String(region || 'Москва и Московская область').slice(0, 120),
     signal_score: score,
     signal_labels: signals.map(signal => signal.label),
-    relevance: score >= 30 && signals.some(signal => ['tender', 'contractor'].includes(signal.key))
+    relevance: score >= 30 && hasProcurementEvidence && hasServiceEvidence
       ? 'potential_order'
       : 'review'
   };
