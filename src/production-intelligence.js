@@ -127,6 +127,33 @@ function buildProductionIntelligence(data = {}, options = {}) {
     decliningWorkTypes,
     unstableWorkTypes
   };
+  // Local adaptive calibration: estimate a conservative correction from observed/expected
+  // productivity ratios. This is a recommendation only; it never silently rewrites catalog norms.
+  const learningModels = [...workHistory.values()].map(work => {
+    const rows = work.observations.slice().sort((a, b) => b.date.localeCompare(a.date));
+    const ratios = rows.map(row => row.actualRate / row.expectedRate).filter(value => Number.isFinite(value) && value > 0);
+    const observedFactor = median(ratios);
+    const count = ratios.length;
+    const weight = count / (count + 5);
+    const suggestedFactor = count
+      ? Math.max(0.85, Math.min(1.15, 1 + (observedFactor - 1) * weight))
+      : 1;
+    return {
+      workName: work.name,
+      unit: work.unit,
+      observations: count,
+      observedFactor: Number(observedFactor.toFixed(3)),
+      suggestedFactor: Number(suggestedFactor.toFixed(3)),
+      medianDeviationPct: Math.round((observedFactor - 1) * 100),
+      status: count >= 5 && Math.abs(suggestedFactor - 1) >= 0.03 ? 'candidate' : count >= 3 ? 'watch' : 'collecting'
+    };
+  }).sort((a, b) => b.observations - a.observations);
+
+  const calibrationCandidates = learningModels.filter(model => model.status === 'candidate');
+  const learningSummary = calibrationCandidates.length
+    ? `Есть ${calibrationCandidates.length} кандидатов на осторожную калибровку норм по накопленному факту. Изменения пока предложены, но не применяются автоматически.`
+    : 'Автокалибровка пока не предлагает менять нормы: нужно не менее 5 корректных наблюдений по одному виду работ и устойчивое отклонение от нормы.';
+
   const uniqueAlerts = [];
   const seen = new Set();
   for (const alert of alerts) {
@@ -136,7 +163,7 @@ function buildProductionIntelligence(data = {}, options = {}) {
   }
   const priority = { danger: 0, warning: 1, info: 2 };
   uniqueAlerts.sort((a, b) => (priority[a.level] ?? 9) - (priority[b.level] ?? 9));
-  return { projectCount: projects.length, forecastableCount, shiftCount, workRecords, summary, alerts: uniqueAlerts, dataQuality };
+  return { projectCount: projects.length, forecastableCount, shiftCount, workRecords, summary, alerts: uniqueAlerts, dataQuality, learningModels, learningSummary };
 }
 
 function median(values) {
