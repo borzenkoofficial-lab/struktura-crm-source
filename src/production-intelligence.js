@@ -81,13 +81,13 @@ function buildProductionIntelligence(data = {}, options = {}) {
     const workers = Number(shift.workers_count);
     const project = projects.find(item => Number(item.id) === Number(shift.project_id));
     const projectName = project?.title ? ` · ${project.title}` : '';
+    if (Number.isFinite(shiftHours) && shiftHours > 0 && Number.isFinite(downtimeHours) && downtimeHours >= 0 && downtimeHours <= shiftHours && shift.project_id != null) {
+      if (!downtimeByProject.has(Number(shift.project_id))) downtimeByProject.set(Number(shift.project_id), []);
+      downtimeByProject.get(Number(shift.project_id)).push({ hours: downtimeHours, shiftHours, date: shift.shift_date || '' });
+    }
     if (Number.isFinite(shiftHours) && shiftHours > 0 && Number.isFinite(downtimeHours) && downtimeHours >= 1 && downtimeHours <= shiftHours && downtimeHours / shiftHours >= 0.25) {
       const percent = Math.round(downtimeHours / shiftHours * 100);
       add(percent >= 50 ? 'danger' : 'warning', `Высокий простой${projectName}`, `В смене ${shift.shift_date || 'без даты'} простой составил ${downtimeHours} ч. (${percent}% смены). Зафиксируй причину и проверь, что можно устранить до следующей смены.`, shift.project_id ?? null);
-      if (shift.project_id != null) {
-        if (!downtimeByProject.has(Number(shift.project_id))) downtimeByProject.set(Number(shift.project_id), []);
-        downtimeByProject.get(Number(shift.project_id)).push({ hours: downtimeHours, shiftHours, date: shift.shift_date || '' });
-      }
     }
     // Work-hour allocations cannot exceed the shift's available crew capacity.
     if (Number.isFinite(workers) && workers > 0 && Number.isFinite(shiftHours) && shiftHours > 0 && Number.isFinite(downtimeHours) && downtimeHours >= 0 && downtimeHours <= shiftHours) {
