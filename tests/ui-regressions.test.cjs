@@ -433,3 +433,14 @@ test('additional income CRUD is wired end-to-end and contributes to cash totals 
   assert.match(main, /cash: totalReceived - expenses/);
   assert.match(main, /cash: totalReceived - paid/);
 });
+
+
+test('PI forecast reports a range, confidence indicator, baseline drift and unstable output warnings', () => {
+  const pi = fs.readFileSync(path.join(__dirname, '../src/production-intelligence.js'), 'utf8');
+  assert.match(renderer, /forecastLowTeamShiftsRemaining/);
+  assert.match(renderer, /forecastHighTeamShiftsRemaining/);
+  assert.match(renderer, /индекс надёжности данных/);
+  assert.match(pi, /Норма требует пересмотра/);
+  assert.match(pi, /Нестабильная выработка/);
+  assert.match(pi, /не вероятность точного срока/);
+});

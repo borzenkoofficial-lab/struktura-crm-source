@@ -84,3 +84,36 @@ test('production model keeps linear scaling when productivity is similar across 
   const model = buildRateModel({ baselineProductivity: 10, observations, targetCrewSize: 10 });
   assert.equal(model.crewScalingApplied, false, 'similar per-worker results do not justify a size adjustment');
 });
+
+
+test('forecast exposes an uncertainty range and data-confidence score without changing the central estimate', () => {
+  const result = forecastRemainingWork({
+    planItems: [{ catalog_id: 'wall', work_name: 'Демонтаж стен', unit: 'м²', planned_quantity: 100, baseline_productivity: 10 }],
+    actualByCatalog: { wall: 30 },
+    observationsByCatalog: {},
+    targetDifficulty: 1,
+    crewSize: 5
+  });
+  const line = result.lines[0];
+  assert.equal(result.teamShiftsRemaining, 1.4);
+  assert.equal(result.forecastLowTeamShiftsRemaining, 0.93);
+  assert.equal(result.forecastHighTeamShiftsRemaining, 2.8);
+  assert.ok(result.confidenceScore >= 0 && result.confidenceScore <= 100);
+  assert.ok(line.uncertaintyPct >= 0);
+  assert.equal(line.learningStatus, 'baseline');
+});
+
+test('production model surfaces large baseline drift and unstable historical observations', () => {
+  const observations = [
+    { quantity_done: 40, workers_count: 5, hours: 8, complexity_factor: 1 },
+    { quantity_done: 60, workers_count: 5, hours: 8, complexity_factor: 1 },
+    { quantity_done: 30, workers_count: 5, hours: 8, complexity_factor: 1 },
+    { quantity_done: 70, workers_count: 5, hours: 8, complexity_factor: 1 },
+    { quantity_done: 35, workers_count: 5, hours: 8, complexity_factor: 1 }
+  ];
+  const model = buildRateModel({ baselineProductivity: 10, observations });
+  assert.ok(model.robustSpreadPct > 0);
+  assert.ok(model.uncertaintyPct >= 10);
+  assert.ok(model.baselineProductivity > 0);
+  assert.equal(model.learningStatus, 'learned');
+});
