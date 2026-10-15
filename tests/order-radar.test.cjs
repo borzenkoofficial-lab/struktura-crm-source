@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildOrderQueries, normalizeOrderResult, deduplicateOrders } = require('../src/order-radar.cjs');
+const { buildOrderQueries, normalizeOrderResult, normalizeBraveOrderResult, deduplicateOrders } = require('../src/order-radar.cjs');
 
 test('builds four order queries with selected service and region', () => {
   const queries = buildOrderQueries('demolition', 'Москва и МО');
@@ -59,4 +59,23 @@ test('uses safe defaults for unknown service and strips URL credentials', () => 
     url: 'https://example.ru/order'
   }, '', 'unknown');
   assert.equal(order.service, 'demolition');
+});
+
+
+test('maps Brave Search result fields into a scored order card', () => {
+  const order = normalizeBraveOrderResult({
+    company_name: 'Закупка: демонтаж офисных помещений',
+    source_url: 'https://tenders.example.ru/order/42?utm_source=brave#details',
+    snippet: 'Проводится тендер, заказчик ищет подрядчика для демонтажа офиса в Москве'
+  }, 'тендер демонтаж Москва', 'demolition', 'Москва и МО');
+  assert.ok(order);
+  assert.equal(order.title, 'Закупка: демонтаж офисных помещений');
+  assert.equal(order.source_url, 'https://tenders.example.ru/order/42?utm_source=brave');
+  assert.match(order.snippet, /заказчик ищет подрядчика/i);
+  assert.equal(order.relevance, 'potential_order');
+});
+
+test('rejects incomplete Brave results instead of creating empty order cards', () => {
+  assert.equal(normalizeBraveOrderResult({ source_url: 'https://example.ru', snippet: 'Демонтаж' }), null);
+  assert.equal(normalizeBraveOrderResult({ company_name: 'Заказ', snippet: 'Демонтаж' }), null);
 });
