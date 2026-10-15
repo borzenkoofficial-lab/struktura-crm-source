@@ -224,4 +224,18 @@
     <div class="modal-actions"><button type="button" class="button subtle" data-close="manualOrderDialog">Отмена</button><button type="submit" class="button primary">Сохранить и оценить в ПИ</button></div>
   </form>
 </dialog>
-<div id="toast" class="toast" role="status" aria-live="polite"></div><script src="production-intelligence.js"></script><script src="prospect-scoring.js"></script><script src="prospect-radar.js"></script><script src="estimate-calculator.js"></script><script src="renderer.js"></script></body></html>
+<aside class="pi-companion" id="piCompanion" aria-label="Голосовой советник ПИ">
+  <section class="pi-coach-popover" id="piCoachPopover" hidden aria-live="polite" aria-atomic="true">
+    <header class="pi-coach-head"><div><span class="pi-coach-eyebrow">ПИ · ПРОИЗВОДСТВЕННЫЙ ИНТЕЛЛЕКТ</span><strong>Совет по данным бизнеса</strong></div><button id="piCoachCloseBtn" type="button" aria-label="Свернуть совет ПИ">×</button></header>
+    <div class="pi-coach-priority" id="piCoachPriority">АНАЛИЗ ДАННЫХ</div>
+    <h3 id="piCoachTitle">Загружаю картину бизнеса…</h3>
+    <p id="piCoachSpoken">Сопоставляю объекты, сметы, коммерческие предложения, финансы и отчёты смен.</p>
+    <details class="pi-coach-evidence" id="piCoachEvidenceWrap"><summary>На чём основан вывод</summary><p id="piCoachEvidence"></p></details>
+    <div class="pi-coach-actions"><button class="button primary" id="piCoachActionBtn" type="button">Разобрать</button><button class="button subtle" id="piCoachSpeakBtn" type="button">▶ Послушать</button></div>
+    <footer class="pi-coach-footer"><button type="button" id="piCoachNextBtn">Следующий совет →</button><button type="button" id="piCoachVoiceToggle" aria-pressed="true">Голос: включён</button></footer>
+  </section>
+  <button class="pi-coach-avatar" id="piCoachAvatarBtn" type="button" aria-label="Открыть голосового советника ПИ" aria-expanded="false" title="ПИ — голосовой советник">
+    <span class="pi-avatar-aura"></span><span class="pi-avatar-face"><i class="pi-avatar-eye eye-left"></i><i class="pi-avatar-eye eye-right"></i><i class="pi-avatar-smile"></i></span><span class="pi-avatar-spark spark-one">✦</span><span class="pi-avatar-spark spark-two">·</span><span class="pi-avatar-caption">ПИ</span>
+  </button>
+</aside>
+<div id="toast" class="toast" role="status" aria-live="polite"></div><script src="production-intelligence.js"></script><script src="pi-coach.js"></script><script src="prospect-scoring.js"></script><script src="prospect-radar.js"></script><script src="estimate-calculator.js"></script><script src="renderer.js"></script></body></html>
