@@ -30,8 +30,26 @@ const SIGNALS = [
   { key: 'commercial', label: 'Коммерческий объект', weight: 10, re: /офис|магазин|торгов.{0,12}центр|бизнес.?центр|склад|коммерческ.{0,12}помещ|нежил.{0,12}помещ/iu }
 ];
 
-function buildOrderQueries(service = 'demolition', region = 'Москва и Московская область') {
-  const queries = ORDER_QUERIES[service] || ORDER_QUERIES.demolition;
+function classifyOrderSource(url, fallback = 'web') {
+  try {
+    const host = new URL(String(url || '')).hostname.toLowerCase().replace(/^www\./, '');
+    if (host === 't.me' || host.endsWith('.t.me') || host === 'telegram.me' || host.endsWith('.telegram.me')) return 'telegram';
+    if (host === 'avito.ru' || host.endsWith('.avito.ru')) return 'avito';
+    if (['zakupki.gov.ru','roseltorg.ru','b2b-center.ru','rts-tender.ru','etp-ets.ru','fabrikant.ru'].some(domain => host === domain || host.endsWith('.' + domain))) return 'tenders';
+  } catch {}
+  return ['web','telegram','avito','tenders','files'].includes(fallback) ? fallback : 'web';
+}
+
+function buildOrderQueries(service = 'demolition', region = 'Москва и Московская область', source = 'web') {
+  const base = ORDER_QUERIES[service] || ORDER_QUERIES.demolition;
+  const terms = service === 'finishing' ? 'отделка ремонт fit-out' : service === 'raised_floor' ? 'фальшпол технический пол' : 'демонтаж разборка';
+  const sourceQueries = {
+    web: base,
+    telegram: [`site:t.me (${terms}) (заказ OR подрядчик OR тендер OR закупка)`, `site:telegram.me (${terms}) (ищем подрядчика OR заказ)`],
+    avito: [`site:avito.ru (${terms}) (заказ OR подрядчик OR услуги)`, `site:avito.ru Москва Московская область (${terms})`],
+    tenders: [`site:zakupki.gov.ru (${terms})`, `(site:roseltorg.ru OR site:b2b-center.ru OR site:rts-tender.ru) (${terms})`, `тендер закупка (${terms}) подрядчик`]
+  };
+  const queries = sourceQueries[source] || base;
   const safeRegion = String(region || 'Москва и Московская область')
     .replace(/[\r\n]+/g, ' ')
     .trim()
@@ -70,6 +88,7 @@ function normalizeOrderResult(item = {}, query = '', service = 'demolition', reg
     title,
     source_url: url.toString().slice(0, 700),
     source_name: url.hostname.replace(/^www\./i, ''),
+    source_type: classifyOrderSource(url.toString()),
     snippet,
     search_query: String(query).slice(0, 500),
     service: ['demolition', 'finishing', 'raised_floor'].includes(service) ? service : 'demolition',
@@ -106,4 +125,4 @@ function deduplicateOrders(items = []) {
   });
 }
 
-module.exports = { buildOrderQueries, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders };
+module.exports = { buildOrderQueries, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, classifyOrderSource };
