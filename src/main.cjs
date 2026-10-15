@@ -668,6 +668,7 @@ ipcMain.handle('orders:saveAnalysis', (_event,input={}) => {
  const costPerUnit=nonNegative(input.cost_per_unit,'Себестоимость за единицу');
  const wagePerShift=nonNegative(input.wage_per_worker_shift,'Оплата рабочего за смену');
  const otherCosts=nonNegative(input.other_costs_rub,'Дополнительные расходы');
+ if(costPerUnit<=0&&wagePerShift<=0&&otherCosts<=0)throw new Error('Не указаны расходы. Заполни себестоимость за единицу, оплату бригады или дополнительные затраты, иначе маржа будет завышена.');
  const difficulty=Number(input.difficulty_factor??1),reserve=Number(input.reserve_percent??15);
  if(!Number.isFinite(difficulty)||difficulty<0.25||difficulty>5)throw new Error('Коэффициент сложности должен быть от 0,25 до 5.');
  if(!Number.isFinite(reserve)||reserve<0||reserve>100)throw new Error('Резерв срока должен быть от 0 до 100%.');
