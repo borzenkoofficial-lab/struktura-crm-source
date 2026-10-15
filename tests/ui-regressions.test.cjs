@@ -343,6 +343,17 @@ test('reports combine sales funnel and finance metrics with explicit cash-balanc
   assert.ok(renderer.includes("$('reportReceivables').textContent = fmt(finance.receivablesTotal)"));
 });
 
+test('converting a commercial order to a lead preserves its PI economics as provisional context', () => {
+  const handler = main.match(/ipcMain\.handle\('orders:convertLead',[\s\S]*?\n\}\);/);
+  assert.ok(handler);
+  assert.match(handler[0], /SELECT \* FROM commercial_order_analysis WHERE order_id=\?/);
+  assert.match(handler[0], /ПИ — предварительная экономика, не подтверждённая смета/);
+  assert.match(handler[0], /estimated_profit_rub/);
+  assert.match(handler[0], /estimated_margin_pct/);
+  assert.match(handler[0], /estimated_days/);
+  assert.match(handler[0], /бюджет заказчика не подтверждён/);
+});
+
 test('client and prospect create, update and CSV import validate contact email at the main-process boundary', () => {
   assert.match(main, /require\('\.\/contact-utils\.cjs'\)/);
   assert.ok(main.includes('email: normalizeContactEmail(input.email)'));
