@@ -515,3 +515,62 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 @media (prefers-reduced-motion: reduce) {
   .view[aria-busy="true"] .table-wrap, .view[aria-busy="true"] .table-panel { transition: none; }
 }
+
+/* Commercial order radar */
+.order-radar-panel{overflow:hidden}.order-radar-filters{display:flex;gap:10px;padding:14px 20px;border-top:1px solid #edf0f4}.order-radar-filters .search{flex:1;min-width:180px}.order-radar-filters select,.commercial-order-actions select{border:1px solid #dfe5ec;border-radius:8px;background:#fff;padding:9px 11px;color:#334155;font:inherit;font-size:11px}.commercial-orders-list{border-top:1px solid #edf0f4}.commercial-order-card{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:17px 20px;border-bottom:1px solid #f0f2f5}.commercial-order-card:last-child{border-bottom:0}.commercial-order-main{flex:1;min-width:0}.commercial-order-title-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.commercial-order-title-line>strong{font-size:12px;color:#27374a}.commercial-order-main p{margin:9px 0;font-size:11px;line-height:1.6;color:#526175}.commercial-order-main>small{display:block;margin-top:9px;color:#8b97a7;font-size:10px}.commercial-order-actions{display:flex;gap:7px;align-items:flex-end;flex-direction:column;flex-shrink:0}.commercial-order-actions .button{white-space:nowrap}.commercial-order-actions select{max-width:150px}@media(max-width:700px){.order-radar-filters{padding:12px;flex-direction:column}.commercial-order-card{padding:14px;flex-direction:column}.commercial-order-actions{align-items:flex-start;flex-direction:row;flex-wrap:wrap}.commercial-order-actions select{max-width:unset}}
+
+
+/* Production Intelligence triage for commercial-order radar */
+.pi-order-summary{display:flex;flex-direction:column;gap:6px;margin:14px 0;padding:14px 16px;border:1px solid #dce6f1;border-radius:12px;background:linear-gradient(120deg,#f5f8fc,#fff);color:#34445a}
+.pi-order-summary strong{font-size:13px;color:#1f2e43}
+.pi-order-summary span{font-size:12px;line-height:1.5}
+.pi-order-summary .pi-order-summary-note{color:#68778b}
+.pi-order-score{display:inline-flex;align-items:center;white-space:nowrap;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:750;border:1px solid transparent}
+.pi-order-score.high{background:#e8f7ef;color:#167448;border-color:#c5ead5}
+.pi-order-score.medium{background:#fff5df;color:#8b5b00;border-color:#f1dfb4}
+.pi-order-score.low{background:#f0f2f5;color:#657184;border-color:#e1e5eb}
+.pi-order-brief{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:10px 0 4px;padding:9px 11px;border-radius:9px;background:#f6f8fb;font-size:12px}
+.pi-order-brief strong{color:#30435c}
+.pi-order-brief span{color:#728096}
+.pi-order-details{margin:7px 0 10px;font-size:12px}
+.pi-order-details summary{cursor:pointer;color:#315d91;font-weight:650;padding:5px 0}
+.pi-order-details-body{padding:8px 11px;background:#fafbfd;border:1px solid #e7edf4;border-radius:8px;color:#4d5c70;line-height:1.5}
+.pi-order-details-body ul{margin:5px 0 10px;padding-left:19px}
+.pi-order-details-body li{margin:3px 0}
+.pi-order-details-body small{display:block;color:#7a8798;font-size:11px}
+
+
+.pi-order-economics{display:flex;flex-direction:column;gap:5px;margin:8px 0 10px;padding:10px 12px;border:1px solid #d9e9e0;border-radius:9px;background:#f3faf6;color:#2f5943;font-size:12px;line-height:1.45}
+.pi-order-economics strong{color:#205b3d;font-size:12px}
+.pi-order-economics small{color:#697d72;font-size:11px}
+.pi-order-economics.negative{border-color:#f0d2d2;background:#fff5f5;color:#8c3030}
+.pi-order-economics.negative strong{color:#8c3030}
+.pi-economics-modal{width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto}
+.pi-economics-modal form{display:flex;flex-direction:column;gap:12px}
+.pi-economics-modal .form-row{align-items:start}
+.pi-economics-modal label{display:flex;flex-direction:column;gap:5px;min-width:0}
+.pi-economics-modal input,.pi-economics-modal select{width:100%;min-width:0}
+.pi-economics-modal small{font-size:11px;color:#7b8797;line-height:1.4}
+
+/* Production Intelligence: evidence-led action queue and data confidence. */
+.pi-recommendation-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;align-items:baseline;margin:0 0 8px;padding:0 1px}
+.pi-recommendation-head strong{font-size:12px;color:var(--text,#253448)}
+.pi-recommendation-head span{font-size:10px;color:var(--muted,#78869a)}
+.pi-recommendation{display:grid;gap:4px;padding:11px 13px;margin:0 0 7px;border:1px solid #dce6ee;border-radius:9px;background:#f7fafc}
+.pi-recommendation.high{border-color:#edc8c5;background:#fff6f5}
+.pi-recommendation strong{font-size:11px;color:#30465d}
+.pi-recommendation.high strong{color:#963f39}
+.pi-recommendation span{font-size:11px;line-height:1.5;color:#627286}
+.pi-recommendation small{font-size:11px;line-height:1.5;color:#315f4a}
+.pi-alert-list{display:grid;gap:8px;margin-top:8px}
+
+.pi-alert.info{border-color:#c9dceb;background:#f3f9fd}
+.pi-alert.info strong,.pi-alert.info span{color:#315f80}
+
+.pi-condition-group{border:1px solid var(--line,#dfe7ef);border-radius:10px;padding:12px 14px;margin:12px 0 16px;min-width:0}
+.pi-condition-group legend{padding:0 5px;font-size:11px;font-weight:750;color:var(--text,#34465b)}
+.pi-condition-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 14px}
+.pi-condition-grid label{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text,#34465b)}
+.pi-condition-grid input{accent-color:#315e7a;width:15px;height:15px;margin:0}
+.pi-condition-group small{display:block;margin-top:9px;font-size:10px;line-height:1.5;color:var(--muted,#78869a)}
+@media(max-width:600px){.pi-condition-grid{grid-template-columns:1fr}}

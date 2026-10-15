@@ -55,3 +55,14 @@ test('shift rejects downtime outside the shift duration', () => {
     workers: 5, shiftHours: 8, downtimeHours: 9, lines: []
   }), /Проверь численность/);
 });
+
+
+test('normalizes only known structured production conditions and removes duplicates', () => {
+  const { normalizeConditions, normalizeProductionPlan } = require('../src/production-plan-utils.cjs');
+  assert.deepEqual(normalizeConditions(['no_elevator', 'manual_carry', 'no_elevator']), ['manual_carry', 'no_elevator']);
+  assert.deepEqual(normalizeProductionPlan({ planned_people: 4, complexity_factor: 1.25, conditions: ['cramped_space'], lines: [
+    { catalog_id: 'walls', work_name: 'Демонтаж стен', unit: 'м²', planned_quantity: 10, baseline_productivity: 5 }
+  ] }).conditions, ['cramped_space']);
+  assert.throws(() => normalizeConditions(['unknown_factor']), /неизвестное условие/iu);
+  assert.throws(() => normalizeConditions('no_elevator'), /списком/iu);
+});

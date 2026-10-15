@@ -1,6 +1,14 @@
 'use strict';
 
 const ALLOWED_DIFFICULTIES = new Set([0.7, 1, 1.25, 1.5, 2]);
+const ALLOWED_CONDITIONS = new Set(['reinforced_concrete', 'manual_carry', 'no_elevator', 'cramped_space']);
+function normalizeConditions(value) {
+  if (value == null || value === '') return [];
+  if (!Array.isArray(value)) throw new Error('Условия работ должны быть списком выбранных факторов.');
+  const normalized = [...new Set(value.map(item => clean(item, 40)))];
+  if (normalized.length > ALLOWED_CONDITIONS.size || normalized.some(item => !ALLOWED_CONDITIONS.has(item))) throw new Error('Выбрано неизвестное условие работ. Обнови форму и попробуй снова.');
+  return normalized.sort();
+}
 function clean(value, max = 200) { return String(value ?? '').trim().slice(0, max); }
 
 function normalizeProductionPlan(input = {}) {
@@ -23,7 +31,7 @@ function normalizeProductionPlan(input = {}) {
     seen.add(catalogId);
     return { catalog_id: catalogId, work_name: name, unit, planned_quantity: quantity, baseline_productivity: baseline };
   });
-  return { planned_people: people, complexity_factor: factor, lines };
+  return { planned_people: people, complexity_factor: factor, conditions: normalizeConditions(input.conditions), lines };
 }
 
 function normalizeShiftWorkLines({ lines, workers, shiftHours, downtimeHours = 0 } = {}) {
@@ -52,4 +60,4 @@ function normalizeShiftWorkLines({ lines, workers, shiftHours, downtimeHours = 0
   return normalized;
 }
 
-module.exports = { normalizeProductionPlan, normalizeShiftWorkLines };
+module.exports = { normalizeProductionPlan, normalizeShiftWorkLines, normalizeConditions };

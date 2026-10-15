@@ -95,7 +95,7 @@ test('calculator consumes locally learned productivity and refreshes after shift
   assert.match(renderer, /estimateEffectiveProductivity\(line\)/);
   assert.match(renderer, /1–2 наблюдения — 25%/);
   assert.match(renderer, /refreshEstimateLearningRates\(\)/);
-  assert.match(preload, /productionRateModels: \(catalogIds, targetCrewSize\) => ipcRenderer\.invoke\('production:rateModels'/);
+  assert.match(preload, /productionRateModels: \(catalogIds, targetCrewSize, targetConditions = \[\]\) => ipcRenderer\.invoke\('production:rateModels'/);
   assert.match(main, /ipcMain\.handle\('production:rateModels'/);
   assert.match(main, /const \{ forecastRemainingWork, buildRateModel \} = require\('\.\/production-model\.cjs'\)/);
   assert.match(preload, /target_crew_size: targetCrewSize/);
@@ -343,8 +343,74 @@ test('reports combine sales funnel and finance metrics with explicit cash-balanc
   assert.ok(renderer.includes("$('reportReceivables').textContent = fmt(finance.receivablesTotal)"));
 });
 
+test('commercial order card button is wired through preload to the lead conversion handler', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  assert.match(renderer, /data-order-convert/);
+  assert.match(renderer, /closest\('\[data-order-convert\]'\)/);
+  assert.match(renderer, /window\.crm\.convertCommercialOrderToLead\(orderId\)/);
+  assert.match(renderer, /await refreshLeads\(\)/);
+  assert.match(preload, /convertCommercialOrderToLead: \(id\) => ipcRenderer\.invoke\('orders:convertLead', id\)/);
+  assert.match(main, /ipcMain\.handle\('orders:convertLead'/);
+});
+
+test('converting a commercial order to a lead preserves its PI economics as provisional context', () => {
+  const handler = main.match(/ipcMain\.handle\('orders:convertLead',[\s\S]*?\n\}\);/);
+  assert.ok(handler);
+  assert.match(handler[0], /SELECT \* FROM commercial_order_analysis WHERE order_id=\?/);
+  assert.match(handler[0], /ПИ — предварительная экономика, не подтверждённая смета/);
+  assert.match(handler[0], /estimated_profit_rub/);
+  assert.match(handler[0], /estimated_margin_pct/);
+  assert.match(handler[0], /estimated_days/);
+  assert.match(handler[0], /бюджет заказчика не подтверждён/);
+});
+
 test('client and prospect create, update and CSV import validate contact email at the main-process boundary', () => {
   assert.match(main, /require\('\.\/contact-utils\.cjs'\)/);
   assert.ok(main.includes('email: normalizeContactEmail(input.email)'));
   assert.ok(main.includes('email: normalizeContactEmail(item.email)'));
+});
+
+
+test('production plans and shift reports expose structured conditions and persist them through IPC', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'utf8');
+  const main = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
+  const db = fs.readFileSync(path.join(__dirname, '../src/db.cjs'), 'utf8');
+  assert.match(html, /name="plan_condition" value="reinforced_concrete"/);
+  assert.match(html, /name="shift_condition" value="manual_carry"/);
+  assert.match(renderer, /conditions: productionReadConditions\('plan_condition'\)/);
+  assert.match(renderer, /conditions: productionReadConditions\('shift_condition'\)/);
+  assert.match(renderer, /productionSetConditions\('shift_condition', shift\.conditions_json\)/);
+  assert.match(main, /conditions_json=\?,notes=\?/);
+  assert.match(db, /ALTER TABLE projects ADD COLUMN conditions_json TEXT NOT NULL DEFAULT '\[\]'/);
+  assert.match(db, /ALTER TABLE work_shifts ADD COLUMN conditions_json TEXT NOT NULL DEFAULT '\[\]'/);
+});
+
+
+test('PI does not combine recurring underperformance across different work conditions', () => {
+  const { buildProductionIntelligence } = require('../src/production-intelligence.cjs');
+  const result = buildProductionIntelligence({
+    projects: [{ id: 11, title: 'Офис', planCount: 1, shiftCount: 4, forecast: { estimated: true, lines: [] } }],
+    history: [
+      { project_id: 11, conditions_json: '["manual_carry"]', performance: [{ work_name: 'Стяжка', deviationPct: -30 }] },
+      { project_id: 11, conditions_json: '["manual_carry"]', performance: [{ work_name: 'Стяжка', deviationPct: -25 }] },
+      { project_id: 11, conditions_json: '["no_elevator"]', performance: [{ work_name: 'Стяжка', deviationPct: -40 }] },
+      { project_id: 11, conditions_json: '[]', performance: [{ work_name: 'Стяжка', deviationPct: -5 }] }
+    ],
+    totals: { shifts: 4, work_records: 4 }
+  });
+  assert.equal(result.alerts.some(alert => /повторяющееся отставание/iu.test(alert.title)), false);
+});
+
+
+test('estimate passes selected conditions into the production learning model', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'utf8');
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  const main = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
+  assert.match(html, /name="estimate_condition" value="no_elevator"/);
+  assert.match(renderer, /productionRateModels\(ids, targetCrewSize, productionReadConditions\('estimate_condition'\)\)/);
+  assert.match(renderer, /input\[name="estimate_condition"\].*addEventListener/);
+  assert.match(preload, /target_conditions: targetConditions/);
+  assert.match(main, /targetConditions = normalizeConditions\(input\.target_conditions\)/);
 });

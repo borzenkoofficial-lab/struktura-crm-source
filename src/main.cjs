@@ -16,6 +16,10 @@ const Database = require('better-sqlite3');
 const { parseCsv, prospectDuplicateKeys, safeCsvCell } = require('./csv.cjs');
 const { crawlSites } = require('./site-crawler.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
+const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, leadSourceForOrderType } = require('./order-radar.cjs');
+const { parseCommercialOrdersCsv } = require('./order-import.cjs');
+const { assessCommercialOrder } = require('./order-pi.cjs');
+const { calculateOrderEconomics } = require('./order-economics.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
 const { normalizeTaskInput } = require('./task-utils.cjs');
 const { normalizeContactEmail } = require('./contact-utils.cjs');
@@ -23,7 +27,7 @@ const { buildFinanceInsights } = require('./finance-insights.cjs');
 const { normalizeProjectInput, validDate } = require('./project-utils.cjs');
 const { forecastRemainingWork, buildRateModel } = require('./production-model.cjs');
 const { DEFAULT_REMINDER_SETTINGS, normalizeReminderSettings, buildReminders } = require('./reminder-engine.cjs');
-const { normalizeProductionPlan, normalizeShiftWorkLines } = require('./production-plan-utils.cjs');
+const { normalizeProductionPlan, normalizeShiftWorkLines, normalizeConditions } = require('./production-plan-utils.cjs');
 const { buildProductionReportHtml } = require('./production-report.cjs');
 
 let db;
@@ -47,6 +51,7 @@ autoUpdater.on('error', error => publishUpdateStatus({ state: 'error', message: 
 const services = ['demolition', 'finishing', 'raised_floor'];
 const sources = ['avito', 'phone', 'telegram', 'recommendation', 'website', 'other'];
 function clean(value, max = 2000) { return String(value ?? '').trim().slice(0, max); }
+function parseConditionList(value) { try { return normalizeConditions(typeof value === 'string' ? JSON.parse(value || '[]') : value || []); } catch (_) { return []; } }
 const searchKeyPath = () => path.join(app.getPath('userData'), 'brave-search-key.enc');
 function hasSearchKey() { return fs.existsSync(searchKeyPath()); }
 function readSearchKey() {
@@ -271,8 +276,8 @@ ipcMain.handle('projects:createWithPlan', (_event, input = {}) => {
   const project = normalizeProjectInput({ ...(input.project || {}), planned_people: plan.planned_people, complexity_factor: plan.complexity_factor });
   const contract = amount(project.contract_rub, { allowZero: true });
   const create = db.transaction(() => {
-    const result = db.prepare(`INSERT INTO projects(title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
-      VALUES (@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
+    const result = db.prepare(`INSERT INTO projects(title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,conditions_json,notes)
+      VALUES (@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@conditions_json,@notes)`).run({ ...project, conditions_json: JSON.stringify(plan.conditions), contract_rub: contract });
     const projectId = Number(result.lastInsertRowid);
     const insert = db.prepare(`INSERT INTO production_plans(project_id,catalog_id,work_name,unit,planned_quantity,baseline_productivity)
       VALUES (@project_id,@catalog_id,@work_name,@unit,@planned_quantity,@baseline_productivity)`);
@@ -297,7 +302,7 @@ ipcMain.handle('production:overview', () => {
     actualByProject.get(row.project_id)[row.catalog_id] = Number(row.actual_quantity || 0);
   }
   const observations = db.prepare(`SELECT wsi.catalog_id, wsi.quantity_done, wsi.workers_count, wsi.hours,
-    wsi.baseline_productivity, ws.complexity_factor, ws.shift_date, ws.id shift_id
+    wsi.baseline_productivity, ws.complexity_factor, ws.conditions_json, ws.shift_date, ws.id shift_id
     FROM work_shift_items wsi JOIN work_shifts ws ON ws.id=wsi.shift_id ORDER BY ws.shift_date DESC, ws.id DESC`).all();
   const observationsByCatalog = {};
   for (const row of observations) (observationsByCatalog[row.catalog_id] ||= []).push(row);
@@ -308,13 +313,14 @@ ipcMain.handle('production:overview', () => {
       actualByCatalog: actualByProject.get(project.id) || {},
       observationsByCatalog,
       targetDifficulty: Number(project.complexity_factor || 1),
-      crewSize: Number(project.planned_people || 5)
+      crewSize: Number(project.planned_people || 5),
+      targetConditions: parseConditionList(project.conditions_json)
     });
     const shiftStats = db.prepare('SELECT COUNT(*) count, COALESCE(SUM(workers_count*shift_hours/8.0),0) person_shifts, MAX(shift_date) last_date FROM work_shifts WHERE project_id=?').get(project.id);
     return { ...project, planCount: plan.length, forecast, shiftCount: shiftStats.count, personShifts: Number(shiftStats.person_shifts || 0), lastShiftDate: shiftStats.last_date || null };
   });
   const historyRows = db.prepare(`SELECT ws.id, ws.project_id, p.title project_title, ws.shift_date, ws.workers_count,
-    ws.shift_hours, ws.downtime_hours, ws.complexity_factor, ws.notes,
+    ws.shift_hours, ws.downtime_hours, ws.complexity_factor, ws.conditions_json, ws.notes,
     COUNT(wsi.id) work_count, COALESCE(SUM(wsi.quantity_done),0) quantity_total,
     GROUP_CONCAT(wsi.work_name || ': ' || CAST(ROUND(wsi.quantity_done,2) AS TEXT) || ' ' || wsi.unit, ' · ') work_summary
     FROM work_shifts ws JOIN projects p ON p.id=ws.project_id
@@ -366,21 +372,22 @@ ipcMain.handle('production:rateModels', (_event, input = {}) => {
   const targetCrewSize = Number(input.target_crew_size ?? 5);
   if (!Number.isInteger(targetCrewSize) || targetCrewSize < 1 || targetCrewSize > 200) throw new Error('Размер расчётной бригады должен быть от 1 до 200 человек.');
   const ids = [...new Set(input.catalog_ids.map(id => clean(id, 120)).filter(Boolean))];
+  const targetConditions = normalizeConditions(input.target_conditions);
   if (!ids.length) return [];
   const observationsByCatalog = {};
-  const observations = db.prepare(`SELECT wsi.catalog_id, wsi.quantity_done, wsi.workers_count, wsi.hours, ws.complexity_factor
+  const observations = db.prepare(`SELECT wsi.catalog_id, wsi.quantity_done, wsi.workers_count, wsi.hours, ws.complexity_factor, ws.conditions_json
     FROM work_shift_items wsi JOIN work_shifts ws ON ws.id=wsi.shift_id
     ORDER BY ws.shift_date DESC, ws.id DESC`).all();
   for (const row of observations) (observationsByCatalog[row.catalog_id] ||= []).push(row);
   return ids.map(catalogId => {
-    const model = buildRateModel({ baselineProductivity: 1, observations: observationsByCatalog[catalogId] || [], targetCrewSize });
-    return { catalog_id: catalogId, observations: model.observations, observedMedian: model.observedMedian, confidence: model.confidence, crewScalingApplied: model.crewScalingApplied, referenceCrewSize: model.referenceCrewSize, targetCrewSize };
+    const model = buildRateModel({ baselineProductivity: 1, observations: observationsByCatalog[catalogId] || [], targetCrewSize, targetConditions });
+    return { catalog_id: catalogId, observations: model.observations, availableObservations: model.availableObservations, matchedObservations: model.matchedObservations, conditionMatchSufficient: model.conditionMatchSufficient, observedMedian: model.observedMedian, confidence: model.confidence, crewScalingApplied: model.crewScalingApplied, referenceCrewSize: model.referenceCrewSize, targetCrewSize };
   });
 });
 
 ipcMain.handle('production:getPlan', (_event, projectIdValue) => {
   const projectId = Number(projectIdValue);
-  const project = db.prepare('SELECT id,title,status,planned_people,complexity_factor FROM projects WHERE id=?').get(projectId);
+  const project = db.prepare('SELECT id,title,status,planned_people,complexity_factor,conditions_json FROM projects WHERE id=?').get(projectId);
   if (!project) throw new Error('Объект не найден.');
   const lines = db.prepare('SELECT catalog_id,work_name,unit,planned_quantity,baseline_productivity FROM production_plans WHERE project_id=? ORDER BY id').all(projectId);
   return { project, lines };
@@ -392,7 +399,7 @@ ipcMain.handle('production:savePlan', (_event, input = {}) => {
   if (!Number.isInteger(projectId) || !project || ['completed','cancelled'].includes(project.status)) throw new Error('Выбери существующий незавершённый объект.');
   const plan = normalizeProductionPlan(input);
   const save = db.transaction(() => {
-    db.prepare('UPDATE projects SET planned_people=?, complexity_factor=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(plan.planned_people, plan.complexity_factor, projectId);
+    db.prepare('UPDATE projects SET planned_people=?, complexity_factor=?, conditions_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(plan.planned_people, plan.complexity_factor, JSON.stringify(plan.conditions), projectId);
     db.prepare('DELETE FROM production_plans WHERE project_id=?').run(projectId);
     const insert = db.prepare(`INSERT INTO production_plans(project_id,catalog_id,work_name,unit,planned_quantity,baseline_productivity)
       VALUES (@project_id,@catalog_id,@work_name,@unit,@planned_quantity,@baseline_productivity)`);
@@ -417,11 +424,12 @@ ipcMain.handle('production:saveShift', (_event, input = {}) => {
   if (!Number.isFinite(downtime) || downtime < 0 || downtime > shiftHours) throw new Error('Простой должен быть от 0 до длительности смены.');
   if (![0.7,1,1.25,1.5,2].includes(factor)) throw new Error('Выбери допустимый коэффициент сложности.');
   const notes = clean(input.notes, 3000);
+  const conditions = normalizeConditions(input.conditions);
   const lines = normalizeShiftWorkLines({ lines: input.lines, workers, shiftHours, downtimeHours: downtime });
   if (!lines.length && !notes) throw new Error('Если за смену ничего не сделано, укажи причину простоя в примечании.');
   const save = db.transaction(() => {
-    const result = db.prepare(`INSERT INTO work_shifts(project_id,shift_date,workers_count,shift_hours,downtime_hours,complexity_factor,notes)
-      VALUES (?,?,?,?,?,?,?)`).run(projectId,date,workers,shiftHours,downtime,factor,notes);
+    const result = db.prepare(`INSERT INTO work_shifts(project_id,shift_date,workers_count,shift_hours,downtime_hours,complexity_factor,conditions_json,notes)
+      VALUES (?,?,?,?,?,?,?,?)`).run(projectId,date,workers,shiftHours,downtime,factor,JSON.stringify(conditions),notes);
     const insert = db.prepare(`INSERT INTO work_shift_items(shift_id,catalog_id,work_name,unit,quantity_done,workers_count,hours,baseline_productivity)
       VALUES (@shift_id,@catalog_id,@work_name,@unit,@quantity_done,@workers_count,@hours,@baseline_productivity)`);
     for (const line of lines) insert.run({ shift_id: result.lastInsertRowid, ...line });
@@ -454,11 +462,12 @@ ipcMain.handle('production:updateShift', (_event, input = {}) => {
   if (!Number.isFinite(downtime) || downtime < 0 || downtime > shiftHours) throw new Error('Простой должен быть от 0 до длительности смены.');
   if (![0.7,1,1.25,1.5,2].includes(factor)) throw new Error('Выбери допустимый коэффициент сложности.');
   const notes = clean(input.notes, 3000);
+  const conditions = normalizeConditions(input.conditions);
   const lines = normalizeShiftWorkLines({ lines: input.lines, workers, shiftHours, downtimeHours: downtime });
   if (!lines.length && !notes) throw new Error('Если за смену ничего не сделано, укажи причину простоя в примечании.');
   const update = db.transaction(() => {
-    db.prepare('UPDATE work_shifts SET project_id=?,shift_date=?,workers_count=?,shift_hours=?,downtime_hours=?,complexity_factor=?,notes=? WHERE id=?')
-      .run(projectId,date,workers,shiftHours,downtime,factor,notes,shiftId);
+    db.prepare('UPDATE work_shifts SET project_id=?,shift_date=?,workers_count=?,shift_hours=?,downtime_hours=?,complexity_factor=?,conditions_json=?,notes=? WHERE id=?')
+      .run(projectId,date,workers,shiftHours,downtime,factor,JSON.stringify(conditions),notes,shiftId);
     db.prepare('DELETE FROM work_shift_items WHERE shift_id=?').run(shiftId);
     const insert = db.prepare('INSERT INTO work_shift_items(shift_id,catalog_id,work_name,unit,quantity_done,workers_count,hours,baseline_productivity) VALUES (@shift_id,@catalog_id,@work_name,@unit,@quantity_done,@workers_count,@hours,@baseline_productivity)');
     for (const line of lines) insert.run({ shift_id: shiftId, ...line });
@@ -616,6 +625,122 @@ ipcMain.handle('search:run', async (_event, input = {}) => {
   });
   tx(allResults);
   return { queries, received: allResults.length, imported, skipped, errors };
+});
+ipcMain.handle('orders:list', (_event,input={})=>{
+ const status=['new','opened','relevant','rejected'].includes(input.status)?input.status:'';
+ const service=services.includes(input.service)?input.service:'';
+ const sourceType=['web','telegram','avito','tenders','files'].includes(input.sourceType)?input.sourceType:'';
+ const terms=clean(input.search,180).toLowerCase();const where=[],params=[];
+ if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}if(sourceType){where.push('source_type=?');params.push(sourceType)}
+ if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%')}
+ const rows=db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC LIMIT 500`).all(...params);
+ const analyses=new Map(db.prepare('SELECT * FROM commercial_order_analysis').all().map(item=>[Number(item.order_id),item]));
+ return rows.map(r=>{const analysis=analyses.get(Number(r.id))||null;return {...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean),pi_analysis:analysis,pi_assessment:assessCommercialOrder(r,analysis)};});
+});
+ipcMain.handle('orders:search',async(_event,input={})=>{
+ const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');
+ const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const sourceType=['all','web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';const queries=buildOrderQueries(service,region,sourceType);const found=[],errors=[];
+ for(const query of queries){try{const results=await searchBrave(query,apiKey,{count:10});found.push(...results.map(x=>normalizeBraveOrderResult(x,query,service,region)).filter(Boolean))}catch(e){errors.push({query,error:clean(e.message,240)})}}
+ const unique=deduplicateOrders(found);
+ const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`);
+ const update=db.prepare(`UPDATE commercial_orders SET title=@title,source_name=@source_name,source_type=@source_type,snippet=@snippet,search_query=@search_query,service=@service,region=@region,signal_score=@signal_score,signal_labels=@signal_labels,relevance=@relevance,last_seen_at=CURRENT_TIMESTAMP WHERE source_url=@source_url AND status NOT IN ('relevant','rejected')`);
+ const touch=db.prepare('UPDATE commercial_orders SET last_seen_at=CURRENT_TIMESTAMP WHERE source_url=?');
+ let added=0,refreshed=0,protectedCount=0;
+ const tx=db.transaction(items=>{
+  for(const item of items){
+   const prior=db.prepare('SELECT id,status FROM commercial_orders WHERE source_url=?').get(item.source_url);
+   const values={...item,signal_labels:item.signal_labels.join('|')};
+   if(!prior){const result=insert.run(values);if(result.changes)added++;else {const current=db.prepare('SELECT status FROM commercial_orders WHERE source_url=?').get(item.source_url);if(current&&['relevant','rejected'].includes(current.status)){touch.run(item.source_url);protectedCount++}else if(current){update.run(values);refreshed++}};continue}
+   if(orderRefreshAction(prior.status)==='protect'){touch.run(item.source_url);protectedCount++;continue}
+   update.run(values);refreshed++;
+  }
+  db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)')
+   .run('Brave Search API','commercial-order-radar',added,refreshed+protectedCount,errors.length,`Получено: ${found.length}; уникальных ссылок: ${unique.length}; добавлено: ${added}; обновлено: ${refreshed}; защищено от перезаписи: ${protectedCount}; запросов: ${queries.length}; ошибок: ${errors.length}`);
+ });
+ tx(unique);
+ if(!unique.length&&errors.length===queries.length)throw new Error('Не удалось найти заказы. '+errors.map(x=>x.error).join(' | '));
+ return {queries,received:found.length,unique:unique.length,added,refreshed,protected:protectedCount,errors};
+});
+ipcMain.handle('orders:saveAnalysis', (_event,input={}) => {
+ const orderId=Number(input.order_id);
+ if(!Number.isSafeInteger(orderId)||orderId<1||!db.prepare('SELECT id FROM commercial_orders WHERE id=?').get(orderId))throw new Error('Заказ не найден.');
+ const catalogId=clean(input.catalog_id,120);
+ const observations=catalogId?db.prepare(`SELECT wsi.quantity_done,wsi.workers_count,wsi.hours,ws.complexity_factor FROM work_shift_items wsi JOIN work_shifts ws ON ws.id=wsi.shift_id WHERE wsi.catalog_id=? ORDER BY ws.shift_date DESC,ws.id DESC`).all(catalogId):[];
+ const analysis={order_id:orderId,...calculateOrderEconomics({...input,catalog_id:catalogId},observations)};
+ db.prepare(`INSERT INTO commercial_order_analysis(order_id,catalog_id,work_name,unit,quantity,budget_rub,price_per_unit,cost_per_unit,baseline_productivity,effective_productivity,crew_size,wage_per_worker_shift,other_costs_rub,difficulty_factor,reserve_percent,observations_count,estimated_days,revenue_rub,estimated_cost_rub,estimated_profit_rub,estimated_margin_pct,updated_at)
+ VALUES (@order_id,@catalog_id,@work_name,@unit,@quantity,@budget_rub,@price_per_unit,@cost_per_unit,@baseline_productivity,@effective_productivity,@crew_size,@wage_per_worker_shift,@other_costs_rub,@difficulty_factor,@reserve_percent,@observations_count,@estimated_days,@revenue_rub,@estimated_cost_rub,@estimated_profit_rub,@estimated_margin_pct,CURRENT_TIMESTAMP)
+ ON CONFLICT(order_id) DO UPDATE SET catalog_id=excluded.catalog_id,work_name=excluded.work_name,unit=excluded.unit,quantity=excluded.quantity,budget_rub=excluded.budget_rub,price_per_unit=excluded.price_per_unit,cost_per_unit=excluded.cost_per_unit,baseline_productivity=excluded.baseline_productivity,effective_productivity=excluded.effective_productivity,crew_size=excluded.crew_size,wage_per_worker_shift=excluded.wage_per_worker_shift,other_costs_rub=excluded.other_costs_rub,difficulty_factor=excluded.difficulty_factor,reserve_percent=excluded.reserve_percent,observations_count=excluded.observations_count,estimated_days=excluded.estimated_days,revenue_rub=excluded.revenue_rub,estimated_cost_rub=excluded.estimated_cost_rub,estimated_profit_rub=excluded.estimated_profit_rub,estimated_margin_pct=excluded.estimated_margin_pct,updated_at=CURRENT_TIMESTAMP`).run(analysis);
+ return db.prepare('SELECT * FROM commercial_order_analysis WHERE order_id=?').get(orderId);
+});
+ipcMain.handle('orders:manualSearchUrl', (_event,input={}) => {
+ const service=services.includes(input.service)?input.service:'demolition';
+ const sourceType=['all','web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';
+ const region=clean(input.region,120)||'Москва и Московская область';
+ return buildManualOrderSearchUrl(service,region,sourceType);
+});
+ipcMain.handle('orders:createManual', (_event,input={}) => {
+ const title=clean(input.title,240),url=clean(input.source_url,700),snippet=clean(input.snippet,1200);
+ const service=services.includes(input.service)?input.service:'demolition';
+ const region=clean(input.region,120)||'Москва и Московская область';
+ if(!title)throw new Error('Укажи название заказа.');
+ const order=normalizeOrderResult({title,url,description:snippet},'Добавлено вручную',service,region);
+ if(!order)throw new Error('Не удалось проверить ссылку. Укажи действительный HTTP(S)-адрес первоисточника.');
+ const existing=db.prepare('SELECT id FROM commercial_orders WHERE source_url=?').get(order.source_url);
+ if(existing)return {id:existing.id,duplicate:true};
+ const result=db.prepare(`INSERT INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`).run({...order,search_query:'Добавлено вручную',signal_labels:order.signal_labels.join('|')});
+ return {id:Number(result.lastInsertRowid),duplicate:false};
+});
+ipcMain.handle('orders:importCsv', async () => {
+ const picked=await dialog.showOpenDialog({title:'Импорт коммерческих заказов из CSV',properties:['openFile'],filters:[{name:'CSV / текстовые таблицы',extensions:['csv','txt']}]});
+ if(picked.canceled||!picked.filePaths[0])return {canceled:true};
+ const filePath=picked.filePaths[0];
+ const parsed=parseCommercialOrdersCsv(fs.readFileSync(filePath,'utf8'));
+ const normalized=parsed.orders.map(item=>{
+  const order=normalizeOrderResult({title:item.title,url:item.source_url,description:item.snippet},'Импорт из файла',item.service,item.region);
+  if(!order)return null;
+  return {...order,source_name:item.source_name||order.source_name,source_type:'files',search_query:'Импорт из файла'};
+ }).filter(Boolean);
+ const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`);
+ let imported=0,duplicates=0;
+ const tx=db.transaction(items=>{for(const item of items){const values={...item,signal_labels:item.signal_labels.join('|')};const result=insert.run(values);if(result.changes)imported++;else duplicates++;}
+  db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)').run('CSV заказов',path.basename(filePath),imported,parsed.skipped+duplicates,0,`В файле: ${parsed.orders.length+parsed.skipped}; импортировано: ${imported}; пропущено: ${parsed.skipped+duplicates}`);
+ });
+ tx(normalized);
+ return {canceled:false,imported,skipped:parsed.skipped+duplicates+(parsed.orders.length-normalized.length),total:parsed.orders.length+parsed.skipped};
+});
+ipcMain.handle('orders:updateStatus',(_event,input={})=>{
+ const id=Number(input.id),status=['new','opened','relevant','rejected'].includes(input.status)?input.status:'';
+ if(!Number.isSafeInteger(id)||id<1||!status)throw new Error('Некорректный заказ или статус.');
+ const r=db.prepare('UPDATE commercial_orders SET status=? WHERE id=?').run(status,id);if(!r.changes)throw new Error('Заказ не найден.');
+ return db.prepare('SELECT * FROM commercial_orders WHERE id=?').get(id);
+});
+ipcMain.handle('orders:convertLead', (_event, orderId) => {
+ const id=Number(orderId);
+ if(!Number.isSafeInteger(id)||id<1)throw new Error('Некорректный номер заказа.');
+ const order=db.prepare('SELECT * FROM commercial_orders WHERE id=?').get(id);
+ if(!order)throw new Error('Коммерческий заказ не найден.');
+ const existing=db.prepare('SELECT id FROM leads WHERE commercial_order_id=?').get(id);
+ if(existing)return {leadId:existing.id,alreadyExists:true};
+ const analysis=db.prepare('SELECT * FROM commercial_order_analysis WHERE order_id=?').get(id)||null;
+ const serviceLabel={demolition:'Демонтаж',finishing:'Отделочные работы',raised_floor:'Фальшполы'}[order.service]||'Демонтаж';
+ const notes=[
+  'Создано из радара коммерческих заказов. Данные и актуальность необходимо проверить на исходном сайте.',
+  'Источник: '+order.source_url,
+  'Регион: '+order.region,
+  'Оценка сигнала: '+order.signal_score+'/100',
+  order.signal_labels?'Сигналы: '+String(order.signal_labels).split('|').filter(Boolean).join(', '):'',
+  order.snippet?'Фрагмент выдачи: '+order.snippet:'',
+  order.search_query?'Поисковый запрос: '+order.search_query:'',
+  analysis?'ПИ — предварительная экономика, не подтверждённая смета:':'',
+  analysis?'Ориентир выручки: '+Math.round(Number(analysis.revenue_rub)||0).toLocaleString('ru-RU')+' ₽; расходы: '+Math.round(Number(analysis.estimated_cost_rub)||0).toLocaleString('ru-RU')+' ₽; расчётная прибыль: '+Math.round(Number(analysis.estimated_profit_rub)||0).toLocaleString('ru-RU')+' ₽; маржа: '+Number(analysis.estimated_margin_pct||0).toLocaleString('ru-RU',{maximumFractionDigits:1})+'%; срок: '+Number(analysis.estimated_days||0).toLocaleString('ru-RU',{maximumFractionDigits:1})+' смен; бригада: '+Number(analysis.crew_size||0)+' чел.; история смен: '+Number(analysis.observations_count||0)+' наблюдений.':'',
+  analysis?(Number(analysis.budget_rub)>0?'Основа выручки: введённый бюджет, требуется проверка на первоисточнике.':'Основа выручки: ставка прайса; бюджет заказчика не подтверждён.'):'',
+ ].filter(Boolean).join('\n').slice(0,4000);
+ const create=db.transaction(()=>{
+  const result=db.prepare('INSERT INTO leads(commercial_order_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,?,?,\'new\',0,\'\',?)').run(id,(serviceLabel+' — '+order.title).slice(0,180),order.service,leadSourceForOrderType(order.source_type),notes);
+  db.prepare("UPDATE commercial_orders SET status='relevant' WHERE id=?").run(id);
+  return Number(result.lastInsertRowid);
+ });
+ return {leadId:create(),alreadyExists:false};
 });
 ipcMain.handle('prospects:crawlWebsites', async (_event, input = {}) => {
   const rawUrls = String(input.urls || '').split(/[\r\n,;]+/).map(x => x.trim()).filter(Boolean);

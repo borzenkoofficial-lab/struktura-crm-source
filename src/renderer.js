@@ -157,9 +157,16 @@ function renderProductionIntelligence(data, summaryId, alertsId) {
   const summary = $(summaryId), alerts = $(alertsId);
   if (summary) summary.textContent = result.summary;
   if (!alerts) return;
-  alerts.innerHTML = result.alerts.length
-    ? result.alerts.slice(0, 5).map(alert => `<article class="pi-alert ${alert.level === 'danger' ? 'danger' : 'warning'}"><strong>${esc(alert.title)}</strong><span>${esc(alert.message)}</span></article>`).join('')
+  const quality = result.dataQuality || {};
+  const recommendations = Array.isArray(result.recommendations) ? result.recommendations : [];
+  const recommendationHtml = recommendations.length
+    ? `<div class="pi-recommendation-head"><strong>Что сделать в первую очередь</strong><span>Достоверность данных: ${esc(quality.confidence || 'не оценена')} · покрытие прогноза: ${Number(quality.forecastCoveragePct || 0)}%</span></div>` +
+      recommendations.slice(0, 3).map(item => `<article class="pi-recommendation ${item.priority === 'high' ? 'high' : ''}"><strong>${esc(item.title)}</strong><span>${esc(item.reason)}</span><small>Следующий шаг: ${esc(item.nextStep)}</small></article>`).join('')
+    : `<div class="pi-recommendation-head"><strong>Что сделать в первую очередь</strong><span>Достоверность данных: ${esc(quality.confidence || 'не оценена')} · покрытие прогноза: ${Number(quality.forecastCoveragePct || 0)}%</span></div>`;
+  const alertsHtml = result.alerts.length
+    ? `<div class="pi-alert-list">${result.alerts.slice(0, 5).map(alert => `<article class="pi-alert ${alert.level === 'danger' ? 'danger' : alert.level === 'info' ? 'info' : 'warning'}"><strong>${esc(alert.title)}</strong><span>${esc(alert.message)}</span></article>`).join('')}</div>`
     : '<div class="pi-no-alerts">По введённым данным явных отклонений не найдено. Это не гарантия отсутствия проблем — полнота учёта важна.</div>';
+  alerts.innerHTML = recommendationHtml + alertsHtml;
 }
 async function refreshNotificationSettings() {
   const settings = await window.crm.getNotificationSettings();
@@ -331,7 +338,7 @@ async function refreshEstimateLearningRates() {
   const requestId = ++learningRatesRequestId;
   const ids = [...new Set(estimateCatalog.map(item => String(item.id)).filter(Boolean))];
   const targetCrewSize = Math.max(1, Math.min(200, Math.round(Number($('estimateCrewPeople').value || 5))));
-  const models = await window.crm.productionRateModels(ids, targetCrewSize);
+  const models = await window.crm.productionRateModels(ids, targetCrewSize, productionReadConditions('estimate_condition'));
   if (requestId !== learningRatesRequestId) return;
   learnedProductivityModels = Object.fromEntries(models.map(model => [String(model.catalog_id), model]));
   const trained = Object.values(learnedProductivityModels).filter(model => Number(model.observations) > 0);
@@ -340,6 +347,8 @@ async function refreshEstimateLearningRates() {
   $('estimateLearningStatus').textContent = trained.length
     ? `Нормы по практике подключены: ${observations} наблюдений по ${trained.length} видам работ для бригады ${targetCrewSize} чел. Вес практики: 1–2 наблюдения — 25%, 3–4 — 50%, 5+ — 75%. Учёт размера бригады включён для ${crewAdjusted} видов работ, где накоплены повторные наблюдения на разных составах.`
     : 'Пока используются стартовые нормы из прайса. По мере закрытия смен фактическая выработка начнёт влиять и на этот калькулятор.';
+  const unmatchedConditions = Object.values(learnedProductivityModels).filter(model => model.conditionMatchRequired && !model.conditionMatchSufficient).length;
+  if (unmatchedConditions) $('estimateLearningStatus').textContent += ` По ${unmatchedConditions} позициям пока нет минимум двух смен с выбранными условиями — там сохранена стартовая норма.`;
   try {
     const production = await window.crm.productionOverview();
     renderProductionIntelligence(production, 'estimatePiSummary', 'estimatePiAlerts');
@@ -541,9 +550,30 @@ function renderOpportunityRadar(rows) {
     return `<article class="radar-item"><div class="radar-item-main"><div class="radar-company-line"><strong>${esc(p.company_name)}</strong><span class="radar-score ${score >= 30 ? 'hot' : score >= 18 ? 'warm' : ''}">${score ? `Сигнал ${score}/100` : 'Без сигнала спроса'}</span></div><div class="radar-tags">${tags || '<span class="radar-tag muted-tag">Сигнал спроса не найден</span>'}</div><p>${esc(p.radar.nextAction)}</p><small>${esc(p.phone || p.email || (p.website ? 'Контакт не найден — есть сайт' : 'Нет контактов и сайта'))}</small></div><div class="radar-actions"><button class="button small-button" data-prospect-edit="${p.id}">Карточка</button>${p.website ? `<button class="button small-button" data-external="${esc(p.website)}">Открыть сайт</button>` : ''}</div></article>`;
   }).join('') : empty('Пока нечего анализировать','Добавь компании или запусти поиск — радар разберёт заметки и фрагменты выдачи.');
 }
+let commercialOrderCache=[];
+let piEconomicsCatalogCache=[];
+const orderStatusLabels={new:'Новый',opened:'Открывали',relevant:'Подходит',rejected:'Не подходит'};
+async function refreshCommercialOrders(){
+ const search=$('orderRadarSearch')?.value||'',status=$('orderRadarStatus')?.value||'';
+ const rows=await window.crm.listCommercialOrders({search,status,service:$('orderRadarService')?.value||'demolition',sourceType:$('orderRadarSource')?.value||''});commercialOrderCache=rows;const target=$('commercialOrdersList');if(!target)return;
+ const summary=$('orderPiSummary');
+ if(summary){
+  const first=rows.filter(o=>o.pi_assessment).sort((a,b)=>b.pi_assessment.score-a.pi_assessment.score)[0];
+  summary.innerHTML=`<strong>ПИ · предварительная оценка заказов</strong><span>${rows.length? `В списке ${rows.length} заказов. Оценка учитывает признаки вида работ, закупочного намерения и полноту сведений.`:'Найди заказы, чтобы ПИ смог предварительно оценить их по доступным текстовым сигналам.'}</span><span class="pi-order-summary-note">${first?`Наивысший предварительный приоритет сейчас: ${esc(first.title)} — ${first.pi_assessment.score}/100.`:'Пока нет результатов для оценки.'} Экономика, сроки и вероятность выигрыша не считаются подтверждёнными без проверки первоисточника.</span>`;
+ }
+ target.innerHTML=rows.length?rows.map(o=>{
+  const labels=Array.isArray(o.signal_labels)?o.signal_labels:String(o.signal_labels||'').split('|').filter(Boolean);
+  const pi=o.pi_assessment||null;
+  const score=Number(pi?.score||0);
+  const questions=Array.isArray(pi?.nextQuestions)?pi.nextQuestions:[];
+  const reasons=Array.isArray(pi?.reasons)?pi.reasons:[];
+  return `<article class="commercial-order-card"><div class="commercial-order-main"><div class="commercial-order-title-line"><strong>${esc(o.title)}</strong><span class="radar-score ${o.signal_score>=50?'hot':o.signal_score>=25?'warm':''}">Сигналы ${o.signal_score}/100</span><span class="pi-order-score ${score>=65?'high':score>=40?'medium':'low'}">ПИ ${score}/100</span><span class="pill ${o.status==='relevant'?'won':o.status==='rejected'?'lost':o.status==='opened'?'contacted':'new'}">${esc(orderStatusLabels[o.status]||o.status)}</span></div><p>${esc(o.snippet||'Описание в поисковой выдаче отсутствует — открой оригинал.')}</p><div class="radar-tags">${labels.map(x=>`<span class="radar-tag">${esc(x)}</span>`).join('')||'<span class="radar-tag muted-tag">Сигналы не подтверждены</span>'}</div><div class="pi-order-brief"><strong>${esc(pi?.label||'Нужна проверка')}</strong><span>Уверенность: ${esc(pi?.confidence||'низкая')} · Факторов оценено: ${Number(pi?.knownFactors||0)}/${Number(pi?.totalFactors||5)}</span></div>${o.pi_analysis ? '<div class="pi-order-economics ' + (Number(o.pi_analysis.estimated_profit_rub)<0?'negative':'') + '"><strong>Предварительная экономика · ' + esc(o.pi_analysis.work_name) + '</strong><span>Выручка: ' + fmt(o.pi_analysis.revenue_rub) + ' · Расходы: ' + fmt(o.pi_analysis.estimated_cost_rub) + '</span><span>' + (Number(o.pi_analysis.budget_rub)>0?'Основа выручки: введённый бюджет':'Основа выручки: ставка прайса; бюджет заказчика не подтверждён') + '</span><span>Прибыль: ' + fmt(o.pi_analysis.estimated_profit_rub) + ' · Маржа: ' + Number(o.pi_analysis.estimated_margin_pct).toLocaleString('ru-RU',{maximumFractionDigits:1}) + '%</span><span>Срок: ' + Number(o.pi_analysis.estimated_days).toLocaleString('ru-RU',{maximumFractionDigits:1}) + ' смен · Бригада: ' + Number(o.pi_analysis.crew_size) + ' · История смен: ' + Number(o.pi_analysis.observations_count) + ' наблюдений</span><small>' + (Number(o.pi_analysis.cost_per_unit)===0?'Внимание: себестоимость за единицу не задана; расчёт зависит от зарплаты и прочих расходов.':'Расчёт ориентировочный; проверь условия, ставки и дополнительные затраты.') + '</small></div>' : ''}<details class="pi-order-details"><summary>Почему такой приоритет и что уточнить</summary><div class="pi-order-details-body"><strong>Основания</strong><ul>${reasons.map(x=>`<li>${esc(x)}</li>`).join('')||'<li>Недостаточно сведений для объяснения оценки.</li>'}</ul><strong>Следующие вопросы</strong><ul>${questions.map(x=>`<li>${esc(x)}</li>`).join('')||'<li>Проверь бюджет, объём и сроки в первоисточнике.</li>'}</ul><small>${esc(pi?.disclaimer||'Предварительная сортировка; требуется проверка первоисточника.')}</small></div></details><small>${esc(o.source_name)} · ${esc(o.region)} · Обнаружено: ${esc(o.last_seen_at||o.first_seen_at||'—')}</small></div><div class="commercial-order-actions"><button class="button small-button" data-order-economics="${o.id}">${o.pi_analysis?'Изменить экономику':'Оценить экономику'}</button><button class="button small-button primary" data-order-open="${o.id}" data-order-url="${esc(o.source_url)}">Открыть источник ↗</button>${o.converted_to_lead?'<span class="pill won">Уже в заявках</span>':`<button class="button small-button" data-order-convert="${o.id}">В заявку</button>`}<select aria-label="Статус заказа" data-order-status="${o.id}"><option value="new" ${o.status==='new'?'selected':''}>Новый</option><option value="opened" ${o.status==='opened'?'selected':''}>Открывали</option><option value="relevant" ${o.status==='relevant'?'selected':''}>Подходит</option><option value="rejected" ${o.status==='rejected'?'selected':''}>Не подходит</option></select></div></article>`;
+ }).join(''):empty('Заказы пока не найдены','Нажми «Найти заказы» после сохранения ключа Brave Search или измени фильтры.');
+}
 async function refreshProspects() {
   const rows = await window.crm.listProspects();
-  renderOpportunityRadar(rows); const q = ($('prospectSearch')?.value || '').trim().toLowerCase(); const status = $('prospectStatusFilter')?.value || '';
+  renderOpportunityRadar(rows);
+  await refreshCommercialOrders(); const q = ($('prospectSearch')?.value || '').trim().toLowerCase(); const status = $('prospectStatusFilter')?.value || '';
   const labels = { new: 'Новый', reviewed: 'Проверен', contacted: 'Связались', converted: 'В заявках', rejected: 'Не подходит' };
   const scored = rows.map(p => { const priority = prospectPriority(p); return { ...p, priority, fitScore: priority.score }; });
   const filtered = scored.filter(p => `${p.company_name} ${p.category} ${p.region} ${p.phone} ${p.email} ${p.website} ${p.source_name} ${p.notes}`.toLowerCase().includes(q) && (!status || p.status === status)).sort((a,b) => b.fitScore - a.fitScore || a.company_name.localeCompare(b.company_name, 'ru'));
@@ -721,6 +751,7 @@ $('estimateCreateProjectBtn').addEventListener('click', () => {
 const actualInputIds = ['actualContractRevenue','actualReceived','actualWagesPaid','actualMaterialsPaid','actualDisposalPaid','actualTransportPaid','actualEquipmentPaid','actualOtherPaid'];
 actualInputIds.forEach(id => $(id).addEventListener('input', () => { const r = refreshEstimate(); if (r) estimateRefreshActuals(r.totalCost); estimateSaveDraft(); }));
 $('actualUseEstimatePriceBtn').addEventListener('click', () => { const r = refreshEstimate(); if (!r) return; $('actualContractRevenue').value = Math.round(r.revenue); estimateRefreshActuals(r.totalCost); estimateSaveDraft(); toast('Цена сметы подставлена в план/факт.'); });
+document.querySelectorAll('input[name="estimate_condition"]').forEach(input => input.addEventListener('change', () => refreshEstimateLearningRates().catch(error => { $('estimateLearningStatus').textContent = `Не удалось обновить нормы: ${error.message}`; })));
 estimateLoadDraft();
 refreshEstimateLearningRates().catch(error => { $('estimateLearningStatus').textContent = `Не удалось загрузить фактические нормы: ${error.message}`; });
 $('addPaymentBtn').addEventListener('click', async () => { await refreshProjects(); if (!(await window.crm.listProjects()).length) { toast('Сначала создай объект, к которому привязать платёж.', true); showView('projects'); return; } $('paymentForm').reset(); $('paymentForm').elements.payment_date.value = dateToday(); $('paymentDialogTitle').textContent = 'Записать платёж'; openDialog('paymentDialog'); });
@@ -937,6 +968,102 @@ $('runWebSearchBtn').addEventListener('click', async () => {
   } catch (error) { result.className = 'crawler-result error'; result.textContent = `Поиск не выполнен: ${error.message}`; toast(error.message, true); }
   finally { button.disabled = false; button.textContent = '⌕ Найти компании'; await refreshSearchApiStatus(); }
 });
+$('runOrderRadarBtn').addEventListener('click',async()=>{
+ const b=$('runOrderRadarBtn'),r=$('orderRadarResult'),sourceType=$('orderRadarSource')?.value||'web';
+ if(sourceType==='files'){r.hidden=false;r.className='crawler-result';r.textContent='Для источника «Импорт из файла» нажми «Импорт CSV».';return;}
+ b.disabled=true;b.textContent='Ищем…';r.hidden=false;r.className='crawler-result';r.textContent='Ищем страницы заказов по выбранному источнику…';
+ try{
+  const report=await window.crm.searchCommercialOrders({service:$('orderRadarService').value,region:$('orderRadarRegion').value,sourceType});
+  const lines=[`Источник: ${sourceType}`,`Запросов: ${report.queries.length}`,`Результатов: ${report.received}`,`Уникальных ссылок: ${report.unique}`,`Новых карточек: ${report.added}`,`Обновлено: ${report.refreshed}`,`Защищено вручную отмеченных: ${report.protected||0}`,`Ошибок: ${report.errors.length}`];
+  if(report.errors.length)lines.push('','Ошибки:',...report.errors.map(x=>`• ${x.query}: ${x.error}`));
+  lines.push('','Результаты — кандидаты. Проверь актуальность и условия на исходном сайте.');
+  r.textContent=lines.join('\n');await refreshCommercialOrders();toast(`Поиск завершён. Новых карточек: ${report.added}.`);
+ }catch(e){r.className='crawler-result error';r.textContent=`Поиск не выполнен: ${e.message}. Если API недоступен, используй «Открыть ручной поиск».`;toast(e.message,true)}
+ finally{b.disabled=false;b.textContent='⌕ Найти через API'}
+});
+$('manualOrderSearchBtn').addEventListener('click',async()=>{
+ try{const sourceType=$('orderRadarSource')?.value||'all';if(sourceType==='files'){toast('Для источника «Импорт из файла» используй кнопку «Импорт CSV».');return;}const url=await window.crm.manualCommercialOrderSearchUrl({service:$('orderRadarService').value,region:$('orderRadarRegion').value,sourceType});await window.crm.openExternal(url);toast('Открылся ручной поиск. Проверь первоисточники и импортируй подходящие заказы из CSV.')}
+ catch(e){toast(e.message,true)}
+});
+$('importOrdersCsvBtn').addEventListener('click',async()=>{
+ try{const result=await window.crm.importCommercialOrdersCsv();if(result.canceled)return;await refreshCommercialOrders();toast(`Импорт завершён: ${result.imported} добавлено, ${result.skipped} пропущено.`)}
+ catch(e){toast(`Импорт не выполнен: ${e.message}`,true)}
+});
+$('addManualOrderBtn').addEventListener('click',()=>{
+ const form=$('manualOrderForm');form.reset();
+ $('manualOrderService').value=$('orderRadarService').value||'demolition';
+ $('manualOrderRegion').value=$('orderRadarRegion').value||'Москва и Московская область';
+ $('manualOrderDialog').showModal();
+});
+$('manualOrderForm').addEventListener('submit',async event=>{
+ event.preventDefault();const form=event.currentTarget;const submit=form.querySelector('button[type="submit"]');submit.disabled=true;
+ try{
+  const result=await window.crm.createCommercialOrder({title:$('manualOrderTitle').value,source_url:$('manualOrderUrl').value,snippet:$('manualOrderSnippet').value,service:$('manualOrderService').value,region:$('manualOrderRegion').value});
+  $('manualOrderDialog').close();await refreshCommercialOrders();
+  toast(result.duplicate?'Этот заказ уже есть в радаре — дубль не создан.':'Заказ добавлен. Открой карточку, чтобы посмотреть оценку ПИ.');
+ }catch(e){toast(e.message,true)}
+ finally{submit.disabled=false}
+});
+$('commercialOrdersList').addEventListener('click',e=>{
+ const button=e.target.closest('[data-order-economics]');if(!button)return;
+ const order=commercialOrderCache.find(item=>Number(item.id)===Number(button.dataset.orderEconomics));if(!order)return;
+ try{
+  piEconomicsCatalogCache=window.StrukturaEstimateCalculator?.getCatalog?.()||[];
+  $('piEconomicsCatalog').innerHTML='<option value="">Своя работа / ручной ввод</option>'+piEconomicsCatalogCache.map(item=>'<option value="'+esc(item.id)+'">'+esc(item.name)+' · '+esc(item.unit)+' · '+esc(item.category||'')+'</option>').join('');
+  const a=order.pi_analysis||{};
+  $('piEconomicsOrderId').value=order.id;$('piEconomicsOrderTitle').textContent=order.title;
+  $('piEconomicsWorkName').value=a.work_name||order.title;$('piEconomicsUnit').value=a.unit||'м²';
+  $('piEconomicsQuantity').value=a.quantity??1;$('piEconomicsBudget').value=a.budget_rub??0;
+  $('piEconomicsPrice').value=a.price_per_unit??0;$('piEconomicsCost').value=a.cost_per_unit??0;
+  $('piEconomicsProductivity').value=a.baseline_productivity??8;$('piEconomicsCrew').value=a.crew_size??5;
+  $('piEconomicsWage').value=a.wage_per_worker_shift??0;$('piEconomicsOther').value=a.other_costs_rub??0;
+  $('piEconomicsDifficulty').value=a.difficulty_factor??1;$('piEconomicsReserve').value=a.reserve_percent??15;
+  $('piEconomicsCatalog').value=a.catalog_id||'';
+  $('piEconomicsDialog').showModal();
+ }catch(error){toast('Не удалось открыть расчёт ПИ: '+error.message,true)}
+});
+$('piEconomicsCatalog').addEventListener('change',()=>{
+ const item=piEconomicsCatalogCache.find(row=>String(row.id)===String($('piEconomicsCatalog').value));if(!item)return;
+ $('piEconomicsWorkName').value=item.name||'';$('piEconomicsUnit').value=item.unit||'м²';
+ $('piEconomicsPrice').value=Number(item.price)||0;$('piEconomicsCost').value=Number(item.cost)||0;
+ $('piEconomicsProductivity').value=Number(item.productivity)||8;
+});
+$('piEconomicsForm').addEventListener('submit',async event=>{
+ event.preventDefault();const submit=event.currentTarget.querySelector('button[type="submit"]');submit.disabled=true;
+ try{
+  const result=await window.crm.saveCommercialOrderAnalysis({
+   order_id:Number($('piEconomicsOrderId').value),catalog_id:$('piEconomicsCatalog').value,
+   work_name:$('piEconomicsWorkName').value,unit:$('piEconomicsUnit').value,
+   quantity:Number($('piEconomicsQuantity').value),budget_rub:Number($('piEconomicsBudget').value),
+   price_per_unit:Number($('piEconomicsPrice').value),cost_per_unit:Number($('piEconomicsCost').value),
+   baseline_productivity:Number($('piEconomicsProductivity').value),crew_size:Number($('piEconomicsCrew').value),
+   wage_per_worker_shift:Number($('piEconomicsWage').value),other_costs_rub:Number($('piEconomicsOther').value),
+   difficulty_factor:Number($('piEconomicsDifficulty').value),reserve_percent:Number($('piEconomicsReserve').value)
+  });
+  $('piEconomicsDialog').close();await refreshCommercialOrders();
+  toast(result.observations_count>0?'Расчёт сохранён; ПИ учёл историю смен по выбранной работе.':'Расчёт сохранён. Истории смен по этой работе нет — использована стартовая производительность.');
+ }catch(error){toast(error.message,true)}
+ finally{submit.disabled=false}
+});
+$('refreshOrdersBtn').addEventListener('click',()=>refreshCommercialOrders().then(()=>toast('Список заказов обновлён.')).catch(e=>toast(e.message,true)));
+$('orderRadarSearch').addEventListener('input',()=>refreshCommercialOrders().catch(e=>toast(e.message,true)));
+$('orderRadarStatus').addEventListener('change',()=>refreshCommercialOrders().catch(e=>toast(e.message,true)));
+$('orderRadarService').addEventListener('change',()=>refreshCommercialOrders().catch(e=>toast(e.message,true)));
+$('orderRadarSource').addEventListener('change',()=>{refreshCommercialOrders().catch(e=>toast(e.message,true));const b=$('runOrderRadarBtn');if(b)b.textContent=$('orderRadarSource').value==='files'?'Выбран импорт CSV':'⌕ Найти через API';});
+$('commercialOrdersList').addEventListener('click',async e=>{
+ const button=e.target.closest('[data-order-convert]');if(!button)return;
+ const orderId=Number(button.dataset.orderConvert);if(!Number.isSafeInteger(orderId)||orderId<1){toast('Некорректный номер заказа.',true);return;}
+ button.disabled=true;button.textContent='Создаём заявку…';
+ try{
+  const result=await window.crm.convertCommercialOrderToLead(orderId);
+  await refreshCommercialOrders();
+  await refreshLeads();
+  toast(result.alreadyExists?'Этот заказ уже был передан в заявки.':'Заказ передан в раздел «Заявки».');
+ }catch(error){toast('Не удалось создать заявку: '+error.message,true);}
+ finally{button.disabled=false;}
+});
+$('commercialOrdersList').addEventListener('click',async e=>{const b=e.target.closest('[data-order-open]');if(!b)return;try{await window.crm.openExternal(b.dataset.orderUrl);await window.crm.updateCommercialOrderStatus({id:Number(b.dataset.orderOpen),status:'opened'});await refreshCommercialOrders()}catch(err){toast(err.message,true)}});
+$('commercialOrdersList').addEventListener('change',async e=>{const s=e.target.closest('[data-order-status]');if(!s)return;try{await window.crm.updateCommercialOrderStatus({id:Number(s.dataset.orderStatus),status:s.value});toast('Статус заказа сохранён.')}catch(err){toast(err.message,true)}});
 $('exportProspectsBtn').addEventListener('click', () => exportCsv('prospects'));
 $('exportClientsBtn').addEventListener('click', () => exportCsv('clients'));
 $('exportLeadsBtn').addEventListener('click', () => exportCsv('leads'));
@@ -1023,6 +1150,13 @@ async function refreshProduction() {
   $('productionHistory').innerHTML = data.history.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Бригада</th><th>Фактически сделано</th><th>Выработка против нормы</th><th>Простой</th><th>Условия</th><th>Примечание</th><th></th></tr></thead><tbody>${data.history.map(shift => `<tr><td>${esc(shift.shift_date)}</td><td>${esc(shift.project_title)}</td><td>${shift.workers_count} чел. × ${productionNum(shift.shift_hours,1)} ч.</td><td>${esc(shift.work_summary || '—')}<small class="table-sub">${shift.work_count} видов работ</small></td><td><div class="production-history-rates">${shift.performance.map(item => { const deviation = Number(item.deviationPct || 0); const cls = deviation >= 20 ? 'above' : deviation <= -20 ? 'below' : 'normal'; const label = deviation >= 20 ? 'Выше нормы' : deviation <= -20 ? 'Ниже нормы' : 'Близко к норме'; return `<div><span>${esc(item.work_name)}: ${productionNum(item.actualRate,2)} ${esc(item.unit)}/чел.-смену</span><small class="production-deviation ${cls}">${label} ${deviation > 0 ? '+' : ''}${deviation}% · старт ${productionNum(item.expectedRate,2)}</small></div>`; }).join('')}</div></td><td>${productionNum(shift.downtime_hours,1)} ч.</td><td>×${productionNum(shift.complexity_factor,2)}</td><td>${esc(shift.notes || '—')}</td><td><div class="table-actions"><button class="button subtle compact" data-edit-production-shift="${shift.id}">Изменить</button><button class="button subtle compact production-delete-shift" data-delete-production-shift="${shift.id}" title="Удалить ошибочный отчёт">Удалить</button></div></td></tr>`).join('')}</tbody></table></div>` : empty('Смены пока не закрывались','Заполни первый отчёт — CRM сохранит факт и начнёт уточнять производительность.');
   window._strukturaProductionProjects = data.projects;
 }
+function productionReadConditions(name) { return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(input => input.value); }
+function productionSetConditions(name, value) {
+  let conditions = value;
+  if (typeof value === 'string') { try { conditions = JSON.parse(value || '[]'); } catch (_) { conditions = []; } }
+  if (!Array.isArray(conditions)) conditions = [];
+  document.querySelectorAll(`input[name="${name}"]`).forEach(input => { input.checked = conditions.includes(input.value); });
+}
 async function openProductionPlan(projectId = '') {
   const allProjects = (await window.crm.listProjects()).filter(project => !['completed','cancelled'].includes(project.status));
   if (!allProjects.length) { toast('Сначала создай объект.'); showView('projects'); return; }
@@ -1037,6 +1171,7 @@ async function productionLoadPlanForSelected() {
     const data = await window.crm.getProductionPlan(projectId);
     $('planPeople').value = data.project.planned_people || 5;
     $('planDifficulty').value = String(data.project.complexity_factor || 1);
+    productionSetConditions('plan_condition', data.project.conditions_json);
     productionRenderRows('productionPlanLines','plan',data.lines.map(line => ({ ...line, catalog_id: line.catalog_id, baseline_productivity: line.baseline_productivity })));
   } catch (error) { toast(error.message,true); }
 }
@@ -1051,7 +1186,7 @@ async function openProductionShift(projectId = '') {
 }
 async function productionLoadShiftRows() {
   const projectId = Number($('shiftProjectSelect').value);
-  if (!projectId) { $('shiftWorkers').value = '5'; $('shiftDifficulty').value = '1'; productionRenderRows('productionShiftLines','shift',[]); return; }
+  if (!projectId) { $('shiftWorkers').value = '5'; $('shiftDifficulty').value = '1'; productionSetConditions('shift_condition', []); productionRenderRows('productionShiftLines','shift',[]); return; }
   const data = await window.crm.getProductionPlan(projectId);
   $('shiftWorkers').value = data.project.planned_people || 5;
   $('shiftDifficulty').value = String(data.project.complexity_factor || 1);
@@ -1111,7 +1246,7 @@ $('productionPlanForm').addEventListener('submit', async e => {
   e.preventDefault(); const rows = [...$('productionPlanLines').querySelectorAll('[data-production-edit-row]')];
   const lines = rows.map(row => Object.fromEntries([...row.querySelectorAll('[data-prod-field]')].map(field => [field.dataset.prodField, field.value])));
   try {
-    const saved = await window.crm.saveProductionPlan({ project_id: $('planProjectSelect').value, planned_people: Number($('planPeople').value), complexity_factor: Number($('planDifficulty').value), lines });
+    const saved = await window.crm.saveProductionPlan({ project_id: $('planProjectSelect').value, planned_people: Number($('planPeople').value), complexity_factor: Number($('planDifficulty').value), conditions: productionReadConditions('plan_condition'), lines });
     closeDialog('productionPlanDialog'); toast(`План сохранён: ${saved.lineCount} позиций. После отчётов остаток и срок будут пересчитываться автоматически.`);
     await refreshProduction();
   } catch (error) { toast(error.message,true); }
@@ -1120,7 +1255,7 @@ $('productionShiftForm').addEventListener('submit', async e => {
   e.preventDefault(); const rows = [...$('productionShiftLines').querySelectorAll('[data-production-edit-row]')];
   const lines = rows.map(row => Object.fromEntries([...row.querySelectorAll('[data-prod-field]')].map(field => [field.dataset.prodField, field.value]))).filter(line => Number(line.quantity_done) > 0);
   if (!lines.length && !$('shiftNotes').value.trim()) { toast('Если за смену ничего не сделано, укажи причину в примечании.', true); $('shiftNotes').focus(); return; }
-  const form = e.currentTarget, data = { id: form.elements.id.value, project_id: Number($('shiftProjectSelect').value), shift_date: $('shiftDate').value, workers_count: Number($('shiftWorkers').value), shift_hours: Number($('shiftHours').value), downtime_hours: Number($('shiftDowntime').value), complexity_factor: Number($('shiftDifficulty').value), notes: $('shiftNotes').value, lines };
+  const form = e.currentTarget, data = { id: form.elements.id.value, project_id: Number($('shiftProjectSelect').value), shift_date: $('shiftDate').value, workers_count: Number($('shiftWorkers').value), shift_hours: Number($('shiftHours').value), downtime_hours: Number($('shiftDowntime').value), complexity_factor: Number($('shiftDifficulty').value), conditions: productionReadConditions('shift_condition'), notes: $('shiftNotes').value, lines };
   try {
     const saved = data.id ? await window.crm.updateWorkShift(data) : await window.crm.saveWorkShift(data);
     closeDialog('productionShiftDialog');
@@ -1172,7 +1307,7 @@ $('productionHistory').addEventListener('click', async e => {
       $('productionShiftForm').elements.id.value = shift.id;
       $('shiftDate').value = shift.shift_date; $('shiftWorkers').value = shift.workers_count;
       $('shiftHours').value = shift.shift_hours; $('shiftDowntime').value = shift.downtime_hours;
-      $('shiftDifficulty').value = String(shift.complexity_factor); $('shiftNotes').value = shift.notes || '';
+      $('shiftDifficulty').value = String(shift.complexity_factor); productionSetConditions('shift_condition', shift.conditions_json); $('shiftNotes').value = shift.notes || '';
       productionRenderRows('productionShiftLines','shift',shift.lines);
       $('productionShiftDialogTitle').textContent = 'Исправить отчёт смены';
       openDialog('productionShiftDialog'); return;
