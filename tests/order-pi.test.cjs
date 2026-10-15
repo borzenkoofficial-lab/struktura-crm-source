@@ -72,6 +72,46 @@ test('uses saved preliminary economics in PI ranking without claiming real win p
 });
 
 
+test('caps priority for an order with a negative estimated margin', () => {
+  const result = assessCommercialOrder({
+    title: 'Тендер на демонтаж офисных помещений',
+    snippet: 'Заказчик ищет подрядчика для демонтажа коммерческого помещения. Бюджет 1 500 000 руб., объём 1000 м2, заявки до 25.10.2026.',
+    source_url: 'https://example.ru/tender/negative-margin',
+    service: 'demolition',
+    signal_labels: ['Закупка / тендер', 'Демонтаж']
+  }, {
+    revenue_rub: 1500000,
+    budget_rub: 1500000,
+    quantity: 1000,
+    estimated_margin_pct: -12,
+    estimated_days: 8,
+    observations_count: 5
+  });
+  assert.ok(result.score <= 39);
+  assert.equal(result.label, 'Недостаточно подтверждений');
+  assert.ok(result.reasons.some(reason => reason.includes('Финансовый стоп-сигнал')));
+  assert.ok(result.reasons.some(reason => reason.includes('ограничен финансовым стоп-сигналом')));
+});
+
+test('limits priority for thin positive estimated margin', () => {
+  const result = assessCommercialOrder({
+    title: 'Тендер на демонтаж офисных помещений',
+    snippet: 'Заказчик ищет подрядчика для демонтажа коммерческого помещения.',
+    source_url: 'https://example.ru/tender/thin-margin',
+    service: 'demolition',
+    signal_labels: ['Закупка / тендер', 'Демонтаж']
+  }, {
+    revenue_rub: 1500000,
+    budget_rub: 1500000,
+    quantity: 1000,
+    estimated_margin_pct: 7,
+    estimated_days: 8,
+    observations_count: 5
+  });
+  assert.ok(result.score <= 54);
+  assert.ok(result.reasons.some(reason => reason.includes('Низкая расчётная маржа')));
+});
+
 test('does not mistake a high general relevance score for procurement intent', () => {
   const result = assessCommercialOrder({
     title: 'Демонтаж коммерческого помещения',
