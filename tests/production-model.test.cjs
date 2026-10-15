@@ -84,3 +84,37 @@ test('production model keeps linear scaling when productivity is similar across 
   const model = buildRateModel({ baselineProductivity: 10, observations, targetCrewSize: 10 });
   assert.equal(model.crewScalingApplied, false, 'similar per-worker results do not justify a size adjustment');
 });
+
+
+test('learns from condition-matched shifts instead of mixing incomparable job conditions', () => {
+  const model = buildRateModel({
+    baselineProductivity: 10,
+    targetConditions: ['manual_carry', 'no_elevator'],
+    observations: [
+      { quantity_done: 10, workers_count: 2, hours: 8, complexity_factor: 1, conditions_json: '[]' },
+      { quantity_done: 8, workers_count: 2, hours: 8, complexity_factor: 1, conditions_json: '["manual_carry","no_elevator"]' },
+      { quantity_done: 9, workers_count: 2, hours: 8, complexity_factor: 1, conditions_json: '["no_elevator","manual_carry"]' },
+      { quantity_done: 30, workers_count: 2, hours: 8, complexity_factor: 1, conditions_json: '["reinforced_concrete"]' }
+    ]
+  });
+  assert.equal(model.availableObservations, 4);
+  assert.equal(model.matchedObservations, 2);
+  assert.equal(model.observations, 2);
+  assert.equal(model.conditionMatchSufficient, true);
+  assert.equal(model.observedMedian, 8.5);
+});
+
+test('falls back to baseline when there are fewer than two comparable-condition observations', () => {
+  const model = buildRateModel({
+    baselineProductivity: 10,
+    targetConditions: ['cramped_space'],
+    observations: [
+      { quantity_done: 30, workers_count: 2, hours: 8, complexity_factor: 1, conditions_json: '[]' },
+      { quantity_done: 5, workers_count: 2, hours: 8, complexity_factor: 1, conditions_json: '["cramped_space"]' }
+    ]
+  });
+  assert.equal(model.observations, 0);
+  assert.equal(model.conditionMatchSufficient, false);
+  assert.equal(model.effectiveProductivity, 10);
+  assert.match(model.confidence, /недостаточно смен/iu);
+});
