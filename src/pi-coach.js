@@ -135,6 +135,44 @@ function buildPiCoachInsights(data = {}, options = {}) {
       'production', 'Сравнить смены');
   }
 
+  // Learn from the direction of production performance, not just isolated low results.
+  // Compare two recent observations with the two immediately preceding observations for the same work.
+  const trendByWork = new Map();
+  for (const shift of history) {
+    const date = validIso(String(shift.shift_date || '').slice(0, 10));
+    for (const row of (Array.isArray(shift.performance) ? shift.performance : [])) {
+      const deviation = Number(row.deviationPct);
+      const name = String(row.work_name || '').trim();
+      if (!date || !name || !Number.isFinite(deviation)) continue;
+      const key = name.toLocaleLowerCase('ru-RU');
+      if (!trendByWork.has(key)) trendByWork.set(key, { name, rows: [] });
+      trendByWork.get(key).rows.push({ date, deviation, project: shift.project_title || '' });
+    }
+  }
+  for (const group of trendByWork.values()) {
+    const rows = group.rows.sort((a, b) => a.date.localeCompare(b.date));
+    if (rows.length < 4) continue;
+    const previous = rows.slice(-4, -2);
+    const recent = rows.slice(-2);
+    const previousAverage = previous.reduce((sum, row) => sum + row.deviation, 0) / previous.length;
+    const recentAverage = recent.reduce((sum, row) => sum + row.deviation, 0) / recent.length;
+    const change = recentAverage - previousAverage;
+    const title = group.name;
+    if (recentAverage <= -15 && change <= -15) {
+      add('production-trend-worsening-' + title.toLocaleLowerCase('ru-RU'), 'warning', 89,
+        'Выработка ухудшается: ' + title,
+        'По работе «' + title + '» последние два подходящих наблюдения заметно хуже предыдущих двух. Это ещё не объясняет причину: сравни условия объекта, состав бригады, простои, способ замера и объём работ, прежде чем менять норматив или цену.',
+        'Предыдущие два наблюдения: в среднем ' + Math.round(previousAverage) + '% к плану. Последние два: ' + Math.round(recentAverage) + '% к плану. Изменение: ' + Math.round(change) + ' процентных пунктов. Последние даты: ' + recent.map(row => row.date + (row.project ? ' · ' + row.project : '')).join('; ') + '. Вывод основан на четырёх сохранённых наблюдениях по названию работы; условия объектов могут различаться.',
+        'production', 'Сравнить условия');
+    } else if (previousAverage <= -20 && change >= 15 && recentAverage > previousAverage) {
+      add('production-trend-improving-' + title.toLocaleLowerCase('ru-RU'), 'info', 61,
+        'Есть улучшение выработки: ' + title,
+        'По работе «' + title + '» последние два наблюдения лучше предыдущих двух. Проверь, какие условия изменились, и не переноси результат на другие объекты без сравнения сложности и состава бригады.',
+        'Предыдущие два наблюдения: в среднем ' + Math.round(previousAverage) + '% к плану. Последние два: ' + Math.round(recentAverage) + '% к плану. Изменение: +' + Math.round(change) + ' процентных пунктов. Последние даты: ' + recent.map(row => row.date + (row.project ? ' · ' + row.project : '')).join('; ') + '. Это тенденция в сохранённых данных, а не доказательство причины улучшения.',
+        'production', 'Изучить улучшение');
+    }
+  }
+
   const overdueTasks = tasks.filter(task => !Number(task.is_done) && (task.urgency === 'overdue' || (validIso(String(task.due_at || '').slice(0, 10)) && ageDays(String(task.due_at).slice(0, 10), today) > 0)));
   if (overdueTasks.length) {
     const task = overdueTasks[0];
