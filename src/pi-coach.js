@@ -161,17 +161,28 @@ function buildPiCoachInsights(data = {}, options = {}) {
       'production', 'Сравнить смены');
   }
 
-  // Learn from the direction of production performance, not just isolated low results.
-  // Compare two recent observations with the two immediately preceding observations for the same work.
+  // Compare production only within a stable, explicitly comparable condition group.
+  // If condition fields are absent, do not invent comparability from work names alone.
   const trendByWork = new Map();
   for (const shift of history) {
     const date = validIso(String(shift.shift_date || '').slice(0, 10));
+    const crew = Number(shift.workers_count);
+    const shiftHours = Number(shift.shift_hours);
+    const complexity = Number(shift.complexity_factor);
+    const downtimeHours = Number(shift.downtime_hours);
+    if (!date || !Number.isFinite(crew) || crew < 1 || !Number.isFinite(shiftHours) || shiftHours <= 0 || !Number.isFinite(complexity) || complexity <= 0 || !Number.isFinite(downtimeHours) || downtimeHours < 0) continue;
+    const downtimeRatio = downtimeHours / shiftHours;
+    const downtimeBand = downtimeRatio < 0.15 ? 'low' : downtimeRatio < 0.3 ? 'medium' : 'high';
+    const conditionKey = [crew, Math.round(complexity * 10) / 10, Math.round(shiftHours / 2), downtimeBand].join('|');
     for (const row of (Array.isArray(shift.performance) ? shift.performance : [])) {
       const deviation = Number(row.deviationPct);
       const name = String(row.work_name || '').trim();
-      if (!date || !name || !Number.isFinite(deviation)) continue;
-      const key = name.toLocaleLowerCase('ru-RU');
-      if (!trendByWork.has(key)) trendByWork.set(key, { name, rows: [] });
+      const unit = String(row.unit || '').trim().toLocaleLowerCase('ru-RU');
+      const itemCrew = Number(row.workers_count);
+      const itemHours = Number(row.hours);
+      if (!name || !unit || !Number.isFinite(deviation) || !Number.isFinite(itemCrew) || itemCrew !== crew || !Number.isFinite(itemHours) || itemHours <= 0) continue;
+      const key = name.toLocaleLowerCase('ru-RU') + '|' + unit + '|' + conditionKey;
+      if (!trendByWork.has(key)) trendByWork.set(key, { name, unit, rows: [], conditions: { crew, complexity: Math.round(complexity * 10) / 10, shiftHours, downtimeBand } });
       trendByWork.get(key).rows.push({ date, deviation, project: shift.project_title || '' });
     }
   }
@@ -184,17 +195,18 @@ function buildPiCoachInsights(data = {}, options = {}) {
     const recentAverage = recent.reduce((sum, row) => sum + row.deviation, 0) / recent.length;
     const change = recentAverage - previousAverage;
     const title = group.name;
+    const conditions = 'Сопоставимые условия: бригада ' + group.conditions.crew + ' чел.; коэффициент сложности около ' + group.conditions.complexity.toLocaleString('ru-RU') + '; смена около ' + group.conditions.shiftHours + ' ч; простой в категории «' + ({ low: 'до 15%', medium: '15–30%', high: 'свыше 30%' })[group.conditions.downtimeBand] + '». Единица работы: ' + group.unit + '.';
     if (recentAverage <= -15 && change <= -15) {
-      add('production-trend-worsening-' + title.toLocaleLowerCase('ru-RU'), 'warning', 89,
+      add('production-trend-worsening-' + title.toLocaleLowerCase('ru-RU') + '-' + group.unit, 'warning', 89,
         'Выработка ухудшается: ' + title,
-        'По работе «' + title + '» последние два подходящих наблюдения заметно хуже предыдущих двух. Это ещё не объясняет причину: сравни условия объекта, состав бригады, простои, способ замера и объём работ, прежде чем менять норматив или цену.',
-        'Предыдущие два наблюдения: в среднем ' + Math.round(previousAverage) + '% к плану. Последние два: ' + Math.round(recentAverage) + '% к плану. Изменение: ' + Math.round(change) + ' процентных пунктов. Последние даты: ' + recent.map(row => row.date + (row.project ? ' · ' + row.project : '')).join('; ') + '. Вывод основан на четырёх сохранённых наблюдениях по названию работы; условия объектов могут различаться.',
+        'По работе «' + title + '» последние два сопоставимых наблюдения заметно хуже предыдущих двух. Проверь причины до изменения норматива или цены.',
+        'Предыдущие два наблюдения: в среднем ' + Math.round(previousAverage) + '% к плану. Последние два: в среднем ' + Math.round(recentAverage) + '% к плану. Изменение: ' + Math.round(change) + ' процентных пунктов. Последние даты: ' + recent.map(row => row.date + (row.project ? ' · ' + row.project : '')).join('; ') + '. ' + conditions + ' Сопоставимость определена по численности бригады, коэффициенту сложности, длительности смены и категории простоя; причина изменения требует проверки.',
         'production', 'Сравнить условия');
     } else if (previousAverage <= -20 && change >= 15 && recentAverage > previousAverage) {
-      add('production-trend-improving-' + title.toLocaleLowerCase('ru-RU'), 'info', 61,
+      add('production-trend-improving-' + title.toLocaleLowerCase('ru-RU') + '-' + group.unit, 'info', 61,
         'Есть улучшение выработки: ' + title,
-        'По работе «' + title + '» последние два наблюдения лучше предыдущих двух. Проверь, какие условия изменились, и не переноси результат на другие объекты без сравнения сложности и состава бригады.',
-        'Предыдущие два наблюдения: в среднем ' + Math.round(previousAverage) + '% к плану. Последние два: ' + Math.round(recentAverage) + '% к плану. Изменение: +' + Math.round(change) + ' процентных пунктов. Последние даты: ' + recent.map(row => row.date + (row.project ? ' · ' + row.project : '')).join('; ') + '. Это тенденция в сохранённых данных, а не доказательство причины улучшения.',
+        'По работе «' + title + '» последние два сопоставимых наблюдения лучше предыдущих двух. Проверь, какие изменения могли повлиять на результат.',
+        'Предыдущие два наблюдения: в среднем ' + Math.round(previousAverage) + '% к плану. Последние два: в среднем ' + Math.round(recentAverage) + '% к плану. Изменение: +' + Math.round(change) + ' процентных пунктов. Последние даты: ' + recent.map(row => row.date + (row.project ? ' · ' + row.project : '')).join('; ') + '. ' + conditions + ' Это тенденция в сохранённых данных, а не доказательство причины улучшения.',
         'production', 'Изучить улучшение');
     }
   }
