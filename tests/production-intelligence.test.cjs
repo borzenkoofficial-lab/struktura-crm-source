@@ -129,7 +129,7 @@ test('PI sorts recommendations by urgency and does not invent economics without 
   const result = buildProductionIntelligence({
     projects: [{ id: 1, title: 'Объект', planCount: 0, shiftCount: 0, forecast: { estimated: false, lines: [] } }],
     history: [{ project_id: 1, shift_date: '2026-10-15', workers_count: 2, shift_hours: 8, downtime_hours: 0, performance: [
-      { work_name: 'Стены', workers_count: 2, hours: 8, deviationPct: 0 }
+      { work_name: 'Стены', workers_count: 2, hours: 9, deviationPct: 0 }
     ] }],
     totals: { shifts: 1, work_records: 1 }
   }, { today: '2026-10-15' });
