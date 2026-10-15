@@ -188,6 +188,113 @@ async function refreshNotificationSettings() {
   for (const key of ['startHour','endHour','staleShiftDays','repeatEveryHours']) form.elements[key].value = settings[key];
   $('notificationStatus').textContent = settings.enabled ? `Включены · ${String(settings.startHour).padStart(2,'0')}:00–${String(settings.endHour).padStart(2,'0')}:00 · проверка каждые 15 мин.` : 'Уведомления выключены';
 }
+let piCoachInsights = [];
+let piCoachIndex = 0;
+let piCoachLastAutoAt = 0;
+let piCoachFetchPromise = null;
+let piCoachVoiceEnabled = localStorage.getItem('struktura-pi-voice-enabled') !== '0';
+function piCoachTodayKey() { return dateToday(); }
+function piCoachSeenKey() { return 'struktura-pi-seen-' + piCoachTodayKey(); }
+function piCoachSeenIds() { try { const value = JSON.parse(localStorage.getItem(piCoachSeenKey()) || '[]'); return Array.isArray(value) ? value : []; } catch { return []; } }
+function piCoachMarkSeen(id) { const seen = new Set(piCoachSeenIds()); seen.add(id); localStorage.setItem(piCoachSeenKey(), JSON.stringify([...seen].slice(-100))); }
+function piCoachCurrent() { return piCoachInsights[piCoachIndex] || null; }
+function piCoachSpeak(text) {
+  if (!piCoachVoiceEnabled || !('speechSynthesis' in window) || !text) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(String(text));
+  utterance.lang = 'ru-RU'; utterance.rate = 0.96; utterance.pitch = 1.04; utterance.volume = 1;
+  const voices = window.speechSynthesis.getVoices();
+  const russian = voices.find(voice => /^ru(-|_)/i.test(voice.lang)) || voices.find(voice => /russian|русск/i.test(voice.name));
+  if (russian) utterance.voice = russian;
+  window.speechSynthesis.speak(utterance);
+}
+function piCoachRender() {
+  const item = piCoachCurrent();
+  if (!item) return;
+  $('piCoachPriority').textContent = ({ danger: 'ТРЕБУЕТ ВНИМАНИЯ', warning: 'ПРОВЕРИТЬ', opportunity: 'ВОЗМОЖНОСТЬ', info: 'АНАЛИЗ ДАННЫХ' })[item.severity] || 'АНАЛИЗ ДАННЫХ';
+  $('piCoachPriority').className = 'pi-coach-priority ' + item.severity;
+  $('piCoachTitle').textContent = item.title;
+  $('piCoachSpoken').textContent = item.spoken;
+  $('piCoachEvidence').textContent = item.detail;
+  $('piCoachEvidenceWrap').open = false;
+  $('piCoachActionBtn').textContent = item.actionLabel || 'Разобрать';
+  $('piCoachNextBtn').textContent = piCoachInsights.length > 1 ? 'Следующий совет · ' + (piCoachIndex + 1) + '/' + piCoachInsights.length + ' →' : 'Других сигналов нет';
+  $('piCoachNextBtn').disabled = piCoachInsights.length < 2;
+  $('piCoachVoiceToggle').textContent = piCoachVoiceEnabled ? 'Голос: включён' : 'Голос: выключен';
+  $('piCoachVoiceToggle').setAttribute('aria-pressed', String(piCoachVoiceEnabled));
+}
+function piCoachOpen(index = piCoachIndex, speak = false) {
+  if (!piCoachInsights.length) return;
+  piCoachIndex = (index + piCoachInsights.length) % piCoachInsights.length;
+  piCoachRender();
+  $('piCoachPopover').hidden = false;
+  $('piCoachAvatarBtn').setAttribute('aria-expanded', 'true');
+  if (speak && piCoachVoiceEnabled) piCoachSpeak(piCoachCurrent()?.spoken);
+}
+function piCoachClose() {
+  $('piCoachPopover').hidden = true;
+  $('piCoachAvatarBtn').setAttribute('aria-expanded', 'false');
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+async function refreshPiCoach(options = {}) {
+  if (piCoachFetchPromise) return piCoachFetchPromise;
+  piCoachFetchPromise = (async () => {
+    const [summary, projects, leads, tasks, orders, production, finance, quotes, payments, expenses, incomeRecords] = await Promise.all([
+      window.crm.summary(), window.crm.listProjects(), window.crm.listLeads(),
+      window.crm.listTasks({ filter: 'open' }), window.crm.listCommercialOrders({}),
+      window.crm.productionOverview(), window.crm.financeInsights(), window.crm.estimateHistory(),
+      window.crm.listPayments(), window.crm.listExpenses(), window.crm.listIncomeRecords()
+    ]);
+    const builder = window.StrukturaPiCoach?.buildPiCoachInsights;
+    if (typeof builder !== 'function') return;
+    const next = builder({ summary, projects, leads, tasks, orders, production, finance, quotes, payments, expenses, incomeRecords });
+    const oldCurrent = piCoachCurrent()?.id;
+    piCoachInsights = next;
+    const oldIndex = oldCurrent ? piCoachInsights.findIndex(item => item.id === oldCurrent) : -1;
+    piCoachIndex = oldIndex >= 0 ? oldIndex : 0;
+    if (!$('piCoachPopover').hidden) { piCoachRender(); return; }
+    const now = Date.now();
+    const seen = new Set(piCoachSeenIds());
+    const unseen = piCoachInsights.find(item => !seen.has(item.id));
+    const canAutoOpen = !piCoachLastAutoAt || now - piCoachLastAutoAt >= 20 * 60 * 1000;
+    if (unseen && canAutoOpen && (options.force === true || piCoachLastAutoAt === 0 || unseen.severity === 'danger')) {
+      piCoachIndex = piCoachInsights.findIndex(item => item.id === unseen.id);
+      piCoachOpen(piCoachIndex, false);
+      piCoachMarkSeen(unseen.id);
+      piCoachLastAutoAt = now;
+    }
+  })().finally(() => { piCoachFetchPromise = null; });
+  return piCoachFetchPromise;
+}
+$('piCoachAvatarBtn').addEventListener('click', () => {
+  if ($('piCoachPopover').hidden) piCoachOpen(piCoachIndex, true);
+  else piCoachSpeak(piCoachCurrent()?.spoken);
+});
+$('piCoachCloseBtn').addEventListener('click', piCoachClose);
+$('piCoachSpeakBtn').addEventListener('click', () => {
+  if (!piCoachVoiceEnabled) {
+    piCoachVoiceEnabled = true; localStorage.setItem('struktura-pi-voice-enabled', '1'); piCoachRender();
+  }
+  piCoachSpeak(piCoachCurrent()?.spoken);
+});
+$('piCoachVoiceToggle').addEventListener('click', () => {
+  piCoachVoiceEnabled = !piCoachVoiceEnabled;
+  localStorage.setItem('struktura-pi-voice-enabled', piCoachVoiceEnabled ? '1' : '0');
+  if (!piCoachVoiceEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+  piCoachRender();
+  if (piCoachVoiceEnabled) piCoachSpeak(piCoachCurrent()?.spoken);
+});
+$('piCoachNextBtn').addEventListener('click', () => {
+  if (piCoachInsights.length > 1) piCoachOpen(piCoachIndex + 1, true);
+});
+$('piCoachActionBtn').addEventListener('click', () => {
+  const item = piCoachCurrent();
+  if (!item) return;
+  piCoachClose();
+  showView(item.view || 'dashboard');
+});
+if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = () => {};
+
 async function refreshDashboard() {
   const s = await window.crm.summary();
   $('statLeads').textContent = s.leads; $('statProjects').textContent = s.projects;
@@ -196,6 +303,7 @@ async function refreshDashboard() {
   const leads = await window.crm.listLeads();
   $('recentLeads').innerHTML = leads.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th></tr></thead><tbody>${leads.slice(0,5).map(l => `<tr><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><span class="pill ${esc(l.status)}">${esc(statusLabels[l.status] || l.status)}</span></td><td>${fmt(l.budget_rub)}</td></tr>`).join('')}</tbody></table>` : `<div class="empty-state"><div class="empty-icon">◉</div><strong>Пока нет заявок</strong><span>Добавь первое обращение — оно появится здесь.</span><button class="button primary" data-goto="leads">Добавить заявку</button></div>`;
   try { const production = await window.crm.productionOverview(); renderProductionIntelligence(production, 'piHomeSummary', 'piHomeAlerts'); } catch (error) { $('piHomeSummary').textContent = 'Не удалось загрузить данные производства.'; $('piHomeAlerts').innerHTML = `<div class="pi-no-alerts">${esc(error.message)}</div>`; }
+  refreshPiCoach().catch(() => {});
 }
 async function refreshLeads() {
   const rows = await window.crm.listLeads(); const q = ($('leadSearch')?.value || '').toLowerCase(); const status = $('leadStatusFilter')?.value || '';
@@ -747,7 +855,7 @@ $('estimateCopyBtn').addEventListener('click', estimateCopySummary);
 $('estimateCsvBtn').addEventListener('click', estimateDownloadCsv);
 $('estimatePdfBtn').addEventListener('click', async () => {
   const r = refreshEstimate(); if (!r) return;
-  try { const saved = await window.crm.exportQuotePdf({ title: $('estimateTitle').value, customer: $('estimateCustomer').value, address: $('estimateAddress').value, contact: $('estimateContact').value, validity: $('estimateValidity').value, lines: r.lineItems.map(x => ({name:x.name,unit:x.unit,quantity:x.quantity,price:x.price})), revenue: r.revenue, discount: r.discount }); if (saved?.canceled) return; toast('КП в PDF сохранено.'); } catch (error) { toast(`Не удалось сформировать PDF: ${error.message}`, true); }
+  try { const saved = await window.crm.exportQuotePdf({ title: $('estimateTitle').value, customer: $('estimateCustomer').value, address: $('estimateAddress').value, contact: $('estimateContact').value, validity: $('estimateValidity').value, lines: r.lineItems.map(x => ({name:x.name,unit:x.unit,quantity:x.quantity,price:x.price})), revenue: r.revenue, discount: r.discount, estimatedCostRub: r.totalCost, estimatedProfitRub: r.profit, marginPct: r.actualMargin }); if (saved?.canceled) return; toast('КП в PDF сохранено и добавлено в историю ПИ.'); await refreshPiCoach({ force: true }).catch(() => {}); } catch (error) { toast(`Не удалось сформировать PDF: ${error.message}`, true); }
 });
 $('estimateCreateProjectBtn').addEventListener('click', () => {
   const result = refreshEstimate(); if (!result) return;
