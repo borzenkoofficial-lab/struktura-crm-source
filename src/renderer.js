@@ -30,6 +30,20 @@ function showView(name) {
   if (name === 'browser') { showIntegratedBrowser().catch(e => toast(`Не удалось открыть браузер: ${e.message}`, true)); }
   else { window.crm.setBrowserVisibility({ visible: false }).catch(() => {}); }
 }
+// Register primary navigation before the rest of renderer initialization. If a later widget
+// fails during setup, the workspace navigation remains usable and the error is observable.
+document.addEventListener('click', event => {
+  const button = event.target.closest('[data-view]');
+  if (!button) return;
+  event.preventDefault();
+  showView(button.dataset.view);
+}, true);
+window.addEventListener('error', event => {
+  console.error('Struktura CRM renderer error:', event.error || event.message);
+  const toastNode = $('toast');
+  if (toastNode) toast('Ошибка интерфейса. Подробности записаны в журнал приложения.', true);
+});
+
 function renderSectionLoadError(name) {
   const targets = {
     dashboard: ['recentLeads'],
@@ -598,7 +612,7 @@ function empty(title, detail) { return `<div class="empty-state"><div class="emp
 function openDialog(id) { $(id).showModal(); }
 function closeDialog(id) { $(id).close(); }
 async function exportCsv(kind) { try { const r = await window.crm.exportDataCsv(kind); if (!r.canceled) toast(`Экспорт завершён: строк ${r.count}.`); } catch (e) { toast(e.message, true); } }
-document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+// Primary navigation is registered near showView() before widget initialization.
 const commandPalette = $('commandPaletteDialog');
 const commandSearch = $('commandPaletteSearch');
 $('openCommandPaletteBtn')?.addEventListener('click', openCommandPalette);
