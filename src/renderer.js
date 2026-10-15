@@ -542,6 +542,7 @@ function renderOpportunityRadar(rows) {
   }).join('') : empty('Пока нечего анализировать','Добавь компании или запусти поиск — радар разберёт заметки и фрагменты выдачи.');
 }
 let commercialOrderCache=[];
+let piEconomicsCatalogCache=[];
 const orderStatusLabels={new:'Новый',opened:'Открывали',relevant:'Подходит',rejected:'Не подходит'};
 async function refreshCommercialOrders(){
  const search=$('orderRadarSearch')?.value||'',status=$('orderRadarStatus')?.value||'';
@@ -991,6 +992,47 @@ $('manualOrderForm').addEventListener('submit',async event=>{
   $('manualOrderDialog').close();await refreshCommercialOrders();
   toast(result.duplicate?'Этот заказ уже есть в радаре — дубль не создан.':'Заказ добавлен. Открой карточку, чтобы посмотреть оценку ПИ.');
  }catch(e){toast(e.message,true)}
+ finally{submit.disabled=false}
+});
+$('commercialOrdersList').addEventListener('click',e=>{
+ const button=e.target.closest('[data-order-economics]');if(!button)return;
+ const order=commercialOrderCache.find(item=>Number(item.id)===Number(button.dataset.orderEconomics));if(!order)return;
+ try{
+  piEconomicsCatalogCache=window.StrukturaEstimateCalculator?.getCatalog?.()||[];
+  $('piEconomicsCatalog').innerHTML='<option value="">Своя работа / ручной ввод</option>'+piEconomicsCatalogCache.map(item=>'<option value="'+esc(item.id)+'">'+esc(item.name)+' · '+esc(item.unit)+' · '+esc(item.category||'')+'</option>').join('');
+  const a=order.pi_analysis||{};
+  $('piEconomicsOrderId').value=order.id;$('piEconomicsOrderTitle').textContent=order.title;
+  $('piEconomicsWorkName').value=a.work_name||order.title;$('piEconomicsUnit').value=a.unit||'м²';
+  $('piEconomicsQuantity').value=a.quantity??1;$('piEconomicsBudget').value=a.budget_rub??0;
+  $('piEconomicsPrice').value=a.price_per_unit??0;$('piEconomicsCost').value=a.cost_per_unit??0;
+  $('piEconomicsProductivity').value=a.baseline_productivity??8;$('piEconomicsCrew').value=a.crew_size??5;
+  $('piEconomicsWage').value=a.wage_per_worker_shift??0;$('piEconomicsOther').value=a.other_costs_rub??0;
+  $('piEconomicsDifficulty').value=a.difficulty_factor??1;$('piEconomicsReserve').value=a.reserve_percent??15;
+  $('piEconomicsCatalog').value=a.catalog_id||'';
+  $('piEconomicsDialog').showModal();
+ }catch(error){toast('Не удалось открыть расчёт ПИ: '+error.message,true)}
+});
+$('piEconomicsCatalog').addEventListener('change',()=>{
+ const item=piEconomicsCatalogCache.find(row=>String(row.id)===String($('piEconomicsCatalog').value));if(!item)return;
+ $('piEconomicsWorkName').value=item.name||'';$('piEconomicsUnit').value=item.unit||'м²';
+ $('piEconomicsPrice').value=Number(item.price)||0;$('piEconomicsCost').value=Number(item.cost)||0;
+ $('piEconomicsProductivity').value=Number(item.productivity)||8;
+});
+$('piEconomicsForm').addEventListener('submit',async event=>{
+ event.preventDefault();const submit=event.currentTarget.querySelector('button[type="submit"]');submit.disabled=true;
+ try{
+  const result=await window.crm.saveCommercialOrderAnalysis({
+   order_id:Number($('piEconomicsOrderId').value),catalog_id:$('piEconomicsCatalog').value,
+   work_name:$('piEconomicsWorkName').value,unit:$('piEconomicsUnit').value,
+   quantity:Number($('piEconomicsQuantity').value),budget_rub:Number($('piEconomicsBudget').value),
+   price_per_unit:Number($('piEconomicsPrice').value),cost_per_unit:Number($('piEconomicsCost').value),
+   baseline_productivity:Number($('piEconomicsProductivity').value),crew_size:Number($('piEconomicsCrew').value),
+   wage_per_worker_shift:Number($('piEconomicsWage').value),other_costs_rub:Number($('piEconomicsOther').value),
+   difficulty_factor:Number($('piEconomicsDifficulty').value),reserve_percent:Number($('piEconomicsReserve').value)
+  });
+  $('piEconomicsDialog').close();await refreshCommercialOrders();
+  toast(result.observations_count>0?'Расчёт сохранён; ПИ учёл историю смен по выбранной работе.':'Расчёт сохранён. Истории смен по этой работе нет — использована стартовая производительность.');
+ }catch(error){toast(error.message,true)}
  finally{submit.disabled=false}
 });
 $('refreshOrdersBtn').addEventListener('click',()=>refreshCommercialOrders().then(()=>toast('Список заказов обновлён.')).catch(e=>toast(e.message,true)));
