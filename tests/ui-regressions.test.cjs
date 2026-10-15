@@ -409,3 +409,27 @@ test('renderer and Electron entry scripts pass Node syntax validation', () => {
     assert.equal(result.status, 0, `Syntax check failed for ${relative}: ${result.stderr || result.stdout}`);
   }
 });
+
+
+test('additional income CRUD is wired end-to-end and contributes to cash totals exactly once', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  const db = fs.readFileSync(path.join(__dirname, '../src/db.cjs'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'utf8');
+  assert.match(html, /id="addIncomeBtn"/);
+  assert.match(html, /id="incomeForm"/);
+  assert.match(html, /name="record_type"/);
+  assert.match(renderer, /window\.crm\.listIncomeRecords\(\)/);
+  assert.match(renderer, /window\.crm\.createIncomeRecord\(data\)/);
+  assert.match(renderer, /window\.crm\.updateIncomeRecord\(data\)/);
+  assert.match(preload, /listIncomeRecords: \(\) => ipcRenderer\.invoke\('income:list'\)/);
+  assert.match(preload, /createIncomeRecord: \(data\) => ipcRenderer\.invoke\('income:create', data\)/);
+  assert.match(preload, /updateIncomeRecord: \(data\) => ipcRenderer\.invoke\('income:update', data\)/);
+  assert.match(main, /ipcMain\.handle\('income:list'/);
+  assert.match(main, /ipcMain\.handle\('income:create'/);
+  assert.match(main, /ipcMain\.handle\('income:update'/);
+  assert.match(db, /CREATE TABLE IF NOT EXISTS income_records/);
+  assert.match(main, /const totalReceived = received \+ otherIncome/);
+  assert.match(main, /cash: totalReceived - expenses/);
+  assert.match(main, /cash: totalReceived - paid/);
+});
