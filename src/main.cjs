@@ -634,7 +634,7 @@ ipcMain.handle('orders:list', (_event,input={})=>{
 });
 ipcMain.handle('orders:search',async(_event,input={})=>{
  const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');
- const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const sourceType=['web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';const queries=buildOrderQueries(service,region,sourceType);const found=[],errors=[];
+ const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const sourceType=['all','web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';const queries=buildOrderQueries(service,region,sourceType);const found=[],errors=[];
  for(const query of queries){try{const results=await searchBrave(query,apiKey,{count:10});found.push(...results.map(x=>normalizeBraveOrderResult(x,query,service,region)).filter(Boolean))}catch(e){errors.push({query,error:clean(e.message,240)})}}
  const unique=deduplicateOrders(found);
  const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`);
@@ -669,7 +669,7 @@ ipcMain.handle('orders:saveAnalysis', (_event,input={}) => {
 });
 ipcMain.handle('orders:manualSearchUrl', (_event,input={}) => {
  const service=services.includes(input.service)?input.service:'demolition';
- const sourceType=['web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';
+ const sourceType=['all','web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';
  const region=clean(input.region,120)||'Москва и Московская область';
  return buildManualOrderSearchUrl(service,region,sourceType);
 });
