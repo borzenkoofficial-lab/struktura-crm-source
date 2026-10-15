@@ -242,15 +242,16 @@ async function refreshPiCoach(options = {}) {
     const calls = await Promise.allSettled([
       window.crm.summary(), window.crm.listProjects(), window.crm.listLeads(),
       window.crm.listTasks({ filter: 'open' }), window.crm.listCommercialOrders({}),
-      window.crm.productionOverview(), window.crm.financeInsights(), window.crm.estimateHistory(),
+      window.crm.productionOverview(), window.crm.financeInsights(), window.crm.estimateHistory(), window.crm.piCoachHistory(),
       window.crm.listPayments(), window.crm.listExpenses(), window.crm.listIncomeRecords()
     ]);
     const value = (index, fallback) => calls[index].status === 'fulfilled' ? calls[index].value : fallback;
-    const [summary, projects, leads, tasks, orders, production, finance, quotes, payments, expenses, incomeRecords] = [
+    const [summary, projects, leads, tasks, orders, production, finance, quotes, coachHistory, payments, expenses, incomeRecords] = [
       value(0, {}), value(1, []), value(2, []), value(3, []), value(4, []),
       value(5, { projects: [], history: [], totals: {} }), value(6, {}),
-      value(7, []), value(8, []), value(9, []), value(10, [])
+      value(7, []), value(8, []), value(9, []), value(10, []), value(11, [])
     ];
+    production.history = coachHistory;
     const builder = window.StrukturaPiCoach?.buildPiCoachInsights;
     if (typeof builder !== 'function') return;
     const next = builder({ summary, projects, leads, tasks, orders, production, finance, quotes, payments, expenses, incomeRecords });
