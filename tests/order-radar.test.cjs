@@ -70,7 +70,7 @@ test('maps Brave Search result fields into a scored order card', () => {
   }, 'тендер демонтаж Москва', 'demolition', 'Москва и МО');
   assert.ok(order);
   assert.equal(order.title, 'Закупка: демонтаж офисных помещений');
-  assert.equal(order.source_url, 'https://tenders.example.ru/order/42?utm_source=brave');
+  assert.equal(order.source_url, 'https://tenders.example.ru/order/42');
   assert.match(order.snippet, /заказчик ищет подрядчика/i);
   assert.equal(order.relevance, 'potential_order');
 });
