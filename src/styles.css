@@ -680,3 +680,66 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 @media(max-width:850px){.about-hero{grid-template-columns:1fr;min-height:0}.about-hero-copy{padding:38px 30px 0}.about-hero-scene{min-height:320px;transform:scale(.88);transform-origin:top center;margin-bottom:-30px}.about-hero h2{font-size:42px}.about-intro-row,.about-values-head{grid-template-columns:1fr;gap:17px;padding-left:1%;padding-right:1%}.about-principles-grid,.about-values-grid{grid-template-columns:1fr}.about-principle-card{min-height:310px}.about-card-art{height:120px}.about-product-story{grid-template-columns:1fr}.about-workspace-mockup{max-width:600px;width:100%;margin:auto}.about-pi-banner{grid-template-columns:130px 1fr;padding:28px 25px;gap:20px}.about-pi-orb{width:125px;height:125px}.about-pi-orb b{width:62px;height:62px}.about-final-cta{align-items:flex-start;flex-direction:column}.about-final-actions{flex-direction:row;flex-wrap:wrap}.about-final-actions .button{flex:1}}
 @media(max-width:560px){.about-view{padding-top:14px}.about-hero{border-radius:17px}.about-hero-copy{padding:30px 22px 0}.about-hero h2{font-size:35px;letter-spacing:-1.5px}.about-hero-copy>p{font-size:12px}.about-hero-actions{align-items:flex-start;flex-direction:column;gap:13px}.about-hero-scene{min-height:265px;transform:scale(.72);transform-origin:top left;width:140%;margin-bottom:-70px}.about-intro-row{padding-top:45px}.about-intro-row h3,.about-values-head h3{font-size:27px}.about-principle-card{padding:17px;min-height:300px}.about-product-story{padding:28px 16px;gap:28px}.about-story-copy h3,.about-pi-copy h3{font-size:29px}.about-workspace-mockup{padding-right:8px;padding-bottom:40px}.mockup-window-body{grid-template-columns:31px 1fr;min-height:255px}.mockup-content{padding:14px 10px}.mockup-greeting strong{font-size:14px}.mockup-shadow-card{right:0;padding:9px}.mockup-shadow-card small{font-size:6px}.about-pi-banner{grid-template-columns:1fr;padding:26px 21px;margin:45px 0}.about-pi-orb{width:110px;height:110px}.about-pi-index{font-size:7px;right:16px}.about-values-grid{margin-bottom:45px}.about-final-cta{padding:25px 20px}.about-final-actions{width:100%;flex-direction:column}.about-final-art{left:50%;opacity:.5}}
 @media(prefers-reduced-motion:reduce){.about-view *,.about-view *:before,.about-view *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+
+/* Objects workspace: clear hierarchy, aligned panels and numbered workflow */
+#view-projects{max-width:100%;min-width:0}
+#view-projects>.section-head{align-items:center;gap:16px;margin-bottom:18px;padding:0 0 16px;border-bottom:1px solid var(--line,#e6ebf0)}
+#view-projects>.section-head h3{font-size:24px;font-weight:850;letter-spacing:-.65px;color:var(--text,#203047);margin:0 0 6px}
+#view-projects>.section-head p{max-width:650px;font-size:12px;line-height:1.55;margin:0;color:var(--muted,#78869a)}
+#view-projects .estimate-pro-panel{overflow:hidden;border:1px solid #dfe6ee;border-radius:16px;background:#fff;box-shadow:0 12px 34px rgba(31,48,69,.055)}
+#view-projects .estimate-pro-head{padding:24px 26px;background:linear-gradient(115deg,#fff 0%,#f8fafc 72%,#fff5f0 100%)}
+#view-projects .estimate-pro-head h3{font-size:22px;font-weight:850;letter-spacing:-.55px;color:#1d2e43}
+#view-projects .estimate-pro-head .eyebrow{font-size:10px;font-weight:850;letter-spacing:1.15px;color:#c45b37}
+#view-projects .estimate-pro-body{display:flex;flex-direction:column;gap:14px;padding:24px 26px 28px}
+#view-projects .object-block-title{display:flex;align-items:center;gap:12px;width:100%;margin:12px 0 0;padding:0 0 11px;border-bottom:1px solid #e8edf3}
+#view-projects .object-block-title>span{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border:1px solid #f1d6cb;border-radius:10px;background:#fff4ef;color:#bd512e;font-size:11px;font-weight:900;letter-spacing:.4px}
+#view-projects .object-block-title>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+#view-projects .object-block-title strong{font-size:14px;font-weight:850;line-height:1.3;color:#23364b}
+#view-projects .object-block-title small{font-size:11px;line-height:1.45;font-weight:500;color:#7b8797}
+#view-projects .estimate-meta-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0}
+#view-projects .estimate-meta-grid label,#view-projects .estimate-add-row label{font-size:12px;font-weight:750;color:#394b61;gap:8px}
+#view-projects .estimate-meta-grid input,#view-projects .estimate-meta-grid select{min-height:42px;border-radius:9px;font-size:13px;background:#fbfcfe}
+#view-projects .estimate-add-row{grid-template-columns:minmax(0,1fr) auto auto;padding:15px;border-radius:12px;background:#f7f9fc;border-color:#e1e7ef;margin:0}
+#view-projects .estimate-add-row .button{min-height:42px}
+#view-projects .notice.inline-notice{margin:0;border-radius:10px;line-height:1.6}
+#view-projects .estimate-table-wrap{border-radius:12px;border-color:#dfe6ee}
+#view-projects .estimate-lines-table th{padding:13px 11px;font-size:10px;font-weight:850;color:#526177;background:#f3f6fa}
+#view-projects .estimate-lines-table td{padding:10px}
+#view-projects .estimate-duration-panel,#view-projects .estimate-calibration-panel,#view-projects .estimate-actual-panel,#view-projects .estimate-subpanel,#view-projects .estimate-advisor{padding:19px;border:1px solid #e0e7ef;border-radius:13px;background:#fff;box-shadow:0 3px 12px rgba(30,48,68,.025);margin:0}
+#view-projects .estimate-duration-panel>.object-block-title,#view-projects .estimate-calibration-panel>.object-block-title,#view-projects .estimate-actual-panel>.object-block-title{margin:0 0 16px}
+#view-projects .estimate-subhead{align-items:center}
+#view-projects .estimate-subhead h4,#view-projects .estimate-catalog-head h4{font-size:15px;font-weight:850;line-height:1.35;color:#23364b}
+#view-projects .estimate-subhead p,#view-projects .estimate-catalog-head p{font-size:11px;line-height:1.55;color:#758398}
+#view-projects .estimate-input-grid label,#view-projects .estimate-actual-inputs label,#view-projects .estimate-calibration-grid label{font-size:11px;font-weight:750;color:#43546a;gap:7px}
+#view-projects .estimate-input-grid input,#view-projects .estimate-input-grid select,#view-projects .estimate-actual-inputs input,#view-projects .estimate-calibration-grid input,#view-projects .estimate-calibration-grid select{min-height:39px;border-radius:9px;background:#fbfcfe;font-size:12px}
+#view-projects .estimate-two-columns{gap:16px;margin:0}
+#view-projects .estimate-payroll-preview{min-height:76px}
+#view-projects .estimate-hint{font-size:10px;line-height:1.65;padding-top:10px;border-top:1px dashed #e1e7ef}
+#view-projects .estimate-pro-results{gap:10px;margin:0}
+#view-projects .estimate-pro-results>div{min-height:105px;justify-content:center;padding:15px;border-radius:12px;background:#f8fafc;border-color:#e1e7ef}
+#view-projects .estimate-pro-results>div.estimate-price{background:linear-gradient(145deg,#fff2ec,#fff9f6);border-color:#f1d1c4}
+#view-projects .estimate-pro-results span{font-size:11px;font-weight:700;color:#65748a}
+#view-projects .estimate-pro-results strong{font-size:clamp(15px,1.2vw,20px);font-weight:900;line-height:1.25;overflow-wrap:anywhere;color:#24364b}
+#view-projects .estimate-pro-results small{font-size:10px;line-height:1.4;color:#78869a}
+#view-projects .estimate-risk-alerts,#view-projects .estimate-advisor{margin:0}
+#view-projects .estimate-advisor{background:#f9fbfd}
+#view-projects .estimate-actual-inputs{gap:12px}
+#view-projects .estimate-actual-results{gap:10px}
+#view-projects .estimate-actual-results>div{padding:13px;border:1px solid #e2e8ef;border-radius:10px;background:#f8fafc}
+#view-projects .estimate-actual-results span{font-size:10px;font-weight:700;line-height:1.4;color:#6d7b8e}
+#view-projects .estimate-actual-results strong{font-size:17px;font-weight:850;overflow-wrap:anywhere}
+#view-projects .estimate-pro-footer{display:flex;flex-direction:column;gap:16px;padding-top:4px}
+#view-projects .estimate-risk-note{padding:14px 16px;border-radius:11px}
+#view-projects .estimate-actions{justify-content:flex-end;padding-top:4px;border-top:1px solid #e8edf3}
+#view-projects .estimate-actions .button{min-height:40px;font-weight:750}
+#view-projects .estimate-catalog-panel{padding:18px;border:1px solid #e0e7ef;border-radius:13px;background:#f9fbfd}
+#view-projects .object-list-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:24px 0 12px}
+#view-projects .object-list-head h4{font-size:17px;font-weight:850;letter-spacing:-.3px;color:#23364b;margin:0 0 5px}
+#view-projects .object-list-head p{font-size:11px;line-height:1.5;color:#7b8797;margin:0;max-width:620px}
+#view-projects>.toolbar{margin:0 0 10px;display:flex;gap:10px}
+#view-projects #projectSearch{width:min(100%,440px);min-height:42px;border-radius:10px;background:#fff}
+#view-projects>.panel.table-panel{overflow:hidden;border:1px solid #e0e7ef;border-radius:13px;background:#fff;box-shadow:0 8px 24px rgba(31,48,69,.04)}
+@media(max-width:1100px){#view-projects .estimate-meta-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#view-projects .estimate-pro-results{grid-template-columns:repeat(2,minmax(0,1fr))}#view-projects .estimate-pro-results>div:last-child{grid-column:span 2}}
+@media(max-width:760px){#view-projects .estimate-pro-head,#view-projects .estimate-pro-body{padding:17px}#view-projects .estimate-two-columns{grid-template-columns:1fr}#view-projects .estimate-actual-results{grid-template-columns:repeat(2,minmax(0,1fr))}#view-projects .estimate-add-row{grid-template-columns:1fr}#view-projects .estimate-add-row .button{width:100%}#view-projects .object-list-head{align-items:flex-start;flex-direction:column}#view-projects .estimate-actions{justify-content:stretch}#view-projects .estimate-actions .button{flex:1}}
+@media(max-width:480px){#view-projects .estimate-meta-grid,#view-projects .estimate-pro-results{grid-template-columns:1fr}#view-projects .estimate-pro-results>div:last-child{grid-column:auto}#view-projects .estimate-actual-results{grid-template-columns:1fr}#view-projects .estimate-duration-panel,#view-projects .estimate-calibration-panel,#view-projects .estimate-actual-panel,#view-projects .estimate-subpanel,#view-projects .estimate-advisor{padding:13px}#view-projects .object-block-title small{font-size:10px}#view-projects .estimate-actions{flex-direction:column}#view-projects .estimate-actions .button{width:100%}}
