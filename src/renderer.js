@@ -172,7 +172,9 @@ function renderProductionIntelligence(data, summaryId, alertsId) {
   if (summary) {
     const q = result.dataQuality || {};
     const quality = `Качество данных: ${Number(q.validPerformanceObservations || 0)} пригодных наблюдений${Number(q.invalidPerformanceObservations || 0) ? `, ${Number(q.invalidPerformanceObservations)} исключено из-за неполных или некорректных данных` : ''}. Сравнение устойчивой выработки доступно для ${Number(q.comparableWorkTypes || 0)} видов работ.`;
-    summary.textContent = `${result.summary} ${quality}`;
+    const calibration = (result.learningModels || []).filter(model => model.status === 'candidate').slice(0, 3)
+      .map(model => `${model.workName}: предложенный коэффициент ${model.suggestedFactor} (${model.observations} наблюдений)`).join('; ');
+    summary.textContent = `${result.summary} ${quality} ${result.learningSummary || ''}${calibration ? ` Кандидаты: ${calibration}.` : ''}`;
   }
   if (!alerts) return;
   alerts.innerHTML = result.alerts.length
