@@ -169,10 +169,14 @@ function renderProductionIntelligence(data, summaryId, alertsId) {
   if (typeof builder !== 'function') return;
   const result = builder(data);
   const summary = $(summaryId), alerts = $(alertsId);
-  if (summary) summary.textContent = result.summary;
+  if (summary) {
+    const q = result.dataQuality || {};
+    const quality = `Качество данных: ${Number(q.validPerformanceObservations || 0)} пригодных наблюдений${Number(q.invalidPerformanceObservations || 0) ? `, ${Number(q.invalidPerformanceObservations)} исключено из-за неполных или некорректных данных` : ''}. Сравнение устойчивой выработки доступно для ${Number(q.comparableWorkTypes || 0)} видов работ.`;
+    summary.textContent = `${result.summary} ${quality}`;
+  }
   if (!alerts) return;
   alerts.innerHTML = result.alerts.length
-    ? result.alerts.slice(0, 5).map(alert => `<article class="pi-alert ${alert.level === 'danger' ? 'danger' : 'warning'}"><strong>${esc(alert.title)}</strong><span>${esc(alert.message)}</span></article>`).join('')
+    ? result.alerts.slice(0, 8).map(alert => `<article class="pi-alert ${alert.level === 'danger' ? 'danger' : 'warning'}"><strong>${esc(alert.title)}</strong><span>${esc(alert.message)}</span></article>`).join('')
     : '<div class="pi-no-alerts">По введённым данным явных отклонений не найдено. Это не гарантия отсутствия проблем — полнота учёта важна.</div>';
 }
 async function refreshNotificationSettings() {
