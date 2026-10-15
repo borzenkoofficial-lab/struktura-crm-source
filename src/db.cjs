@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS projects (
   end_date TEXT,
   planned_people INTEGER NOT NULL DEFAULT 5 CHECK(planned_people BETWEEN 1 AND 200),
   complexity_factor REAL NOT NULL DEFAULT 1 CHECK(complexity_factor > 0),
+  conditions_json TEXT NOT NULL DEFAULT '[]',
   notes TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -189,6 +190,7 @@ CREATE TABLE IF NOT EXISTS work_shifts (
   shift_hours REAL NOT NULL CHECK(shift_hours > 0 AND shift_hours <= 24),
   downtime_hours REAL NOT NULL DEFAULT 0 CHECK(downtime_hours >= 0),
   complexity_factor REAL NOT NULL DEFAULT 1 CHECK(complexity_factor > 0),
+  conditions_json TEXT NOT NULL DEFAULT '[]',
   notes TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -230,6 +232,9 @@ function openDatabase(userDataPath) {
   const projectColumns = new Set(db.prepare('PRAGMA table_info(projects)').all().map(column => column.name));
   if (!projectColumns.has('planned_people')) db.exec('ALTER TABLE projects ADD COLUMN planned_people INTEGER NOT NULL DEFAULT 5 CHECK(planned_people BETWEEN 1 AND 200)');
   if (!projectColumns.has('complexity_factor')) db.exec('ALTER TABLE projects ADD COLUMN complexity_factor REAL NOT NULL DEFAULT 1 CHECK(complexity_factor > 0)');
+  if (!projectColumns.has('conditions_json')) db.exec("ALTER TABLE projects ADD COLUMN conditions_json TEXT NOT NULL DEFAULT '[]'");
+  const shiftColumns = new Set(db.prepare('PRAGMA table_info(work_shifts)').all().map(column => column.name));
+  if (!shiftColumns.has('conditions_json')) db.exec("ALTER TABLE work_shifts ADD COLUMN conditions_json TEXT NOT NULL DEFAULT '[]'");
   const prospectColumns = new Set(db.prepare('PRAGMA table_info(prospects)').all().map(column => column.name));
   if (!prospectColumns.has('service')) db.exec("ALTER TABLE prospects ADD COLUMN service TEXT NOT NULL DEFAULT 'demolition' CHECK(service IN ('demolition','finishing','raised_floor'))");
   db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_service ON prospects(service)');
