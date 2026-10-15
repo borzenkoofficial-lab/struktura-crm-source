@@ -3,6 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'utf8');
 const main = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
@@ -383,4 +384,28 @@ test('startup splash has an independent CSS failsafe if renderer JavaScript neve
   assert.match(css, /startup-splash-failsafe/);
   assert.match(css, /12s/);
   assert.match(renderer, /Превышено время ожидания загрузки обзора/);
+});
+
+
+test('primary navigation is registered before optional renderer widgets initialize', () => {
+  const early = renderer.indexOf('Register primary navigation before the rest of renderer initialization');
+  const laterWidgets = renderer.indexOf("window.crm.onBrowserState(updateBrowserState)");
+  assert.notEqual(early, -1, 'early navigation delegate exists');
+  assert.ok(laterWidgets > early, 'navigation is wired before browser widget initialization');
+  assert.match(renderer, /event\.target\.closest\('\[data-view\]'\)/);
+  assert.match(renderer, /window\.addEventListener\('error'/);
+  assert.doesNotMatch(renderer, /document\.querySelectorAll\('\[data-view\]'\)\.forEach\(b => b\.addEventListener/);
+});
+
+test('renderer and Electron entry scripts pass Node syntax validation', () => {
+  const files = [
+    '../src/main.cjs', '../src/preload.cjs', '../src/renderer.js',
+    '../src/production-intelligence.js', '../src/prospect-scoring.js',
+    '../src/prospect-radar.js', '../src/estimate-calculator.js'
+  ];
+  for (const relative of files) {
+    const file = path.join(__dirname, relative);
+    const result = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
+    assert.equal(result.status, 0, `Syntax check failed for ${relative}: ${result.stderr || result.stdout}`);
+  }
 });
