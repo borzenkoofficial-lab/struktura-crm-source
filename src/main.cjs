@@ -624,7 +624,7 @@ ipcMain.handle('orders:list', (_event,input={})=>{
  const terms=clean(input.search,180).toLowerCase();const where=[],params=[];
  if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}
  if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%')}
- return db.prepare(`SELECT * FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC LIMIT 500`).all(...params).map(r=>({...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean)}));
+ return db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC LIMIT 500`).all(...params).map(r=>({...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean)}));
 });
 ipcMain.handle('orders:search',async(_event,input={})=>{
  const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');
@@ -655,6 +655,30 @@ ipcMain.handle('orders:updateStatus',(_event,input={})=>{
  if(!Number.isSafeInteger(id)||id<1||!status)throw new Error('Некорректный заказ или статус.');
  const r=db.prepare('UPDATE commercial_orders SET status=? WHERE id=?').run(status,id);if(!r.changes)throw new Error('Заказ не найден.');
  return db.prepare('SELECT * FROM commercial_orders WHERE id=?').get(id);
+});
+ipcMain.handle('orders:convertLead', (_event, orderId) => {
+ const id=Number(orderId);
+ if(!Number.isSafeInteger(id)||id<1)throw new Error('Некорректный номер заказа.');
+ const order=db.prepare('SELECT * FROM commercial_orders WHERE id=?').get(id);
+ if(!order)throw new Error('Коммерческий заказ не найден.');
+ const existing=db.prepare('SELECT id FROM leads WHERE commercial_order_id=?').get(id);
+ if(existing)return {leadId:existing.id,alreadyExists:true};
+ const serviceLabel={demolition:'Демонтаж',finishing:'Отделочные работы',raised_floor:'Фальшполы'}[order.service]||'Демонтаж';
+ const notes=[
+  'Создано из радара коммерческих заказов. Данные и актуальность необходимо проверить на исходном сайте.',
+  'Источник: '+order.source_url,
+  'Регион: '+order.region,
+  'Оценка сигнала: '+order.signal_score+'/100',
+  order.signal_labels?'Сигналы: '+String(order.signal_labels).split('|').filter(Boolean).join(', '):'',
+  order.snippet?'Фрагмент выдачи: '+order.snippet:'',
+  order.search_query?'Поисковый запрос: '+order.search_query:''
+ ].filter(Boolean).join('\\n').slice(0,4000);
+ const create=db.transaction(()=>{
+  const result=db.prepare('INSERT INTO leads(commercial_order_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,?,\'website\',\'new\',0,\'\',?)').run(id,(serviceLabel+' — '+order.title).slice(0,180),order.service,notes);
+  db.prepare("UPDATE commercial_orders SET status='relevant' WHERE id=?").run(id);
+  return Number(result.lastInsertRowid);
+ });
+ return {leadId:create(),alreadyExists:false};
 });
 ipcMain.handle('prospects:crawlWebsites', async (_event, input = {}) => {
   const rawUrls = String(input.urls || '').split(/[\r\n,;]+/).map(x => x.trim()).filter(Boolean);
