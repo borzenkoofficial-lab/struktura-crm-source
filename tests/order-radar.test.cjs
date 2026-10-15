@@ -9,6 +9,7 @@ test('builds four order queries with selected service and region', () => {
   assert.equal(queries.length, 4);
   assert.ok(queries.every(query => query.includes('Москва и МО')));
   assert.ok(queries.some(query => /тендер|закупк/i.test(query)));
+  assert.ok(queries.some(query => /zakupki\\.gov\\.ru|roseltorg\\.ru|b2b-center\\.ru/i.test(query)));
 });
 
 test('normalizes links and scores a plausible commercial order from result evidence', () => {
