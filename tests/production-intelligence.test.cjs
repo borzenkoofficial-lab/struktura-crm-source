@@ -136,3 +136,12 @@ test('PI sorts recommendations by urgency and does not invent economics without 
   assert.equal(result.recommendations[0].priority, 'high');
   assert.equal(Object.hasOwn(result, 'estimatedProfitRub'), false);
 });
+
+
+test('browser and Node PI implementations stay in sync', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const browser = fs.readFileSync(path.join(__dirname, '../src/production-intelligence.js'), 'utf8');
+  const node = fs.readFileSync(path.join(__dirname, '../src/production-intelligence.cjs'), 'utf8');
+  assert.equal(browser.replace(/if \(typeof module !== 'undefined' && module\.exports\) module\.exports = \{ buildProductionIntelligence \};\n/, ''), node.replace(/if \(typeof module !== 'undefined' && module\.exports\) module\.exports = \{ buildProductionIntelligence \};\n/, ''));
+});
