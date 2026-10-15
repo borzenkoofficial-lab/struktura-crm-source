@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildPiCoachInsights, ageDays } = require('../src/pi-coach.cjs');
+const { buildPiCoachInsights, ageDays } = require('../src/pi-coach.js');
 
 test('PI coach prioritizes a documented contract overrun above routine advice', () => {
   const items = buildPiCoachInsights({
