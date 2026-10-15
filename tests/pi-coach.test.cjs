@@ -38,6 +38,17 @@ test('PI coach flags overdue unpaid expenses and unscheduled receivables with so
   assert.ok(items.some(item => item.id === 'finance-unscheduled-receivables' && /80 000|80 000/u.test(item.detail)));
 });
 
+test('PI coach uses saved commercial proposal history to flag low-margin and loss-making quotes', () => {
+  const items = buildPiCoachInsights({ quotes: [
+    { id: 11, title: 'КП склад', prepared_at: '2026-10-15T10:00:00.000Z', revenue_rub: 100000, cost_rub: 105000, profit_rub: -5000, margin_pct: -5 },
+    { id: 10, title: 'КП офис', prepared_at: '2026-10-14T10:00:00.000Z', revenue_rub: 120000, cost_rub: 115000, profit_rub: 5000, margin_pct: 4.2 },
+    { id: 9, title: 'КП магазин', prepared_at: '2026-10-13T10:00:00.000Z', revenue_rub: 80000, cost_rub: 76000, profit_rub: 4000, margin_pct: 5 }
+  ] }, { today: '2026-10-15' });
+  assert.equal(items[0].id, 'quote-loss-11');
+  assert.ok(items.some(item => item.id === 'quote-pattern-low-margin'));
+  assert.match(items[0].spoken, /отрицательной расчётной прибылью/iu);
+});
+
 test('PI coach uses stable ordering and never emits random advice', () => {
   const data = {
     tasks: [{ id: 9, title: 'Позвонить заказчику', is_done: 0, urgency: 'overdue', due_at: '2026-10-10' }],
