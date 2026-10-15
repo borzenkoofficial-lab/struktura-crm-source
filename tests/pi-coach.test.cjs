@@ -3,6 +3,27 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildPiCoachInsights, ageDays } = require('../src/pi-coach.js');
 
+test('PI detects a repeated downtime cause from shift notes and estimates crew-hours without inventing rubles', () => {
+  const items = buildPiCoachInsights({ production: { history: [
+    { id: 71, shift_date: '2026-10-10', project_title: 'Склад А', workers_count: 4, shift_hours: 8, downtime_hours: 2, notes: 'Ждали контейнер для вывоза строительного мусора' },
+    { id: 72, shift_date: '2026-10-11', project_title: 'Склад Б', workers_count: 5, shift_hours: 8, downtime_hours: 1.5, notes: 'Вывоз задержался, контейнер не подали' }
+  ] } }, { today: '2026-10-15' });
+  const insight = items.find(item => item.id === 'production-repeat-downtime-removal');
+  assert.ok(insight);
+  assert.match(insight.spoken, /вывоз и контейнер/iu);
+  assert.match(insight.detail, /13,5 человеко-часам простоя бригады/u);
+  assert.match(insight.detail, /Денежный ущерб не оцениваю без фактической стоимости человеко-часа/u);
+  assert.equal(insight.view, 'production');
+});
+
+test('PI does not create a repeated downtime pattern from one note or unknown cause', () => {
+  const items = buildPiCoachInsights({ production: { history: [
+    { id: 73, shift_date: '2026-10-10', project_title: 'Склад А', workers_count: 4, shift_hours: 8, downtime_hours: 3, notes: 'Ждали контейнер для вывоза' },
+    { id: 74, shift_date: '2026-10-11', project_title: 'Склад Б', workers_count: 4, shift_hours: 8, downtime_hours: 3, notes: 'Причина не указана, возникла задержка' }
+  ] } }, { today: '2026-10-15' });
+  assert.equal(items.some(item => item.id === 'production-repeat-downtime-removal'), false);
+});
+
 test('PI connects shift downtime, low measured output and a matching project cost risk', () => {
   const items = buildPiCoachInsights({
     production: { history: [{ id: 55, shift_date: '2026-10-10', project_title: 'Объект Север', shift_hours: 8, downtime_hours: 3, performance: [
