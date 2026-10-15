@@ -165,6 +165,31 @@ function buildPiCoachInsights(data = {}, options = {}) {
       'browser', 'Проверить заказ');
   }
 
+  const payments = Array.isArray(data.payments) ? data.payments : [];
+  const incoming = payments.filter(row => row.payment_type !== 'refund').reduce((sum, row) => sum + money(row.amount_rub), 0);
+  const refunds = payments.filter(row => row.payment_type === 'refund').reduce((sum, row) => sum + money(row.amount_rub), 0);
+  if (incoming > 0 && refunds >= 10000 && refunds / incoming >= 0.1) {
+    add('finance-refund-pattern', 'warning', 78, 'Возвраты заметно влияют на поступления',
+      'В истории платежей возвраты составляют не менее десяти процентов от входящих платежей и превышают десять тысяч рублей. Проверь причины возвратов, привязку к объектам и не повторяется ли одна и та же проблема в договорённостях или качестве работ.',
+      'Входящие платежи: ' + rub(incoming) + '. Возвраты: ' + rub(refunds) + '. Доля возвратов от входящих платежей: ' + (refunds / incoming * 100).toLocaleString('ru-RU', { maximumFractionDigits: 1 }) + '%. Суммы рассчитаны по сохранённым платежам.',
+      'finance', 'Проверить платежи');
+  }
+
+  const expenses = Array.isArray(data.expenses) ? data.expenses : [];
+  const currentStart = new Date(Date.parse(today + 'T00:00:00Z') - 29 * 86400000).toISOString().slice(0, 10);
+  const previousStart = new Date(Date.parse(today + 'T00:00:00Z') - 59 * 86400000).toISOString().slice(0, 10);
+  const datedExpenses = expenses.map(row => ({ ...row, _date: validIso(String(row.expense_date || '').slice(0, 10)), _amount: money(row.amount_rub) })).filter(row => row._date);
+  const currentExpenses = datedExpenses.filter(row => row._date >= currentStart && row._date <= today);
+  const previousExpenses = datedExpenses.filter(row => row._date >= previousStart && row._date < currentStart);
+  const currentExpenseTotal = currentExpenses.reduce((sum, row) => sum + row._amount, 0);
+  const previousExpenseTotal = previousExpenses.reduce((sum, row) => sum + row._amount, 0);
+  if (currentExpenses.length >= 3 && previousExpenses.length >= 3 && previousExpenseTotal >= 10000 && currentExpenseTotal >= previousExpenseTotal * 1.4 && currentExpenseTotal - previousExpenseTotal >= 10000) {
+    add('finance-expense-growth', 'warning', 83, 'Расходы выросли относительно предыдущего периода',
+      'За последние тридцать дней расходы заметно выше предыдущих тридцати дней. Сначала проверь, не объясняется ли это новым объектом, закупкой или разовым платежом. Если роста нельзя объяснить, разберись по категориям и объектам.',
+      'Последние 30 дней (' + currentStart + ' — ' + today + '): ' + rub(currentExpenseTotal) + ' по ' + currentExpenses.length + ' записям. Предыдущие 30 дней (' + previousStart + ' — ' + new Date(Date.parse(currentStart + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10) + '): ' + rub(previousExpenseTotal) + ' по ' + previousExpenses.length + ' записям. Изменение: +' + Math.round((currentExpenseTotal / previousExpenseTotal - 1) * 100) + '%.',
+      'finance', 'Сравнить расходы');
+  }
+
   const quotes = (Array.isArray(data.quotes) ? data.quotes : []).slice().sort((a, b) => String(b.prepared_at || '').localeCompare(String(a.prepared_at || '')));
   const lowMarginQuotes = quotes.filter(quote => Number(quote.revenue_rub) > 0 && Number.isFinite(Number(quote.margin_pct)) && Number(quote.margin_pct) < 10);
   const lossQuotes = quotes.filter(quote => Number(quote.profit_rub) < 0);
