@@ -108,3 +108,17 @@ test('requires matching service evidence and recognizes raised-floor procurement
   assert.equal(order.relevance, 'potential_order');
   assert.ok(order.signal_labels.includes('Фальшполы'));
 });
+
+
+test('removes common tracking parameters when normalizing order URLs', () => {
+  const plain = normalizeOrderResult({ title: 'Тендер на демонтаж офиса', url: 'https://example.ru/tender/5?utm_source=mail&fbclid=abc' }, 'тендер демонтаж', 'demolition', 'Москва');
+  const clean = normalizeOrderResult({ title: 'Тендер на демонтаж офиса', url: 'https://example.ru/tender/5' }, 'тендер демонтаж', 'demolition', 'Москва');
+  assert.equal(plain.source_url, clean.source_url);
+  assert.equal(plain.source_url, 'https://example.ru/tender/5');
+});
+
+test('builds service-specific procurement queries for all three services', () => {
+  assert.ok(buildOrderQueries('demolition').some(q => /работ по демонтажу/i.test(q)));
+  assert.ok(buildOrderQueries('finishing').some(q => /отделочных работ/i.test(q)));
+  assert.ok(buildOrderQueries('raised_floor').some(q => /фальшпола/i.test(q)));
+});
