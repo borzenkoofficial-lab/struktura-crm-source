@@ -71,6 +71,7 @@ contextBridge.exposeInMainWorld('crm', {
   saveAndScanBrowserSite: (data) => ipcRenderer.invoke('browser:saveAndScan', data),
   onBrowserState: (callback) => { const listener = (_event, state) => callback(state); ipcRenderer.on('browser:state', listener); return () => ipcRenderer.removeListener('browser:state', listener); },
   exportQuotePdf: (data) => ipcRenderer.invoke('estimate:exportQuotePdf', data),
+  estimateHistory: () => ipcRenderer.invoke('estimate:history'),
   version: () => ipcRenderer.invoke('app:version'),
   checkForUpdates: () => ipcRenderer.invoke('updates:check'),
   updateStatus: () => ipcRenderer.invoke('updates:status'),
