@@ -14,10 +14,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test-and-build:
-    name: Test and package Struktura CRM for Windows
-    runs-on: windows-latest
-    timeout-minutes: 45
+  test:
+    name: Run automated test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -33,8 +33,25 @@ jobs:
       - name: Run automated tests
         run: npm test
 
+  build-windows:
+    name: Build and verify Windows installer
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
       - name: Build branded Windows installer
-        run: npm run dist:win
+        run: npm run dist:win -- --publish never
 
       - name: Verify installer artifact
         shell: pwsh
