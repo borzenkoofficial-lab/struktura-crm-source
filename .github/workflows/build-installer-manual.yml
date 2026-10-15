@@ -1,0 +1,50 @@
+name: Build Struktura CRM Windows installer (manual artifact)
+
+on:
+  push:
+    branches:
+      - build/struktura-crm-installer
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Install dependencies and run tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run tests
+        run: npm test
+
+  build-windows:
+    name: Build Windows installer
+    needs: test
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build Windows installer
+        run: npm run dist:win -- --publish never
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Struktura-CRM-Windows-Installer
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 14
