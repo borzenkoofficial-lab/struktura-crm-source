@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildOrderQueries, normalizeOrderResult, normalizeBraveOrderResult, deduplicateOrders } = require('../src/order-radar.cjs');
+const { buildOrderQueries, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders } = require('../src/order-radar.cjs');
 
 test('builds four order queries with selected service and region', () => {
   const queries = buildOrderQueries('demolition', 'Москва и МО');
@@ -78,4 +78,13 @@ test('maps Brave Search result fields into a scored order card', () => {
 test('rejects incomplete Brave results instead of creating empty order cards', () => {
   assert.equal(normalizeBraveOrderResult({ source_url: 'https://example.ru', snippet: 'Демонтаж' }), null);
   assert.equal(normalizeBraveOrderResult({ company_name: 'Заказ', snippet: 'Демонтаж' }), null);
+});
+
+
+test('protects manually reviewed statuses while allowing ordinary records to refresh', () => {
+  assert.equal(orderRefreshAction(undefined), 'insert');
+  assert.equal(orderRefreshAction('new'), 'update');
+  assert.equal(orderRefreshAction('opened'), 'update');
+  assert.equal(orderRefreshAction('relevant'), 'protect');
+  assert.equal(orderRefreshAction('rejected'), 'protect');
 });
