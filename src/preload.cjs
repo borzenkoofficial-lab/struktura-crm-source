@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('crm', {
   searchCommercialOrders: (data) => ipcRenderer.invoke('orders:search', data),
   manualCommercialOrderSearchUrl: (data) => ipcRenderer.invoke('orders:manualSearchUrl', data),
   createCommercialOrder: (data) => ipcRenderer.invoke('orders:createManual', data),
+  saveCommercialOrderAnalysis: (data) => ipcRenderer.invoke('orders:saveAnalysis', data),
   importCommercialOrdersCsv: () => ipcRenderer.invoke('orders:importCsv'),
   updateCommercialOrderStatus: (data) => ipcRenderer.invoke('orders:updateStatus', data),
   convertCommercialOrderToLead: (id) => ipcRenderer.invoke('orders:convertLead', id),
