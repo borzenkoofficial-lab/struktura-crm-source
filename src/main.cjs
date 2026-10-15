@@ -276,8 +276,8 @@ ipcMain.handle('projects:createWithPlan', (_event, input = {}) => {
   const project = normalizeProjectInput({ ...(input.project || {}), planned_people: plan.planned_people, complexity_factor: plan.complexity_factor });
   const contract = amount(project.contract_rub, { allowZero: true });
   const create = db.transaction(() => {
-    const result = db.prepare(`INSERT INTO projects(title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
-      VALUES (@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
+    const result = db.prepare(`INSERT INTO projects(title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,conditions_json,notes)
+      VALUES (@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@conditions_json,@notes)`).run({ ...project, conditions_json: JSON.stringify(plan.conditions), contract_rub: contract });
     const projectId = Number(result.lastInsertRowid);
     const insert = db.prepare(`INSERT INTO production_plans(project_id,catalog_id,work_name,unit,planned_quantity,baseline_productivity)
       VALUES (@project_id,@catalog_id,@work_name,@unit,@planned_quantity,@baseline_productivity)`);
@@ -386,7 +386,7 @@ ipcMain.handle('production:rateModels', (_event, input = {}) => {
 
 ipcMain.handle('production:getPlan', (_event, projectIdValue) => {
   const projectId = Number(projectIdValue);
-  const project = db.prepare('SELECT id,title,status,planned_people,complexity_factor FROM projects WHERE id=?').get(projectId);
+  const project = db.prepare('SELECT id,title,status,planned_people,complexity_factor,conditions_json FROM projects WHERE id=?').get(projectId);
   if (!project) throw new Error('Объект не найден.');
   const lines = db.prepare('SELECT catalog_id,work_name,unit,planned_quantity,baseline_productivity FROM production_plans WHERE project_id=? ORDER BY id').all(projectId);
   return { project, lines };
@@ -461,6 +461,7 @@ ipcMain.handle('production:updateShift', (_event, input = {}) => {
   if (!Number.isFinite(downtime) || downtime < 0 || downtime > shiftHours) throw new Error('Простой должен быть от 0 до длительности смены.');
   if (![0.7,1,1.25,1.5,2].includes(factor)) throw new Error('Выбери допустимый коэффициент сложности.');
   const notes = clean(input.notes, 3000);
+  const conditions = normalizeConditions(input.conditions);
   const lines = normalizeShiftWorkLines({ lines: input.lines, workers, shiftHours, downtimeHours: downtime });
   if (!lines.length && !notes) throw new Error('Если за смену ничего не сделано, укажи причину простоя в примечании.');
   const update = db.transaction(() => {
