@@ -627,7 +627,9 @@ ipcMain.handle('orders:list', (_event,input={})=>{
  const terms=clean(input.search,180).toLowerCase();const where=[],params=[];
  if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}if(sourceType){where.push('source_type=?');params.push(sourceType)}
  if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%')}
- return db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC LIMIT 500`).all(...params).map(r=>({...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean),pi_assessment:assessCommercialOrder(r)}));
+ const rows=db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC LIMIT 500`).all(...params);
+ const analyses=new Map(db.prepare('SELECT * FROM commercial_order_analysis').all().map(item=>[Number(item.order_id),item]));
+ return rows.map(r=>{const analysis=analyses.get(Number(r.id))||null;return {...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean),pi_analysis:analysis,pi_assessment:assessCommercialOrder(r,analysis)};});
 });
 ipcMain.handle('orders:search',async(_event,input={})=>{
  const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');
@@ -652,6 +654,35 @@ ipcMain.handle('orders:search',async(_event,input={})=>{
  tx(unique);
  if(!unique.length&&errors.length===queries.length)throw new Error('Не удалось найти заказы. '+errors.map(x=>x.error).join(' | '));
  return {queries,received:found.length,unique:unique.length,added,refreshed,protected:protectedCount,errors};
+});
+ipcMain.handle('orders:saveAnalysis', (_event,input={}) => {
+ const orderId=Number(input.order_id);
+ if(!Number.isSafeInteger(orderId)||orderId<1||!db.prepare('SELECT id FROM commercial_orders WHERE id=?').get(orderId))throw new Error('Заказ не найден.');
+ const positive=(value,label)=>{const n=Number(value);if(!Number.isFinite(n)||n<=0)throw new Error(label+' должно быть больше нуля.');return n;};
+ const nonNegative=(value,label)=>{const n=Number(value??0);if(!Number.isFinite(n)||n<0)throw new Error(label+' должно быть неотрицательным числом.');return n;};
+ const quantity=positive(input.quantity,'Объём'),baselineProductivity=positive(input.baseline_productivity,'Производительность');
+ const crewSize=Number(input.crew_size);
+ if(!Number.isInteger(crewSize)||crewSize<1||crewSize>200)throw new Error('Количество рабочих должно быть от 1 до 200.');
+ const budget=nonNegative(input.budget_rub,'Бюджет'),pricePerUnit=nonNegative(input.price_per_unit,'Цена за единицу');
+ if(budget<=0&&pricePerUnit<=0)throw new Error('Укажи бюджет заказа или цену за единицу из прайса.');
+ const costPerUnit=nonNegative(input.cost_per_unit,'Себестоимость за единицу');
+ const wagePerShift=nonNegative(input.wage_per_worker_shift,'Оплата рабочего за смену');
+ const otherCosts=nonNegative(input.other_costs_rub,'Дополнительные расходы');
+ const difficulty=Number(input.difficulty_factor??1),reserve=Number(input.reserve_percent??15);
+ if(!Number.isFinite(difficulty)||difficulty<0.25||difficulty>5)throw new Error('Коэффициент сложности должен быть от 0,25 до 5.');
+ if(!Number.isFinite(reserve)||reserve<0||reserve>100)throw new Error('Резерв срока должен быть от 0 до 100%.');
+ const catalogId=clean(input.catalog_id,120),workName=clean(input.work_name,180)||'Работа по заказу',unit=clean(input.unit,24)||'м²';
+ const observations=catalogId?db.prepare(`SELECT wsi.quantity_done,wsi.workers_count,wsi.hours,ws.complexity_factor FROM work_shift_items wsi JOIN work_shifts ws ON ws.id=wsi.shift_id WHERE wsi.catalog_id=? ORDER BY ws.shift_date DESC,ws.id DESC`).all(catalogId):[];
+ const model=buildRateModel({baselineProductivity,observations,targetDifficulty:difficulty,targetCrewSize:crewSize});
+ const estimatedDays=Math.max(0.1,quantity/(model.effectiveProductivity*crewSize)*(1+reserve/100));
+ const revenue=budget>0?budget:quantity*pricePerUnit;
+ const costs=quantity*costPerUnit+crewSize*wagePerShift*estimatedDays+otherCosts;
+ const profit=revenue-costs,margin=revenue>0?profit/revenue*100:0;
+ const analysis={order_id:orderId,catalog_id:catalogId,work_name:workName,unit,quantity,budget_rub:budget,price_per_unit:pricePerUnit,cost_per_unit:costPerUnit,baseline_productivity:baselineProductivity,effective_productivity:model.effectiveProductivity,crew_size:crewSize,wage_per_worker_shift:wagePerShift,other_costs_rub:otherCosts,difficulty_factor:difficulty,reserve_percent:reserve,observations_count:model.observations,estimated_days:estimatedDays,revenue_rub:revenue,estimated_cost_rub:costs,estimated_profit_rub:profit,estimated_margin_pct:margin};
+ db.prepare(`INSERT INTO commercial_order_analysis(order_id,catalog_id,work_name,unit,quantity,budget_rub,price_per_unit,cost_per_unit,baseline_productivity,effective_productivity,crew_size,wage_per_worker_shift,other_costs_rub,difficulty_factor,reserve_percent,observations_count,estimated_days,revenue_rub,estimated_cost_rub,estimated_profit_rub,estimated_margin_pct,updated_at)
+ VALUES (@order_id,@catalog_id,@work_name,@unit,@quantity,@budget_rub,@price_per_unit,@cost_per_unit,@baseline_productivity,@effective_productivity,@crew_size,@wage_per_worker_shift,@other_costs_rub,@difficulty_factor,@reserve_percent,@observations_count,@estimated_days,@revenue_rub,@estimated_cost_rub,@estimated_profit_rub,@estimated_margin_pct,CURRENT_TIMESTAMP)
+ ON CONFLICT(order_id) DO UPDATE SET catalog_id=excluded.catalog_id,work_name=excluded.work_name,unit=excluded.unit,quantity=excluded.quantity,budget_rub=excluded.budget_rub,price_per_unit=excluded.price_per_unit,cost_per_unit=excluded.cost_per_unit,baseline_productivity=excluded.baseline_productivity,effective_productivity=excluded.effective_productivity,crew_size=excluded.crew_size,wage_per_worker_shift=excluded.wage_per_worker_shift,other_costs_rub=excluded.other_costs_rub,difficulty_factor=excluded.difficulty_factor,reserve_percent=excluded.reserve_percent,observations_count=excluded.observations_count,estimated_days=excluded.estimated_days,revenue_rub=excluded.revenue_rub,estimated_cost_rub=excluded.estimated_cost_rub,estimated_profit_rub=excluded.estimated_profit_rub,estimated_margin_pct=excluded.estimated_margin_pct,updated_at=CURRENT_TIMESTAMP`).run(analysis);
+ return db.prepare('SELECT * FROM commercial_order_analysis WHERE order_id=?').get(orderId);
 });
 ipcMain.handle('orders:manualSearchUrl', (_event,input={}) => {
  const service=services.includes(input.service)?input.service:'demolition';
