@@ -95,7 +95,7 @@ test('calculator consumes locally learned productivity and refreshes after shift
   assert.match(renderer, /estimateEffectiveProductivity\(line\)/);
   assert.match(renderer, /1–2 наблюдения — 25%/);
   assert.match(renderer, /refreshEstimateLearningRates\(\)/);
-  assert.match(preload, /productionRateModels: \(catalogIds, targetCrewSize\) => ipcRenderer\.invoke\('production:rateModels'/);
+  assert.match(preload, /productionRateModels: \(catalogIds, targetCrewSize, targetConditions = \[\]\) => ipcRenderer\.invoke\('production:rateModels'/);
   assert.match(main, /ipcMain\.handle\('production:rateModels'/);
   assert.match(main, /const \{ forecastRemainingWork, buildRateModel \} = require\('\.\/production-model\.cjs'\)/);
   assert.match(preload, /target_crew_size: targetCrewSize/);
