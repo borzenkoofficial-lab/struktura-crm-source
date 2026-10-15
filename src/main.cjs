@@ -672,7 +672,7 @@ ipcMain.handle('orders:convertLead', (_event, orderId) => {
   order.signal_labels?'Сигналы: '+String(order.signal_labels).split('|').filter(Boolean).join(', '):'',
   order.snippet?'Фрагмент выдачи: '+order.snippet:'',
   order.search_query?'Поисковый запрос: '+order.search_query:''
- ].filter(Boolean).join('\\n').slice(0,4000);
+ ].filter(Boolean).join('\n').slice(0,4000);
  const create=db.transaction(()=>{
   const result=db.prepare('INSERT INTO leads(commercial_order_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,?,\'website\',\'new\',0,\'\',?)').run(id,(serviceLabel+' — '+order.title).slice(0,180),order.service,notes);
   db.prepare("UPDATE commercial_orders SET status='relevant' WHERE id=?").run(id);
