@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('crm', {
   listCommercialOrders: (filter) => ipcRenderer.invoke('orders:list', filter),
   searchCommercialOrders: (data) => ipcRenderer.invoke('orders:search', data),
   updateCommercialOrderStatus: (data) => ipcRenderer.invoke('orders:updateStatus', data),
+  convertCommercialOrderToLead: (id) => ipcRenderer.invoke('orders:convertLead', id),
   searchStatus: () => ipcRenderer.invoke('search:status'),
   saveSearchKey: (data) => ipcRenderer.invoke('search:saveKey', data),
   searchProspects: (data) => ipcRenderer.invoke('search:run', data),
