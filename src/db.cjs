@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS prospects (
 );
 CREATE TABLE IF NOT EXISTS commercial_orders (
  id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, source_url TEXT NOT NULL UNIQUE,
- source_name TEXT NOT NULL DEFAULT '', snippet TEXT NOT NULL DEFAULT '', search_query TEXT NOT NULL DEFAULT '',
+ source_name TEXT NOT NULL DEFAULT '', source_type TEXT NOT NULL DEFAULT 'web' CHECK(source_type IN ('web','telegram','avito','tenders','files')), snippet TEXT NOT NULL DEFAULT '', search_query TEXT NOT NULL DEFAULT '',
  service TEXT NOT NULL DEFAULT 'demolition' CHECK(service IN ('demolition','finishing','raised_floor')),
  region TEXT NOT NULL DEFAULT 'Москва и Московская область',
  signal_score INTEGER NOT NULL DEFAULT 0 CHECK(signal_score BETWEEN 0 AND 100),
@@ -109,6 +109,7 @@ CREATE TABLE IF NOT EXISTS commercial_orders (
  status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','opened','relevant','rejected')),
  first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_commercial_orders_source_type ON commercial_orders(source_type);
 CREATE INDEX IF NOT EXISTS idx_commercial_orders_status ON commercial_orders(status);
 CREATE INDEX IF NOT EXISTS idx_commercial_orders_service ON commercial_orders(service);
 CREATE INDEX IF NOT EXISTS idx_commercial_orders_last_seen ON commercial_orders(last_seen_at DESC);
@@ -199,14 +200,17 @@ function openDatabase(userDataPath) {
   const leadColumns = new Set(db.prepare('PRAGMA table_info(leads)').all().map(column => column.name));
   if (!leadColumns.has('commercial_order_id')) db.exec('ALTER TABLE leads ADD COLUMN commercial_order_id INTEGER REFERENCES commercial_orders(id) ON DELETE SET NULL');
   db.exec('CREATE INDEX IF NOT EXISTS idx_leads_commercial_order ON leads(commercial_order_id)');
+  const orderColumns = new Set(db.prepare('PRAGMA table_info(commercial_orders)').all().map(column => column.name));
+  if (!orderColumns.has('source_type')) db.exec("ALTER TABLE commercial_orders ADD COLUMN source_type TEXT NOT NULL DEFAULT 'web' CHECK(source_type IN ('web','telegram','avito','tenders','files'))");
+  db.exec('CREATE INDEX IF NOT EXISTS idx_commercial_orders_source_type ON commercial_orders(source_type)');
   const projectColumns = new Set(db.prepare('PRAGMA table_info(projects)').all().map(column => column.name));
   if (!projectColumns.has('planned_people')) db.exec('ALTER TABLE projects ADD COLUMN planned_people INTEGER NOT NULL DEFAULT 5 CHECK(planned_people BETWEEN 1 AND 200)');
   if (!projectColumns.has('complexity_factor')) db.exec('ALTER TABLE projects ADD COLUMN complexity_factor REAL NOT NULL DEFAULT 1 CHECK(complexity_factor > 0)');
   const prospectColumns = new Set(db.prepare('PRAGMA table_info(prospects)').all().map(column => column.name));
   if (!prospectColumns.has('service')) db.exec("ALTER TABLE prospects ADD COLUMN service TEXT NOT NULL DEFAULT 'demolition' CHECK(service IN ('demolition','finishing','raised_floor'))");
   db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_service ON prospects(service)');
-  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','3')").run();
-  db.prepare("UPDATE settings SET value='3' WHERE key='schema_version'").run();
+  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','4')").run();
+  db.prepare("UPDATE settings SET value='4' WHERE key='schema_version'").run();
   return db;
 }
 
