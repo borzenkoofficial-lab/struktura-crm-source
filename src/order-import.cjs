@@ -76,7 +76,7 @@ function parseCommercialOrdersCsv(text) {
     result.push({
       title:row.title.slice(0,240),source_url:row.source_url.slice(0,700),snippet:details,
       service:normalizeService(row.service),region:(row.region||'Москва и Московская область').slice(0,120),
-      source_name:(row.source_name||'Импорт из файла').slice(0,120)
+      source_name:(row.source_name||'').slice(0,120)
     });
   }
   return {orders:result,skipped};
