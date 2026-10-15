@@ -14,7 +14,7 @@ function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', plans: 'Тариф и интеграции' };
-  $('pageTitle').textContent = titles[name] || 'GRUZLI CRM';
+  $('pageTitle').textContent = titles[name] || 'STRUKTURA CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
   const view = $(`view-${name}`);
   if (loaders[name] && view) {
