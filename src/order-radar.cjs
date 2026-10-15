@@ -79,6 +79,12 @@ function normalizeBraveOrderResult(item = {}, query = '', service = 'demolition'
   }, query, service, region);
 }
 
+function orderRefreshAction(status) {
+  if (!status) return 'insert';
+  if (status === 'relevant' || status === 'rejected') return 'protect';
+  return 'update';
+}
+
 function deduplicateOrders(items = []) {
   const seen = new Set();
   return items.filter(item => {
@@ -88,4 +94,4 @@ function deduplicateOrders(items = []) {
   });
 }
 
-module.exports = { buildOrderQueries, normalizeOrderResult, normalizeBraveOrderResult, deduplicateOrders };
+module.exports = { buildOrderQueries, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders };
