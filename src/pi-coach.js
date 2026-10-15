@@ -114,6 +114,32 @@ function buildPiCoachInsights(data = {}, options = {}) {
       'production', 'Разобрать смену');
   }
 
+  // Cross-check downtime, measured output and project-level financial risk for the same shift.
+  // This is a correlation to investigate, not proof that downtime caused a cost overrun.
+  const financeRisks = Array.isArray(finance.risks) ? finance.risks : [];
+  for (const shift of history) {
+    const shiftHours = Number(shift.shift_hours);
+    const idleHours = Number(shift.downtime_hours);
+    if (!Number.isFinite(shiftHours) || shiftHours <= 0 || !Number.isFinite(idleHours) || idleHours / shiftHours < 0.25) continue;
+    const performanceRows = (Array.isArray(shift.performance) ? shift.performance : [])
+      .map(row => ({ name: String(row.work_name || 'Работа без названия').trim(), deviation: Number(row.deviationPct) }))
+      .filter(row => Number.isFinite(row.deviation));
+    if (!performanceRows.length) continue;
+    const averageDeviation = performanceRows.reduce((sum, row) => sum + row.deviation, 0) / performanceRows.length;
+    if (averageDeviation > -15) continue;
+    const projectTitle = String(shift.project_title || '').trim();
+    const projectKey = projectTitle.toLocaleLowerCase('ru-RU');
+    const risk = projectKey ? financeRisks.find(item => String(item.title || '').trim().toLocaleLowerCase('ru-RU') === projectKey && Number.isFinite(Number(item.costRatio)) && Number(item.costRatio) >= 0.8) : null;
+    const downtimePct = Math.round(idleHours / shiftHours * 100);
+    const outputPct = Math.round(averageDeviation);
+    const riskText = risk ? ' Финансовая связь для проверки: по объекту в финансовом анализе расходы составляют ' + Math.round(Number(risk.costRatio) * 100) + '% договора. Совпадение по названию объекта не доказывает причинную связь.' : '';
+    add('production-cost-correlation-' + shift.id, risk ? 'danger' : 'warning', risk ? 97 : 91,
+      risk ? 'Простой и отставание совпали с финансовым риском' : 'Простой совпал с низкой выработкой',
+      'В смене от ' + (shift.shift_date || 'без даты') + ' простой составил ' + downtimePct + '% времени, а среднее отклонение зафиксированных работ — ' + outputPct + '% от плана. Проверь причину простоя и сопоставимость объёма работ.' + (risk ? ' Также проверь запас по расходам объекта.' : ''),
+      'Объект: ' + (projectTitle || 'не указан') + '. Простой: ' + idleHours + ' ч из ' + shiftHours + ' ч. Работы в отчёте: ' + performanceRows.map(row => row.name + ' (' + Math.round(row.deviation) + '%)').join('; ') + '.' + riskText + ' Это сигнал для проверки, а не доказательство, что простой вызвал отставание или перерасход.',
+      risk ? 'finance' : 'production', risk ? 'Проверить экономику' : 'Разобрать смену');
+  }
+
   const lowByWork = new Map();
   for (const shift of history) {
     for (const row of (Array.isArray(shift.performance) ? shift.performance : [])) {
