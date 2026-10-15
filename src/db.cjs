@@ -98,6 +98,19 @@ CREATE TABLE IF NOT EXISTS prospects (
   status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','reviewed','contacted','converted','rejected')),
   notes TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS commercial_orders (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, source_url TEXT NOT NULL UNIQUE,
+ source_name TEXT NOT NULL DEFAULT '', snippet TEXT NOT NULL DEFAULT '', search_query TEXT NOT NULL DEFAULT '',
+ service TEXT NOT NULL DEFAULT 'demolition' CHECK(service IN ('demolition','finishing','raised_floor')),
+ region TEXT NOT NULL DEFAULT 'Москва и Московская область',
+ signal_score INTEGER NOT NULL DEFAULT 0 CHECK(signal_score BETWEEN 0 AND 100),
+ signal_labels TEXT NOT NULL DEFAULT '', relevance TEXT NOT NULL DEFAULT 'review' CHECK(relevance IN ('potential_order','review')),
+ status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','opened','relevant','rejected')),
+ first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_commercial_orders_status ON commercial_orders(status);
+CREATE INDEX IF NOT EXISTS idx_commercial_orders_service ON commercial_orders(service);
+CREATE INDEX IF NOT EXISTS idx_commercial_orders_last_seen ON commercial_orders(last_seen_at DESC);
 CREATE TABLE IF NOT EXISTS competitor_listings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   source_name TEXT NOT NULL,

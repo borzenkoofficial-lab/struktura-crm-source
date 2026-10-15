@@ -1,0 +1,7 @@
+'use strict';
+const test=require('node:test');const assert=require('node:assert/strict');
+const {buildOrderQueries,normalizeOrderResult,deduplicateOrders}=require('../src/order-radar.cjs');
+test('builds four order queries for service and region',()=>{const q=buildOrderQueries('demolition','Москва и МО');assert.equal(q.length,4);assert.ok(q.every(x=>x.includes('Москва и МО')));assert.ok(q.some(x=>/тендер|закупк/i.test(x)))});
+test('normalizes links and scores a plausible commercial order',()=>{const x=normalizeOrderResult({title:'Закупка на демонтаж офисных помещений',url:'https://tenders.example.ru/procedure/123#details',description:'Заказчик ищет подрядчика для демонтажа и ремонта офиса в Москве'},'тендер демонтаж Москва','demolition','Москва и МО');assert.equal(x.source_url,'https://tenders.example.ru/procedure/123');assert.equal(x.source_name,'tenders.example.ru');assert.ok(x.signal_score>=50);assert.equal(x.relevance,'potential_order')});
+test('rejects invalid URLs and removes duplicate source links',()=>{assert.equal(normalizeOrderResult({title:'bad',url:'javascript:alert(1)'}),null);const x=normalizeOrderResult({title:'Заказ',url:'https://example.ru/order'});assert.equal(deduplicateOrders([x,x]).length,1)});
+test('marks generic search hits for manual review, not confirmed demand',()=>{const x=normalizeOrderResult({title:'Компания',url:'https://example.ru',description:'Профиль компании'},'ремонт Москва');assert.equal(x.relevance,'review')});

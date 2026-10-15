@@ -16,6 +16,7 @@ const Database = require('better-sqlite3');
 const { parseCsv, prospectDuplicateKeys, safeCsvCell } = require('./csv.cjs');
 const { crawlSites } = require('./site-crawler.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
+const { buildOrderQueries, normalizeOrderResult, deduplicateOrders } = require('./order-radar.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
 const { normalizeTaskInput } = require('./task-utils.cjs');
 const { normalizeContactEmail } = require('./contact-utils.cjs');
@@ -616,6 +617,30 @@ ipcMain.handle('search:run', async (_event, input = {}) => {
   });
   tx(allResults);
   return { queries, received: allResults.length, imported, skipped, errors };
+});
+ipcMain.handle('orders:list', (_event,input={})=>{
+ const status=['new','opened','relevant','rejected'].includes(input.status)?input.status:'';
+ const service=services.includes(input.service)?input.service:'';
+ const terms=clean(input.search,180).toLowerCase();const where=[],params=[];
+ if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}
+ if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%')}
+ return db.prepare(`SELECT * FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC LIMIT 500`).all(...params).map(r=>({...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean)}));
+});
+ipcMain.handle('orders:search',async(_event,input={})=>{
+ const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');
+ const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const queries=buildOrderQueries(service,region);const found=[],errors=[];
+ for(const query of queries){try{const results=await searchBrave(query,apiKey,{count:10});found.push(...results.map(x=>normalizeOrderResult({title:x.company_name,url:x.source_url,description:x.snippet},query,service,region)).filter(Boolean))}catch(e){errors.push({query,error:clean(e.message,240)})}}
+ const unique=deduplicateOrders(found);
+ const upsert=db.prepare(`INSERT INTO commercial_orders(title,source_url,source_name,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new') ON CONFLICT(source_url) DO UPDATE SET title=excluded.title,source_name=excluded.source_name,snippet=excluded.snippet,search_query=excluded.search_query,service=excluded.service,region=excluded.region,signal_score=excluded.signal_score,signal_labels=excluded.signal_labels,relevance=excluded.relevance,last_seen_at=CURRENT_TIMESTAMP WHERE commercial_orders.status NOT IN ('relevant','rejected')`);
+ let added=0,refreshed=0;const tx=db.transaction(items=>{for(const item of items){const prior=db.prepare('SELECT id FROM commercial_orders WHERE source_url=?').get(item.source_url);upsert.run({...item,signal_labels:item.signal_labels.join('|')});if(prior)refreshed++;else added++}db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)').run('Brave Search API','commercial-order-radar',added,refreshed,errors.length,`Получено: ${found.length}; уникальных ссылок: ${unique.length}; запросов: ${queries.length}; ошибок: ${errors.length}`)});
+ tx(unique);if(!unique.length&&errors.length===queries.length)throw new Error('Не удалось найти заказы. '+errors.map(x=>x.error).join(' | '));
+ return {queries,received:found.length,unique:unique.length,added,refreshed,errors};
+});
+ipcMain.handle('orders:updateStatus',(_event,input={})=>{
+ const id=Number(input.id),status=['new','opened','relevant','rejected'].includes(input.status)?input.status:'';
+ if(!Number.isSafeInteger(id)||id<1||!status)throw new Error('Некорректный заказ или статус.');
+ const r=db.prepare('UPDATE commercial_orders SET status=? WHERE id=?').run(status,id);if(!r.changes)throw new Error('Заказ не найден.');
+ return db.prepare('SELECT * FROM commercial_orders WHERE id=?').get(id);
 });
 ipcMain.handle('prospects:crawlWebsites', async (_event, input = {}) => {
   const rawUrls = String(input.urls || '').split(/[\r\n,;]+/).map(x => x.trim()).filter(Boolean);
