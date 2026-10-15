@@ -135,7 +135,7 @@ function buildProductionIntelligence(data = {}, options = {}) {
     const observedFactor = median(ratios);
     const count = ratios.length;
     const weight = count / (count + 5);
-    const suggestedFactor = count
+    const suggestedFactor = count >= 5
       ? Math.max(0.85, Math.min(1.15, 1 + (observedFactor - 1) * weight))
       : 1;
     return {
