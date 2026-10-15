@@ -304,7 +304,7 @@ function piCoachNormalize(value) {
   return String(value || '').toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
 }
 function piCoachFindInsight(views) {
-  return piCoachInsights.find(item => views.includes(item.view)) || piCoachCurrent();
+  return piCoachInsights.find(item => views.includes(item.view)) || null;
 }
 function piCoachAnswerVoice(rawQuery) {
   const query = piCoachNormalize(rawQuery);
