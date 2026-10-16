@@ -123,7 +123,7 @@ const header = canvas(150, 57, (x, y) => blend(palette.navy, palette.navy2, x / 
 rect(header, 12, 12, 31, 31, palette.navy2);
 circle(header, 27.5, 27.5, 10, palette.white, 3);
 text(header, 'ОПЛОТ', 51, 17, 2, palette.white, 1);
-text(header, 'УПРАВЛЕНИЕ', 52, 34, 1, [190, 197, 204], 1);
+text(header, 'СИСТЕМА', 52, 34, 1, [190, 197, 204], 1);
 
 fs.writeFileSync(path.join(outDir, 'installer-sidebar.bmp'), bmp(side));
 fs.writeFileSync(path.join(outDir, 'installer-header.bmp'), bmp(header));
