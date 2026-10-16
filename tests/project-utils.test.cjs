@@ -28,3 +28,10 @@ test('project normalizes service, status, contract and bounded text fields', () 
   assert.equal(project.address.length, 250);
   assert.throws(() => normalizeProjectInput({ title: 'X', contract_rub: -1 }), /неотрицательной/i);
 });
+
+
+test('project preserves optional client and lead relationship IDs', () => {
+  const project = normalizeProjectInput({ title: 'Объект', client_id: '12', lead_id: '7' });
+  assert.equal(project.client_id, 12);
+  assert.equal(project.lead_id, 7);
+});

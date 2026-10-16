@@ -26,6 +26,19 @@ const { normalizeTaskInput } = require('./task-utils.cjs');
 const { normalizeContactEmail } = require('./contact-utils.cjs');
 const { buildFinanceInsights } = require('./finance-insights.cjs');
 const { normalizeProjectInput, validDate } = require('./project-utils.cjs');
+function resolveProjectRelations(project) {
+  let clientId = project.client_id;
+  const leadId = project.lead_id;
+  if (clientId !== null && (!Number.isSafeInteger(clientId) || clientId < 1 || !db.prepare('SELECT id FROM clients WHERE id=?').get(clientId))) throw new Error('Выбранный клиент не найден.');
+  if (leadId !== null) {
+    if (!Number.isSafeInteger(leadId) || leadId < 1) throw new Error('Выбрана некорректная заявка.');
+    const lead = db.prepare('SELECT id,client_id FROM leads WHERE id=?').get(leadId);
+    if (!lead) throw new Error('Выбранная заявка не найдена.');
+    if (lead.client_id && clientId && lead.client_id !== clientId) throw new Error('Выбранная заявка принадлежит другому клиенту. Выбери согласованные записи.');
+    if (!clientId && lead.client_id) clientId = lead.client_id;
+  }
+  return { ...project, client_id: clientId, lead_id: leadId };
+}
 const { forecastRemainingWork, buildRateModel } = require('./production-model.cjs');
 const { DEFAULT_REMINDER_SETTINGS, normalizeReminderSettings, buildReminders } = require('./reminder-engine.cjs');
 const { normalizeProductionPlan, normalizeShiftWorkLines } = require('./production-plan-utils.cjs');
@@ -134,7 +147,7 @@ function createWindow() {
   win.on('closed', () => { mainWindow = null; browserView = null; browserIsVisible = false; });
   win.loadFile(path.join(__dirname, 'index.html')).catch(error => {
     console.error('Failed to load CRM interface:', error);
-    dialog.showErrorBox('Не удалось открыть Struktura CRM', `Не удалось загрузить интерфейс приложения.\\n\\n${error.message || error}`);
+    dialog.showErrorBox('Не удалось открыть Struktura CRM', `Не удалось загрузить интерфейс приложения.\n\n${error.message || error}`);
   });
 }
 function getSetting(key, fallback) {
@@ -180,7 +193,7 @@ app.whenReady().then(() => {
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 }).catch(error => {
   console.error('Struktura CRM startup failed:', error);
-  dialog.showErrorBox('Ошибка запуска Struktura CRM', `Приложение не смогло подготовить локальную базу данных.\\n\\n${error.message || error}`);
+  dialog.showErrorBox('Ошибка запуска Struktura CRM', `Приложение не смогло подготовить локальную базу данных.\n\n${error.message || error}`);
   app.quit();
 });
 app.on('before-quit', () => { if (reminderInterval) clearInterval(reminderInterval); if (db) db.close(); });
@@ -232,7 +245,7 @@ ipcMain.handle('dashboard:summary', () => {
   const clients = db.prepare('SELECT COUNT(*) count FROM clients').get().count;
   return { leads, projects, contract, received: totalReceived, expenses, clients, cash: totalReceived - expenses };
 });
-ipcMain.handle('clients:list', () => db.prepare('SELECT * FROM clients ORDER BY id DESC LIMIT 1000').all());
+ipcMain.handle('clients:list', () => db.prepare('SELECT * FROM clients ORDER BY id DESC').all());
 ipcMain.handle('clients:create', (_event, input = {}) => {
   const name = clean(input.name, 180);
   if (!name) throw new Error('Укажи имя клиента или название компании.');
@@ -251,7 +264,7 @@ ipcMain.handle('clients:update', (_event, input = {}) => {
     .run(name, clean(input.phone, 40), normalizeContactEmail(input.email), input.client_type === 'company' ? 'company' : 'person', clean(input.notes), id);
   return db.prepare('SELECT * FROM clients WHERE id=?').get(id);
 });
-ipcMain.handle('leads:list', () => db.prepare('SELECT l.*, c.name client_name FROM leads l LEFT JOIN clients c ON c.id=l.client_id ORDER BY l.id DESC LIMIT 1000').all());
+ipcMain.handle('leads:list', () => db.prepare('SELECT l.*, c.name client_name FROM leads l LEFT JOIN clients c ON c.id=l.client_id ORDER BY l.id DESC').all());
 ipcMain.handle('leads:create', (_event, input = {}) => {
   const title = clean(input.title, 180);
   if (!title) throw new Error('Укажи название заявки.');
@@ -288,21 +301,21 @@ ipcMain.handle('projects:list', () => db.prepare(`SELECT p.*, c.name client_name
   COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub,
   COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub,
   COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub
-  FROM projects p LEFT JOIN clients c ON c.id=p.client_id LEFT JOIN leads l ON l.id=p.lead_id ORDER BY p.id DESC LIMIT 1000`).all());
+  FROM projects p LEFT JOIN clients c ON c.id=p.client_id LEFT JOIN leads l ON l.id=p.lead_id ORDER BY p.id DESC`).all());
 ipcMain.handle('projects:create', (_event, input = {}) => {
-  const project = normalizeProjectInput(input);
+  const project = resolveProjectRelations(normalizeProjectInput(input));
   const contract = amount(project.contract_rub, { allowZero: true });
-  const result = db.prepare(`INSERT INTO projects(title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
-    VALUES (@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
+  const result = db.prepare(`INSERT INTO projects(lead_id,client_id,title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
+    VALUES (@lead_id,@client_id,@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
   return db.prepare('SELECT * FROM projects WHERE id=?').get(result.lastInsertRowid);
 });
 ipcMain.handle('projects:update', (_event, input = {}) => {
   const id = Number(input.id);
   if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный номер объекта.');
   if (!db.prepare('SELECT id FROM projects WHERE id=?').get(id)) throw new Error('Объект не найден. Обнови список и попробуй снова.');
-  const project = normalizeProjectInput(input);
+  const project = resolveProjectRelations(normalizeProjectInput(input));
   const contract = amount(project.contract_rub, { allowZero: true });
-  db.prepare(`UPDATE projects SET title=@title, service=@service, status=@status, contract_rub=@contract_rub,
+  db.prepare(`UPDATE projects SET lead_id=@lead_id, client_id=@client_id, title=@title, service=@service, status=@status, contract_rub=@contract_rub,
     address=@address, start_date=@start_date, end_date=@end_date, planned_people=@planned_people,
     complexity_factor=@complexity_factor, notes=@notes, updated_at=CURRENT_TIMESTAMP WHERE id=@id`)
     .run({ ...project, contract_rub: contract, id });
@@ -319,11 +332,11 @@ ipcMain.handle('projects:updateStatus', (_event, input = {}) => {
 });
 ipcMain.handle('projects:createWithPlan', (_event, input = {}) => {
   const plan = normalizeProductionPlan(input.plan || {});
-  const project = normalizeProjectInput({ ...(input.project || {}), planned_people: plan.planned_people, complexity_factor: plan.complexity_factor });
+  const project = resolveProjectRelations(normalizeProjectInput({ ...(input.project || {}), planned_people: plan.planned_people, complexity_factor: plan.complexity_factor }));
   const contract = amount(project.contract_rub, { allowZero: true });
   const create = db.transaction(() => {
-    const result = db.prepare(`INSERT INTO projects(title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
-      VALUES (@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
+    const result = db.prepare(`INSERT INTO projects(lead_id,client_id,title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
+      VALUES (@lead_id,@client_id,@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
     const projectId = Number(result.lastInsertRowid);
     const insert = db.prepare(`INSERT INTO production_plans(project_id,catalog_id,work_name,unit,planned_quantity,baseline_productivity)
       VALUES (@project_id,@catalog_id,@work_name,@unit,@planned_quantity,@baseline_productivity)`);
@@ -424,12 +437,7 @@ ipcMain.handle('production:exportReportPdf', async (_event, input = {}) => {
     await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
     const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
     fs.writeFileSync(filePath, data);
-    const costRub = Math.max(0, Number(input.estimatedCostRub) || 0);
-    const profitRub = Number.isFinite(Number(input.estimatedProfitRub)) ? Number(input.estimatedProfitRub) : total - costRub;
-    const marginPct = Number.isFinite(Number(input.marginPct)) ? Number(input.marginPct) : (total > 0 ? profitRub / total * 100 : 0);
-    db.prepare(`INSERT INTO quote_history(title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json,file_path) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
-      .run(title, customer, address, new Date().toISOString(), total, costRub, profitRub, marginPct, discount, lines.length, JSON.stringify(lines.map(line => ({ name: clean(line.name,180), unit: clean(line.unit,24), quantity: Math.max(0, Number(line.quantity) || 0), price: Math.max(0, Number(line.price) || 0) }))), filePath);
-    return { canceled: false, filePath, historySaved: true };
+    return { canceled: false, filePath };
   }
   finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
 });
@@ -547,7 +555,7 @@ ipcMain.handle('production:deleteShift', (_event, shiftIdValue) => {
   return { deleted: true, shift_id: shiftId };
 });
 
-ipcMain.handle('income:list', () => db.prepare('SELECT * FROM income_records ORDER BY income_date DESC, id DESC LIMIT 2000').all());
+ipcMain.handle('income:list', () => db.prepare('SELECT * FROM income_records ORDER BY income_date DESC, id DESC').all());
 ipcMain.handle('income:create', (_event, input = {}) => {
   const amountRub = amount(input.amount_rub), date = clean(input.income_date, 10), source = clean(input.source, 180);
   if (!validDate(date) || !date) throw new Error('Укажи корректную дату дохода.');
@@ -566,7 +574,7 @@ ipcMain.handle('income:update', (_event, input = {}) => {
   db.prepare('UPDATE income_records SET amount_rub=?,income_date=?,record_type=?,source=?,note=? WHERE id=?').run(amountRub,date,type,source,clean(input.note,500),id);
   return db.prepare('SELECT * FROM income_records WHERE id=?').get(id);
 });
-ipcMain.handle('payments:list', () => db.prepare(`SELECT py.*, p.title project_title FROM payments py JOIN projects p ON p.id=py.project_id ORDER BY py.payment_date DESC, py.id DESC LIMIT 2000`).all());
+ipcMain.handle('payments:list', () => db.prepare(`SELECT py.*, p.title project_title FROM payments py JOIN projects p ON p.id=py.project_id ORDER BY py.payment_date DESC, py.id DESC`).all());
 ipcMain.handle('payments:create', (_event, input = {}) => {
   const projectId = Number(input.project_id);
   if (!Number.isInteger(projectId) || !db.prepare('SELECT id FROM projects WHERE id=?').get(projectId)) throw new Error('Выбери существующий объект.');
@@ -590,7 +598,7 @@ ipcMain.handle('payments:update', (_event, input = {}) => {
     .run(projectId, amountRub, date, type, method, clean(input.note,500), id);
   return db.prepare('SELECT * FROM payments WHERE id=?').get(id);
 });
-ipcMain.handle('expenses:list', () => db.prepare(`SELECT e.*, p.title project_title FROM expenses e LEFT JOIN projects p ON p.id=e.project_id ORDER BY e.expense_date DESC, e.id DESC LIMIT 2000`).all());
+ipcMain.handle('expenses:list', () => db.prepare(`SELECT e.*, p.title project_title FROM expenses e LEFT JOIN projects p ON p.id=e.project_id ORDER BY e.expense_date DESC, e.id DESC`).all());
 ipcMain.handle('finance:insights', () => {
   const projects = db.prepare(`SELECT p.*, COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub FROM projects p WHERE p.status != 'cancelled'`).all();
   const expenses = db.prepare('SELECT * FROM expenses ORDER BY expense_date ASC').all();
@@ -635,7 +643,7 @@ ipcMain.handle('tasks:list', (_event, input = {}) => {
   return db.prepare(`SELECT t.*, l.title lead_title, p.title project_title,
     CASE WHEN t.is_done=1 THEN 'done' WHEN t.due_at IS NULL OR t.due_at='' THEN 'unscheduled' WHEN date(t.due_at) < date('now','localtime') THEN 'overdue' WHEN date(t.due_at)=date('now','localtime') THEN 'today' ELSE 'upcoming' END urgency
     FROM tasks t LEFT JOIN leads l ON l.id=t.lead_id LEFT JOIN projects p ON p.id=t.project_id ${where}
-    ORDER BY CASE WHEN t.is_done=1 THEN 3 WHEN t.due_at IS NULL OR t.due_at='' THEN 2 WHEN date(t.due_at)<date('now','localtime') THEN 0 ELSE 1 END, t.due_at ASC, t.id DESC LIMIT 2000`).all();
+    ORDER BY CASE WHEN t.is_done=1 THEN 3 WHEN t.due_at IS NULL OR t.due_at='' THEN 2 WHEN date(t.due_at)<date('now','localtime') THEN 0 ELSE 1 END, t.due_at ASC, t.id DESC`).all();
 });
 ipcMain.handle('tasks:create', (_event, input = {}) => {
   const normalized = normalizeTaskInput(input);
@@ -718,7 +726,7 @@ ipcMain.handle('orders:list', (_event,input={})=>{
  const terms=clean(input.search,180).toLowerCase();const where=[],params=[];
  if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}if(sourceType){where.push('source_type=?');params.push(sourceType)}
  if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%')}
- const rows=db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC LIMIT 500`).all(...params);
+ const rows=db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC`).all(...params);
  const analyses=new Map(db.prepare('SELECT * FROM commercial_order_analysis').all().map(item=>[Number(item.order_id),item]));
  return rows.map(r=>{const analysis=analyses.get(Number(r.id))||null;return {...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean),pi_analysis:analysis,pi_assessment:assessCommercialOrder(r,analysis)};});
 });
@@ -896,7 +904,7 @@ ipcMain.handle('prospects:convertLead', (_event, prospectId) => {
     : sourceText.includes('telegram') || sourceText.includes('телеграм') ? 'telegram'
     : sourceText.includes('site') || sourceText.includes('сайт') || prospect.website ? 'website' : 'other';
   const create = db.transaction(() => {
-    let client = db.prepare(`SELECT id FROM clients WHERE lower(name)=lower(?) OR (? <> '' AND phone=?) ORDER BY id LIMIT 1`).get(prospect.company_name, prospect.phone || '', prospect.phone || '');
+    let client = db.prepare(`SELECT id FROM clients WHERE lower(trim(name))=lower(trim(?))`).get(prospect.company_name);
     if (!client) {
       const clientResult = db.prepare(`INSERT INTO clients(name,phone,email,client_type,notes) VALUES (?,?,?,'company',?)`).run(
         prospect.company_name, prospect.phone || '', prospect.email || '', [prospect.website ? `Сайт: ${prospect.website}` : '', prospect.source_url ? `Источник: ${prospect.source_url}` : '', prospect.notes || ''].filter(Boolean).join('\n').slice(0,2000)
@@ -957,7 +965,7 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   };
   if (!allowed[kind]) throw new Error('Неизвестный тип экспорта.');
   const [label, sql, file] = allowed[kind];
-  const { canceled, filePath } = await dialog.showSaveDialog({ title: `STRUKTURA CRM · Экспорт: ${label}`, defaultPath: `gruzli-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
+  const { canceled, filePath } = await dialog.showSaveDialog({ title: `STRUKTURA CRM · Экспорт: ${label}`, defaultPath: `STRUKTURA-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
   if (canceled || !filePath) return { canceled: true };
   const rows = db.prepare(sql).all();
   const columns = rows.length ? Object.keys(rows[0]) : sql.match(/SELECT (.+?) FROM/)[1].split(',').map(s=>s.trim());
@@ -1139,8 +1147,18 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить коммерческое предложение в PDF', defaultPath: `${title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,80)}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (canceled || !filePath) return { canceled: true };
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
-  try { await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html)); const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } }); fs.writeFileSync(filePath, data); return { canceled: false, filePath }; }
-  finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
+  try {
+    await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+    fs.writeFileSync(filePath, data);
+    const costRub = Math.max(0, Number(input.estimatedCostRub) || 0);
+    const profitRub = Number.isFinite(Number(input.estimatedProfitRub)) ? Number(input.estimatedProfitRub) : total - costRub;
+    const marginPct = Number.isFinite(Number(input.marginPct)) ? Number(input.marginPct) : (total > 0 ? profitRub / total * 100 : 0);
+    db.prepare(`INSERT INTO quote_history(title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json,file_path) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(title, customer, address, new Date().toISOString(), total, costRub, profitRub, marginPct, discount, lines.length,
+        JSON.stringify(lines.map(line => ({ name: clean(line.name,180), unit: clean(line.unit,24), quantity: Math.max(0, Number(line.quantity) || 0), price: Math.max(0, Number(line.price) || 0) }))), filePath);
+    return { canceled: false, filePath, historySaved: true };
+  } finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
 });
 
 ipcMain.handle('updates:status', () => updateStatus);

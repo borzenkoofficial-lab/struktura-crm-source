@@ -294,7 +294,7 @@ test('project details can be edited while linked finance and production records 
   assert.match(preload, /updateProject: \(data\) => ipcRenderer\.invoke\('projects:update', data\)/);
   const handler = main.match(/ipcMain\.handle\('projects:update',[\s\S]*?\n\}\);/);
   assert.ok(handler); assert.match(handler[0], /normalizeProjectInput\(input\)/);
-  assert.match(handler[0], /UPDATE projects SET title=@title, service=@service, status=@status, contract_rub=@contract_rub/);
+  assert.match(handler[0], /UPDATE projects SET lead_id=@lead_id, client_id=@client_id, title=@title, service=@service, status=@status, contract_rub=@contract_rub/);
   assert.doesNotMatch(handler[0], /DELETE FROM (payments|expenses|production_plans)/);
 });
 
@@ -646,4 +646,40 @@ test('PI error history keeps errors after transient toast and exposes explanatio
   assert.match(html, /id="piErrorDetail"/);
   const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
   assert.match(css, /\.pi-error-history-layout/);
+});
+
+
+test('production report export does not reference quote-only variables and quote export owns history persistence', () => {
+  const reportStart = main.indexOf("ipcMain.handle('production:exportReportPdf'");
+  const quoteStart = main.indexOf("ipcMain.handle('estimate:exportQuotePdf'");
+  assert.ok(reportStart >= 0 && quoteStart > reportStart);
+  const report = main.slice(reportStart, quoteStart);
+  const quote = main.slice(quoteStart, main.indexOf("ipcMain.handle('updates:status'", quoteStart));
+  assert.doesNotMatch(report, /total - costRub|run\(title, customer|discount, lines\.length/);
+  assert.match(quote, /INSERT INTO quote_history/);
+  assert.match(quote, /historySaved: true/);
+});
+
+test('project editor exposes client and lead selectors and persists relationship columns', () => {
+  assert.match(html, /id="projectClientSelect"/);
+  assert.match(html, /id="projectLeadSelect"/);
+  assert.ok(renderer.includes('populateProjectRelationships'));
+  assert.ok(main.includes('INSERT INTO projects(lead_id,client_id,title'));
+  assert.ok(main.includes('UPDATE projects SET lead_id=@lead_id, client_id=@client_id'));
+  assert.ok(main.includes('Выбранная заявка принадлежит другому клиенту'));
+});
+
+test('date-only defaults use local calendar fields rather than UTC ISO conversion', () => {
+  assert.ok(renderer.includes('function dateToday() { const now = new Date();'));
+  assert.ok(!renderer.includes('function dateToday() { return new Date().toISOString()'));
+  assert.ok(renderer.includes('productionReportStart'));
+  assert.ok(renderer.includes("padStart(2,'0')"));
+});
+
+
+test('export filenames and startup dialogs use the current brand and real line breaks', () => {
+  assert.ok(main.includes('STRUKTURA-'));
+  assert.ok(!main.includes('gruzli-'));
+  assert.ok(main.includes('Не удалось загрузить интерфейс приложения.\\n\\n'));
+  assert.ok(!main.includes('Не удалось загрузить интерфейс приложения.\\\\n\\\\n'));
 });

@@ -72,7 +72,7 @@ function buildManualOrderSearchUrl(service = 'demolition', region = 'Москв�
     avito: 'site:avito.ru',
     tenders: 'site:zakupki.gov.ru OR site:roseltorg.ru OR site:b2b-center.ru OR site:rts-tender.ru'
   };
-  const safeRegion = String(region || 'Москва и Московская область').replace(/[\\r\\n]+/g, ' ').trim().slice(0, 120);
+  const safeRegion = String(region || 'Москва и Московская область').replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
   const query = [terms, safeRegion, '(тендер OR закупка OR заказ OR подрядчик)', domains[source] || ''].filter(Boolean).join(' ');
   return 'https://yandex.ru/search/?text=' + encodeURIComponent(query);
 }
