@@ -32,10 +32,11 @@ function piRecordError(message, source = 'Операция', error = null) {
   const raw = String(message || 'Неизвестная ошибка').slice(0, 1200);
   const item = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), at: new Date().toISOString(), source: String(source || 'CRM').slice(0, 100), message: raw, stack: String(error?.stack || '').slice(0, 3000), explanation: piErrorExplain(raw, source) };
   const previous = piErrorHistory[0];
-  if (previous && previous.message === item.message && previous.source === item.source && Date.now() - new Date(previous.at).getTime() < 2500) return previous;
+  if (previous && previous.message === item.message && Date.now() - new Date(previous.at).getTime() < 2500) return previous;
   piErrorHistory.unshift(item);
   piErrorHistory = piErrorHistory.slice(0, 100);
   piErrorSave();
+  piUpdateErrorBadge();
   return item;
 }
 function piRenderErrorHistory(selectedId) {
@@ -925,7 +926,25 @@ async function refreshReports() {
 }
 function empty(title, detail) { return `<div class="empty-state"><div class="empty-icon">◉</div><strong>${esc(title)}</strong><span>${esc(detail)}</span></div>`; }
 function openDialog(id) { $(id).showModal(); }
+
 function closeDialog(id) { $(id).close(); }
+$('piOpenErrorHistoryBtn')?.addEventListener('click', () => openPiErrorHistory());
+$('piErrorList')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-pi-error-id]');
+  if (button) piRenderErrorHistory(button.dataset.piErrorId);
+});
+$('piClearErrorHistoryBtn')?.addEventListener('click', () => {
+  if (!piErrorHistory.length) return;
+  if (!window.confirm('Очистить сохранённую историю ошибок на этом компьютере?')) return;
+  piErrorHistory = [];
+  piErrorSave();
+  piRenderErrorHistory();
+});
+function piUpdateErrorBadge() {
+  const badge = $('piErrorBadge');
+  if (badge) badge.textContent = String(piErrorHistory.length);
+}
+piUpdateErrorBadge();
 async function exportCsv(kind) { try { const r = await window.crm.exportDataCsv(kind); if (!r.canceled) toast(`Экспорт завершён: строк ${r.count}.`); } catch (e) { toast(e.message, true); } }
 // Primary navigation is registered near showView() before widget initialization.
 const commandPalette = $('commandPaletteDialog');
