@@ -677,7 +677,7 @@ ipcMain.handle('tasks:complete', (_event, input = {}) => {
   db.prepare('UPDATE tasks SET is_done=? WHERE id=?').run(isDone, id);
   return db.prepare('SELECT * FROM tasks WHERE id=?').get(id);
 });
-ipcMain.handle('prospects:list', () => db.prepare('SELECT * FROM prospects ORDER BY id DESC LIMIT 5000').all());
+ipcMain.handle('prospects:list', () => db.prepare('SELECT * FROM prospects ORDER BY id DESC').all());
 ipcMain.handle('search:status', () => ({ provider: 'Brave Search API', configured: hasSearchKey() }));
 ipcMain.handle('search:saveKey', (_event, input = {}) => {
   const key = clean(input.apiKey, 500);
