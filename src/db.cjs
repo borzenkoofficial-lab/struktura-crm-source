@@ -202,7 +202,7 @@ CREATE TABLE IF NOT EXISTS production_plans (
   work_name TEXT NOT NULL,
   unit TEXT NOT NULL,
   planned_quantity REAL NOT NULL CHECK(planned_quantity > 0),
-  baseline_productivity REAL NOT NULL CHECK(baseline_productivity > 0),
+  baseline_productivity REAL NOT NULL CHECK(baseline_productivity >= 0),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(project_id, catalog_id)
@@ -259,8 +259,24 @@ function openDatabase(userDataPath) {
   const prospectColumns = new Set(db.prepare('PRAGMA table_info(prospects)').all().map(column => column.name));
   if (!prospectColumns.has('service')) db.exec("ALTER TABLE prospects ADD COLUMN service TEXT NOT NULL DEFAULT 'demolition' CHECK(service IN ('demolition','finishing','raised_floor'))");
   db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_service ON prospects(service)');
-  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','6')").run();
-  db.prepare("UPDATE settings SET value='6' WHERE key='schema_version'").run();
+  // Older databases enforce baseline_productivity > 0; rebuild only this table so missing norms can be stored explicitly.
+  const productionPlanSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='production_plans'").get()?.sql || '';
+  if (/CHECK\s*\(\s*baseline_productivity\s*>\s*0\s*\)/i.test(productionPlanSql)) {
+    db.pragma('foreign_keys = OFF');
+    try {
+      const migratePlans = db.transaction(() => {
+        db.exec('DROP INDEX IF EXISTS idx_production_plan_project');
+        db.exec('ALTER TABLE production_plans RENAME TO production_plans_legacy');
+        db.exec(`CREATE TABLE production_plans (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE, catalog_id TEXT NOT NULL, work_name TEXT NOT NULL, unit TEXT NOT NULL, planned_quantity REAL NOT NULL CHECK(planned_quantity > 0), baseline_productivity REAL NOT NULL CHECK(baseline_productivity >= 0), created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(project_id, catalog_id))`);
+        db.exec('INSERT INTO production_plans(id,project_id,catalog_id,work_name,unit,planned_quantity,baseline_productivity,created_at,updated_at) SELECT id,project_id,catalog_id,work_name,unit,planned_quantity,baseline_productivity,created_at,updated_at FROM production_plans_legacy');
+        db.exec('DROP TABLE production_plans_legacy');
+        db.exec('CREATE INDEX IF NOT EXISTS idx_production_plan_project ON production_plans(project_id)');
+      });
+      migratePlans();
+    } finally { db.pragma('foreign_keys = ON'); }
+  }
+  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','7')").run();
+  db.prepare("UPDATE settings SET value='7' WHERE key='schema_version'").run();
   return db;
 }
 

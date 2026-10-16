@@ -23,7 +23,7 @@ const { assessCommercialOrder } = require('./order-pi.cjs');
 const { calculateOrderEconomics } = require('./order-economics.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
 const { normalizeTaskInput } = require('./task-utils.cjs');
-const { normalizeContactEmail } = require('./contact-utils.cjs');
+const { normalizeContactEmail, normalizePhone } = require('./contact-utils.cjs');
 const { buildFinanceInsights } = require('./finance-insights.cjs');
 const { normalizeProjectInput, validDate } = require('./project-utils.cjs');
 function resolveProjectRelations(project) {
@@ -246,11 +246,19 @@ ipcMain.handle('dashboard:summary', () => {
   return { leads, projects, contract, received: totalReceived, expenses, clients, cash: totalReceived - expenses };
 });
 ipcMain.handle('clients:list', () => db.prepare('SELECT * FROM clients ORDER BY id DESC').all());
+function ensureClientPhoneUnique(phone, excludeId = null) {
+  const key = normalizePhone(phone);
+  if (!key) return;
+  const clients = db.prepare('SELECT id,phone FROM clients').all();
+  if (clients.some(client => client.id !== excludeId && normalizePhone(client.phone) === key)) throw new Error('Клиент с таким номером телефона уже есть в базе. Открой существующую карточку вместо создания дубля.');
+}
 ipcMain.handle('clients:create', (_event, input = {}) => {
   const name = clean(input.name, 180);
   if (!name) throw new Error('Укажи имя клиента или название компании.');
+  const phone = normalizePhone(clean(input.phone, 40));
+  ensureClientPhoneUnique(phone);
   const result = db.prepare('INSERT INTO clients(name,phone,email,client_type,notes) VALUES (@name,@phone,@email,@client_type,@notes)').run({
-    name, phone: clean(input.phone, 40), email: normalizeContactEmail(input.email),
+    name, phone, email: normalizeContactEmail(input.email),
     client_type: input.client_type === 'company' ? 'company' : 'person', notes: clean(input.notes)
   });
   return db.prepare('SELECT * FROM clients WHERE id=?').get(result.lastInsertRowid);
@@ -260,8 +268,10 @@ ipcMain.handle('clients:update', (_event, input = {}) => {
   if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный номер клиента.');
   if (!name) throw new Error('Укажи имя клиента или название компании.');
   if (!db.prepare('SELECT id FROM clients WHERE id=?').get(id)) throw new Error('Клиент не найден. Обнови список и попробуй снова.');
+  const phone = normalizePhone(clean(input.phone, 40));
+  ensureClientPhoneUnique(phone, id);
   db.prepare('UPDATE clients SET name=?, phone=?, email=?, client_type=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
-    .run(name, clean(input.phone, 40), normalizeContactEmail(input.email), input.client_type === 'company' ? 'company' : 'person', clean(input.notes), id);
+    .run(name, phone, normalizeContactEmail(input.email), input.client_type === 'company' ? 'company' : 'person', clean(input.notes), id);
   return db.prepare('SELECT * FROM clients WHERE id=?').get(id);
 });
 ipcMain.handle('leads:list', () => db.prepare('SELECT l.*, c.name client_name FROM leads l LEFT JOIN clients c ON c.id=l.client_id ORDER BY l.id DESC').all());
@@ -641,9 +651,15 @@ ipcMain.handle('tasks:list', (_event, input = {}) => {
   const filter = ['open','done','all'].includes(input.filter) ? input.filter : 'open';
   const where = filter === 'open' ? 'WHERE t.is_done=0' : filter === 'done' ? 'WHERE t.is_done=1' : '';
   return db.prepare(`SELECT t.*, l.title lead_title, p.title project_title,
-    CASE WHEN t.is_done=1 THEN 'done' WHEN t.due_at IS NULL OR t.due_at='' THEN 'unscheduled' WHEN date(t.due_at) < date('now','localtime') THEN 'overdue' WHEN date(t.due_at)=date('now','localtime') THEN 'today' ELSE 'upcoming' END urgency
+    CASE WHEN t.is_done=1 THEN 'done' WHEN t.due_at IS NULL OR t.due_at='' THEN 'unscheduled'
+      WHEN length(trim(t.due_at))<=10 AND date(t.due_at)<date('now','localtime') THEN 'overdue'
+      WHEN length(trim(t.due_at))<=10 AND date(t.due_at)=date('now','localtime') THEN 'today'
+      WHEN length(trim(t.due_at))>10 AND datetime(t.due_at)<datetime('now','localtime') THEN 'overdue'
+      WHEN date(t.due_at)=date('now','localtime') THEN 'today' ELSE 'upcoming' END urgency
     FROM tasks t LEFT JOIN leads l ON l.id=t.lead_id LEFT JOIN projects p ON p.id=t.project_id ${where}
-    ORDER BY CASE WHEN t.is_done=1 THEN 3 WHEN t.due_at IS NULL OR t.due_at='' THEN 2 WHEN date(t.due_at)<date('now','localtime') THEN 0 ELSE 1 END, t.due_at ASC, t.id DESC`).all();
+    ORDER BY CASE WHEN t.is_done=1 THEN 3 WHEN t.due_at IS NULL OR t.due_at='' THEN 2
+      WHEN (length(trim(t.due_at))<=10 AND date(t.due_at)<date('now','localtime')) OR (length(trim(t.due_at))>10 AND datetime(t.due_at)<datetime('now','localtime')) THEN 0
+      ELSE 1 END, t.due_at ASC, t.id DESC`).all();
 });
 ipcMain.handle('tasks:create', (_event, input = {}) => {
   const normalized = normalizeTaskInput(input);
@@ -815,6 +831,7 @@ ipcMain.handle('orders:convertLead', (_event, orderId) => {
  const existing=db.prepare('SELECT id FROM leads WHERE commercial_order_id=?').get(id);
  if(existing)return {leadId:existing.id,alreadyExists:true};
  const analysis=db.prepare('SELECT * FROM commercial_order_analysis WHERE order_id=?').get(id)||null;
+ const leadBudget=Math.max(0,Math.round(Number(analysis?.revenue_rub)||0));
  const serviceLabel={demolition:'Демонтаж',finishing:'Отделочные работы',raised_floor:'Фальшполы'}[order.service]||'Демонтаж';
  const notes=[
   'Создано из радара коммерческих заказов. Данные и актуальность необходимо проверить на исходном сайте.',
@@ -829,7 +846,7 @@ ipcMain.handle('orders:convertLead', (_event, orderId) => {
   analysis?(Number(analysis.budget_rub)>0?'Основа выручки: введённый бюджет, требуется проверка на первоисточнике.':'Основа выручки: ставка прайса; бюджет заказчика не подтверждён.'):'',
  ].filter(Boolean).join('\n').slice(0,4000);
  const create=db.transaction(()=>{
-  const result=db.prepare('INSERT INTO leads(commercial_order_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,?,?,\'new\',0,\'\',?)').run(id,(serviceLabel+' — '+order.title).slice(0,180),order.service,leadSourceForOrderType(order.source_type),notes);
+  const result=db.prepare('INSERT INTO leads(commercial_order_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,?,?,\'new\',?,\'\',?)').run(id,(serviceLabel+' — '+order.title).slice(0,180),order.service,leadSourceForOrderType(order.source_type),leadBudget,notes);
   db.prepare("UPDATE commercial_orders SET status='relevant' WHERE id=?").run(id);
   return Number(result.lastInsertRowid);
  });
@@ -864,11 +881,11 @@ ipcMain.handle('prospects:create', (_event, input = {}) => {
   if (!companyName) throw new Error('Укажи название компании.');
   const service = services.includes(input.service) ? input.service : 'demolition';
   const sourceUrl = clean(input.source_url, 500);
-  const row = { company_name: companyName, category: clean(input.category, 120), region: clean(input.region, 120), phone: clean(input.phone, 60), email: normalizeContactEmail(input.email), website: clean(input.website, 250), source_url: sourceUrl };
+  const row = { company_name: companyName, category: clean(input.category, 120), region: clean(input.region, 120), phone: normalizePhone(clean(input.phone, 60)), email: normalizeContactEmail(input.email), website: clean(input.website, 250), source_url: sourceUrl };
   const keys = prospectDuplicateKeys(row);
   const existing = db.prepare('SELECT company_name,region,phone,email,website,source_url FROM prospects').all();
   if (existing.some(item => prospectDuplicateKeys(item).some(key => keys.includes(key)))) throw new Error('Похожая компания уже есть в базе. Проверь поиск перед повторным добавлением.');
-  const status = ['new','reviewed','contacted','converted','rejected'].includes(input.status) ? input.status : 'new';
+  const status = ['new','reviewed','contacted','rejected'].includes(input.status) ? input.status : 'new';
   const result = db.prepare(`INSERT INTO prospects(company_name,category,service,region,phone,email,website,source_url,source_name,notes,status)
     VALUES (@company_name,@category,@service,@region,@phone,@email,@website,@source_url,@source_name,@notes,@status)`).run({
       ...row, service, status, source_name: clean(input.source_name, 120), notes: clean(input.notes)
@@ -881,7 +898,10 @@ ipcMain.handle('prospects:update', (_event, input = {}) => {
   const companyName = clean(input.company_name, 180);
   if (!companyName) throw new Error('Укажи название компании.');
   const service = services.includes(input.service) ? input.service : 'demolition';
-  const status = ['new','reviewed','contacted','converted','rejected'].includes(input.status) ? input.status : 'new';
+  const current = db.prepare('SELECT status FROM prospects WHERE id=?').get(id);
+  const requestedStatus = ['new','reviewed','contacted','converted','rejected'].includes(input.status) ? input.status : 'new';
+  if (requestedStatus === 'converted' && current.status !== 'converted') throw new Error('Статус «Превращена в заявку» устанавливается только действием конвертации.');
+  const status = requestedStatus;
   const sourceUrl = clean(input.source_url, 500);
   const row = { company_name: companyName, category: clean(input.category,120), region: clean(input.region,120), phone: clean(input.phone,60), email: normalizeContactEmail(input.email), website: clean(input.website,250), source_url: sourceUrl };
   const keys = prospectDuplicateKeys(row);
@@ -897,7 +917,11 @@ ipcMain.handle('prospects:convertLead', (_event, prospectId) => {
   const id = Number(prospectId);
   const prospect = db.prepare('SELECT * FROM prospects WHERE id=?').get(id);
   if (!prospect) throw new Error('Потенциальный клиент не найден.');
-  if (prospect.status === 'converted') throw new Error('Эта компания уже отмечена как превращённая в заявку.');
+  if (prospect.status === 'converted') {
+    const existingLead = db.prepare('SELECT id FROM leads WHERE notes LIKE ? ORDER BY id DESC LIMIT 1').get('%Компания: ' + prospect.company_name + '%');
+    if (existingLead) return { leadId: existingLead.id, lead: db.prepare('SELECT * FROM leads WHERE id=?').get(existingLead.id), alreadyExists: true };
+    db.prepare("UPDATE prospects SET status='reviewed' WHERE id=?").run(id);
+  }
   const sourceText = `${prospect.source_name} ${prospect.source_url}`.toLowerCase();
   const serviceLabel = { demolition: 'Демонтаж', finishing: 'Отделочные работы', raised_floor: 'Фальшполы' }[prospect.service] || 'Демонтаж';
   const source = sourceText.includes('avito') || sourceText.includes('авито') ? 'avito'
@@ -905,6 +929,8 @@ ipcMain.handle('prospects:convertLead', (_event, prospectId) => {
     : sourceText.includes('site') || sourceText.includes('сайт') || prospect.website ? 'website' : 'other';
   const create = db.transaction(() => {
     let client = db.prepare(`SELECT id FROM clients WHERE lower(trim(name))=lower(trim(?))`).get(prospect.company_name);
+    const prospectPhoneKey = normalizePhone(prospect.phone);
+    if (!client && prospectPhoneKey) client = db.prepare('SELECT id,phone FROM clients').all().find(item => normalizePhone(item.phone) === prospectPhoneKey) || null;
     if (!client) {
       const clientResult = db.prepare(`INSERT INTO clients(name,phone,email,client_type,notes) VALUES (?,?,?,'company',?)`).run(
         prospect.company_name, prospect.phone || '', prospect.email || '', [prospect.website ? `Сайт: ${prospect.website}` : '', prospect.source_url ? `Источник: ${prospect.source_url}` : '', prospect.notes || ''].filter(Boolean).join('\n').slice(0,2000)
@@ -941,7 +967,7 @@ ipcMain.handle('prospects:importCsv', async () => {
       const row = {
         company_name: clean(item.company_name,180), category: clean(item.category,120),
         service: services.includes(item.service) ? item.service : /отдел|finishing/i.test(item.service) ? 'finishing' : /фальш|raised/i.test(item.service) ? 'raised_floor' : 'demolition',
-        region: clean(item.region,120) || 'Москва и Московская область', phone: clean(item.phone,60), email: normalizeContactEmail(item.email),
+        region: clean(item.region,120) || 'Москва и Московская область', phone: normalizePhone(clean(item.phone,60)), email: normalizeContactEmail(item.email),
         website: clean(item.website,250), source_url: clean(item.source_url,500),
         source_name: clean(item.source_name || path.basename(filePath),120), notes: clean(item.notes),
         status: ['new','reviewed','contacted','converted','rejected'].includes(item.status) ? item.status : 'new'

@@ -16,8 +16,8 @@ function normalizeProductionPlan(input = {}) {
     const unit = clean(line.unit, 24);
     const quantity = Number(line.planned_quantity);
     const baseline = Number(line.baseline_productivity);
-    if (!catalogId || !name || !unit || !Number.isFinite(quantity) || quantity <= 0 || quantity > 1e9 || !Number.isFinite(baseline) || baseline <= 0 || baseline > 1e8) {
-      throw new Error('В плане у каждой работы должны быть название, единица, реалистичный объём и норма больше нуля.');
+    if (!catalogId || !name || !unit || !Number.isFinite(quantity) || quantity <= 0 || quantity > 1e9 || !Number.isFinite(baseline) || baseline < 0 || baseline > 1e8) {
+      throw new Error('В плане у каждой работы должны быть название, единица и реалистичный объём; норма может быть 0, если её нужно уточнить.');
     }
     if (seen.has(catalogId)) throw new Error('Одна и та же работа добавлена в план дважды. Объедини объём в одной строке.');
     seen.add(catalogId);

@@ -220,9 +220,19 @@ $('browserOpenProspectsBtn').addEventListener('click', () => showView('prospects
 async function refreshTasks() {
   const filter = $('taskFilter')?.value || 'open';
   const [rows, allRows, leads, projects] = await Promise.all([window.crm.listTasks({ filter }), window.crm.listTasks({ filter: 'all' }), window.crm.listLeads(), window.crm.listProjects()]);
+  const now = new Date();
   const today = dateToday();
-  const overdue = allRows.filter(t => !t.is_done && t.due_at && String(t.due_at).slice(0,10) < today).length;
-  const dueToday = allRows.filter(t => !t.is_done && t.due_at && String(t.due_at).slice(0,10) === today).length;
+  const taskBucket = task => {
+    if (task.is_done) return 'done';
+    if (!task.due_at) return 'unscheduled';
+    const raw = String(task.due_at), dueDate = raw.slice(0,10);
+    if (raw.length <= 10) return dueDate < today ? 'overdue' : dueDate === today ? 'today' : 'upcoming';
+    const due = new Date(raw);
+    if (!Number.isNaN(due.getTime()) && due < now) return 'overdue';
+    return dueDate === today ? 'today' : 'upcoming';
+  };
+  const overdue = allRows.filter(t => taskBucket(t) === 'overdue').length;
+  const dueToday = allRows.filter(t => taskBucket(t) === 'today').length;
   const unscheduled = allRows.filter(t => !t.is_done && !t.due_at).length;
   const done = allRows.filter(t => t.is_done).length;
   $('taskOverdueCount').textContent = overdue; $('taskTodayCount').textContent = dueToday; $('taskUnscheduledCount').textContent = unscheduled; $('taskDoneCount').textContent = done;
@@ -230,8 +240,9 @@ async function refreshTasks() {
   const q = ($('taskSearch')?.value || '').toLowerCase();
   const filtered = rows.filter(t => `${t.title} ${t.lead_title || ''} ${t.project_title || ''}`.toLowerCase().includes(q));
   $('tasksTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Задача</th><th>Связано с</th><th>Срок</th><th>Статус</th><th>Действие</th></tr></thead><tbody>${filtered.map(t => { const due = t.due_at ? new Date(t.due_at).toLocaleString('ru-RU', { dateStyle:'medium', timeStyle: String(t.due_at).includes('T') ? 'short' : undefined }) : 'Не назначен'; const related = [t.lead_title && `Заявка: ${t.lead_title}`, t.project_title && `Объект: ${t.project_title}`].filter(Boolean).join(' · ') || '—'; return `<tr><td>${esc(t.title)}</td><td>${esc(related)}</td><td>${esc(due)}</td><td><span class="pill ${t.urgency === 'overdue' ? 'lost' : t.urgency === 'done' ? 'won' : t.urgency === 'today' ? 'new' : 'contacted'}">${esc(taskUrgencyLabels[t.urgency] || 'Активна')}</span></td><td><div class="table-actions"><button type="button" class="button subtle compact" data-edit-task="${t.id}">Изменить</button>${t.is_done ? `<button class="button subtle compact task-toggle" data-task-id="${t.id}" data-task-done="0">Вернуть</button>` : `<button class="button subtle compact task-toggle" data-task-id="${t.id}" data-task-done="1">Выполнено</button>`}</div></td></tr>`; }).join('')}</tbody></table>` : empty('Задач пока нет','Создай следующий шаг по заявке или объекту.');
-  $('taskLeadSelect').innerHTML = `<option value="">Без заявки</option>${leads.filter(l => !['won','lost'].includes(l.status)).map(l => `<option value="${l.id}">${esc(l.title)}</option>`).join('')}`;
-  $('taskProjectSelect').innerHTML = `<option value="">Без объекта</option>${projects.filter(p => !['completed','cancelled'].includes(p.status)).map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('')}`;
+  // Keep closed records selectable: editing a task must not erase its existing relationship.
+  $('taskLeadSelect').innerHTML = `<option value="">Без заявки</option>${leads.map(l => `<option value="${l.id}">${esc(l.title)}${['won','lost'].includes(l.status) ? ' · закрыта' : ''}</option>`).join('')}`;
+  $('taskProjectSelect').innerHTML = `<option value="">Без объекта</option>${projects.map(p => `<option value="${p.id}">${esc(p.title)}${['completed','cancelled'].includes(p.status) ? ' · завершён' : ''}</option>`).join('')}`;
   document.querySelectorAll('.task-toggle').forEach(button => button.addEventListener('click', async () => { try { await window.crm.completeTask({ id: Number(button.dataset.taskId), is_done: button.dataset.taskDone === '1' }); toast(button.dataset.taskDone === '1' ? 'Задача закрыта.' : 'Задача возвращена в работу.'); await refreshTasks(); } catch (e) { toast(e.message, true); } }));
 }
 function renderProductionIntelligence(data, summaryId, alertsId) {
@@ -511,7 +522,7 @@ async function refreshClients() {
 async function refreshProjects() {
   const rows = await window.crm.listProjects(); const q = ($('projectSearch')?.value || '').toLowerCase();
   const filtered = rows.filter(p => `${p.title} ${p.address} ${p.client_name || ''}`.toLowerCase().includes(q));
-  $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th><th>Действия</th></tr></thead><tbody>${filtered.map(p => `<tr><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><select class="project-status-select" data-project-status="${p.id}" aria-label="Статус объекта: ${esc(p.title)}">${Object.entries(projectStatusLabels).map(([value,label]) => `<option value="${value}" ${p.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Number(p.received_rub)))}</td><td><button type="button" class="button subtle compact" data-edit-project="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
+  $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th><th>Действия</th></tr></thead><tbody>${filtered.map(p => `<tr><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><select class="project-status-select" data-project-status="${p.id}" aria-label="Статус объекта: ${esc(p.title)}">${Object.entries(projectStatusLabels).map(([value,label]) => `<option value="${value}" ${p.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Math.max(0,Number(p.received_rub))))}</td><td><button type="button" class="button subtle compact" data-edit-project="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
   const options = rows.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
   $('paymentProject').innerHTML = `<option value="">Выбери объект</option>${options}`;
   $('expenseProject').innerHTML = `<option value="">Общий расход без объекта</option>${options}`;
@@ -524,7 +535,7 @@ function renderFinanceInsights(data) {
   $('cashForecast7Detail').textContent = `+${fmt(f7.expectedReceipts)} ожидается · −${fmt(f7.plannedOutflow)} расходов`;
   $('cashForecast30Detail').textContent = `+${fmt(f30.expectedReceipts)} ожидается · −${fmt(f30.plannedOutflow)} расходов`;
   $('receivablesTotal').textContent = fmt(data.receivablesTotal);
-  $('receivablesDetail').textContent = `${data.unscheduledReceivables.length} объектов без даты окончания`;
+  $('receivablesDetail').textContent = `${data.unscheduledReceivables.length} объектов без графика платежей`;
   $('unpaidExpensesTotal').textContent = fmt(data.unpaidTotal);
   $('unpaidExpensesDetail').textContent = `${data.overdueExpensesCount} просроченных · ${fmt(data.overdueExpensesTotal)}`;
   const alerts = [];
@@ -563,13 +574,20 @@ function estimateReadInputs() {
   return {
     workArea: $('estimateWorkArea').value,
     lines: estimateLines,
-    crew: { people: $('estimateCrewPeople').value, mode: $('estimateCrewMode').value, rate: $('estimateCrewRate').value, hoursPerDay: $('estimateCrewHours').value, days: $('estimateCrewAutoDays')?.checked ? Math.max(0, Math.ceil(estimateGetDurationForecast().daysForCrew || 0)) : $('estimateCrewDays').value },
+    crew: { people: $('estimateCrewPeople').value, mode: $('estimateCrewMode').value, rate: $('estimateCrewRate').value, hoursPerDay: $('estimateCrewHours').value, days: estimateCrewDaysForCost() },
     materialsCost: $('estimateMaterialsCost').value, disposalCost: $('estimateDisposalCost').value,
     transportCost: $('estimateTransportCost').value, equipmentCost: $('estimateEquipmentCost').value,
     otherCost: $('estimateOtherCost').value, overheadPercent: $('estimateOverheadPercent').value,
     taxPercent: $('estimateTaxPercent').value, discountPercent: $('estimateDiscountPercent').value,
     marginPercent: $('estimateTargetMargin').value, difficulty: $('estimateDifficulty').value, targetDays: $('estimateTargetDays').value, efficiencyPercent: $('estimateEfficiency')?.value || 85
   };
+}
+function estimateCrewDaysForCost() {
+  if (!$('estimateCrewAutoDays')?.checked) return $('estimateCrewDays').value;
+  const forecast = estimateGetDurationForecast();
+  // An incomplete forecast must never silently zero out payroll. Keep a conservative editable fallback of at least one shift.
+  if (!forecast.isComplete || forecast.daysForCrew === null) return String(Math.max(1, Number($('estimateCrewDays').value || 1)));
+  return String(Math.max(1, Math.ceil(forecast.daysForCrew)));
 }
 function estimateGetDurationForecast() {
   const durationLines = estimateLines.filter(line => Number(line.quantity) > 0).map(line => {
@@ -748,6 +766,8 @@ function estimateApplyCalibration() {
 function refreshEstimate() {
   try {
     const result = window.StrukturaEstimateCalculator.calculateDetailed(estimateReadInputs());
+    const durationCheck = estimateGetDurationForecast();
+    if ($('estimateCrewAutoDays')?.checked && (!durationCheck.isComplete || durationCheck.daysForCrew === null)) result.warnings.push({ level: 'danger', title: 'Полный срок не рассчитан — проверь оплату бригады', message: 'У части работ отсутствует норма производительности. Зарплата не обнулена: для предварительного расчёта оставлена минимум одна смена или ранее указанное количество смен. Уточни нормы и фактический срок перед подтверждением цены.' });
     estimateRefreshDuration();
     $('estimateListRevenue').textContent = money(result.listRevenue);
     $('estimateDiscountLabel').textContent = result.discount > 0 ? `Скидка −${money(result.discount)}` : 'Без скидки';
@@ -1086,19 +1106,20 @@ $('estimateCreateProjectBtn').addEventListener('click', () => {
   const form = $('projectForm'); form.reset();
   form.elements.title.value = $('estimateTitle').value || 'Предварительная смета';
   form.elements.service.value = $('estimateService').value;
-  form.elements.contract_rub.value = String(Math.ceil(result.revenue / 100) * 100);
+  form.elements.contract_rub.value = String(Math.round(result.revenue));
   form.elements.planned_people.value = String(Math.max(1, Number($('estimateCrewPeople').value || 5)));
   form.elements.complexity_factor.value = $('estimateDifficulty').value;
   form.elements.notes.value = `Смета PRO: работы ${money(result.listRevenue)}; скидка ${money(result.discount)}; себестоимость ${money(result.totalCost)}; расчётная прибыль ${money(result.profit)}. Подробная смета экспортируется отдельно в CSV.`;
   const planMap = new Map();
-  for (const line of estimateLines.filter(line => Number(line.quantity) > 0 && Number(line.productivity) > 0 && line.catalogId)) {
+  for (const line of estimateLines.filter(line => Number(line.quantity) > 0)) {
     const saved = planMap.get(line.catalogId);
     if (saved) saved.planned_quantity += Number(line.quantity);
-    else planMap.set(line.catalogId, { catalog_id: line.catalogId, work_name: line.name, unit: line.unit, planned_quantity: Number(line.quantity), baseline_productivity: Number(line.productivity) });
+    else { const catalogId = line.catalogId || `manual-${line.lineId}`; planMap.set(catalogId, { catalog_id: catalogId, work_name: line.name, unit: line.unit, planned_quantity: Number(line.quantity), baseline_productivity: Math.max(0, Number(line.productivity) || 0) }); }
   }
   pendingProjectPlan = { planned_people: Number(form.elements.planned_people.value || 5), complexity_factor: Number(form.elements.complexity_factor.value || 1), lines: [...planMap.values()] };
   openDialog('projectDialog');
-  toast(pendingProjectPlan.lines.length ? 'Сумма, состав бригады, сложность и позиции сметы будут перенесены в объект.' : 'Цена перенесена. Для прогноза сроков после сохранения добавь план работ.');
+  const missingRates = estimateLines.filter(line => Number(line.quantity) > 0 && !(Number(line.productivity) > 0)).length;
+  toast(pendingProjectPlan.lines.length ? (missingRates ? `Смета перенесена в объект, включая ${missingRates} позиций без нормы. ПИ не сможет рассчитать полный срок, пока нормы не заданы.` : 'Сумма, состав бригады, сложность и позиции сметы будут перенесены в объект.') : 'Цена перенесена. Для прогноза сроков после сохранения добавь план работ.');
 });
 const actualInputIds = ['actualContractRevenue','actualReceived','actualWagesPaid','actualMaterialsPaid','actualDisposalPaid','actualTransportPaid','actualEquipmentPaid','actualOtherPaid'];
 actualInputIds.forEach(id => $(id).addEventListener('input', () => { const r = refreshEstimate(); if (r) estimateRefreshActuals(r.totalCost); estimateSaveDraft(); }));
@@ -1538,9 +1559,11 @@ async function refreshProduction() {
   $('productionRecordCount').textContent = data.totals.work_records || 0;
   $('productionProjectCards').innerHTML = data.projects.length ? data.projects.map(project => {
     const forecast = project.forecast;
-    const forecastLabel = project.planCount && forecast.estimated
-      ? (forecast.teamShiftsRemaining <= 0 ? 'Работы по плану закрыты' : `≈ ${productionNum(forecast.teamShiftsRemaining,1)} смен бригадой ${project.planned_people} чел.`)
-      : 'Добавь план работ, чтобы прогнозировать остаток';
+    const forecastLabel = project.planCount && forecast.lines.some(line => line.missingRate)
+      ? 'План сохранён, но для части работ нужны нормы производительности'
+      : project.planCount && forecast.estimated
+        ? (forecast.teamShiftsRemaining <= 0 ? 'Работы по плану закрыты' : `≈ ${productionNum(forecast.teamShiftsRemaining,1)} смен бригадой ${project.planned_people} чел.`)
+        : 'Добавь план работ, чтобы прогнозировать остаток';
     const items = forecast.lines.slice(0,5).map(line => {
       const total = Math.max(Number(line.plannedQuantity || 0), 0.0001);
       const progress = Math.min(100, Math.round(Number(line.actualQuantity || 0) / total * 100));

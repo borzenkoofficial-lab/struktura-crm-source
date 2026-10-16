@@ -6,4 +6,12 @@ function normalizeContactEmail(value) {
   }
   return email;
 }
-module.exports = { normalizeContactEmail };
+function normalizePhone(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  let digits = raw.replace(/\D/g, '');
+  if (digits.length === 11 && digits[0] === '8') digits = '7' + digits.slice(1);
+  else if (digits.length === 10) digits = '7' + digits;
+  return digits;
+}
+module.exports = { normalizeContactEmail, normalizePhone };

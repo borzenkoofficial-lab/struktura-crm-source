@@ -694,3 +694,19 @@ test('all prominent brand marks use STRUKTURA mark and client section does not p
   assert.match(html, /Контакты заказчиков и заметки/);
   assert.doesNotMatch(html, /Контакты заказчиков и история отношений/);
 });
+
+test('regression fixes preserve contract amounts, task links, budgets and finance semantics', () => {
+  assert.match(renderer, /String\(Math\.round\(result\.revenue\)\)/);
+  assert.match(renderer, /Keep closed records selectable/);
+  assert.match(renderer, /taskBucket\(t\) === 'overdue'/);
+  assert.match(renderer, /Math\.max\(0,Number\(p\.contract_rub\)-Math\.max\(0,Number\(p\.received_rub\)\)\)/);
+  assert.match(renderer, /estimateCrewDaysForCost/);
+  assert.match(renderer, /Полный срок не рассчитан — проверь оплату бригады/);
+  assert.match(main, /leadBudget=Math\.max\(0,Math\.round\(Number\(analysis\?\.revenue_rub\)\|\|0\)\)/);
+  assert.match(main, /Статус «Превращена в заявку» устанавливается только действием конвертации/);
+  assert.match(main, /normalizePhone/);
+  assert.match(main, /datetime\(t\.due_at\)<datetime\('now','localtime'\)/);
+  const database = fs.readFileSync(path.join(__dirname, '../src/db.cjs'), 'utf8');
+  assert.match(database, /baseline_productivity REAL NOT NULL CHECK\(baseline_productivity >= 0\)/);
+  assert.match(database, /production_plans_legacy/);
+});
