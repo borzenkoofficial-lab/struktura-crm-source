@@ -56,23 +56,10 @@ function buildOrderQueries(service = 'demolition', region = 'Москва и М�
     tenders: [`site:zakupki.gov.ru (${terms})`, `(site:roseltorg.ru OR site:b2b-center.ru OR site:rts-tender.ru) (${terms})`, `тендер закупка (${terms}) подрядчик`]
   };
   const queries = sourceQueries[source] || base;
-  const safeRegion = String(region || 'Москва и Московская область').replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
+  const safeRegion = String(region || 'Москва и Московская область')
     .replace(/[\r\n]+/g, ' ')
     .trim()
     .slice(0, 120);
-  return queries.map(query => [query, safeRegion].filter(Boolean).join(' ').trim());
-}
-
-function buildManualOrderSearchUrl(service = 'demolition', region = 'Москва и Московская область', source = 'web') {
-  const terms = service === 'finishing' ? 'отделка ремонт fit-out' : service === 'raised_floor' ? 'фальшпол технический пол' : 'демонтаж разборка';
-  const domains = {
-    all: '(site:t.me OR site:telegram.me OR site:avito.ru OR site:zakupki.gov.ru OR site:roseltorg.ru OR site:b2b-center.ru OR site:rts-tender.ru)',
-    web: '',
-    telegram: 'site:t.me OR site:telegram.me',
-    avito: 'site:avito.ru',
-    tenders: 'site:zakupki.gov.ru OR site:roseltorg.ru OR site:b2b-center.ru OR site:rts-tender.ru'
-  };
-  const safeRegion = String(region || 'Москва и Московская область').replace(/[\\r\\n]+/g, ' ').trim().slice(0, 120);
   const query = [terms, safeRegion, '(тендер OR закупка OR заказ OR подрядчик)', domains[source] || ''].filter(Boolean).join(' ');
   return 'https://yandex.ru/search/?text=' + encodeURIComponent(query);
 }
