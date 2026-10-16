@@ -34,6 +34,7 @@ function buildFinanceInsights({ today, cash = 0, projects = [], expenses = [] })
     if (p.end_date && !isoDate(p.end_date)) dataWarnings.push(`Объект «${p.title || p.id || 'без названия'}»: дата окончания некорректна; поступление не включено в прогноз по срокам.`);
     return { ...p, debtRub: Math.max(0, contract - Math.max(0, received)) };
   }).filter(p => p.debtRub > 0);
+  if (receivables.length) dataWarnings.push('Поступления по договорам не включены в кассовый прогноз: в CRM нет графика платежей; дата окончания объекта не является датой оплаты.');
   const unpaid = expenses.filter(e => Number(e.is_paid) === 0).map(e => {
     const amountRub = safeMoney(e.amount_rub, `Расход «${e.description || e.id || 'без названия'}»`, dataWarnings);
     const dueDate = isoDate(e.expense_date);
@@ -42,8 +43,8 @@ function buildFinanceInsights({ today, cash = 0, projects = [], expenses = [] })
   });
   const forecasts = [7, 30].map(days => {
     const through = addDays(today, days);
-    const expectedReceipts = receivables.filter(p => isoDate(p.end_date) && isoDate(p.end_date) >= today && isoDate(p.end_date) <= through)
-      .reduce((sum, p) => sum + p.debtRub, 0);
+    // An end date is a production deadline, not a confirmed payment date.
+    const expectedReceipts = 0;
     const plannedOutflow = unpaid.filter(e => e.dueDate && e.dueDate <= through)
       .reduce((sum, e) => sum + e.amountRub, 0);
     return { days, through, expectedReceipts, plannedOutflow, projectedCash: normalizedCash + expectedReceipts - plannedOutflow };
@@ -58,7 +59,7 @@ function buildFinanceInsights({ today, cash = 0, projects = [], expenses = [] })
       costRatio: ratio, level: ratio === null ? 'unknown' : ratio >= 1 ? 'over' : ratio >= 0.8 ? 'warning' : 'ok' };
   }).filter(p => p.level === 'warning' || p.level === 'over').sort((a,b) => (b.costRatio || 0) - (a.costRatio || 0));
   const overdueExpenses = unpaid.filter(e => e.dueDate && e.dueDate < today);
-  const unscheduledReceivables = receivables.filter(p => !isoDate(p.end_date));
+  const unscheduledReceivables = receivables;
   return {
     today, cash: normalizedCash, forecasts, risks, dataWarnings: [...new Set(dataWarnings)],
     receivablesTotal: receivables.reduce((sum, p) => sum + p.debtRub, 0),
