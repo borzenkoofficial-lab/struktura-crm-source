@@ -675,3 +675,11 @@ test('date-only defaults use local calendar fields rather than UTC ISO conversio
   assert.ok(renderer.includes('productionReportStart'));
   assert.ok(renderer.includes("padStart(2,'0')"));
 });
+
+
+test('export filenames and startup dialogs use the current brand and real line breaks', () => {
+  assert.ok(main.includes('STRUKTURA-'));
+  assert.ok(!main.includes('gruzli-'));
+  assert.ok(main.includes('Не удалось загрузить интерфейс приложения.\\n\\n'));
+  assert.ok(!main.includes('Не удалось загрузить интерфейс приложения.\\\\n\\\\n'));
+});
