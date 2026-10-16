@@ -874,3 +874,40 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 .pin-settings-section input { margin-top: 6px; }
 .pin-settings-section .button.danger { background: #fff0ef; color: #a52e28; border: 1px solid #f2c4c0; }
 @media (max-width: 560px) { .pin-lock-card { padding: 26px 22px; } .pin-settings-heading { align-items: flex-start; flex-direction: column; } }
+
+
+/* Settings workspace: security is a first-class destination, not hidden in a modal. */
+.settings-view{padding-top:22px}
+.settings-page-heading{margin:0 0 22px}
+.settings-page-heading h2{font-size:30px;letter-spacing:-1px;margin:9px 0 6px;color:#1c2b3c}
+.settings-page-heading p{margin:0;color:#748195;font-size:13px;line-height:1.65}
+.settings-page-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:18px;align-items:start}
+.settings-card{background:#fff;min-width:0}
+.settings-card .panel-head{align-items:flex-start;gap:14px}
+.settings-card .panel-head h3{font-size:17px;margin:8px 0 5px;color:#24364a}
+.settings-card .panel-head p{font-size:11px;line-height:1.6;color:#8390a2;margin:0}
+.settings-card-body{padding:22px}
+.settings-card-body label{display:block;margin-bottom:16px;color:#526176;font-size:12px;font-weight:650}
+.settings-card-body input{display:block;width:100%;margin-top:7px;padding:12px;border:1px solid #dce4ed;border-radius:9px;background:#fff;color:#24364a;font:inherit}
+.settings-card-body input:focus{outline:none;border-color:#e87955;box-shadow:0 0 0 3px #e879551c}
+.settings-card-description{margin:0 0 18px;color:#6f7c90;font-size:12px;line-height:1.75}
+.settings-card .notification-settings-note{font-size:11px;line-height:1.7;color:#78869a;margin:0 0 18px}
+.settings-card .modal-actions{justify-content:flex-start;flex-wrap:wrap;margin-top:6px}
+.settings-card .pin-lock-status{font-size:12px;line-height:1.6;margin:12px 0 0;color:#526176}
+.settings-card .pin-settings-badge{flex-shrink:0;display:inline-flex;align-items:center;padding:7px 10px;border:1px solid #dfe7ee;border-radius:99px;background:#f5f8fb;color:#596a7d;font-size:10px;font-weight:750}
+@media(max-width:850px){.settings-page-grid{grid-template-columns:1fr}}
+dialog.modal,dialog.modal[open]{background-color:#fff!important;color:#202b3c;opacity:1;isolation:isolate}
+dialog.modal::backdrop{background:rgba(9,20,35,.68);backdrop-filter:blur(4px)}
+dialog.modal>form{background:#fff;border-radius:inherit}
+.pi-error-user-message{padding:12px 14px;border:1px solid #dce9e2;border-radius:10px;background:#f3faf6;color:#245d45;font-size:12px;line-height:1.7}
+.pi-technical-details{margin:14px 0;padding:12px;border:1px solid #e1e7ee;border-radius:10px;background:#f7f9fc;color:#586779}
+.pi-technical-details summary{cursor:pointer;font-size:11px;font-weight:750}
+.pi-technical-details pre{max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:10px;line-height:1.6;color:#6a3941;background:#fff;border:1px solid #e8e3e4;border-radius:7px;padding:10px}
+.about-hero-scene{min-width:0;width:100%;overflow:hidden;transform:scale(.82);transform-origin:center center}
+.about-hero-scene .about-orbit-a,.about-hero-scene .about-orbit-b,.about-hero-scene .about-orbit-c{left:50%;transform:translateX(-50%) rotateX(67deg) rotateZ(-26deg)}
+.about-hero-scene .about-glass-slab{left:calc(50% - 108px)}
+.about-hero-scene .about-core{left:calc(50% - 95px)}
+.about-hero-scene .float-card-top{right:3%}.about-hero-scene .float-card-bottom{left:3%}
+@media(max-width:1120px){.about-hero-scene{transform:scale(.72);transform-origin:center center;margin:0 -25px}}
+@media(max-width:850px){.about-hero-scene{width:100%;transform:scale(.82);transform-origin:top center;margin:0 0 -25px;min-height:330px}}
+@media(max-width:560px){.settings-view{padding-top:14px}.settings-page-heading h2{font-size:26px}.settings-card-body{padding:17px}.settings-card .form-row{grid-template-columns:1fr}.about-hero-scene{width:140%;margin-left:-20%;transform:scale(.72);transform-origin:top center;min-height:265px;margin-bottom:-65px}.about-hero-scene .about-float-card{transform:scale(.88);transform-origin:center}.about-hero-scene .float-card-top{right:5%}.about-hero-scene .float-card-bottom{left:5%}}

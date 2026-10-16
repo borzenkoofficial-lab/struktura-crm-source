@@ -20,6 +20,7 @@ function piErrorSave() {
 }
 function piErrorExplain(message, context = '') {
   const value = String(message || '').toLocaleLowerCase('ru-RU');
+  if (/распределено\s+\d+\s+чел\.-ч.*максимум\s+\d+\s+чел\.-ч/.test(value)) return { title: 'Превышены часы бригады', cause: 'В отчёте смены сумма часов по работам больше доступного фонда времени всей бригады.', action: 'Проверь численность работников и часы по каждой работе. Часы одного работника за одну смену нельзя учитывать дважды.' };
   if (/constraint failed|unique constraint|already exists|уже существует|уникальн/.test(value)) return { title: 'Конфликт или повтор записи', cause: 'CRM получила запись, которая нарушает правило уникальности базы данных либо дублирует существующие данные.', action: 'Проверь, нет ли такой позиции или объекта в списке. Если дубля нет, открой ошибку и сохрани её технические подробности для диагностики.' };
   if (/not null constraint|cannot be null|required|обязательн|заполните/.test(value)) return { title: 'Не заполнено обязательное поле', cause: 'При сохранении одно из обязательных значений оказалось пустым или не было передано форме.', action: 'Проверь обязательные поля формы, включая строки работ, объект и числовые значения. Не удаляй введённые данные до проверки.' };
   if (/foreign key constraint|no such project|project_id|объект не найден/.test(value)) return { title: 'Связанный объект не найден', cause: 'Сохранение ссылается на объект или запись, которую CRM не смогла найти либо связать.', action: 'Выбери объект заново из списка и повтори действие. Если ошибка повторяется, проверь, что объект существует и не был удалён.' };
@@ -28,9 +29,21 @@ function piErrorExplain(message, context = '') {
   if (/ipc|channel|renderer|undefined|null|is not a function|cannot read properties|не определено/.test(value)) return { title: 'Ошибка интерфейса или связи модулей', cause: 'Интерфейс получил неожиданное значение или не смог вызвать нужную функцию приложения.', action: 'Повтори действие один раз. Если ошибка повторяется, зафиксируй раздел, последовательность действий и технический текст ниже — это потребуется для исправления программы.' };
   return { title: 'Нужна дополнительная диагностика', cause: 'По доступному сообщению нельзя надёжно установить точную причину. ПИ не будет выдавать предположение за установленный факт.', action: 'Проверь заполнение формы и повтори действие. Если сбой повторится, передай разработчику технический текст ошибки, раздел и действие, после которого она появилась.' };
 }
+function piErrorUserMessage(message) {
+  const raw = String(message || 'Неизвестная ошибка');
+  const crewHours = raw.match(/Распределено\s+(\d+)\s+чел\.-ч,\s+а вся бригада могла отработать максимум\s+(\d+)\s+чел\.-ч/i);
+  if (crewHours) return `Отчёт смены не сохранён: распределено ${crewHours[1]} человеко-часов, а доступно ${crewHours[2]}. Проверь численность бригады и часы по каждой работе — одни и те же часы нельзя учитывать дважды.`;
+  if (/Error invoking remote method/i.test(raw)) {
+    const inner = raw.replace(/^Error invoking remote method ['"][^'"]+['"]:\s*Error:\s*/i, '').trim();
+    if (inner && !/^(at\s|node:|\w+Error:)/i.test(inner) && !inner.includes('\n    at ')) return inner.slice(0, 350);
+    return 'Не удалось выполнить операцию. ПИ сохранила подробности для диагностики; проверь данные формы и повтори действие.';
+  }
+  if (/\b(?:TypeError|ReferenceError|SyntaxError|RangeError):|\n\s*at\s|node:internal|\.cjs:\d+:\d+/.test(raw)) return 'Не удалось выполнить операцию из-за внутренней ошибки. ПИ сохранила подробности для диагностики; введённые данные не удаляй и повтори действие позже.';
+  return raw.replace(/^Error:\s*/i, '').slice(0, 500);
+}
 function piRecordError(message, source = 'Операция', error = null) {
   const raw = String(message || 'Неизвестная ошибка').slice(0, 1200);
-  const item = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), at: new Date().toISOString(), source: String(source || 'CRM').slice(0, 100), message: raw, stack: String(error?.stack || '').slice(0, 3000), explanation: piErrorExplain(raw, source) };
+  const item = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), at: new Date().toISOString(), source: String(source || 'CRM').slice(0, 100), message: raw, userMessage: piErrorUserMessage(raw), stack: String(error?.stack || '').slice(0, 3000), explanation: piErrorExplain(raw, source) };
   const previous = piErrorHistory[0];
   if (previous && previous.message === item.message && Date.now() - new Date(previous.at).getTime() < 2500) return previous;
   piErrorHistory.unshift(item);
@@ -48,9 +61,9 @@ function piRenderErrorHistory(selectedId) {
     detail.innerHTML = '<h3>ПИ готова помочь</h3><p>Выбери ошибку слева, чтобы увидеть возможную причину и порядок действий.</p>';
     return;
   }
-  list.innerHTML = piErrorHistory.map(item => '<button type="button" class="pi-error-entry' + (item.id === selectedId ? ' active' : '') + '" data-pi-error-id="' + esc(item.id) + '"><strong>' + esc(item.explanation?.title || 'Ошибка') + '</strong><span>' + esc(item.source) + ' · ' + esc(new Date(item.at).toLocaleString('ru-RU')) + '</span><small>' + esc(item.message) + '</small></button>').join('');
+  list.innerHTML = piErrorHistory.map(item => '<button type="button" class="pi-error-entry' + (item.id === selectedId ? ' active' : '') + '" data-pi-error-id="' + esc(item.id) + '"><strong>' + esc(item.explanation?.title || 'Ошибка') + '</strong><span>' + esc(item.source) + ' · ' + esc(new Date(item.at).toLocaleString('ru-RU')) + '</span><small>' + esc(item.userMessage || piErrorUserMessage(item.message)) + '</small></button>').join('');
   const item = piErrorHistory.find(entry => entry.id === selectedId) || piErrorHistory[0];
-  detail.innerHTML = '<div class="pi-error-severity">ЗАПИСЬ СОХРАНЕНА</div><h3>' + esc(item.explanation?.title || 'Ошибка') + '</h3><p><strong>Что произошло</strong><br>' + esc(item.explanation?.cause || 'Причина не определена.') + '</p><p><strong>Что сделать</strong><br>' + esc(item.explanation?.action || 'Повтори действие и сохрани технические подробности.') + '</p><p><strong>Техническое сообщение</strong><br><code>' + esc(item.message) + '</code></p>' + (item.stack ? '<details><summary>Технические подробности</summary><pre>' + esc(item.stack) + '</pre></details>' : '') + '<p class="pi-error-context">Раздел / действие: ' + esc(item.source) + ' · ' + esc(new Date(item.at).toLocaleString('ru-RU')) + '</p>';
+  detail.innerHTML = '<div class="pi-error-severity">ЗАПИСЬ СОХРАНЕНА</div><h3>' + esc(item.explanation?.title || 'Ошибка') + '</h3><p><strong>Что произошло</strong><br>' + esc(item.explanation?.cause || 'Причина не определена.') + '</p><p><strong>Что сделать</strong><br>' + esc(item.explanation?.action || 'Повтори действие и сохрани технические подробности.') + '</p><p class="pi-error-user-message">' + esc(item.userMessage || piErrorUserMessage(item.message)) + '</p><details class="pi-technical-details"><summary>Технические подробности для диагностики</summary><p><strong>Сообщение системы</strong></p><pre>' + esc(item.message) + '</pre>' + (item.stack ? '<p><strong>Стек ошибки</strong></p><pre>' + esc(item.stack) + '</pre>' : '') + '</details><p class="pi-error-context">Раздел / действие: ' + esc(item.source) + ' · ' + esc(new Date(item.at).toLocaleString('ru-RU')) + '</p>';
 }
 function openPiErrorHistory(selectedId) {
   piRenderErrorHistory(selectedId);
@@ -60,7 +73,8 @@ function openPiErrorHistory(selectedId) {
 piErrorLoad();
 function toast(message, error = false) {
   const node = $('toast');
-  node.textContent = message;
+  const visibleMessage = error ? piErrorUserMessage(message) : String(message ?? '');
+  node.textContent = visibleMessage;
   node.className = `toast show${error ? ' error' : ''}`;
   if (error) {
     piRecordError(message, document.querySelector('.view.active')?.id?.replace('view-', '') || 'CRM');
@@ -74,9 +88,10 @@ function dateToday() { const now = new Date(); return `${now.getFullYear()}-${St
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', plans: 'Тариф и интеграции', about: 'О продукте STRUKTURA' };
+  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте STRUKTURA' };
   $('pageTitle').textContent = titles[name] || 'STRUKTURA CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
+  if (name === 'settings') refreshPinSettings().catch(() => toast('Не удалось загрузить настройки безопасности. Попробуй открыть раздел ещё раз.', true));
   const view = $(`view-${name}`);
   if (loaders[name] && view) {
     view.setAttribute('aria-busy', 'true');
@@ -1137,7 +1152,8 @@ async function refreshPinSettings() {
   $('pinDisableBtn').hidden = !status.enabled;
   $('pinSettingsStatus').textContent = status.enabled ? 'При следующем запуске CRM запросит PIN-код.' : 'PIN не установлен. Создай его, чтобы закрыть доступ при запуске.';
 }
-$('notificationSettingsBtn').addEventListener('click', async () => { try { await Promise.all([refreshNotificationSettings(), refreshPinSettings()]); openDialog('notificationSettingsDialog'); } catch (error) { toast(`Не удалось загрузить настройки: ${error.message}`, true); } });
+$('notificationSettingsBtn').addEventListener('click', async () => { try { await refreshNotificationSettings(); openDialog('notificationSettingsDialog'); } catch (error) { toast('Не удалось загрузить настройки уведомлений.', true); } });
+$('settingsNotificationsBtn').addEventListener('click', async () => { try { await refreshNotificationSettings(); openDialog('notificationSettingsDialog'); } catch (error) { toast('Не удалось загрузить настройки уведомлений.', true); } });
 $('pinSettingsForm').addEventListener('submit', async event => {
   event.preventDefault();
   const currentPin = $('pinCurrentInput').value;
