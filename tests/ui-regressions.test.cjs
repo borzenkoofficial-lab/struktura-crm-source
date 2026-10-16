@@ -683,3 +683,14 @@ test('export filenames and startup dialogs use the current brand and real line b
   assert.ok(main.includes('Не удалось загрузить интерфейс приложения.\\n\\n'));
   assert.ok(!main.includes('Не удалось загрузить интерфейс приложения.\\\\n\\\\n'));
 });
+
+
+test('all prominent brand marks use STRUKTURA mark and client section does not promise missing activity history', () => {
+  assert.match(html, /hero-mini-symbol" >S</);
+  assert.match(html, /browser-welcome-mark" >S</);
+  assert.match(html, /plans-hero-mark" aria-hidden="true"><span >S</);
+  assert.doesNotMatch(html, /hero-mini-symbol" >G</);
+  assert.doesNotMatch(html, /browser-welcome-mark" >G</);
+  assert.match(html, /Контакты заказчиков и заметки/);
+  assert.doesNotMatch(html, /Контакты заказчиков и история отношений/);
+});
