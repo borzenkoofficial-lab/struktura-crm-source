@@ -70,7 +70,7 @@ function toast(message, error = false) {
   toastTimer = setTimeout(() => node.className = 'toast', 3500);
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-function dateToday() { return new Date().toISOString().slice(0,10); }
+function dateToday() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; }
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
@@ -1655,7 +1655,7 @@ $('productionReportPdfBtn').addEventListener('click', async () => {
     const available = projects.filter(project => !['cancelled'].includes(project.status));
     if (!available.length) { toast('Сначала создай объект, чтобы сформировать отчёт.', true); return; }
     $('productionReportProject').innerHTML = available.map(project => `<option value="${project.id}">${esc(project.title)}</option>`).join('');
-    $('productionReportStart').value = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0,10);
+    $('productionReportStart').value = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-01`;
     $('productionReportEnd').value = dateToday();
     $('productionReportInternal').checked = false;
     $('productionReportType').value = 'report';
