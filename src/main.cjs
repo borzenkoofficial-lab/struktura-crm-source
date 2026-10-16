@@ -274,6 +274,24 @@ ipcMain.handle('clients:update', (_event, input = {}) => {
     .run(name, phone, normalizeContactEmail(input.email), input.client_type === 'company' ? 'company' : 'person', clean(input.notes), id);
   return db.prepare('SELECT * FROM clients WHERE id=?').get(id);
 });
+function normalizeCrewLink(value, kind) {
+  let raw = clean(value, 500); if (!raw) return '';
+  if (/^@[a-zA-Z0-9_.-]{2,100}$/.test(raw)) raw = (kind === 'telegram' ? 'https://t.me/' : 'https://max.ru/') + raw.slice(1);
+  else if (!/^https:\/\//i.test(raw)) { raw = raw.replace(/^https?:\/\//i, '').replace(/^\/+/, ''); if (!raw.includes('.')) raw = (kind === 'telegram' ? 'https://t.me/' : 'https://max.ru/') + raw; else raw = 'https://' + raw; }
+  let url; try { url = new URL(raw); } catch { throw new Error('Некорректная ссылка ' + (kind === 'telegram' ? 'Telegram.' : 'MAX.')); }
+  const allowedHosts = kind === 'telegram' ? new Set(['t.me','telegram.me','www.t.me','www.telegram.me']) : new Set(['max.ru','www.max.ru','web.max.ru']);
+  if (url.protocol !== 'https:' || !allowedHosts.has(url.hostname.toLowerCase()) || url.username || url.password || !url.pathname || url.pathname === '/') throw new Error('Укажи рабочую ссылку ' + (kind === 'telegram' ? 'Telegram (t.me/...)' : 'MAX (max.ru/...)') + '.');
+  return url.toString();
+}
+function normalizeCrewContact(input = {}) {
+  const recordType = ['worker','crew','master'].includes(input.record_type) ? input.record_type : 'worker';
+  const fullName = clean(input.full_name, 180); if (!fullName) throw new Error('Укажи ФИО человека или название бригады.');
+  return { record_type: recordType, full_name: fullName, phone: normalizePhone(clean(input.phone, 40)), telegram_url: normalizeCrewLink(input.telegram_url, 'telegram'), max_url: normalizeCrewLink(input.max_url, 'max'), specialty: clean(input.specialty, 240), notes: clean(input.notes, 4000) };
+}
+ipcMain.handle('crewContacts:list', (_event, filter = {}) => { const type = ['worker','crew','master'].includes(filter.record_type) ? filter.record_type : ''; return type ? db.prepare('SELECT * FROM crew_contacts WHERE record_type=? ORDER BY full_name COLLATE NOCASE, id DESC').all(type) : db.prepare('SELECT * FROM crew_contacts ORDER BY full_name COLLATE NOCASE, id DESC').all(); });
+ipcMain.handle('crewContacts:create', (_event, input = {}) => { const contact = normalizeCrewContact(input); const result = db.prepare('INSERT INTO crew_contacts(record_type,full_name,phone,telegram_url,max_url,specialty,notes) VALUES (@record_type,@full_name,@phone,@telegram_url,@max_url,@specialty,@notes)').run(contact); return db.prepare('SELECT * FROM crew_contacts WHERE id=?').get(result.lastInsertRowid); });
+ipcMain.handle('crewContacts:update', (_event, input = {}) => { const id = Number(input.id); if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный номер записи.'); if (!db.prepare('SELECT id FROM crew_contacts WHERE id=?').get(id)) throw new Error('Контакт не найден. Обнови список и попробуй снова.'); const contact = normalizeCrewContact(input); db.prepare('UPDATE crew_contacts SET record_type=@record_type, full_name=@full_name, phone=@phone, telegram_url=@telegram_url, max_url=@max_url, specialty=@specialty, notes=@notes, updated_at=CURRENT_TIMESTAMP WHERE id=@id').run({ ...contact, id }); return db.prepare('SELECT * FROM crew_contacts WHERE id=?').get(id); });
+ipcMain.handle('crewContacts:delete', (_event, idValue) => { const id = Number(idValue); if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный номер записи.'); const result = db.prepare('DELETE FROM crew_contacts WHERE id=?').run(id); if (!result.changes) throw new Error('Контакт уже удалён или не найден.'); return { deleted: true, id }; });
 ipcMain.handle('leads:list', () => db.prepare('SELECT l.*, c.name client_name FROM leads l LEFT JOIN clients c ON c.id=l.client_id ORDER BY l.id DESC').all());
 ipcMain.handle('leads:create', (_event, input = {}) => {
   const title = clean(input.title, 180);
