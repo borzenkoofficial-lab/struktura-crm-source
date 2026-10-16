@@ -56,7 +56,7 @@ function buildOrderQueries(service = 'demolition', region = 'Москва и М�
     tenders: [`site:zakupki.gov.ru (${terms})`, `(site:roseltorg.ru OR site:b2b-center.ru OR site:rts-tender.ru) (${terms})`, `тендер закупка (${terms}) подрядчик`]
   };
   const queries = sourceQueries[source] || base;
-  const safeRegion = String(region || 'Москва и Московская область')
+  const safeRegion = String(region || 'Москва и Московская область').replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
     .replace(/[\r\n]+/g, ' ')
     .trim()
     .slice(0, 120);
