@@ -710,3 +710,26 @@ test('regression fixes preserve contract amounts, task links, budgets and financ
   assert.match(database, /baseline_productivity REAL NOT NULL CHECK\(baseline_productivity >= 0\)/);
   assert.match(database, /production_plans_legacy/);
 });
+
+
+test('PIN controls are available from a dedicated Settings workspace', () => {
+  assert.match(html, /data-view="settings"><span>⚙<\/span>Настройки/);
+  assert.match(html, /id="view-settings"/);
+  assert.match(html, /id="pinSettingsForm"/);
+  assert.match(renderer, /settings: 'Настройки'/);
+  assert.match(renderer, /if \(name === 'settings'\) refreshPinSettings\(\)/);
+});
+
+test('modal dialogs use opaque surfaces and readable backdrops', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /dialog\.modal,dialog\.modal\[open\]\{background-color:#fff!important/);
+  assert.match(css, /dialog\.modal::backdrop\{background:rgba\(9,20,35,\.68\)/);
+});
+
+test('PI shows user-friendly error explanations and hides raw IPC errors behind disclosure', () => {
+  assert.match(renderer, /function piErrorUserMessage\(message\)/);
+  assert.match(renderer, /Отчёт смены не сохранён/);
+  assert.match(renderer, /Технические подробности для диагностики/);
+  assert.doesNotMatch(renderer, /<p><strong>Техническое сообщение<\/strong>/);
+  assert.match(renderer, /item\.userMessage \|\| piErrorUserMessage\(item\.message\)/);
+});
