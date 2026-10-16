@@ -294,7 +294,7 @@ test('project details can be edited while linked finance and production records 
   assert.match(preload, /updateProject: \(data\) => ipcRenderer\.invoke\('projects:update', data\)/);
   const handler = main.match(/ipcMain\.handle\('projects:update',[\s\S]*?\n\}\);/);
   assert.ok(handler); assert.match(handler[0], /normalizeProjectInput\(input\)/);
-  assert.match(handler[0], /UPDATE projects SET title=@title, service=@service, status=@status, contract_rub=@contract_rub/);
+  assert.match(handler[0], /UPDATE projects SET lead_id=@lead_id, client_id=@client_id, title=@title, service=@service, status=@status, contract_rub=@contract_rub/);
   assert.doesNotMatch(handler[0], /DELETE FROM (payments|expenses|production_plans)/);
 });
 
