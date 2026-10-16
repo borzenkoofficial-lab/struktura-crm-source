@@ -2,6 +2,7 @@ const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, safeStorage
 const { autoUpdater } = require('electron-updater');
 const path = require('node:path');
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 // Keep the existing local database when the visible product name changes.
 const legacyDataCandidates = ['Struktura CRM', 'struktura-crm', 'struktura-crm-source'];
 const currentUserDataPath = app.getPath('userData');
@@ -176,6 +177,56 @@ app.whenReady().then(() => {
 });
 app.on('before-quit', () => { if (reminderInterval) clearInterval(reminderInterval); if (db) db.close(); });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+
+function normalizePin(value) {
+  const pin = String(value ?? '');
+  if (!/^\d{4,12}$/.test(pin)) throw new Error('PIN должен содержать от 4 до 12 цифр.');
+  return pin;
+}
+function pinDigest(pin, salt) {
+  return crypto.scryptSync(pin, salt, 64).toString('hex');
+}
+function pinMatches(pin, config) {
+  if (!config || typeof config.salt !== 'string' || typeof config.hash !== 'string') return false;
+  try {
+    const actual = Buffer.from(pinDigest(String(pin ?? ''), config.salt), 'hex');
+    const expected = Buffer.from(config.hash, 'hex');
+    return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
+  } catch { return false; }
+}
+ipcMain.handle('security:pinStatus', () => ({ enabled: Boolean(getSetting('app_pin_config', null)?.hash) }));
+ipcMain.handle('security:pinVerify', (_event, input = {}) => {
+  const config = getSetting('app_pin_config', null);
+  if (!config?.hash) return { ok: true, enabled: false, remainingAttempts: 5, lockedForMs: 0 };
+  const failures = getSetting('app_pin_failures', { count: 0, lockedUntil: 0 });
+  const now = Date.now();
+  if (Number(failures.lockedUntil) > now) return { ok: false, enabled: true, remainingAttempts: 0, lockedForMs: Number(failures.lockedUntil) - now };
+  if (pinMatches(input.pin, config)) {
+    setSetting('app_pin_failures', { count: 0, lockedUntil: 0 });
+    return { ok: true, enabled: true, remainingAttempts: 5, lockedForMs: 0 };
+  }
+  const count = Math.min(5, Math.max(0, Number(failures.count) || 0) + 1);
+  const lockedUntil = count >= 5 ? now + 30000 : 0;
+  setSetting('app_pin_failures', { count: lockedUntil ? 0 : count, lockedUntil });
+  return { ok: false, enabled: true, remainingAttempts: lockedUntil ? 0 : 5 - count, lockedForMs: lockedUntil ? 30000 : 0 };
+});
+ipcMain.handle('security:pinSet', (_event, input = {}) => {
+  const pin = normalizePin(input.pin);
+  const current = getSetting('app_pin_config', null);
+  if (current?.hash && !pinMatches(input.currentPin, current)) throw new Error('Текущий PIN введён неверно.');
+  const salt = crypto.randomBytes(16).toString('hex');
+  setSetting('app_pin_config', { salt, hash: pinDigest(pin, salt), updatedAt: new Date().toISOString() });
+  setSetting('app_pin_failures', { count: 0, lockedUntil: 0 });
+  return { enabled: true };
+});
+ipcMain.handle('security:pinDisable', (_event, input = {}) => {
+  const current = getSetting('app_pin_config', null);
+  if (!current?.hash) return { enabled: false };
+  if (!pinMatches(input.currentPin, current)) throw new Error('Текущий PIN введён неверно.');
+  db.prepare('DELETE FROM settings WHERE key=?').run('app_pin_config');
+  setSetting('app_pin_failures', { count: 0, lockedUntil: 0 });
+  return { enabled: false };
+});
 
 ipcMain.handle('notifications:getSettings', () => normalizeReminderSettings(getSetting('reminder_settings', DEFAULT_REMINDER_SETTINGS)));
 ipcMain.handle('notifications:saveSettings', (_event, input = {}) => {

@@ -7,6 +7,7 @@ const { spawnSync } = require('node:child_process');
 const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'utf8');
 const main = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
 
 test('async create forms capture their form before awaiting IPC', () => {
   for (const id of ['leadForm', 'clientForm', 'projectForm', 'paymentForm', 'expenseForm']) {
@@ -612,4 +613,32 @@ test('exported quote history is stored locally and exposed through a narrow prel
   assert.match(main, /ipcMain\.handle\('pi:coachHistory'/);
   assert.match(preload, /piCoachHistory: \(\) => ipcRenderer\.invoke\('pi:coachHistory'\)/);
   assert.match(preload, /estimateHistory: \(\) => ipcRenderer\.invoke\('estimate:history'\)/);
+});
+
+test('startup PIN is configurable in settings, verified in main process, and hashed with scrypt', () => {
+  assert.match(html, /id="pinLockScreen"/);
+  assert.match(html, /id="pinUnlockForm"/);
+  assert.match(html, /id="pinSettingsForm"/);
+  assert.match(html, /id="pinDisableBtn"/);
+  assert.match(renderer, /initializeStartupGate\(\)\.then\(\(\) => refreshDashboard\(\)\)/);
+  assert.match(preload, /verifyPin: \(data\) => ipcRenderer\.invoke\('security:pinVerify', data\)/);
+  assert.match(main, /crypto\.scryptSync\(pin, salt, 64\)/);
+  assert.match(main, /crypto\.timingSafeEqual/);
+  assert.match(main, /security:pinSet/);
+  assert.match(main, /lockedUntil/);
+});
+
+test('PI error history keeps errors after transient toast and exposes explanations', () => {
+  assert.match(renderer, /PI_ERROR_STORAGE_KEY/);
+  assert.match(renderer, /function piRecordError\(/);
+  assert.match(renderer, /function piErrorExplain\(/);
+  assert.match(renderer, /window\.addEventListener\('unhandledrejection'/);
+  assert.match(renderer, /function openPiErrorHistory\(/);
+  assert.match(renderer, /piRecordError\(error\.message, 'Производство · План работ', error\)/);
+  assert.match(html, /id="piErrorHistoryDialog"/);
+  assert.match(html, /id="piOpenErrorHistoryBtn"/);
+  assert.match(html, /id="piErrorList"/);
+  assert.match(html, /id="piErrorDetail"/);
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.pi-error-history-layout/);
 });

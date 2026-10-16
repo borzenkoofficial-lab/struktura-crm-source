@@ -7,7 +7,68 @@ const taskUrgencyLabels = { overdue: 'Просрочена', today: 'Сегод�
 const expenseLabels = { materials: 'Материалы', workers: 'Рабочие', transport: 'Транспорт', rent: 'Аренда', tools: 'Инструменты', tax: 'Налоги', other: 'Другое' };
 const fmt = (n) => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(Number(n || 0));
 let toastTimer;
-function toast(message, error = false) { const node = $('toast'); node.textContent = message; node.className = `toast show${error ? ' error' : ''}`; clearTimeout(toastTimer); toastTimer = setTimeout(() => node.className = 'toast', 3500); }
+const PI_ERROR_STORAGE_KEY = 'struktura-pi-error-history-v1';
+let piErrorHistory = [];
+function piErrorLoad() {
+  try {
+    const value = JSON.parse(localStorage.getItem(PI_ERROR_STORAGE_KEY) || '[]');
+    piErrorHistory = Array.isArray(value) ? value.filter(item => item && typeof item.message === 'string').slice(0, 100) : [];
+  } catch { piErrorHistory = []; }
+}
+function piErrorSave() {
+  try { localStorage.setItem(PI_ERROR_STORAGE_KEY, JSON.stringify(piErrorHistory.slice(0, 100))); } catch (error) { console.warn('PI error history could not be saved:', error); }
+}
+function piErrorExplain(message, context = '') {
+  const value = String(message || '').toLocaleLowerCase('ru-RU');
+  if (/constraint failed|unique constraint|already exists|уже существует|уникальн/.test(value)) return { title: 'Конфликт или повтор записи', cause: 'CRM получила запись, которая нарушает правило уникальности базы данных либо дублирует существующие данные.', action: 'Проверь, нет ли такой позиции или объекта в списке. Если дубля нет, открой ошибку и сохрани её технические подробности для диагностики.' };
+  if (/not null constraint|cannot be null|required|обязательн|заполните/.test(value)) return { title: 'Не заполнено обязательное поле', cause: 'При сохранении одно из обязательных значений оказалось пустым или не было передано форме.', action: 'Проверь обязательные поля формы, включая строки работ, объект и числовые значения. Не удаляй введённые данные до проверки.' };
+  if (/foreign key constraint|no such project|project_id|объект не найден/.test(value)) return { title: 'Связанный объект не найден', cause: 'Сохранение ссылается на объект или запись, которую CRM не смогла найти либо связать.', action: 'Выбери объект заново из списка и повтори действие. Если ошибка повторяется, проверь, что объект существует и не был удалён.' };
+  if (/invalid|must be|out of range|greater than|less than|неверн|недопустим|должно быть|диапазон/.test(value)) return { title: 'Некорректное значение', cause: 'Одно из введённых значений не соответствует ожидаемому формату или допустимому диапазону.', action: 'Проверь числа, единицы измерения и ограничения полей. Для плана работ проверь названия работ, объём и единицы измерения; численность бригады должна быть положительной.' };
+  if (/database|sqlite|disk|locked|readonly|баз[ае] данных/.test(value)) return { title: 'Проблема локальной базы данных', cause: 'Операция могла быть заблокирована базой, хранилищем или доступом к файлу данных.', action: 'Не удаляй файлы базы. Закрой повторные операции, проверь свободное место и права доступа, затем повтори действие. Перед дальнейшими действиями создай резервную копию.' };
+  if (/ipc|channel|renderer|undefined|null|is not a function|cannot read properties|не определено/.test(value)) return { title: 'Ошибка интерфейса или связи модулей', cause: 'Интерфейс получил неожиданное значение или не смог вызвать нужную функцию приложения.', action: 'Повтори действие один раз. Если ошибка повторяется, зафиксируй раздел, последовательность действий и технический текст ниже — это потребуется для исправления программы.' };
+  return { title: 'Нужна дополнительная диагностика', cause: 'По доступному сообщению нельзя надёжно установить точную причину. ПИ не будет выдавать предположение за установленный факт.', action: 'Проверь заполнение формы и повтори действие. Если сбой повторится, передай разработчику технический текст ошибки, раздел и действие, после которого она появилась.' };
+}
+function piRecordError(message, source = 'Операция', error = null) {
+  const raw = String(message || 'Неизвестная ошибка').slice(0, 1200);
+  const item = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), at: new Date().toISOString(), source: String(source || 'CRM').slice(0, 100), message: raw, stack: String(error?.stack || '').slice(0, 3000), explanation: piErrorExplain(raw, source) };
+  const previous = piErrorHistory[0];
+  if (previous && previous.message === item.message && Date.now() - new Date(previous.at).getTime() < 2500) return previous;
+  piErrorHistory.unshift(item);
+  piErrorHistory = piErrorHistory.slice(0, 100);
+  piErrorSave();
+  piUpdateErrorBadge();
+  return item;
+}
+function piRenderErrorHistory(selectedId) {
+  const list = $('piErrorList'), detail = $('piErrorDetail'), count = $('piErrorCount');
+  if (!list || !detail || !count) return;
+  count.textContent = String(piErrorHistory.length);
+  if (!piErrorHistory.length) {
+    list.innerHTML = '<div class="pi-error-empty">Ошибок пока нет. Если появится красное уведомление, запись сохранится здесь.</div>';
+    detail.innerHTML = '<h3>ПИ готова помочь</h3><p>Выбери ошибку слева, чтобы увидеть возможную причину и порядок действий.</p>';
+    return;
+  }
+  list.innerHTML = piErrorHistory.map(item => '<button type="button" class="pi-error-entry' + (item.id === selectedId ? ' active' : '') + '" data-pi-error-id="' + esc(item.id) + '"><strong>' + esc(item.explanation?.title || 'Ошибка') + '</strong><span>' + esc(item.source) + ' · ' + esc(new Date(item.at).toLocaleString('ru-RU')) + '</span><small>' + esc(item.message) + '</small></button>').join('');
+  const item = piErrorHistory.find(entry => entry.id === selectedId) || piErrorHistory[0];
+  detail.innerHTML = '<div class="pi-error-severity">ЗАПИСЬ СОХРАНЕНА</div><h3>' + esc(item.explanation?.title || 'Ошибка') + '</h3><p><strong>Что произошло</strong><br>' + esc(item.explanation?.cause || 'Причина не определена.') + '</p><p><strong>Что сделать</strong><br>' + esc(item.explanation?.action || 'Повтори действие и сохрани технические подробности.') + '</p><p><strong>Техническое сообщение</strong><br><code>' + esc(item.message) + '</code></p>' + (item.stack ? '<details><summary>Технические подробности</summary><pre>' + esc(item.stack) + '</pre></details>' : '') + '<p class="pi-error-context">Раздел / действие: ' + esc(item.source) + ' · ' + esc(new Date(item.at).toLocaleString('ru-RU')) + '</p>';
+}
+function openPiErrorHistory(selectedId) {
+  piRenderErrorHistory(selectedId);
+  const dialog = $('piErrorHistoryDialog');
+  if (dialog && !dialog.open) dialog.showModal();
+}
+piErrorLoad();
+function toast(message, error = false) {
+  const node = $('toast');
+  node.textContent = message;
+  node.className = `toast show${error ? ' error' : ''}`;
+  if (error) {
+    piRecordError(message, document.querySelector('.view.active')?.id?.replace('view-', '') || 'CRM');
+    node.title = 'Ошибка сохранена в истории ПИ';
+  } else node.removeAttribute('title');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => node.className = 'toast', 3500);
+}
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function dateToday() { return new Date().toISOString().slice(0,10); }
 function showView(name) {
@@ -42,8 +103,15 @@ document.addEventListener('click', event => {
 }, true);
 window.addEventListener('error', event => {
   console.error('Struktura CRM renderer error:', event.error || event.message);
+  piRecordError(event.message || event.error?.message || 'Необработанная ошибка интерфейса', 'Необработанная ошибка интерфейса', event.error);
   const toastNode = $('toast');
-  if (toastNode) toast('Ошибка интерфейса. Подробности записаны в журнал приложения.', true);
+  if (toastNode) toast('Ошибка интерфейса. ПИ сохранила её в истории ошибок.', true);
+});
+window.addEventListener('unhandledrejection', event => {
+  const reason = event.reason;
+  const message = reason?.message || String(reason || 'Необработанная ошибка асинхронной операции');
+  piRecordError(message, 'Необработанная асинхронная операция', reason);
+  console.error('Struktura CRM unhandled rejection:', reason);
 });
 
 function renderSectionLoadError(name) {
@@ -858,7 +926,25 @@ async function refreshReports() {
 }
 function empty(title, detail) { return `<div class="empty-state"><div class="empty-icon">◉</div><strong>${esc(title)}</strong><span>${esc(detail)}</span></div>`; }
 function openDialog(id) { $(id).showModal(); }
+
 function closeDialog(id) { $(id).close(); }
+$('piOpenErrorHistoryBtn')?.addEventListener('click', () => openPiErrorHistory());
+$('piErrorList')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-pi-error-id]');
+  if (button) piRenderErrorHistory(button.dataset.piErrorId);
+});
+$('piClearErrorHistoryBtn')?.addEventListener('click', () => {
+  if (!piErrorHistory.length) return;
+  if (!window.confirm('Очистить сохранённую историю ошибок на этом компьютере?')) return;
+  piErrorHistory = [];
+  piErrorSave();
+  piRenderErrorHistory();
+});
+function piUpdateErrorBadge() {
+  const badge = $('piErrorBadge');
+  if (badge) badge.textContent = String(piErrorHistory.length);
+}
+piUpdateErrorBadge();
 async function exportCsv(kind) { try { const r = await window.crm.exportDataCsv(kind); if (!r.canceled) toast(`Экспорт завершён: строк ${r.count}.`); } catch (e) { toast(e.message, true); } }
 // Primary navigation is registered near showView() before widget initialization.
 const commandPalette = $('commandPaletteDialog');
@@ -1008,7 +1094,40 @@ estimateLoadDraft();
 refreshEstimateLearningRates().catch(error => { $('estimateLearningStatus').textContent = `Не удалось загрузить фактические нормы: ${error.message}`; });
 $('addPaymentBtn').addEventListener('click', async () => { await refreshProjects(); if (!(await window.crm.listProjects()).length) { toast('Сначала создай объект, к которому привязать платёж.', true); showView('projects'); return; } $('paymentForm').reset(); $('paymentForm').elements.payment_date.value = dateToday(); $('paymentDialogTitle').textContent = 'Записать платёж'; openDialog('paymentDialog'); });
 $('addExpenseBtn').addEventListener('click', async () => { await refreshProjects(); $('expenseForm').reset(); $('expenseForm').elements.expense_date.value = dateToday(); $('expenseDialogTitle').textContent = 'Добавить расход'; openDialog('expenseDialog'); });
-$('notificationSettingsBtn').addEventListener('click', async () => { try { await refreshNotificationSettings(); openDialog('notificationSettingsDialog'); } catch (error) { toast(`Не удалось загрузить настройки уведомлений: ${error.message}`, true); } });
+async function refreshPinSettings() {
+  const status = await window.crm.getPinStatus();
+  $('pinSettingsBadge').textContent = status.enabled ? 'Включён' : 'Выключен';
+  $('pinCurrentLabel').hidden = !status.enabled;
+  $('pinCurrentInput').required = Boolean(status.enabled);
+  $('pinSaveBtn').textContent = status.enabled ? 'Изменить PIN' : 'Включить PIN';
+  $('pinDisableBtn').hidden = !status.enabled;
+  $('pinSettingsStatus').textContent = status.enabled ? 'При следующем запуске CRM запросит PIN-код.' : 'PIN не установлен. Создай его, чтобы закрыть доступ при запуске.';
+}
+$('notificationSettingsBtn').addEventListener('click', async () => { try { await Promise.all([refreshNotificationSettings(), refreshPinSettings()]); openDialog('notificationSettingsDialog'); } catch (error) { toast(`Не удалось загрузить настройки: ${error.message}`, true); } });
+$('pinSettingsForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const currentPin = $('pinCurrentInput').value;
+  const pin = $('pinNewInput').value;
+  const confirmPin = $('pinConfirmInput').value;
+  if (!/^\d{4,12}$/.test(pin)) { $('pinSettingsStatus').textContent = 'PIN должен содержать от 4 до 12 цифр.'; return; }
+  if (pin !== confirmPin) { $('pinSettingsStatus').textContent = 'PIN-коды не совпадают.'; return; }
+  try {
+    await window.crm.setPin({ currentPin, pin });
+    $('pinSettingsForm').reset();
+    await refreshPinSettings();
+    toast('PIN-код сохранён. Он будет запрашиваться при следующем запуске.');
+  } catch (error) { $('pinSettingsStatus').textContent = error.message || 'Не удалось сохранить PIN.'; }
+});
+$('pinDisableBtn').addEventListener('click', async () => {
+  const currentPin = $('pinCurrentInput').value;
+  if (!currentPin) { $('pinSettingsStatus').textContent = 'Введи текущий PIN, чтобы отключить защиту.'; return; }
+  try {
+    await window.crm.disablePin({ currentPin });
+    $('pinSettingsForm').reset();
+    await refreshPinSettings();
+    toast('Защита PIN отключена.');
+  } catch (error) { $('pinSettingsStatus').textContent = error.message || 'Не удалось отключить PIN.'; }
+});
 $('notificationSettingsForm').addEventListener('submit', async event => { event.preventDefault(); const form = event.currentTarget; const data = Object.fromEntries(new FormData(form)); for (const key of ['enabled','taskDeadlines','missingShiftReports','overdueProjects','weekdaysOnly']) data[key] = form.elements[key].checked; for (const key of ['startHour','endHour','staleShiftDays','repeatEveryHours']) data[key] = Number(data[key]); try { const saved = await window.crm.saveNotificationSettings(data); closeDialog('notificationSettingsDialog'); $('notificationStatus').textContent = saved.enabled ? `Включены · ${String(saved.startHour).padStart(2,'0')}:00–${String(saved.endHour).padStart(2,'0')}:00 · проверка каждые 15 мин.` : 'Уведомления выключены'; toast('Настройки уведомлений сохранены.'); } catch (error) { toast(error.message, true); } });
 $('refreshBtn').addEventListener('click', () => refreshDashboard().catch(e => toast(e.message,true)));
 $('leadSearch').addEventListener('input', () => refreshLeads().catch(e => toast(e.message,true)));
@@ -1510,7 +1629,7 @@ $('productionPlanForm').addEventListener('submit', async e => {
     const saved = await window.crm.saveProductionPlan({ project_id: $('planProjectSelect').value, planned_people: Number($('planPeople').value), complexity_factor: Number($('planDifficulty').value), lines });
     closeDialog('productionPlanDialog'); toast(`План сохранён: ${saved.lineCount} позиций. После отчётов остаток и срок будут пересчитываться автоматически.`);
     await refreshProduction();
-  } catch (error) { toast(error.message,true); }
+  } catch (error) { piRecordError(error.message, 'Производство · План работ', error); toast(error.message,true); }
 });
 $('productionShiftForm').addEventListener('submit', async e => {
   e.preventDefault(); const rows = [...$('productionShiftLines').querySelectorAll('[data-production-edit-row]')];
@@ -1619,6 +1738,43 @@ window.crm.onUpdateStatus(renderUpdateStatus);
 for (const id of ['paymentForm','expenseForm']) { const field = $(id).elements[id === 'paymentForm' ? 'payment_date' : 'expense_date']; field.value = dateToday(); }
 const startupSplash = $('startupSplash');
 const startupStartedAt = performance.now();
+let pinUnlockResolve = null;
+let startupGatePromise = null;
+async function initializeStartupGate() {
+  if (startupGatePromise) return startupGatePromise;
+  startupGatePromise = (async () => {
+    const status = await window.crm.getPinStatus();
+    if (!status.enabled) return true;
+    $('pinLockScreen').hidden = false;
+    $('pinUnlockInput').focus();
+    if (startupSplash) startupSplash.classList.add('is-hidden');
+    return new Promise(resolve => { pinUnlockResolve = resolve; });
+  })();
+  return startupGatePromise;
+}
+$('pinUnlockForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = $('pinUnlockBtn'), input = $('pinUnlockInput'), status = $('pinUnlockStatus');
+  button.disabled = true;
+  status.textContent = 'Проверяем PIN…';
+  try {
+    const result = await window.crm.verifyPin({ pin: input.value });
+    if (result.ok) {
+      $('pinLockScreen').hidden = true;
+      status.textContent = '';
+      input.value = '';
+      if (pinUnlockResolve) { pinUnlockResolve(true); pinUnlockResolve = null; }
+      return;
+    }
+    input.value = '';
+    input.focus();
+    status.textContent = result.lockedForMs > 0
+      ? 'Слишком много неверных попыток. Подожди 30 секунд и попробуй снова.'
+      : `Неверный PIN. Осталось попыток: ${result.remainingAttempts}.`;
+  } catch (error) {
+    status.textContent = error.message || 'Не удалось проверить PIN.';
+  } finally { button.disabled = false; }
+});
 let startupSplashDismissed = false;
 function hideStartupSplash() {
   if (startupSplashDismissed || !startupSplash) return;
@@ -1633,7 +1789,7 @@ function hideStartupSplash() {
 // Never leave the launch screen covering the app if initial data loading stalls.
 window.setTimeout(hideStartupSplash, 8000);
 Promise.race([
-  refreshDashboard(),
+  initializeStartupGate().then(() => refreshDashboard()),
   new Promise((_, reject) => window.setTimeout(() => reject(new Error('Превышено время ожидания загрузки обзора (10 секунд). Проверьте локальную базу и перезапустите программу.')), 10000))
 ])
   .catch(e => {
