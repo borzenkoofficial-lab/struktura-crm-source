@@ -7,12 +7,12 @@ const outDir = path.join(__dirname, '..', 'build');
 fs.mkdirSync(outDir, { recursive: true });
 
 const palette = {
-  navy: [20, 40, 59],
-  navy2: [27, 53, 75],
-  orange: [242, 103, 54],
-  pale: [245, 247, 250],
-  white: [255, 255, 255],
-  teal: [44, 188, 167]
+  navy: [31, 34, 38],
+  navy2: [45, 49, 54],
+  orange: [190, 197, 204],
+  pale: [239, 242, 245],
+  white: [248, 249, 250],
+  teal: [169, 180, 190]
 };
 
 function canvas(width, height, pixel) {
@@ -41,6 +41,8 @@ function line(img, x1, y1, x2, y2, color, thickness = 1) {
 }
 const font = {
  G:['01110','10001','10000','10111','10001','10001','01110'],
+ O:['01110','10001','10001','10001','10001','10001','01110'],
+ P:['11110','10001','10001','11110','10000','10000','10000'],
  R:['11110','10001','10001','11110','10100','10010','10001'],
  U:['10001','10001','10001','10001','10001','10001','01110'],
  Z:['11111','00001','00010','00100','01000','10000','11111'],
@@ -59,7 +61,8 @@ function text(img, value, x, y, scale, color, spacing = 1) {
   let cursor = x;
   for (const ch of value) {
     if (ch === ' ') { cursor += 4 * scale; continue; }
-    const glyph = font[ch];
+    const glyphKey = ({ 'О':'O', 'П':'P', 'Л':'L', 'Т':'T' })[ch] || ch;
+    const glyph = font[glyphKey];
     if (glyph) glyph.forEach((row, ry) => [...row].forEach((bit, rx) => { if (bit === '1') rect(img, cursor + rx * scale, y + ry * scale, scale, scale, color); }));
     cursor += 5 * scale + spacing;
   }
@@ -87,8 +90,9 @@ function iconIco() {
   dib.writeUInt16LE(1, 12); dib.writeUInt16LE(32, 14); dib.writeUInt32LE(0, 16); dib.writeUInt32LE(xorBytes, 20);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     const dx = x - 15.5, dy = y - 15.5, inTile = Math.abs(dx) < 13 && Math.abs(dy) < 13;
-    const inS = inTile && ((x >= 8 && x <= 24 && y >= 8 && y <= 11) || (x >= 8 && x <= 11 && y >= 8 && y <= 16) || (x >= 8 && x <= 24 && y >= 13 && y <= 16) || (x >= 20 && x <= 23 && y >= 13 && y <= 23) || (x >= 8 && x <= 23 && y >= 20 && y <= 23));
-    const c = inS ? palette.white : (inTile ? palette.orange : palette.navy);
+    const oval = (dx * dx) / 64 + (dy * dy) / 100;
+    const inO = inTile && oval <= 1 && oval >= 0.48;
+    const c = inO ? palette.white : palette.navy;
     const off = 40 + ((n - 1 - y) * n + x) * 4;
     dib[off] = c[2]; dib[off + 1] = c[1]; dib[off + 2] = c[0]; dib[off + 3] = 255;
   }
@@ -103,34 +107,25 @@ const side = canvas(164, 314, (x, y) => blend(palette.navy, palette.navy2, y / 3
 circle(side, 144, 26, 70, [30, 66, 89], 1);
 circle(side, 145, 27, 49, [35, 76, 99], 1);
 circle(side, 18, 285, 78, [24, 48, 68], 1);
-rect(side, 23, 43, 48, 48, palette.orange);
-rect(side, 31, 51, 32, 32, palette.navy);
-rect(side, 31, 51, 32, 6, palette.white);
-rect(side, 56, 51, 7, 12, palette.white);
-rect(side, 31, 64, 32, 6, palette.white);
-rect(side, 31, 64, 7, 12, palette.white);
-rect(side, 31, 76, 32, 7, palette.white);
-text(side, 'STRUKTURA', 23, 109, 2, palette.white, 1);
-rect(side, 23, 135, 42, 3, palette.orange);
-text(side, 'CRM', 23, 153, 2, [220, 231, 239], 2);
-text(side, 'BUSINESS', 23, 184, 1, [159, 183, 198], 1);
-text(side, 'MANAGEMENT', 23, 196, 1, [159, 183, 198], 1);
+rect(side, 23, 43, 48, 48, palette.navy2);
+circle(side, 47, 67, 15, palette.white, 4);
+text(side, 'ОПЛОТ', 23, 109, 2, palette.white, 1);
+rect(side, 23, 135, 42, 2, palette.orange);
+text(side, 'СИСТЕМА', 23, 153, 1, [220, 225, 230], 1);
+text(side, 'BUSINESS', 23, 184, 1, [169, 180, 190], 1);
+text(side, 'MANAGEMENT', 23, 196, 1, [169, 180, 190], 1);
 line(side, 23, 226, 141, 226, [60, 88, 107], 1);
 circle(side, 27, 249, 3, palette.teal);
 text(side, 'LOCAL DATA', 37, 246, 1, [190, 207, 218], 1);
 rect(side, 23, 275, 118, 1, [60, 88, 107]);
 
 const header = canvas(150, 57, (x, y) => blend(palette.navy, palette.navy2, x / 150 * 0.4 + y / 57 * 0.15));
-rect(header, 12, 12, 31, 31, palette.orange);
-rect(header, 18, 18, 19, 5, palette.white);
-rect(header, 32, 18, 5, 11, palette.white);
-rect(header, 18, 26, 19, 5, palette.white);
-rect(header, 18, 26, 5, 11, palette.white);
-rect(header, 18, 32, 19, 5, palette.white);
-text(header, 'STRUKTURA', 51, 17, 2, palette.white, 1);
-text(header, 'CRM', 52, 34, 1, [176, 198, 211], 2);
+rect(header, 12, 12, 31, 31, palette.navy2);
+circle(header, 27.5, 27.5, 10, palette.white, 3);
+text(header, 'ОПЛОТ', 51, 17, 2, palette.white, 1);
+text(header, 'УПРАВЛЕНИЕ', 52, 34, 1, [190, 197, 204], 1);
 
 fs.writeFileSync(path.join(outDir, 'installer-sidebar.bmp'), bmp(side));
 fs.writeFileSync(path.join(outDir, 'installer-header.bmp'), bmp(header));
-fs.writeFileSync(path.join(outDir, 'struktura.ico'), iconIco());
-console.log('Created branded STRUKTURA installer artwork: sidebar 164x314, header 150x57, app icon 32x32.');
+fs.writeFileSync(path.join(outDir, 'oplot.ico'), iconIco());
+console.log('Created branded OPLOT graphite installer artwork: sidebar 164x314, header 150x57, app icon 32x32.');
