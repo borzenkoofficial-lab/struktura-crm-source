@@ -183,8 +183,8 @@ test('builds manual search links without requiring an API key', () => {
 
 
 test('manual Yandex search removes actual CR/LF characters from region', () => {
-  const url = buildManualOrderSearchUrl('demolition', 'Москва\\nобласть\\r\\n', 'web');
+  const url = buildManualOrderSearchUrl('demolition', 'Москва\nобласть\r\n', 'web');
   const query = new URL(url).searchParams.get('text');
   assert.ok(query.includes('Москва область'));
-  assert.doesNotMatch(query, /[\\r\\n]/);
+  assert.doesNotMatch(query, /[\r\n]/);
 });
