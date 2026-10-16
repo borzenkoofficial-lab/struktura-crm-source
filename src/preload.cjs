@@ -2,6 +2,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('crm', {
   summary: () => ipcRenderer.invoke('dashboard:summary'),
   getNotificationSettings: () => ipcRenderer.invoke('notifications:getSettings'),
+  getPinStatus: () => ipcRenderer.invoke('security:pinStatus'),
+  verifyPin: (data) => ipcRenderer.invoke('security:pinVerify', data),
+  setPin: (data) => ipcRenderer.invoke('security:pinSet', data),
+  disablePin: (data) => ipcRenderer.invoke('security:pinDisable', data),
   saveNotificationSettings: (data) => ipcRenderer.invoke('notifications:saveSettings', data),
   listClients: () => ipcRenderer.invoke('clients:list'),
   createClient: (data) => ipcRenderer.invoke('clients:create', data),
