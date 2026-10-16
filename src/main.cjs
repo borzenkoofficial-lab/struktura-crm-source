@@ -147,7 +147,7 @@ function createWindow() {
   win.on('closed', () => { mainWindow = null; browserView = null; browserIsVisible = false; });
   win.loadFile(path.join(__dirname, 'index.html')).catch(error => {
     console.error('Failed to load CRM interface:', error);
-    dialog.showErrorBox('Не удалось открыть Struktura CRM', `Не удалось загрузить интерфейс приложения.\\n\\n${error.message || error}`);
+    dialog.showErrorBox('Не удалось открыть Struktura CRM', `Не удалось загрузить интерфейс приложения.\n\n${error.message || error}`);
   });
 }
 function getSetting(key, fallback) {
@@ -193,7 +193,7 @@ app.whenReady().then(() => {
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 }).catch(error => {
   console.error('Struktura CRM startup failed:', error);
-  dialog.showErrorBox('Ошибка запуска Struktura CRM', `Приложение не смогло подготовить локальную базу данных.\\n\\n${error.message || error}`);
+  dialog.showErrorBox('Ошибка запуска Struktura CRM', `Приложение не смогло подготовить локальную базу данных.\n\n${error.message || error}`);
   app.quit();
 });
 app.on('before-quit', () => { if (reminderInterval) clearInterval(reminderInterval); if (db) db.close(); });
@@ -965,7 +965,7 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   };
   if (!allowed[kind]) throw new Error('Неизвестный тип экспорта.');
   const [label, sql, file] = allowed[kind];
-  const { canceled, filePath } = await dialog.showSaveDialog({ title: `STRUKTURA CRM · Экспорт: ${label}`, defaultPath: `gruzli-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
+  const { canceled, filePath } = await dialog.showSaveDialog({ title: `STRUKTURA CRM · Экспорт: ${label}`, defaultPath: `STRUKTURA-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
   if (canceled || !filePath) return { canceled: true };
   const rows = db.prepare(sql).all();
   const columns = rows.length ? Object.keys(rows[0]) : sql.match(/SELECT (.+?) FROM/)[1].split(',').map(s=>s.trim());
