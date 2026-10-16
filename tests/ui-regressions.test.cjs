@@ -378,7 +378,7 @@ test('Windows app startup hides the legacy menu and reports startup failures', (
   assert.match(main, /Menu\.setApplicationMenu\(null\)/);
   assert.match(main, /win\.setMenuBarVisibility\(false\)/);
   assert.match(main, /Failed to load CRM interface/);
-  assert.match(main, /Struktura CRM startup failed/);
+  assert.match(main, /Оплот startup failed/);
 });
 
 test('startup splash has an independent CSS failsafe if renderer JavaScript never runs', () => {
@@ -559,7 +559,7 @@ test('product presentation tab is reachable and contains the STRUKTURA story and
   assert.match(html, /ПИ — производственный интеллект/);
   assert.match(html, /data-goto="production"/);
   assert.match(html, /data-goto="projects"/);
-  assert.match(renderer, /about: 'О продукте STRUKTURA'/);
+  assert.match(renderer, /about: 'О продукте ОПЛОТ'/);
 });
 
 test('product presentation includes responsive 3D visuals and respects reduced-motion preferences', () => {
@@ -678,7 +678,7 @@ test('date-only defaults use local calendar fields rather than UTC ISO conversio
 
 
 test('export filenames and startup dialogs use the current brand and real line breaks', () => {
-  assert.ok(main.includes('STRUKTURA-'));
+  assert.ok(main.includes('OPLOT-'));
   assert.ok(!main.includes('gruzli-'));
   assert.ok(main.includes('Не удалось загрузить интерфейс приложения.\\n\\n'));
   assert.ok(!main.includes('Не удалось загрузить интерфейс приложения.\\\\n\\\\n'));
