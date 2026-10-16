@@ -84,12 +84,14 @@ function bmp(img) {
   return buf;
 }
 function iconIco() {
-  const n = 32, xorBytes = n * n * 4, maskRow = Math.ceil(n / 32) * 4, maskBytes = maskRow * n;
+  // Windows shell icon is authored at 256x256 so electron-builder and Explorer do not fall back to a tiny 32px resource.
+  const n = 256, xorBytes = n * n * 4, maskRow = Math.ceil(n / 32) * 4, maskBytes = maskRow * n;
   const dib = Buffer.alloc(40 + xorBytes + maskBytes);
   dib.writeUInt32LE(40, 0); dib.writeInt32LE(n, 4); dib.writeInt32LE(n * 2, 8);
   dib.writeUInt16LE(1, 12); dib.writeUInt16LE(32, 14); dib.writeUInt32LE(0, 16); dib.writeUInt32LE(xorBytes, 20);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    const dx = x - 15.5, dy = y - 15.5, inTile = Math.abs(dx) < 13 && Math.abs(dy) < 13;
+    const dx = (x - (n - 1) / 2) / 8, dy = (y - (n - 1) / 2) / 8;
+    const inTile = Math.abs(dx) < 13 && Math.abs(dy) < 13;
     const oval = (dx * dx) / 64 + (dy * dy) / 100;
     const inO = inTile && oval <= 1 && oval >= 0.48;
     const c = inO ? palette.white : palette.navy;
@@ -98,7 +100,7 @@ function iconIco() {
   }
   const header = Buffer.alloc(6 + 16);
   header.writeUInt16LE(0, 0); header.writeUInt16LE(1, 2); header.writeUInt16LE(1, 4);
-  header[6] = n; header[7] = n; header[8] = 0; header[9] = 0; header.writeUInt16LE(1, 10); header.writeUInt16LE(32, 12);
+  header[6] = 0; header[7] = 0; header[8] = 0; header[9] = 0; header.writeUInt16LE(1, 10); header.writeUInt16LE(32, 12);
   header.writeUInt32LE(dib.length, 14); header.writeUInt32LE(22, 18);
   return Buffer.concat([header, dib]);
 }
@@ -128,4 +130,4 @@ text(header, 'СИСТЕМА', 52, 34, 1, [190, 197, 204], 1);
 fs.writeFileSync(path.join(outDir, 'installer-sidebar.bmp'), bmp(side));
 fs.writeFileSync(path.join(outDir, 'installer-header.bmp'), bmp(header));
 fs.writeFileSync(path.join(outDir, 'oplot.ico'), iconIco());
-console.log('Created branded OPLOT graphite installer artwork: sidebar 164x314, header 150x57, app icon 32x32.');
+console.log('Created branded OPLOT graphite installer artwork: sidebar 164x314, header 150x57, app icon 256x256.');
