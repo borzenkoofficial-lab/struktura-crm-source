@@ -261,7 +261,7 @@ function openDatabase(userDataPath) {
   db.exec('CREATE INDEX IF NOT EXISTS idx_prospects_service ON prospects(service)');
   // Older databases enforce baseline_productivity > 0; rebuild only this table so missing norms can be stored explicitly.
   const productionPlanSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='production_plans'").get()?.sql || '';
-  if (/CHECK\\s*\\(\\s*baseline_productivity\\s*>\\s*0\\s*\\)/i.test(productionPlanSql)) {
+  if (/CHECK\s*\(\s*baseline_productivity\s*>\s*0\s*\)/i.test(productionPlanSql)) {
     db.pragma('foreign_keys = OFF');
     try {
       const migratePlans = db.transaction(() => {
