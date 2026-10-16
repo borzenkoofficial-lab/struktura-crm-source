@@ -180,3 +180,11 @@ test('builds manual search links without requiring an API key', () => {
   assert.match(decodeURIComponent(url), /site:avito\.ru/);
   assert.match(decodeURIComponent(url), /Москва и МО/);
 });
+
+
+test('manual Yandex search removes actual CR/LF characters from region', () => {
+  const url = buildManualOrderSearchUrl('demolition', 'Москва\\nобласть\\r\\n', 'web');
+  const query = new URL(url).searchParams.get('text');
+  assert.ok(query.includes('Москва область'));
+  assert.doesNotMatch(query, /[\\r\\n]/);
+});
