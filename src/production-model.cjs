@@ -87,27 +87,13 @@ function forecastRemainingWork({ planItems = [], actualByCatalog = {}, observati
     const planned = Number(item.planned_quantity ?? item.quantity ?? 0);
     const completed = Number(actualByCatalog[item.catalog_id] ?? item.actual_quantity ?? 0);
     const remaining = Math.max(0, planned - completed);
-    const model = buildRateModel({
-      baselineProductivity: Number(item.baseline_productivity ?? item.productivity),
-      observations: observationsByCatalog[item.catalog_id] || [],
-      targetDifficulty,
-      targetCrewSize: crew
-    });
+    const baseline = Number(item.baseline_productivity ?? item.productivity);
+    if (!Number.isFinite(baseline) || baseline <= 0) return { catalogId: item.catalog_id, name: item.work_name ?? item.name, unit: item.unit, plannedQuantity: round(planned, 2), actualQuantity: round(completed, 2), remainingQuantity: round(remaining, 2), baselineProductivity: 0, effectiveProductivity: null, observations: 0, confidence: 'Нужна норма', laborShiftsRemaining: null, teamShiftsRemaining: null, overPlan: completed > planned, missingRate: true };
+    const model = buildRateModel({ baselineProductivity: baseline, observations: observationsByCatalog[item.catalog_id] || [], targetDifficulty, targetCrewSize: crew });
     const laborShiftsRemaining = remaining > 0 ? remaining / model.effectiveProductivity : 0;
-    return {
-      catalogId: item.catalog_id,
-      name: item.work_name ?? item.name,
-      unit: item.unit,
-      plannedQuantity: round(planned, 2),
-      actualQuantity: round(completed, 2),
-      remainingQuantity: round(remaining, 2),
-      ...model,
-      laborShiftsRemaining: round(laborShiftsRemaining, 2),
-      teamShiftsRemaining: round(laborShiftsRemaining / crew, 2),
-      overPlan: completed > planned
-    };
+    return { catalogId: item.catalog_id, name: item.work_name ?? item.name, unit: item.unit, plannedQuantity: round(planned, 2), actualQuantity: round(completed, 2), remainingQuantity: round(remaining, 2), ...model, laborShiftsRemaining: round(laborShiftsRemaining, 2), teamShiftsRemaining: round(laborShiftsRemaining / crew, 2), overPlan: completed > planned, missingRate: false };
   });
-  const laborShiftsRemaining = lines.reduce((sum, line) => sum + line.laborShiftsRemaining, 0);
+  const laborShiftsRemaining = lines.reduce((sum, line) => sum + (Number.isFinite(line.laborShiftsRemaining) ? line.laborShiftsRemaining : 0), 0);
   return {
     lines,
     laborShiftsRemaining: round(laborShiftsRemaining, 2),
@@ -115,7 +101,7 @@ function forecastRemainingWork({ planItems = [], actualByCatalog = {}, observati
     completedLines: lines.filter((line) => line.remainingQuantity <= 0).length,
     totalLines: lines.length,
     observations: lines.reduce((sum, line) => sum + line.observations, 0),
-    estimated: lines.length > 0
+    estimated: lines.length > 0 && lines.every(line => !line.missingRate)
   };
 }
 
