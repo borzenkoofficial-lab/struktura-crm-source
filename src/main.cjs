@@ -137,7 +137,7 @@ function createWindow() {
   appUnlocked = !Boolean(getSetting('app_pin_config', null)?.hash);
   const win = new BrowserWindow({
     width: 1440, height: 920, minWidth: 1020, minHeight: 680,
-    title: 'Struktura CRM', backgroundColor: '#f5f7fa', autoHideMenuBar: true,
+    title: 'Оплот', backgroundColor: '#25282c', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   win.setMenuBarVisibility(false);
@@ -147,7 +147,7 @@ function createWindow() {
   win.on('closed', () => { mainWindow = null; browserView = null; browserIsVisible = false; });
   win.loadFile(path.join(__dirname, 'index.html')).catch(error => {
     console.error('Failed to load CRM interface:', error);
-    dialog.showErrorBox('Не удалось открыть Struktura CRM', `Не удалось загрузить интерфейс приложения.\n\n${error.message || error}`);
+    dialog.showErrorBox('Не удалось открыть «Оплот»', `Не удалось загрузить интерфейс приложения.\n\n${error.message || error}`);
   });
 }
 function getSetting(key, fallback) {
@@ -171,7 +171,7 @@ function checkAndSendReminders() {
     const now = new Date();
     const reminders = buildReminders({ tasks, projects, now, settings, lastSent });
     for (const item of reminders) {
-      const notice = new Notification({ title: `STRUKTURA CRM · ${item.title}`, body: item.body, silent: false });
+      const notice = new Notification({ title: `ОПЛОТ · ${item.title}`, body: item.body, silent: false });
       notice.on('click', () => { if (mainWindow && !mainWindow.isDestroyed()) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); } });
       notice.show();
       lastSent[item.key] = now.toISOString();
@@ -192,8 +192,8 @@ app.whenReady().then(() => {
   reminderInterval = setInterval(checkAndSendReminders, 15 * 60 * 1000);
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 }).catch(error => {
-  console.error('Struktura CRM startup failed:', error);
-  dialog.showErrorBox('Ошибка запуска Struktura CRM', `Приложение не смогло подготовить локальную базу данных.\n\n${error.message || error}`);
+  console.error('Оплот startup failed:', error);
+  dialog.showErrorBox('Ошибка запуска «Оплот»', `Приложение не смогло подготовить локальную базу данных.\n\n${error.message || error}`);
   app.quit();
 });
 app.on('before-quit', () => { if (reminderInterval) clearInterval(reminderInterval); if (db) db.close(); });
@@ -991,7 +991,7 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   };
   if (!allowed[kind]) throw new Error('Неизвестный тип экспорта.');
   const [label, sql, file] = allowed[kind];
-  const { canceled, filePath } = await dialog.showSaveDialog({ title: `STRUKTURA CRM · Экспорт: ${label}`, defaultPath: `STRUKTURA-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
+  const { canceled, filePath } = await dialog.showSaveDialog({ title: `ОПЛОТ · Экспорт: ${label}`, defaultPath: `OPLOT-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
   if (canceled || !filePath) return { canceled: true };
   const rows = db.prepare(sql).all();
   const columns = rows.length ? Object.keys(rows[0]) : sql.match(/SELECT (.+?) FROM/)[1].split(',').map(s=>s.trim());
@@ -1000,7 +1000,7 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   return { canceled: false, filePath, count: rows.length };
 });
 ipcMain.handle('backup:create', async () => {
-  const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить резервную копию', defaultPath: `STRUKTURA-CRM-backup-${new Date().toISOString().slice(0,10)}.sqlite`, filters: [{ name: 'SQLite database', extensions: ['sqlite','db'] }] });
+  const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить резервную копию', defaultPath: `OPLOT-backup-${new Date().toISOString().slice(0,10)}.sqlite`, filters: [{ name: 'SQLite database', extensions: ['sqlite','db'] }] });
   if (canceled || !filePath) return { canceled: true };
   db.pragma('wal_checkpoint(FULL)');
   await db.backup(filePath);
@@ -1011,7 +1011,7 @@ ipcMain.handle('backup:create', async () => {
 // as an automatic rollback copy and reopen the live connection after the file swap.
 ipcMain.handle('backup:restore', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
-    title: 'Выберите резервную копию STRUKTURA CRM',
+    title: 'Выберите резервную копию «Оплот»',
     properties: ['openFile'],
     filters: [{ name: 'SQLite database', extensions: ['sqlite', 'db'] }]
   });
@@ -1028,7 +1028,7 @@ ipcMain.handle('backup:restore', async () => {
     const tables = new Set(candidate.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
     const required = ['clients', 'leads', 'projects', 'payments', 'expenses', 'settings'];
     const missing = required.filter(name => !tables.has(name));
-    if (missing.length) throw new Error(`Это не резервная копия STRUKTURA CRM: отсутствуют таблицы ${missing.join(', ')}.`);
+    if (missing.length) throw new Error(`Это не резервная копия «Оплот»: отсутствуют таблицы ${missing.join(', ')}.`);
     candidate.close(); candidate = null;
   } catch (error) {
     if (candidate) { try { candidate.close(); } catch {} }
