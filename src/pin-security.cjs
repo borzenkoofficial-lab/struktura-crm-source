@@ -4,7 +4,7 @@ const crypto = require('node:crypto');
 
 function normalizePin(value) {
   const pin = String(value ?? '');
-  if (!/^\\d{4,12}$/.test(pin)) throw new Error('PIN должен содержать от 4 до 12 цифр.');
+  if (!/^\d{4,12}$/.test(pin)) throw new Error('PIN должен содержать от 4 до 12 цифр.');
   return pin;
 }
 
@@ -15,7 +15,7 @@ function createPinConfig(value, updatedAt = new Date().toISOString()) {
 }
 
 function pinMatches(value, config) {
-  if (!config || typeof config.salt !== 'string' || typeof config.hash !== 'string' || !/^\\d{4,12}$/.test(String(value ?? ''))) return false;
+  if (!config || typeof config.salt !== 'string' || typeof config.hash !== 'string' || !/^\d{4,12}$/.test(String(value ?? ''))) return false;
   try {
     const actual = Buffer.from(crypto.scryptSync(String(value), config.salt, 64).toString('hex'), 'hex');
     const expected = Buffer.from(config.hash, 'hex');
