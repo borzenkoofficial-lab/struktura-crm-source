@@ -672,5 +672,6 @@ test('project editor exposes client and lead selectors and persists relationship
 test('date-only defaults use local calendar fields rather than UTC ISO conversion', () => {
   assert.ok(renderer.includes('function dateToday() { const now = new Date();'));
   assert.ok(!renderer.includes('function dateToday() { return new Date().toISOString()'));
-  assert.ok(renderer.includes('padStart(2,\\'0\\')}-01'));
+  assert.ok(renderer.includes('productionReportStart'));
+  assert.ok(renderer.includes("padStart(2,'0')"));
 });
