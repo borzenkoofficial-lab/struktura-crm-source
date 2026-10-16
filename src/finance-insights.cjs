@@ -6,9 +6,9 @@ function isoDate(value) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : '';
 }
 
-function safeMoney(value, label, warnings) {
+function safeMoney(value, label, warnings, { allowNegative = false } = {}) {
   const number = value === null || value === undefined || value === '' ? 0 : Number(value);
-  if (!Number.isFinite(number) || number < 0) {
+  if (!Number.isFinite(number) || (!allowNegative && number < 0)) {
     warnings.push(`${label}: сумма некорректна; в расчёте использован 0 ₽.`);
     return 0;
   }
@@ -29,10 +29,10 @@ function buildFinanceInsights({ today, cash = 0, projects = [], expenses = [] })
   const normalizedCash = Number.isFinite(cashNumber) ? cashNumber : (dataWarnings.push('Денежный остаток: сумма некорректна; в расчёте использован 0 ₽.'), 0);
   const activeProjects = projects.filter(p => p.status !== 'cancelled');
   const receivables = activeProjects.map(p => {
-    const received = safeMoney(p.received_rub, `Получено по объекту «${p.title || p.id || 'без названия'}»`, dataWarnings);
+    const received = safeMoney(p.received_rub, `Получено по объекту «${p.title || p.id || 'без названия'}»`, dataWarnings, { allowNegative: true });
     const contract = safeMoney(p.contract_rub, `Договор по объекту «${p.title || p.id || 'без названия'}»`, dataWarnings);
     if (p.end_date && !isoDate(p.end_date)) dataWarnings.push(`Объект «${p.title || p.id || 'без названия'}»: дата окончания некорректна; поступление не включено в прогноз по срокам.`);
-    return { ...p, debtRub: Math.max(0, contract - received) };
+    return { ...p, debtRub: Math.max(0, contract - Math.max(0, received)) };
   }).filter(p => p.debtRub > 0);
   const unpaid = expenses.filter(e => Number(e.is_paid) === 0).map(e => {
     const amountRub = safeMoney(e.amount_rub, `Расход «${e.description || e.id || 'без названия'}»`, dataWarnings);
