@@ -42,7 +42,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "installerIcon": "build/oplot.ico",
-      "uninstallerIcon": "build/struktura.ico",
+      "uninstallerIcon": "build/oplot.ico",
       "installerHeader": "build/installer-header.bmp",
       "installerSidebar": "build/installer-sidebar.bmp",
       "uninstallerSidebar": "build/installer-sidebar.bmp",
@@ -55,6 +55,6 @@
         "repo": "struktura-crm-source"
       }
     ],
-    "artifactName": "Struktura-CRM-Setup-${version}.${ext}"
+    "artifactName": "Oplot-Setup-${version}.${ext}"
   }
 }
