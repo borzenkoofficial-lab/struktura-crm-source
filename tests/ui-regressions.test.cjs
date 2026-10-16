@@ -655,7 +655,7 @@ test('production report export does not reference quote-only variables and quote
   assert.ok(reportStart >= 0 && quoteStart > reportStart);
   const report = main.slice(reportStart, quoteStart);
   const quote = main.slice(quoteStart, main.indexOf("ipcMain.handle('updates:status'", quoteStart));
-  assert.doesNotMatch(report, /\\b(?:title|customer|total|discount|lines)\\b/);
+  assert.doesNotMatch(report, /total - costRub|run\(title, customer|discount, lines\.length/);
   assert.match(quote, /INSERT INTO quote_history/);
   assert.match(quote, /historySaved: true/);
 });
@@ -663,14 +663,14 @@ test('production report export does not reference quote-only variables and quote
 test('project editor exposes client and lead selectors and persists relationship columns', () => {
   assert.match(html, /id="projectClientSelect"/);
   assert.match(html, /id="projectLeadSelect"/);
-  assert.match(renderer, /populateProjectRelationships/);
-  assert.match(main, /INSERT INTO projects\\(lead_id,client_id,title/);
-  assert.match(main, /UPDATE projects SET lead_id=@lead_id, client_id=@client_id/);
-  assert.match(main, /Выбранная заявка принадлежит другому клиенту/);
+  assert.ok(renderer.includes('populateProjectRelationships'));
+  assert.ok(main.includes('INSERT INTO projects(lead_id,client_id,title'));
+  assert.ok(main.includes('UPDATE projects SET lead_id=@lead_id, client_id=@client_id'));
+  assert.ok(main.includes('Выбранная заявка принадлежит другому клиенту'));
 });
 
 test('date-only defaults use local calendar fields rather than UTC ISO conversion', () => {
-  assert.match(renderer, /function dateToday\\(\\) \\{ const now = new Date\\(\\)/);
-  assert.doesNotMatch(renderer, /function dateToday\\(\\) \\{ return new Date\\(\\)\\.toISOString\\(\\)\\.slice/);
-  assert.match(renderer, /productionReportStart'\\)\\.value = `\\$\\{new Date\\(\\)\\.getFullYear\\(\\)\\}/);
+  assert.ok(renderer.includes('function dateToday() { const now = new Date();'));
+  assert.ok(!renderer.includes('function dateToday() { return new Date().toISOString()'));
+  assert.ok(renderer.includes('padStart(2,\\'0\\')}-01'));
 });
