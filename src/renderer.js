@@ -88,9 +88,9 @@ function dateToday() { const now = new Date(); return `${now.getFullYear()}-${St
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте ОПЛОТ' };
+  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', team: 'Бригады и мастера', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте ОПЛОТ' };
   $('pageTitle').textContent = titles[name] || 'ОПЛОТ';
-  const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
+  const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, team: refreshCrewContacts, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
   if (name === 'settings') refreshPinSettings().catch(() => toast('Не удалось загрузить настройки безопасности. Попробуй открыть раздел ещё раз.', true));
   const view = $(`view-${name}`);
   if (loaders[name] && view) {
@@ -533,6 +533,14 @@ async function refreshClients() {
   const rows = await window.crm.listClients(); const q = ($('clientSearch')?.value || '').toLowerCase();
   const filtered = rows.filter(c => `${c.name} ${c.phone} ${c.email}`.toLowerCase().includes(q));
   $('clientsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Клиент</th><th>Телефон</th><th>Email</th><th>Тип</th><th>Добавлен</th><th>Действия</th></tr></thead><tbody>${filtered.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.phone || '—')}</td><td>${esc(c.email || '—')}</td><td>${c.client_type === 'company' ? 'Компания' : 'Частное лицо'}</td><td>${esc(String(c.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-client="${c.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Клиентов пока нет','Добавь первый контакт в свою базу.');
+}
+const crewContactTypeLabels = { worker: 'Рабочий', crew: 'Бригада', master: 'Мастер / прораб' };
+async function refreshCrewContacts() {
+ const filter = $('crewContactTypeFilter')?.value || ''; const rows = await window.crm.listCrewContacts(filter ? { record_type: filter } : {});
+ const query = ($('crewContactSearch')?.value || '').trim().toLocaleLowerCase('ru-RU');
+ const filtered = rows.filter(row => [row.full_name,row.phone,row.specialty,row.notes,crewContactTypeLabels[row.record_type] || row.record_type].join(' ').toLocaleLowerCase('ru-RU').includes(query));
+ $('crewContactSummary').textContent = filtered.length ? 'Показано: ' + filtered.length + '. Всего в выбранной категории: ' + rows.length + '.' : (query ? 'По запросу ничего не найдено.' : 'Контактов пока нет. Добавь рабочих, бригады или мастеров, чтобы не терять их данные.');
+ $('crewContactsTable').innerHTML = filtered.length ? '<table class="data-table team-table"><thead><tr><th>Имя / бригада</th><th>Телефон</th><th>Связь</th><th>Что делает</th><th>Заметки</th><th>Действия</th></tr></thead><tbody>' + filtered.map(row => '<tr><td><strong>' + esc(row.full_name) + '</strong><small class="table-sub">' + esc(crewContactTypeLabels[row.record_type] || 'Контакт') + '</small></td><td>' + (row.phone ? '<a class="local-link" href="tel:' + esc(row.phone) + '">' + esc(row.phone) + '</a>' : '<span class="muted">Не указан</span>') + '</td><td><div class="team-links">' + (row.telegram_url ? '<button type="button" class="button subtle small-button" data-external="' + esc(row.telegram_url) + '">Telegram ↗</button>' : '') + (row.max_url ? '<button type="button" class="button subtle small-button" data-external="' + esc(row.max_url) + '">MAX ↗</button>' : '') + (!row.telegram_url && !row.max_url ? '<span class="muted">Нет ссылок</span>' : '') + '</div></td><td>' + esc(row.specialty || '—') + '</td><td class="team-notes">' + esc(row.notes || '—') + '</td><td><div class="row-actions"><button type="button" class="button subtle small-button" data-edit-crew-contact="' + row.id + '">Изменить</button><button type="button" class="button subtle small-button danger-button" data-delete-crew-contact="' + row.id + '">Удалить</button></div></td></tr>').join('') + '</tbody></table>' : empty('Контактов не найдено', query ? 'Измени поисковый запрос или фильтр.' : 'Добавь первый контакт команды.');
 }
 async function refreshProjects() {
   const rows = await window.crm.listProjects(); const q = ($('projectSearch')?.value || '').toLowerCase();
@@ -1042,6 +1050,23 @@ document.addEventListener('click', e => {
 $('quickLead').addEventListener('click', () => { $('leadForm').reset(); $('leadDialogTitle').textContent = 'Добавить заявку'; showView('leads'); openDialog('leadDialog'); });
 $('addLeadBtn').addEventListener('click', () => { $('leadForm').reset(); $('leadDialogTitle').textContent = 'Добавить заявку'; openDialog('leadDialog'); });
 $('addClientBtn').addEventListener('click', () => { $('clientForm').reset(); $('clientDialogTitle').textContent = 'Новый клиент'; openDialog('clientDialog'); });
+function openCrewContactEditor(row = null) {
+ const form = $('crewContactForm'); form.reset(); form.elements.id.value = row?.id || ''; form.elements.record_type.value = row?.record_type || 'worker'; form.elements.full_name.value = row?.full_name || ''; form.elements.phone.value = row?.phone || ''; form.elements.telegram_url.value = row?.telegram_url || ''; form.elements.max_url.value = row?.max_url || ''; form.elements.specialty.value = row?.specialty || ''; form.elements.notes.value = row?.notes || '';
+ $('crewContactDialogTitle').textContent = row ? 'Изменить контакт' : 'Добавить контакт'; openDialog('crewContactDialog');
+}
+$('addCrewContactBtn').addEventListener('click', () => openCrewContactEditor());
+$('crewContactSearch').addEventListener('input', () => refreshCrewContacts().catch(error => toast(error.message, true)));
+$('crewContactTypeFilter').addEventListener('change', () => refreshCrewContacts().catch(error => toast(error.message, true)));
+$('crewContactsTable').addEventListener('click', async event => {
+ const edit = event.target.closest('[data-edit-crew-contact]');
+ if (edit) { try { const rows = await window.crm.listCrewContacts(); const row = rows.find(item => item.id === Number(edit.dataset.editCrewContact)); if (!row) throw new Error('Контакт не найден. Обнови список.'); openCrewContactEditor(row); } catch (error) { toast(error.message, true); } return; }
+ const remove = event.target.closest('[data-delete-crew-contact]');
+ if (remove) { const id = Number(remove.dataset.deleteCrewContact); if (!window.confirm('Удалить этот контакт из справочника? Это действие нельзя отменить.')) return; try { await window.crm.deleteCrewContact(id); toast('Контакт удалён.'); await refreshCrewContacts(); } catch (error) { toast(error.message, true); } }
+});
+$('crewContactForm').addEventListener('submit', async event => {
+ event.preventDefault(); const form = event.currentTarget; const data = Object.fromEntries(new FormData(form).entries()); const id = Number(data.id);
+ try { if (id) await window.crm.updateCrewContact({ ...data, id }); else await window.crm.createCrewContact(data); closeDialog('crewContactDialog'); form.reset(); toast(id ? 'Контакт обновлён.' : 'Контакт сохранён.'); await refreshCrewContacts(); } catch (error) { toast(error.message || 'Не удалось сохранить контакт.', true); }
+});
 async function populateProjectRelationships(clientId = '', leadId = '') {
   const [clients, leads] = await Promise.all([window.crm.listClients(), window.crm.listLeads()]);
   const form = $('projectForm');
