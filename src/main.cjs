@@ -232,7 +232,7 @@ ipcMain.handle('dashboard:summary', () => {
   const clients = db.prepare('SELECT COUNT(*) count FROM clients').get().count;
   return { leads, projects, contract, received: totalReceived, expenses, clients, cash: totalReceived - expenses };
 });
-ipcMain.handle('clients:list', () => db.prepare('SELECT * FROM clients ORDER BY id DESC LIMIT 1000').all());
+ipcMain.handle('clients:list', () => db.prepare('SELECT * FROM clients ORDER BY id DESC').all());
 ipcMain.handle('clients:create', (_event, input = {}) => {
   const name = clean(input.name, 180);
   if (!name) throw new Error('Укажи имя клиента или название компании.');
@@ -251,7 +251,7 @@ ipcMain.handle('clients:update', (_event, input = {}) => {
     .run(name, clean(input.phone, 40), normalizeContactEmail(input.email), input.client_type === 'company' ? 'company' : 'person', clean(input.notes), id);
   return db.prepare('SELECT * FROM clients WHERE id=?').get(id);
 });
-ipcMain.handle('leads:list', () => db.prepare('SELECT l.*, c.name client_name FROM leads l LEFT JOIN clients c ON c.id=l.client_id ORDER BY l.id DESC LIMIT 1000').all());
+ipcMain.handle('leads:list', () => db.prepare('SELECT l.*, c.name client_name FROM leads l LEFT JOIN clients c ON c.id=l.client_id ORDER BY l.id DESC').all());
 ipcMain.handle('leads:create', (_event, input = {}) => {
   const title = clean(input.title, 180);
   if (!title) throw new Error('Укажи название заявки.');
@@ -288,7 +288,7 @@ ipcMain.handle('projects:list', () => db.prepare(`SELECT p.*, c.name client_name
   COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub,
   COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub,
   COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub
-  FROM projects p LEFT JOIN clients c ON c.id=p.client_id LEFT JOIN leads l ON l.id=p.lead_id ORDER BY p.id DESC LIMIT 1000`).all());
+  FROM projects p LEFT JOIN clients c ON c.id=p.client_id LEFT JOIN leads l ON l.id=p.lead_id ORDER BY p.id DESC`).all());
 ipcMain.handle('projects:create', (_event, input = {}) => {
   const project = normalizeProjectInput(input);
   const contract = amount(project.contract_rub, { allowZero: true });
@@ -424,12 +424,7 @@ ipcMain.handle('production:exportReportPdf', async (_event, input = {}) => {
     await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
     const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
     fs.writeFileSync(filePath, data);
-    const costRub = Math.max(0, Number(input.estimatedCostRub) || 0);
-    const profitRub = Number.isFinite(Number(input.estimatedProfitRub)) ? Number(input.estimatedProfitRub) : total - costRub;
-    const marginPct = Number.isFinite(Number(input.marginPct)) ? Number(input.marginPct) : (total > 0 ? profitRub / total * 100 : 0);
-    db.prepare(`INSERT INTO quote_history(title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json,file_path) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
-      .run(title, customer, address, new Date().toISOString(), total, costRub, profitRub, marginPct, discount, lines.length, JSON.stringify(lines.map(line => ({ name: clean(line.name,180), unit: clean(line.unit,24), quantity: Math.max(0, Number(line.quantity) || 0), price: Math.max(0, Number(line.price) || 0) }))), filePath);
-    return { canceled: false, filePath, historySaved: true };
+    return { canceled: false, filePath };
   }
   finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
 });
@@ -547,7 +542,7 @@ ipcMain.handle('production:deleteShift', (_event, shiftIdValue) => {
   return { deleted: true, shift_id: shiftId };
 });
 
-ipcMain.handle('income:list', () => db.prepare('SELECT * FROM income_records ORDER BY income_date DESC, id DESC LIMIT 2000').all());
+ipcMain.handle('income:list', () => db.prepare('SELECT * FROM income_records ORDER BY income_date DESC, id DESC').all());
 ipcMain.handle('income:create', (_event, input = {}) => {
   const amountRub = amount(input.amount_rub), date = clean(input.income_date, 10), source = clean(input.source, 180);
   if (!validDate(date) || !date) throw new Error('Укажи корректную дату дохода.');
@@ -566,7 +561,7 @@ ipcMain.handle('income:update', (_event, input = {}) => {
   db.prepare('UPDATE income_records SET amount_rub=?,income_date=?,record_type=?,source=?,note=? WHERE id=?').run(amountRub,date,type,source,clean(input.note,500),id);
   return db.prepare('SELECT * FROM income_records WHERE id=?').get(id);
 });
-ipcMain.handle('payments:list', () => db.prepare(`SELECT py.*, p.title project_title FROM payments py JOIN projects p ON p.id=py.project_id ORDER BY py.payment_date DESC, py.id DESC LIMIT 2000`).all());
+ipcMain.handle('payments:list', () => db.prepare(`SELECT py.*, p.title project_title FROM payments py JOIN projects p ON p.id=py.project_id ORDER BY py.payment_date DESC, py.id DESC`).all());
 ipcMain.handle('payments:create', (_event, input = {}) => {
   const projectId = Number(input.project_id);
   if (!Number.isInteger(projectId) || !db.prepare('SELECT id FROM projects WHERE id=?').get(projectId)) throw new Error('Выбери существующий объект.');
@@ -590,7 +585,7 @@ ipcMain.handle('payments:update', (_event, input = {}) => {
     .run(projectId, amountRub, date, type, method, clean(input.note,500), id);
   return db.prepare('SELECT * FROM payments WHERE id=?').get(id);
 });
-ipcMain.handle('expenses:list', () => db.prepare(`SELECT e.*, p.title project_title FROM expenses e LEFT JOIN projects p ON p.id=e.project_id ORDER BY e.expense_date DESC, e.id DESC LIMIT 2000`).all());
+ipcMain.handle('expenses:list', () => db.prepare(`SELECT e.*, p.title project_title FROM expenses e LEFT JOIN projects p ON p.id=e.project_id ORDER BY e.expense_date DESC, e.id DESC`).all());
 ipcMain.handle('finance:insights', () => {
   const projects = db.prepare(`SELECT p.*, COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub FROM projects p WHERE p.status != 'cancelled'`).all();
   const expenses = db.prepare('SELECT * FROM expenses ORDER BY expense_date ASC').all();
@@ -635,7 +630,7 @@ ipcMain.handle('tasks:list', (_event, input = {}) => {
   return db.prepare(`SELECT t.*, l.title lead_title, p.title project_title,
     CASE WHEN t.is_done=1 THEN 'done' WHEN t.due_at IS NULL OR t.due_at='' THEN 'unscheduled' WHEN date(t.due_at) < date('now','localtime') THEN 'overdue' WHEN date(t.due_at)=date('now','localtime') THEN 'today' ELSE 'upcoming' END urgency
     FROM tasks t LEFT JOIN leads l ON l.id=t.lead_id LEFT JOIN projects p ON p.id=t.project_id ${where}
-    ORDER BY CASE WHEN t.is_done=1 THEN 3 WHEN t.due_at IS NULL OR t.due_at='' THEN 2 WHEN date(t.due_at)<date('now','localtime') THEN 0 ELSE 1 END, t.due_at ASC, t.id DESC LIMIT 2000`).all();
+    ORDER BY CASE WHEN t.is_done=1 THEN 3 WHEN t.due_at IS NULL OR t.due_at='' THEN 2 WHEN date(t.due_at)<date('now','localtime') THEN 0 ELSE 1 END, t.due_at ASC, t.id DESC`).all();
 });
 ipcMain.handle('tasks:create', (_event, input = {}) => {
   const normalized = normalizeTaskInput(input);
@@ -718,7 +713,7 @@ ipcMain.handle('orders:list', (_event,input={})=>{
  const terms=clean(input.search,180).toLowerCase();const where=[],params=[];
  if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}if(sourceType){where.push('source_type=?');params.push(sourceType)}
  if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%')}
- const rows=db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC LIMIT 500`).all(...params);
+ const rows=db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC`).all(...params);
  const analyses=new Map(db.prepare('SELECT * FROM commercial_order_analysis').all().map(item=>[Number(item.order_id),item]));
  return rows.map(r=>{const analysis=analyses.get(Number(r.id))||null;return {...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean),pi_analysis:analysis,pi_assessment:assessCommercialOrder(r,analysis)};});
 });
@@ -896,7 +891,7 @@ ipcMain.handle('prospects:convertLead', (_event, prospectId) => {
     : sourceText.includes('telegram') || sourceText.includes('телеграм') ? 'telegram'
     : sourceText.includes('site') || sourceText.includes('сайт') || prospect.website ? 'website' : 'other';
   const create = db.transaction(() => {
-    let client = db.prepare(`SELECT id FROM clients WHERE lower(name)=lower(?) OR (? <> '' AND phone=?) ORDER BY id LIMIT 1`).get(prospect.company_name, prospect.phone || '', prospect.phone || '');
+    let client = db.prepare(`SELECT id FROM clients WHERE lower(trim(name))=lower(trim(?))`).get(prospect.company_name);
     if (!client) {
       const clientResult = db.prepare(`INSERT INTO clients(name,phone,email,client_type,notes) VALUES (?,?,?,'company',?)`).run(
         prospect.company_name, prospect.phone || '', prospect.email || '', [prospect.website ? `Сайт: ${prospect.website}` : '', prospect.source_url ? `Источник: ${prospect.source_url}` : '', prospect.notes || ''].filter(Boolean).join('\n').slice(0,2000)
@@ -1139,8 +1134,18 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить коммерческое предложение в PDF', defaultPath: `${title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,80)}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (canceled || !filePath) return { canceled: true };
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
-  try { await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html)); const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } }); fs.writeFileSync(filePath, data); return { canceled: false, filePath }; }
-  finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
+  try {
+    await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+    fs.writeFileSync(filePath, data);
+    const costRub = Math.max(0, Number(input.estimatedCostRub) || 0);
+    const profitRub = Number.isFinite(Number(input.estimatedProfitRub)) ? Number(input.estimatedProfitRub) : total - costRub;
+    const marginPct = Number.isFinite(Number(input.marginPct)) ? Number(input.marginPct) : (total > 0 ? profitRub / total * 100 : 0);
+    db.prepare(`INSERT INTO quote_history(title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json,file_path) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(title, customer, address, new Date().toISOString(), total, costRub, profitRub, marginPct, discount, lines.length,
+        JSON.stringify(lines.map(line => ({ name: clean(line.name,180), unit: clean(line.unit,24), quantity: Math.max(0, Number(line.quantity) || 0), price: Math.max(0, Number(line.price) || 0) }))), filePath);
+    return { canceled: false, filePath, historySaved: true };
+  } finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
 });
 
 ipcMain.handle('updates:status', () => updateStatus);
