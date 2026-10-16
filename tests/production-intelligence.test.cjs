@@ -67,3 +67,20 @@ test('PI detects recurring underperformance only after at least three observatio
   assert.ok(alert);
   assert.match(alert.message, /2 из 3/iu);
 });
+
+
+test('browser-side PI validates ISO dates and detects stale shift reports', () => {
+  const { buildProductionIntelligence: buildBrowserPI } = require('../src/production-intelligence.js');
+  const result = buildBrowserPI({
+    projects: [{ id: 4, title: 'Объект с историей', planCount: 1, shiftCount: 1, lastShiftDate: '2026-10-01', forecast: { estimated: true, lines: [] } }],
+    history: [],
+    totals: { shifts: 1, work_records: 0 }
+  }, { today: '2026-10-13' });
+  assert.ok(result.alerts.some(alert => /12 дн\. назад/iu.test(alert.message)));
+  const invalid = buildBrowserPI({
+    projects: [{ id: 5, title: 'Объект с некорректной датой', planCount: 1, shiftCount: 1, lastShiftDate: '2026-02-31', forecast: { estimated: true, lines: [] } }],
+    history: [],
+    totals: { shifts: 1, work_records: 0 }
+  }, { today: '2026-10-13' });
+  assert.equal(invalid.alerts.some(alert => /Нет свежих отчётов/iu.test(alert.title)), false);
+});

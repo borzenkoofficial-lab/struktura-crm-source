@@ -8,6 +8,7 @@ const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'ut
 const main = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
 const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+const pinSecurity = fs.readFileSync(path.join(__dirname, '../src/pin-security.cjs'), 'utf8');
 
 test('async create forms capture their form before awaiting IPC', () => {
   for (const id of ['leadForm', 'clientForm', 'projectForm', 'paymentForm', 'expenseForm']) {
@@ -622,8 +623,9 @@ test('startup PIN is configurable in settings, verified in main process, and has
   assert.match(html, /id="pinDisableBtn"/);
   assert.match(renderer, /initializeStartupGate\(\)\.then\(\(\) => refreshDashboard\(\)\)/);
   assert.match(preload, /verifyPin: \(data\) => ipcRenderer\.invoke\('security:pinVerify', data\)/);
-  assert.match(main, /crypto\.scryptSync\(pin, salt, 64\)/);
-  assert.match(main, /crypto\.timingSafeEqual/);
+  assert.match(main, /require\('\.\/pin-security\.cjs'\)/);
+  assert.match(pinSecurity, /crypto\.scryptSync\(pin, salt, 64\)/);
+  assert.match(pinSecurity, /crypto\.timingSafeEqual/);
   assert.match(main, /security:pinSet/);
   assert.match(main, /lockedUntil/);
 });

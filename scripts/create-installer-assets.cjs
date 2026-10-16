@@ -87,8 +87,8 @@ function iconIco() {
   dib.writeUInt16LE(1, 12); dib.writeUInt16LE(32, 14); dib.writeUInt32LE(0, 16); dib.writeUInt32LE(xorBytes, 20);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     const dx = x - 15.5, dy = y - 15.5, inTile = Math.abs(dx) < 13 && Math.abs(dy) < 13;
-    const inG = inTile && ((x >= 8 && x <= 24 && y >= 8 && y <= 12) || (x >= 8 && x <= 12 && y >= 8 && y <= 24) || (x >= 8 && x <= 24 && y >= 20 && y <= 24) || (x >= 19 && x <= 24 && y >= 16 && y <= 24) || (x >= 16 && x <= 24 && y >= 15 && y <= 18));
-    const c = inG ? palette.white : (inTile ? palette.orange : palette.navy);
+    const inS = inTile && ((x >= 8 && x <= 24 && y >= 8 && y <= 11) || (x >= 8 && x <= 11 && y >= 8 && y <= 16) || (x >= 8 && x <= 24 && y >= 13 && y <= 16) || (x >= 20 && x <= 23 && y >= 13 && y <= 23) || (x >= 8 && x <= 23 && y >= 20 && y <= 23));
+    const c = inS ? palette.white : (inTile ? palette.orange : palette.navy);
     const off = 40 + ((n - 1 - y) * n + x) * 4;
     dib[off] = c[2]; dib[off + 1] = c[1]; dib[off + 2] = c[0]; dib[off + 3] = 255;
   }
@@ -105,10 +105,11 @@ circle(side, 145, 27, 49, [35, 76, 99], 1);
 circle(side, 18, 285, 78, [24, 48, 68], 1);
 rect(side, 23, 43, 48, 48, palette.orange);
 rect(side, 31, 51, 32, 32, palette.navy);
-rect(side, 31, 51, 32, 7, palette.white);
-rect(side, 31, 51, 7, 32, palette.white);
+rect(side, 31, 51, 32, 6, palette.white);
+rect(side, 56, 51, 7, 12, palette.white);
+rect(side, 31, 64, 32, 6, palette.white);
+rect(side, 31, 64, 7, 12, palette.white);
 rect(side, 31, 76, 32, 7, palette.white);
-rect(side, 50, 68, 13, 15, palette.white);
 text(side, 'STRUKTURA', 23, 109, 2, palette.white, 1);
 rect(side, 23, 135, 42, 3, palette.orange);
 text(side, 'CRM', 23, 153, 2, [220, 231, 239], 2);
@@ -122,9 +123,10 @@ rect(side, 23, 275, 118, 1, [60, 88, 107]);
 const header = canvas(150, 57, (x, y) => blend(palette.navy, palette.navy2, x / 150 * 0.4 + y / 57 * 0.15));
 rect(header, 12, 12, 31, 31, palette.orange);
 rect(header, 18, 18, 19, 5, palette.white);
-rect(header, 18, 18, 5, 19, palette.white);
+rect(header, 32, 18, 5, 11, palette.white);
+rect(header, 18, 26, 19, 5, palette.white);
+rect(header, 18, 26, 5, 11, palette.white);
 rect(header, 18, 32, 19, 5, palette.white);
-rect(header, 30, 29, 7, 8, palette.white);
 text(header, 'STRUKTURA', 51, 17, 2, palette.white, 1);
 text(header, 'CRM', 52, 34, 1, [176, 198, 211], 2);
 
