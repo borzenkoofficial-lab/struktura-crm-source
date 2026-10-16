@@ -26,6 +26,19 @@ const { normalizeTaskInput } = require('./task-utils.cjs');
 const { normalizeContactEmail } = require('./contact-utils.cjs');
 const { buildFinanceInsights } = require('./finance-insights.cjs');
 const { normalizeProjectInput, validDate } = require('./project-utils.cjs');
+function resolveProjectRelations(project) {
+  let clientId = project.client_id;
+  const leadId = project.lead_id;
+  if (clientId !== null && (!Number.isSafeInteger(clientId) || clientId < 1 || !db.prepare('SELECT id FROM clients WHERE id=?').get(clientId))) throw new Error('Выбранный клиент не найден.');
+  if (leadId !== null) {
+    if (!Number.isSafeInteger(leadId) || leadId < 1) throw new Error('Выбрана некорректная заявка.');
+    const lead = db.prepare('SELECT id,client_id FROM leads WHERE id=?').get(leadId);
+    if (!lead) throw new Error('Выбранная заявка не найдена.');
+    if (lead.client_id && clientId && lead.client_id !== clientId) throw new Error('Выбранная заявка принадлежит другому клиенту. Выбери согласованные записи.');
+    if (!clientId && lead.client_id) clientId = lead.client_id;
+  }
+  return { ...project, client_id: clientId, lead_id: leadId };
+}
 const { forecastRemainingWork, buildRateModel } = require('./production-model.cjs');
 const { DEFAULT_REMINDER_SETTINGS, normalizeReminderSettings, buildReminders } = require('./reminder-engine.cjs');
 const { normalizeProductionPlan, normalizeShiftWorkLines } = require('./production-plan-utils.cjs');
@@ -290,19 +303,19 @@ ipcMain.handle('projects:list', () => db.prepare(`SELECT p.*, c.name client_name
   COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub
   FROM projects p LEFT JOIN clients c ON c.id=p.client_id LEFT JOIN leads l ON l.id=p.lead_id ORDER BY p.id DESC`).all());
 ipcMain.handle('projects:create', (_event, input = {}) => {
-  const project = normalizeProjectInput(input);
+  const project = resolveProjectRelations(normalizeProjectInput(input));
   const contract = amount(project.contract_rub, { allowZero: true });
-  const result = db.prepare(`INSERT INTO projects(title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
-    VALUES (@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
+  const result = db.prepare(`INSERT INTO projects(lead_id,client_id,title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
+    VALUES (@lead_id,@client_id,@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
   return db.prepare('SELECT * FROM projects WHERE id=?').get(result.lastInsertRowid);
 });
 ipcMain.handle('projects:update', (_event, input = {}) => {
   const id = Number(input.id);
   if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный номер объекта.');
   if (!db.prepare('SELECT id FROM projects WHERE id=?').get(id)) throw new Error('Объект не найден. Обнови список и попробуй снова.');
-  const project = normalizeProjectInput(input);
+  const project = resolveProjectRelations(normalizeProjectInput(input));
   const contract = amount(project.contract_rub, { allowZero: true });
-  db.prepare(`UPDATE projects SET title=@title, service=@service, status=@status, contract_rub=@contract_rub,
+  db.prepare(`UPDATE projects SET lead_id=@lead_id, client_id=@client_id, title=@title, service=@service, status=@status, contract_rub=@contract_rub,
     address=@address, start_date=@start_date, end_date=@end_date, planned_people=@planned_people,
     complexity_factor=@complexity_factor, notes=@notes, updated_at=CURRENT_TIMESTAMP WHERE id=@id`)
     .run({ ...project, contract_rub: contract, id });
@@ -319,11 +332,11 @@ ipcMain.handle('projects:updateStatus', (_event, input = {}) => {
 });
 ipcMain.handle('projects:createWithPlan', (_event, input = {}) => {
   const plan = normalizeProductionPlan(input.plan || {});
-  const project = normalizeProjectInput({ ...(input.project || {}), planned_people: plan.planned_people, complexity_factor: plan.complexity_factor });
+  const project = resolveProjectRelations(normalizeProjectInput({ ...(input.project || {}), planned_people: plan.planned_people, complexity_factor: plan.complexity_factor }));
   const contract = amount(project.contract_rub, { allowZero: true });
   const create = db.transaction(() => {
-    const result = db.prepare(`INSERT INTO projects(title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
-      VALUES (@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
+    const result = db.prepare(`INSERT INTO projects(lead_id,client_id,title,service,status,contract_rub,address,start_date,end_date,planned_people,complexity_factor,notes)
+      VALUES (@lead_id,@client_id,@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
     const projectId = Number(result.lastInsertRowid);
     const insert = db.prepare(`INSERT INTO production_plans(project_id,catalog_id,work_name,unit,planned_quantity,baseline_productivity)
       VALUES (@project_id,@catalog_id,@work_name,@unit,@planned_quantity,@baseline_productivity)`);
