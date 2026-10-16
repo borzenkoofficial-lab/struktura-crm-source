@@ -1094,7 +1094,40 @@ estimateLoadDraft();
 refreshEstimateLearningRates().catch(error => { $('estimateLearningStatus').textContent = `Не удалось загрузить фактические нормы: ${error.message}`; });
 $('addPaymentBtn').addEventListener('click', async () => { await refreshProjects(); if (!(await window.crm.listProjects()).length) { toast('Сначала создай объект, к которому привязать платёж.', true); showView('projects'); return; } $('paymentForm').reset(); $('paymentForm').elements.payment_date.value = dateToday(); $('paymentDialogTitle').textContent = 'Записать платёж'; openDialog('paymentDialog'); });
 $('addExpenseBtn').addEventListener('click', async () => { await refreshProjects(); $('expenseForm').reset(); $('expenseForm').elements.expense_date.value = dateToday(); $('expenseDialogTitle').textContent = 'Добавить расход'; openDialog('expenseDialog'); });
-$('notificationSettingsBtn').addEventListener('click', async () => { try { await refreshNotificationSettings(); openDialog('notificationSettingsDialog'); } catch (error) { toast(`Не удалось загрузить настройки уведомлений: ${error.message}`, true); } });
+async function refreshPinSettings() {
+  const status = await window.crm.getPinStatus();
+  $('pinSettingsBadge').textContent = status.enabled ? 'Включён' : 'Выключен';
+  $('pinCurrentLabel').hidden = !status.enabled;
+  $('pinCurrentInput').required = Boolean(status.enabled);
+  $('pinSaveBtn').textContent = status.enabled ? 'Изменить PIN' : 'Включить PIN';
+  $('pinDisableBtn').hidden = !status.enabled;
+  $('pinSettingsStatus').textContent = status.enabled ? 'При следующем запуске CRM запросит PIN-код.' : 'PIN не установлен. Создай его, чтобы закрыть доступ при запуске.';
+}
+$('notificationSettingsBtn').addEventListener('click', async () => { try { await Promise.all([refreshNotificationSettings(), refreshPinSettings()]); openDialog('notificationSettingsDialog'); } catch (error) { toast(`Не удалось загрузить настройки: ${error.message}`, true); } });
+$('pinSettingsForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const currentPin = $('pinCurrentInput').value;
+  const pin = $('pinNewInput').value;
+  const confirmPin = $('pinConfirmInput').value;
+  if (!/^\d{4,12}$/.test(pin)) { $('pinSettingsStatus').textContent = 'PIN должен содержать от 4 до 12 цифр.'; return; }
+  if (pin !== confirmPin) { $('pinSettingsStatus').textContent = 'PIN-коды не совпадают.'; return; }
+  try {
+    await window.crm.setPin({ currentPin, pin });
+    $('pinSettingsForm').reset();
+    await refreshPinSettings();
+    toast('PIN-код сохранён. Он будет запрашиваться при следующем запуске.');
+  } catch (error) { $('pinSettingsStatus').textContent = error.message || 'Не удалось сохранить PIN.'; }
+});
+$('pinDisableBtn').addEventListener('click', async () => {
+  const currentPin = $('pinCurrentInput').value;
+  if (!currentPin) { $('pinSettingsStatus').textContent = 'Введи текущий PIN, чтобы отключить защиту.'; return; }
+  try {
+    await window.crm.disablePin({ currentPin });
+    $('pinSettingsForm').reset();
+    await refreshPinSettings();
+    toast('Защита PIN отключена.');
+  } catch (error) { $('pinSettingsStatus').textContent = error.message || 'Не удалось отключить PIN.'; }
+});
 $('notificationSettingsForm').addEventListener('submit', async event => { event.preventDefault(); const form = event.currentTarget; const data = Object.fromEntries(new FormData(form)); for (const key of ['enabled','taskDeadlines','missingShiftReports','overdueProjects','weekdaysOnly']) data[key] = form.elements[key].checked; for (const key of ['startHour','endHour','staleShiftDays','repeatEveryHours']) data[key] = Number(data[key]); try { const saved = await window.crm.saveNotificationSettings(data); closeDialog('notificationSettingsDialog'); $('notificationStatus').textContent = saved.enabled ? `Включены · ${String(saved.startHour).padStart(2,'0')}:00–${String(saved.endHour).padStart(2,'0')}:00 · проверка каждые 15 мин.` : 'Уведомления выключены'; toast('Настройки уведомлений сохранены.'); } catch (error) { toast(error.message, true); } });
 $('refreshBtn').addEventListener('click', () => refreshDashboard().catch(e => toast(e.message,true)));
 $('leadSearch').addEventListener('input', () => refreshLeads().catch(e => toast(e.message,true)));
@@ -1705,6 +1738,43 @@ window.crm.onUpdateStatus(renderUpdateStatus);
 for (const id of ['paymentForm','expenseForm']) { const field = $(id).elements[id === 'paymentForm' ? 'payment_date' : 'expense_date']; field.value = dateToday(); }
 const startupSplash = $('startupSplash');
 const startupStartedAt = performance.now();
+let pinUnlockResolve = null;
+let startupGatePromise = null;
+async function initializeStartupGate() {
+  if (startupGatePromise) return startupGatePromise;
+  startupGatePromise = (async () => {
+    const status = await window.crm.getPinStatus();
+    if (!status.enabled) return true;
+    $('pinLockScreen').hidden = false;
+    $('pinUnlockInput').focus();
+    if (startupSplash) startupSplash.classList.add('is-hidden');
+    return new Promise(resolve => { pinUnlockResolve = resolve; });
+  })();
+  return startupGatePromise;
+}
+$('pinUnlockForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = $('pinUnlockBtn'), input = $('pinUnlockInput'), status = $('pinUnlockStatus');
+  button.disabled = true;
+  status.textContent = 'Проверяем PIN…';
+  try {
+    const result = await window.crm.verifyPin({ pin: input.value });
+    if (result.ok) {
+      $('pinLockScreen').hidden = true;
+      status.textContent = '';
+      input.value = '';
+      if (pinUnlockResolve) { pinUnlockResolve(true); pinUnlockResolve = null; }
+      return;
+    }
+    input.value = '';
+    input.focus();
+    status.textContent = result.lockedForMs > 0
+      ? 'Слишком много неверных попыток. Подожди 30 секунд и попробуй снова.'
+      : `Неверный PIN. Осталось попыток: ${result.remainingAttempts}.`;
+  } catch (error) {
+    status.textContent = error.message || 'Не удалось проверить PIN.';
+  } finally { button.disabled = false; }
+});
 let startupSplashDismissed = false;
 function hideStartupSplash() {
   if (startupSplashDismissed || !startupSplash) return;
@@ -1719,7 +1789,7 @@ function hideStartupSplash() {
 // Never leave the launch screen covering the app if initial data loading stalls.
 window.setTimeout(hideStartupSplash, 8000);
 Promise.race([
-  refreshDashboard(),
+  initializeStartupGate().then(() => refreshDashboard()),
   new Promise((_, reject) => window.setTimeout(() => reject(new Error('Превышено время ожидания загрузки обзора (10 секунд). Проверьте локальную базу и перезапустите программу.')), 10000))
 ])
   .catch(e => {
