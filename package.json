@@ -34,7 +34,8 @@
           ]
         }
       ],
-      "artifactName": "Oplot-Setup-${version}.${ext}"
+      "artifactName": "Oplot-Setup-${version}.${ext}",
+      "icon": "build/oplot.ico"
     },
     "nsis": {
       "oneClick": false,
