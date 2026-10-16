@@ -32,6 +32,13 @@ const { normalizeProductionPlan, normalizeShiftWorkLines } = require('./producti
 const { buildProductionReportHtml } = require('./production-report.cjs');
 
 let db;
+let appUnlocked = true;
+const allowedWhileLocked = new Set(['security:pinStatus','security:pinVerify','security:pinSet','security:pinDisable']);
+const originalIpcHandle = ipcMain.handle.bind(ipcMain);
+ipcMain.handle = (channel, listener) => originalIpcHandle(channel, async (event, ...args) => {
+  if (!appUnlocked && !allowedWhileLocked.has(channel)) throw new Error('CRM заблокирована PIN-кодом. Введи PIN, чтобы продолжить.');
+  return listener(event, ...args);
+});
 let mainWindow;
 let browserView;
 let browserIsVisible = false;
@@ -114,6 +121,7 @@ function createBrowserView(win) {
   wc.loadURL('about:blank').catch(() => {});
 }
 function createWindow() {
+  appUnlocked = !Boolean(getSetting('app_pin_config', null)?.hash);
   const win = new BrowserWindow({
     width: 1440, height: 920, minWidth: 1020, minHeight: 680,
     title: 'Struktura CRM', backgroundColor: '#f5f7fa', autoHideMenuBar: true,
@@ -184,6 +192,7 @@ ipcMain.handle('security:pinVerify', (_event, input = {}) => {
   if (!config?.hash) return { ok: true, enabled: false, remainingAttempts: 5, lockedForMs: 0 };
   const attempt = evaluatePinAttempt(input.pin, config, getSetting('app_pin_failures', { count: 0, lockedUntil: 0 }));
   setSetting('app_pin_failures', attempt.failures);
+  if (attempt.result.ok) appUnlocked = true;
   return attempt.result;
 });
 ipcMain.handle('security:pinSet', (_event, input = {}) => {

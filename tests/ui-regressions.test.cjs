@@ -627,6 +627,9 @@ test('startup PIN is configurable in settings, verified in main process, and has
   assert.match(pinSecurity, /crypto\.scryptSync\(pin, salt, 64\)/);
   assert.match(pinSecurity, /crypto\.timingSafeEqual/);
   assert.match(main, /security:pinSet/);
+  assert.match(main, /allowedWhileLocked/);
+  assert.match(main, /if \(!appUnlocked && !allowedWhileLocked\.has\(channel\)\)/);
+  assert.match(main, /if \(attempt\.result\.ok\) appUnlocked = true/);
   assert.match(main, /lockedUntil/);
 });
 

@@ -1740,11 +1740,16 @@ const startupSplash = $('startupSplash');
 const startupStartedAt = performance.now();
 let pinUnlockResolve = null;
 let startupGatePromise = null;
+let startupUnlocked = false;
+function refreshStartupSettings() {
+  refreshSearchApiStatus();
+  refreshNotificationSettings().catch(() => { $('notificationStatus').textContent = 'Настройки уведомлений недоступны'; });
+}
 async function initializeStartupGate() {
   if (startupGatePromise) return startupGatePromise;
   startupGatePromise = (async () => {
     const status = await window.crm.getPinStatus();
-    if (!status.enabled) return true;
+    if (!status.enabled) { startupUnlocked = true; refreshStartupSettings(); return true; }
     $('pinLockScreen').hidden = false;
     $('pinUnlockInput').focus();
     if (startupSplash) startupSplash.classList.add('is-hidden');
@@ -1760,7 +1765,9 @@ $('pinUnlockForm').addEventListener('submit', async event => {
   try {
     const result = await window.crm.verifyPin({ pin: input.value });
     if (result.ok) {
+      startupUnlocked = true;
       $('pinLockScreen').hidden = true;
+      refreshStartupSettings();
       status.textContent = '';
       input.value = '';
       if (pinUnlockResolve) { pinUnlockResolve(true); pinUnlockResolve = null; }
@@ -1806,8 +1813,5 @@ Promise.race([
     }
   })
   .finally(hideStartupSplash);
-refreshSearchApiStatus();
-refreshNotificationSettings().catch(() => { $('notificationStatus').textContent = 'Настройки уведомлений недоступны'; });
-
-// PI re-checks saved business context periodically; only new high-priority signals can interrupt.
-setInterval(() => { refreshPiCoach().catch(() => {}); }, 5 * 60 * 1000);
+// PI does not query business data until the startup PIN gate has been passed.
+setInterval(() => { if (startupUnlocked) refreshPiCoach().catch(() => {}); }, 5 * 60 * 1000);
