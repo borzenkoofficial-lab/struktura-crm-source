@@ -84,3 +84,14 @@ test('production model keeps linear scaling when productivity is similar across 
   const model = buildRateModel({ baselineProductivity: 10, observations, targetCrewSize: 10 });
   assert.equal(model.crewScalingApplied, false, 'similar per-worker results do not justify a size adjustment');
 });
+
+test('production plan retains missing-norm work without fabricating a duration', () => {
+  const result = forecastRemainingWork({ planItems: [
+    { catalog_id: 'known', work_name: 'Работа с нормой', unit: 'м²', planned_quantity: 20, baseline_productivity: 10 },
+    { catalog_id: 'unknown', work_name: 'Работа без нормы', unit: 'м²', planned_quantity: 15, baseline_productivity: 0 }
+  ], crewSize: 5 });
+  assert.equal(result.lines.length, 2);
+  assert.equal(result.lines[1].missingRate, true);
+  assert.equal(result.lines[1].laborShiftsRemaining, null);
+  assert.equal(result.estimated, false);
+});
