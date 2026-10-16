@@ -1,5 +1,7 @@
 'use strict';
 
+// Windows release validation: regenerate the 256x256 OPLOT icon before packaging.
+
 const fs = require('node:fs');
 const path = require('node:path');
 
