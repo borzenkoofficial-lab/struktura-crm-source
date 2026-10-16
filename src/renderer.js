@@ -1559,9 +1559,11 @@ async function refreshProduction() {
   $('productionRecordCount').textContent = data.totals.work_records || 0;
   $('productionProjectCards').innerHTML = data.projects.length ? data.projects.map(project => {
     const forecast = project.forecast;
-    const forecastLabel = project.planCount && forecast.estimated
-      ? (forecast.teamShiftsRemaining <= 0 ? 'Работы по плану закрыты' : `≈ ${productionNum(forecast.teamShiftsRemaining,1)} смен бригадой ${project.planned_people} чел.`)
-      : 'Добавь план работ, чтобы прогнозировать остаток';
+    const forecastLabel = project.planCount && forecast.lines.some(line => line.missingRate)
+      ? 'План сохранён, но для части работ нужны нормы производительности'
+      : project.planCount && forecast.estimated
+        ? (forecast.teamShiftsRemaining <= 0 ? 'Работы по плану закрыты' : `≈ ${productionNum(forecast.teamShiftsRemaining,1)} смен бригадой ${project.planned_people} чел.`)
+        : 'Добавь план работ, чтобы прогнозировать остаток';
     const items = forecast.lines.slice(0,5).map(line => {
       const total = Math.max(Number(line.plannedQuantity || 0), 0.0001);
       const progress = Math.min(100, Math.round(Number(line.actualQuantity || 0) / total * 100));
