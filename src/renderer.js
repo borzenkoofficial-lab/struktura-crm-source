@@ -1007,7 +1007,20 @@ document.addEventListener('click', e => {
 $('quickLead').addEventListener('click', () => { $('leadForm').reset(); $('leadDialogTitle').textContent = 'Добавить заявку'; showView('leads'); openDialog('leadDialog'); });
 $('addLeadBtn').addEventListener('click', () => { $('leadForm').reset(); $('leadDialogTitle').textContent = 'Добавить заявку'; openDialog('leadDialog'); });
 $('addClientBtn').addEventListener('click', () => { $('clientForm').reset(); $('clientDialogTitle').textContent = 'Новый клиент'; openDialog('clientDialog'); });
-$('addProjectBtn').addEventListener('click', () => { pendingProjectPlan = null; $('projectForm').reset(); $('projectForm').elements.planned_people.value = '5'; $('projectDialogTitle').textContent = 'Новый объект'; openDialog('projectDialog'); });
+async function populateProjectRelationships(clientId = '', leadId = '') {
+  const [clients, leads] = await Promise.all([window.crm.listClients(), window.crm.listLeads()]);
+  const form = $('projectForm');
+  form.elements.client_id.innerHTML = '<option value="">Без клиента</option>' + clients.map(client => `<option value="${client.id}">${esc(client.name)}${client.phone ? ` · ${esc(client.phone)}` : ''}</option>`).join('');
+  form.elements.lead_id.innerHTML = '<option value="">Без заявки</option>' + leads.map(lead => `<option value="${lead.id}">${esc(lead.title)}${lead.client_name ? ` · ${esc(lead.client_name)}` : ''}</option>`).join('');
+  form.elements.client_id.value = clientId ? String(clientId) : '';
+  form.elements.lead_id.value = leadId ? String(leadId) : '';
+}
+$('projectLeadSelect').addEventListener('change', async event => {
+  if (!event.target.value) return;
+  try { const lead = (await window.crm.listLeads()).find(item => item.id === Number(event.target.value)); if (lead?.client_id) $('projectClientSelect').value = String(lead.client_id); }
+  catch (error) { toast(error.message, true); }
+});
+$('addProjectBtn').addEventListener('click', async () => { pendingProjectPlan = null; $('projectForm').reset(); $('projectForm').elements.planned_people.value = '5'; $('projectDialogTitle').textContent = 'Новый объект'; try { await populateProjectRelationships(); openDialog('projectDialog'); } catch (error) { toast(`Не удалось загрузить клиентов и заявки: ${error.message}`, true); } });
 $('projectForm').elements.start_date.addEventListener('change', e => { $('projectForm').elements.end_date.min = e.target.value || ''; if ($('projectForm').elements.end_date.value && e.target.value && $('projectForm').elements.end_date.value < e.target.value) $('projectForm').elements.end_date.value = ''; $('projectForm').elements.end_date.setCustomValidity(''); });
 $('projectForm').elements.end_date.addEventListener('change', e => { const start = $('projectForm').elements.start_date.value; if (start && e.target.value && e.target.value < start) { e.target.setCustomValidity('Дата окончания не может быть раньше даты начала.'); e.target.reportValidity(); } else e.target.setCustomValidity(''); });
 const estimateInputIds = ['estimateTitle','estimateCustomer','estimateAddress','estimateContact','estimateValidity','estimateService','estimateWorkArea','estimateCrewPeople','estimateCrewMode','estimateCrewRate','estimateCrewHours','estimateCrewDays','estimateMaterialsCost','estimateDisposalCost','estimateTransportCost','estimateEquipmentCost','estimateOtherCost','estimateOverheadPercent','estimateTaxPercent','estimateDiscountPercent','estimateTargetMargin','estimateDifficulty','estimateTargetDays','estimateScheduleReserve','estimateEfficiency'];
@@ -1252,6 +1265,7 @@ $('projectsTable').addEventListener('click', async event => {
     const rows = await window.crm.listProjects(), project = rows.find(item => item.id === Number(button.dataset.editProject));
     if (!project) throw new Error('Объект не найден. Обнови список.');
     const form = $('projectForm');
+    await populateProjectRelationships(project.client_id, project.lead_id);
     for (const key of ['id','title','service','status','contract_rub','address','start_date','end_date','planned_people','complexity_factor','notes']) form.elements[key].value = project[key] ?? '';
     $('projectDialogTitle').textContent = 'Изменить объект'; openDialog('projectDialog');
   } catch (error) { toast(error.message, true); }
