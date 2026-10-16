@@ -55,3 +55,9 @@ test('shift rejects downtime outside the shift duration', () => {
     workers: 5, shiftHours: 8, downtimeHours: 9, lines: []
   }), /Проверь численность/);
 });
+
+test('normalizes work plan lines with zero productivity as explicitly missing norms', () => {
+  const { normalizeProductionPlan } = require('../src/production-plan-utils.cjs');
+  const plan = normalizeProductionPlan({ planned_people: 4, complexity_factor: 1, lines: [{ catalog_id: 'missing', work_name: 'Норма не задана', unit: 'м²', planned_quantity: 12, baseline_productivity: 0 }] });
+  assert.equal(plan.lines[0].baseline_productivity, 0);
+});
