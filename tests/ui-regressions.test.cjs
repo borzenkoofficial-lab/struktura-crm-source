@@ -9,6 +9,7 @@ const main = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
 const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
 const pinSecurity = fs.readFileSync(path.join(__dirname, '../src/pin-security.cjs'), 'utf8');
+const filesDb = fs.readFileSync(path.join(__dirname, '../src/db.cjs'), 'utf8');
 
 test('async create forms capture their form before awaiting IPC', () => {
   for (const id of ['leadForm', 'clientForm', 'projectForm', 'paymentForm', 'expenseForm']) {
@@ -28,6 +29,16 @@ test('pricing and AI API preview clearly do not enable checkout or provider cred
   assert.match(html, /платёжный провайдер будет подключён отдельно/i);
   assert.match(html, /Поля отключены намеренно/);
   assert.match(html, /id="view-plans"/);
+  assert.match(html, /id="view-team"/);
+  assert.match(html, /id="crewContactForm"/);
+  assert.match(html, /id="crewContactTelegram"/);
+  assert.match(html, /id="crewContactMax"/);
+  assert.match(renderer, /async function refreshCrewContacts\(\)/);
+  assert.match(preload, /listCrewContacts: \(filter\) => ipcRenderer\.invoke\('crewContacts:list'/);
+  assert.match(main, /ipcMain\.handle\('crewContacts:create'/);
+  assert.match(main, /ipcMain\.handle\('crewContacts:update'/);
+  assert.match(main, /ipcMain\.handle\('crewContacts:delete'/);
+  assert.match(filesDb, /CREATE TABLE IF NOT EXISTS crew_contacts/);
 });
 
 test('HTML IDs are unique and all literal renderer element references resolve', () => {
