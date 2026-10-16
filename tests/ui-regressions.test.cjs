@@ -613,3 +613,17 @@ test('exported quote history is stored locally and exposed through a narrow prel
   assert.match(preload, /piCoachHistory: \(\) => ipcRenderer\.invoke\('pi:coachHistory'\)/);
   assert.match(preload, /estimateHistory: \(\) => ipcRenderer\.invoke\('estimate:history'\)/);
 });
+
+test('PI error history keeps errors after transient toast and exposes explanations', () => {
+  assert.match(renderer, /PI_ERROR_STORAGE_KEY/);
+  assert.match(renderer, /function piRecordError\(/);
+  assert.match(renderer, /function piErrorExplain\(/);
+  assert.match(renderer, /window\.addEventListener\('unhandledrejection'/);
+  assert.match(renderer, /function openPiErrorHistory\(/);
+  assert.match(renderer, /piRecordError\(error\.message, 'Производство · План работ', error\)/);
+  assert.match(html, /id="piErrorHistoryDialog"/);
+  assert.match(html, /id="piOpenErrorHistoryBtn"/);
+  assert.match(html, /id="piErrorList"/);
+  assert.match(html, /id="piErrorDetail"/);
+  assert.match(css, /\.pi-error-history-layout/);
+});
