@@ -1111,14 +1111,14 @@ $('estimateCreateProjectBtn').addEventListener('click', () => {
   form.elements.complexity_factor.value = $('estimateDifficulty').value;
   form.elements.notes.value = `Смета PRO: работы ${money(result.listRevenue)}; скидка ${money(result.discount)}; себестоимость ${money(result.totalCost)}; расчётная прибыль ${money(result.profit)}. Подробная смета экспортируется отдельно в CSV.`;
   const planMap = new Map();
-  for (const line of estimateLines.filter(line => Number(line.quantity) > 0 && line.catalogId)) {
+  for (const line of estimateLines.filter(line => Number(line.quantity) > 0)) {
     const saved = planMap.get(line.catalogId);
     if (saved) saved.planned_quantity += Number(line.quantity);
-    else planMap.set(line.catalogId, { catalog_id: line.catalogId, work_name: line.name, unit: line.unit, planned_quantity: Number(line.quantity), baseline_productivity: Math.max(0, Number(line.productivity) || 0) });
+    else { const catalogId = line.catalogId || `manual-${line.lineId}`; planMap.set(catalogId, { catalog_id: catalogId, work_name: line.name, unit: line.unit, planned_quantity: Number(line.quantity), baseline_productivity: Math.max(0, Number(line.productivity) || 0) }); }
   }
   pendingProjectPlan = { planned_people: Number(form.elements.planned_people.value || 5), complexity_factor: Number(form.elements.complexity_factor.value || 1), lines: [...planMap.values()] };
   openDialog('projectDialog');
-  const missingRates = estimateLines.filter(line => Number(line.quantity) > 0 && line.catalogId && !(Number(line.productivity) > 0)).length;
+  const missingRates = estimateLines.filter(line => Number(line.quantity) > 0 && !(Number(line.productivity) > 0)).length;
   toast(pendingProjectPlan.lines.length ? (missingRates ? `Смета перенесена в объект, включая ${missingRates} позиций без нормы. ПИ не сможет рассчитать полный срок, пока нормы не заданы.` : 'Сумма, состав бригады, сложность и позиции сметы будут перенесены в объект.') : 'Цена перенесена. Для прогноза сроков после сохранения добавь план работ.');
 });
 const actualInputIds = ['actualContractRevenue','actualReceived','actualWagesPaid','actualMaterialsPaid','actualDisposalPaid','actualTransportPaid','actualEquipmentPaid','actualOtherPaid'];
