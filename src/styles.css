@@ -853,3 +853,24 @@ input[aria-invalid="true"],select[aria-invalid="true"],textarea[aria-invalid="tr
 .pi-error-severity{font-size:10px;letter-spacing:.08em;color:#a93845;font-weight:700}
 .pi-error-context{font-size:11px!important;color:#7a8795!important}
 @media(max-width:700px){.pi-error-history-layout{grid-template-columns:1fr}.pi-error-list{max-height:24vh}.pi-error-history-dialog{padding:16px}}
+
+
+/* Startup PIN lock */
+.pin-lock-screen[hidden] { display: none !important; }
+.pin-lock-screen { position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 50% 20%, #26364f 0, #101827 48%, #090e17 100%); color: #f7f9fc; }
+.pin-lock-card { width: min(100%, 410px); padding: 34px; border: 1px solid rgba(255,255,255,.14); border-radius: 24px; background: rgba(19,28,43,.88); box-shadow: 0 28px 90px rgba(0,0,0,.38); backdrop-filter: blur(18px); }
+.pin-lock-mark { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 24px; border-radius: 16px; background: linear-gradient(135deg,#d9e5f8,#8299bb); color: #17253b; font-size: 25px; font-weight: 800; }
+.pin-lock-card h1 { margin: 10px 0; font-size: 26px; letter-spacing: -.04em; }
+.pin-lock-card p { color: #b8c4d5; line-height: 1.55; }
+.pin-lock-card form { display: grid; gap: 12px; margin-top: 22px; }
+.pin-lock-card input { width: 100%; box-sizing: border-box; padding: 13px 14px; border: 1px solid #506078; border-radius: 12px; background: #0e1624; color: #fff; font: inherit; letter-spacing: .28em; }
+.pin-lock-card .button { width: 100%; min-height: 46px; }
+.pin-lock-status { min-height: 22px; margin: 0; color: #ffc3bd !important; font-size: 13px; }
+.pin-settings-section { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--border, #e3e8ef); }
+.pin-settings-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pin-settings-heading h3 { margin: 5px 0 0; }
+.pin-settings-badge { padding: 6px 10px; border-radius: 999px; background: #e8edf4; color: #34445b; font-size: 12px; font-weight: 700; }
+.pin-settings-section form { display: grid; gap: 14px; }
+.pin-settings-section input { margin-top: 6px; }
+.pin-settings-section .button.danger { background: #fff0ef; color: #a52e28; border: 1px solid #f2c4c0; }
+@media (max-width: 560px) { .pin-lock-card { padding: 26px 22px; } .pin-settings-heading { align-items: flex-start; flex-direction: column; } }
