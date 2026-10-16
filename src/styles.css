@@ -911,3 +911,28 @@ dialog.modal>form{background:#fff;border-radius:inherit}
 @media(max-width:1120px){.about-hero-scene{transform:scale(.72);transform-origin:center center;margin:0 -25px}}
 @media(max-width:850px){.about-hero-scene{width:100%;transform:scale(.82);transform-origin:top center;margin:0 0 -25px;min-height:330px}}
 @media(max-width:560px){.settings-view{padding-top:14px}.settings-page-heading h2{font-size:26px}.settings-card-body{padding:17px}.settings-card .form-row{grid-template-columns:1fr}.about-hero-scene{width:140%;margin-left:-20%;transform:scale(.72);transform-origin:top center;min-height:265px;margin-bottom:-65px}.about-hero-scene .about-float-card{transform:scale(.88);transform-origin:center}.about-hero-scene .float-card-top{right:5%}.about-hero-scene .float-card-bottom{left:5%}}
+
+/* ОПЛОТ — графитовая система бренда, серебристые акценты */
+:root{--nav:#25282c;--nav-2:#2e3237;--accent:#bfc6cd;--accent-strong:#d7dce1;--soft:#f1f3f5}
+.brand-mark{background:#25282c!important;color:#f5f6f7!important;border:1px solid #51575e!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 5px 14px rgba(0,0,0,.16)!important}
+.nav-item.active{background:linear-gradient(135deg,rgba(255,255,255,.13),rgba(255,255,255,.055))!important;border-color:rgba(255,255,255,.12)!important;color:#fff!important;box-shadow:inset 3px 0 #c3c9cf,0 4px 14px rgba(0,0,0,.08)!important}
+.nav-item.active:after{background:linear-gradient(#e1e5e9,#9da5ad)!important;box-shadow:0 0 12px rgba(215,220,225,.2)!important}
+.nav-item.active span,.nav-item:hover span{color:#e1e5e9!important}
+.button.primary{background:#34393f!important;border-color:#454b52!important;color:#f8f9fa!important;box-shadow:0 3px 8px rgba(25,29,34,.16)!important}
+.button.primary:hover{background:#454b52!important}
+.text-button,.placeholder-symbol,.pricing-icon,.ai-orbit{color:#5b636c}
+.welcome{background:linear-gradient(125deg,#24272b 0%,#30353a 62%,#3a4046 100%)!important}
+.welcome-tag span{color:#d2d7dc!important}
+.startup-splash{background:radial-gradient(ellipse at 50% 43%,#363b41 0%,#25282c 46%,#191b1e 100%)!important}
+.startup-glow-one{background:#9da5ad!important;opacity:.08!important}
+.startup-glow-two{background:#68717a!important;opacity:.09!important}
+.startup-mark{background:linear-gradient(145deg,#353a40,#25282c)!important;border-color:rgba(255,255,255,.18)!important}
+.startup-mark b{border-color:rgba(205,212,219,.65)!important}
+.startup-progress span{background:linear-gradient(90deg,#8e969e,#e0e4e8)!important;box-shadow:0 0 12px rgba(200,207,214,.25)!important}
+.plans-hero{background:radial-gradient(ellipse at 90% 5%,rgba(200,207,214,.13),transparent 35%),linear-gradient(125deg,#202327 0%,#2c3035 58%,#3a4046 100%)!important}
+.pricing-ribbon{background:#eceff2!important;color:#444b52!important}
+.pricing-card.featured{border-color:#c5cbd1!important;box-shadow:0 14px 34px rgba(25,29,34,.08),inset 0 1px 0 #fff!important}
+@media(prefers-reduced-transparency:reduce){.sidebar,.nav-item.active{background:#25282c!important}}
+
+/* ОПЛОТ · справочник рабочих, бригад и мастеров */
+.team-toolbar{align-items:center}.team-toolbar select{min-width:165px}.team-summary{font-size:11px;color:var(--muted);margin:-5px 0 12px}.team-table{min-width:980px}.team-table td{vertical-align:top;white-space:normal;max-width:270px;overflow-wrap:anywhere}.team-table td:first-child{min-width:170px}.team-table td:nth-child(3){min-width:155px}.team-table td:nth-child(4){min-width:180px}.team-table td:nth-child(5){min-width:200px;max-width:320px}.team-table .team-notes{line-height:1.55;color:#647184}.team-links{display:flex;flex-wrap:wrap;gap:5px}.team-contact-modal{width:min(720px,calc(100vw - 30px))}.team-contact-modal .form-row{grid-template-columns:1fr 1.25fr}.team-contact-modal small{display:block;color:#8c97a6;font-size:10px;font-weight:400;margin-top:5px;line-height:1.45}.danger-button{color:#b44450!important;border-color:#f0d8dc!important}.danger-button:hover{background:#fff4f5!important}@media(max-width:700px){.team-contact-modal .form-row{grid-template-columns:1fr}.team-toolbar{align-items:stretch;flex-direction:column}.team-toolbar select{width:100%}}

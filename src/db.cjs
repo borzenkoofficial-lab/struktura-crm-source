@@ -236,6 +236,20 @@ CREATE INDEX IF NOT EXISTS idx_work_shifts_project_date ON work_shifts(project_i
 CREATE INDEX IF NOT EXISTS idx_work_shift_items_catalog ON work_shift_items(catalog_id);
 CREATE INDEX IF NOT EXISTS idx_prospects_status ON prospects(status);
 CREATE INDEX IF NOT EXISTS idx_prospects_region ON prospects(region);
+CREATE TABLE IF NOT EXISTS crew_contacts (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ record_type TEXT NOT NULL DEFAULT 'worker' CHECK(record_type IN ('worker','crew','master')),
+ full_name TEXT NOT NULL,
+ phone TEXT NOT NULL DEFAULT '',
+ telegram_url TEXT NOT NULL DEFAULT '',
+ max_url TEXT NOT NULL DEFAULT '',
+ specialty TEXT NOT NULL DEFAULT '',
+ notes TEXT NOT NULL DEFAULT '',
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_crew_contacts_type_name ON crew_contacts(record_type, full_name COLLATE NOCASE);
+CREATE INDEX IF NOT EXISTS idx_crew_contacts_phone ON crew_contacts(phone);
 
 `;
 
@@ -275,8 +289,8 @@ function openDatabase(userDataPath) {
       migratePlans();
     } finally { db.pragma('foreign_keys = ON'); }
   }
-  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','7')").run();
-  db.prepare("UPDATE settings SET value='7' WHERE key='schema_version'").run();
+  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','8')").run();
+  db.prepare("UPDATE settings SET value='8' WHERE key='schema_version'").run();
   return db;
 }
 

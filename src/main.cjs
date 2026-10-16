@@ -137,7 +137,7 @@ function createWindow() {
   appUnlocked = !Boolean(getSetting('app_pin_config', null)?.hash);
   const win = new BrowserWindow({
     width: 1440, height: 920, minWidth: 1020, minHeight: 680,
-    title: 'Struktura CRM', backgroundColor: '#f5f7fa', autoHideMenuBar: true,
+    title: 'Оплот', backgroundColor: '#25282c', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   win.setMenuBarVisibility(false);
@@ -147,7 +147,7 @@ function createWindow() {
   win.on('closed', () => { mainWindow = null; browserView = null; browserIsVisible = false; });
   win.loadFile(path.join(__dirname, 'index.html')).catch(error => {
     console.error('Failed to load CRM interface:', error);
-    dialog.showErrorBox('Не удалось открыть Struktura CRM', `Не удалось загрузить интерфейс приложения.\n\n${error.message || error}`);
+    dialog.showErrorBox('Не удалось открыть «Оплот»', `Не удалось загрузить интерфейс приложения.\n\n${error.message || error}`);
   });
 }
 function getSetting(key, fallback) {
@@ -171,7 +171,7 @@ function checkAndSendReminders() {
     const now = new Date();
     const reminders = buildReminders({ tasks, projects, now, settings, lastSent });
     for (const item of reminders) {
-      const notice = new Notification({ title: `STRUKTURA CRM · ${item.title}`, body: item.body, silent: false });
+      const notice = new Notification({ title: `ОПЛОТ · ${item.title}`, body: item.body, silent: false });
       notice.on('click', () => { if (mainWindow && !mainWindow.isDestroyed()) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); } });
       notice.show();
       lastSent[item.key] = now.toISOString();
@@ -192,8 +192,8 @@ app.whenReady().then(() => {
   reminderInterval = setInterval(checkAndSendReminders, 15 * 60 * 1000);
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 }).catch(error => {
-  console.error('Struktura CRM startup failed:', error);
-  dialog.showErrorBox('Ошибка запуска Struktura CRM', `Приложение не смогло подготовить локальную базу данных.\n\n${error.message || error}`);
+  console.error('Оплот startup failed:', error);
+  dialog.showErrorBox('Ошибка запуска «Оплот»', `Приложение не смогло подготовить локальную базу данных.\n\n${error.message || error}`);
   app.quit();
 });
 app.on('before-quit', () => { if (reminderInterval) clearInterval(reminderInterval); if (db) db.close(); });
@@ -274,6 +274,24 @@ ipcMain.handle('clients:update', (_event, input = {}) => {
     .run(name, phone, normalizeContactEmail(input.email), input.client_type === 'company' ? 'company' : 'person', clean(input.notes), id);
   return db.prepare('SELECT * FROM clients WHERE id=?').get(id);
 });
+function normalizeCrewLink(value, kind) {
+  let raw = clean(value, 500); if (!raw) return '';
+  if (/^@[a-zA-Z0-9_.-]{2,100}$/.test(raw)) raw = (kind === 'telegram' ? 'https://t.me/' : 'https://max.ru/') + raw.slice(1);
+  else if (!/^https:\/\//i.test(raw)) { raw = raw.replace(/^https?:\/\//i, '').replace(/^\/+/, ''); if (!raw.includes('.')) raw = (kind === 'telegram' ? 'https://t.me/' : 'https://max.ru/') + raw; else raw = 'https://' + raw; }
+  let url; try { url = new URL(raw); } catch { throw new Error('Некорректная ссылка ' + (kind === 'telegram' ? 'Telegram.' : 'MAX.')); }
+  const allowedHosts = kind === 'telegram' ? new Set(['t.me','telegram.me','www.t.me','www.telegram.me']) : new Set(['max.ru','www.max.ru','web.max.ru']);
+  if (url.protocol !== 'https:' || !allowedHosts.has(url.hostname.toLowerCase()) || url.username || url.password || !url.pathname || url.pathname === '/') throw new Error('Укажи рабочую ссылку ' + (kind === 'telegram' ? 'Telegram (t.me/...)' : 'MAX (max.ru/...)') + '.');
+  return url.toString();
+}
+function normalizeCrewContact(input = {}) {
+  const recordType = ['worker','crew','master'].includes(input.record_type) ? input.record_type : 'worker';
+  const fullName = clean(input.full_name, 180); if (!fullName) throw new Error('Укажи ФИО человека или название бригады.');
+  return { record_type: recordType, full_name: fullName, phone: normalizePhone(clean(input.phone, 40)), telegram_url: normalizeCrewLink(input.telegram_url, 'telegram'), max_url: normalizeCrewLink(input.max_url, 'max'), specialty: clean(input.specialty, 240), notes: clean(input.notes, 4000) };
+}
+ipcMain.handle('crewContacts:list', (_event, filter = {}) => { const type = ['worker','crew','master'].includes(filter.record_type) ? filter.record_type : ''; return type ? db.prepare('SELECT * FROM crew_contacts WHERE record_type=? ORDER BY full_name COLLATE NOCASE, id DESC').all(type) : db.prepare('SELECT * FROM crew_contacts ORDER BY full_name COLLATE NOCASE, id DESC').all(); });
+ipcMain.handle('crewContacts:create', (_event, input = {}) => { const contact = normalizeCrewContact(input); const result = db.prepare('INSERT INTO crew_contacts(record_type,full_name,phone,telegram_url,max_url,specialty,notes) VALUES (@record_type,@full_name,@phone,@telegram_url,@max_url,@specialty,@notes)').run(contact); return db.prepare('SELECT * FROM crew_contacts WHERE id=?').get(result.lastInsertRowid); });
+ipcMain.handle('crewContacts:update', (_event, input = {}) => { const id = Number(input.id); if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный номер записи.'); if (!db.prepare('SELECT id FROM crew_contacts WHERE id=?').get(id)) throw new Error('Контакт не найден. Обнови список и попробуй снова.'); const contact = normalizeCrewContact(input); db.prepare('UPDATE crew_contacts SET record_type=@record_type, full_name=@full_name, phone=@phone, telegram_url=@telegram_url, max_url=@max_url, specialty=@specialty, notes=@notes, updated_at=CURRENT_TIMESTAMP WHERE id=@id').run({ ...contact, id }); return db.prepare('SELECT * FROM crew_contacts WHERE id=?').get(id); });
+ipcMain.handle('crewContacts:delete', (_event, idValue) => { const id = Number(idValue); if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный номер записи.'); const result = db.prepare('DELETE FROM crew_contacts WHERE id=?').run(id); if (!result.changes) throw new Error('Контакт уже удалён или не найден.'); return { deleted: true, id }; });
 ipcMain.handle('leads:list', () => db.prepare('SELECT l.*, c.name client_name FROM leads l LEFT JOIN clients c ON c.id=l.client_id ORDER BY l.id DESC').all());
 ipcMain.handle('leads:create', (_event, input = {}) => {
   const title = clean(input.title, 180);
@@ -439,7 +457,7 @@ ipcMain.handle('production:exportReportPdf', async (_event, input = {}) => {
   const payments = input.internal === true && documentType === 'report' ? db.prepare('SELECT payment_date, payment_type, amount_rub, note FROM payments WHERE project_id=? AND payment_date BETWEEN ? AND ? ORDER BY payment_date, id').all(projectId, startDate, endDate) : [];
   const expenses = input.internal === true && documentType === 'report' ? db.prepare('SELECT expense_date, description, category, amount_rub, is_paid FROM expenses WHERE project_id=? AND expense_date BETWEEN ? AND ? ORDER BY expense_date, id').all(projectId, startDate, endDate) : [];
   const html = buildProductionReportHtml({ project, startDate, endDate, documentType, internal: input.internal === true, plan, shifts, actualByPeriod, payments, expenses });
-  const defaultName = `STRUKTURA-${documentType === 'act' ? 'Акт-работ' : 'Отчёт'}-${project.title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,50)}-${startDate}-${endDate}.pdf`;
+  const defaultName = `OPLOT-${documentType === 'act' ? 'Акт-работ' : 'Отчёт'}-${project.title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,50)}-${startDate}-${endDate}.pdf`;
   const { canceled, filePath } = await dialog.showSaveDialog({ title: documentType === 'act' ? 'Сохранить акт фиксации работ в PDF' : 'Сохранить производственный отчёт в PDF', defaultPath: defaultName, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (canceled || !filePath) return { canceled: true };
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
@@ -991,7 +1009,7 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   };
   if (!allowed[kind]) throw new Error('Неизвестный тип экспорта.');
   const [label, sql, file] = allowed[kind];
-  const { canceled, filePath } = await dialog.showSaveDialog({ title: `STRUKTURA CRM · Экспорт: ${label}`, defaultPath: `STRUKTURA-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
+  const { canceled, filePath } = await dialog.showSaveDialog({ title: `ОПЛОТ · Экспорт: ${label}`, defaultPath: `OPLOT-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
   if (canceled || !filePath) return { canceled: true };
   const rows = db.prepare(sql).all();
   const columns = rows.length ? Object.keys(rows[0]) : sql.match(/SELECT (.+?) FROM/)[1].split(',').map(s=>s.trim());
@@ -1000,7 +1018,7 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   return { canceled: false, filePath, count: rows.length };
 });
 ipcMain.handle('backup:create', async () => {
-  const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить резервную копию', defaultPath: `STRUKTURA-CRM-backup-${new Date().toISOString().slice(0,10)}.sqlite`, filters: [{ name: 'SQLite database', extensions: ['sqlite','db'] }] });
+  const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить резервную копию', defaultPath: `OPLOT-backup-${new Date().toISOString().slice(0,10)}.sqlite`, filters: [{ name: 'SQLite database', extensions: ['sqlite','db'] }] });
   if (canceled || !filePath) return { canceled: true };
   db.pragma('wal_checkpoint(FULL)');
   await db.backup(filePath);
@@ -1011,7 +1029,7 @@ ipcMain.handle('backup:create', async () => {
 // as an automatic rollback copy and reopen the live connection after the file swap.
 ipcMain.handle('backup:restore', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
-    title: 'Выберите резервную копию STRUKTURA CRM',
+    title: 'Выберите резервную копию «Оплот»',
     properties: ['openFile'],
     filters: [{ name: 'SQLite database', extensions: ['sqlite', 'db'] }]
   });
@@ -1028,7 +1046,7 @@ ipcMain.handle('backup:restore', async () => {
     const tables = new Set(candidate.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
     const required = ['clients', 'leads', 'projects', 'payments', 'expenses', 'settings'];
     const missing = required.filter(name => !tables.has(name));
-    if (missing.length) throw new Error(`Это не резервная копия STRUKTURA CRM: отсутствуют таблицы ${missing.join(', ')}.`);
+    if (missing.length) throw new Error(`Это не резервная копия «Оплот»: отсутствуют таблицы ${missing.join(', ')}.`);
     candidate.close(); candidate = null;
   } catch (error) {
     if (candidate) { try { candidate.close(); } catch {} }
@@ -1044,7 +1062,7 @@ ipcMain.handle('backup:restore', async () => {
   if (answer.response !== 1) return { canceled: true };
 
   const userDataPath = app.getPath('userData');
-  const safetyPath = path.join(userDataPath, `STRUKTURA-CRM-before-restore-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`);
+  const safetyPath = path.join(userDataPath, `OPLOT-before-restore-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`);
   const walPath = `${livePath}-wal`, shmPath = `${livePath}-shm`;
   db.pragma('wal_checkpoint(FULL)');
   await db.backup(safetyPath);
@@ -1169,7 +1187,7 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   const preparedDate = new Date().toLocaleDateString('ru-RU');
   const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${quoteEscape(title)}</title><style>
   @page{size:A4;margin:13mm 13mm 15mm}*{box-sizing:border-box}body{font-family:Arial,'DejaVu Sans',sans-serif;color:#202a35;font-size:9pt;line-height:1.48;margin:0;background:#fff}header{position:relative;overflow:hidden;background:#172b3a;color:#fff;padding:21px 23px 20px;border-radius:2px;margin-bottom:18px;min-height:168px}header:after{content:"";position:absolute;right:-26px;top:-42px;width:205px;height:205px;border:1px solid rgba(255,255,255,.18);border-radius:50%;box-shadow:0 0 0 22px rgba(255,255,255,.035),0 0 0 45px rgba(255,255,255,.025)}.brand{font-size:23pt;letter-spacing:2.5px;font-weight:800;color:#fff;position:relative;z-index:1}.tag{font-size:7.2pt;letter-spacing:1.5px;color:#f1a36e;font-weight:bold;margin-top:4px;position:relative;z-index:1}.doctype{font-size:8pt;color:#c8d5dc;letter-spacing:1.4px;margin-top:22px;position:relative;z-index:1}.title{font-size:19pt;line-height:1.2;margin:5px 0 0;color:#fff;max-width:82%;position:relative;z-index:1}.hero-mark{position:absolute;right:19px;bottom:18px;width:95px;height:76px;border:1px solid rgba(255,255,255,.26);z-index:1;transform:skewY(-8deg)}.hero-mark:before,.hero-mark:after{content:"";position:absolute;border:1px solid rgba(241,163,110,.8)}.hero-mark:before{inset:12px -10px -10px 12px}.hero-mark:after{left:30px;top:-1px;bottom:-1px;border-width:0 0 0 1px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:7px 17px;margin:0 0 17px}.meta div{padding:7px 9px;background:#f4f6f7;border-left:2px solid #e38b55;min-height:43px}.label{display:block;font-size:7pt;letter-spacing:.65px;color:#687985;margin-bottom:2px;font-weight:700;text-transform:uppercase}.meta-value{overflow-wrap:anywhere}.section{font-size:10pt;font-weight:800;margin:17px 0 8px;color:#203747;display:flex;align-items:center;gap:8px}.section:before{content:"";width:4px;height:15px;background:#e38b55;display:inline-block}table{width:100%;border-collapse:collapse;font-size:8pt}thead{display:table-header-group}th{background:#203747;color:white;text-align:left;padding:8px 6px;font-weight:700}th:first-child{border-radius:2px 0 0 0}td{padding:7px 6px;border-bottom:1px solid #e4e9ec;vertical-align:top}tbody tr:nth-child(even){background:#f6f8f9}.num{text-align:right;white-space:nowrap}small{display:block;color:#6e7d87;font-size:7.3pt;margin-top:3px}.totals{margin:17px 0 0 auto;width:53%;background:#f3f6f7;padding:12px 14px;border-top:3px solid #e38b55}.total-label{color:#687985;font-size:7.5pt;font-weight:700;letter-spacing:.6px}.total{font-size:21pt;line-height:1.25;font-weight:800;color:#203747;margin-top:3px}.discount{font-size:8pt;color:#637079;margin-top:5px}.terms{margin-top:18px;padding:11px 12px;background:#f7f8f8;border-left:2px solid #cbd6dc;color:#596974;font-size:7.8pt}.terms strong{color:#203747}.signatures{display:grid;grid-template-columns:1.2fr .8fr;gap:15px;margin-top:19px;break-inside:avoid;page-break-inside:avoid}.sign-main{padding-top:8px}.sign-title{font-size:8pt;font-weight:800;color:#203747;margin-bottom:8px}.executor{font-size:9pt;font-weight:700;margin-bottom:18px}.signature-line{display:flex;align-items:end;gap:8px;margin-top:10px}.line{border-bottom:1px solid #667782;flex:1;height:22px}.line-label{font-size:7pt;color:#687985;white-space:nowrap}.stamp-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center}.stamp{width:100px;height:100px;border:1.5px dashed #9aaab3;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#8b9ba4;font-size:7pt;line-height:1.4;padding:12px;position:relative}.stamp:before{content:"";position:absolute;inset:5px;border:1px dashed #c0cbd1;border-radius:50%}.stamp-label{font-size:7pt;color:#687985;margin-top:5px}.footer{margin-top:17px;color:#82909a;font-size:6.8pt;border-top:1px solid #e2e7ea;padding-top:8px;display:flex;justify-content:space-between;gap:10px}tr{break-inside:avoid;page-break-inside:avoid}.terms,.totals{break-inside:avoid;page-break-inside:avoid}@media print{header{print-color-adjust:exact;-webkit-print-color-adjust:exact}.meta div,.totals,.terms,th{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
-  </style></head><body><header><div class="brand">STRUKTURA</div><div class="tag">ДЕМОНТАЖ · ОТДЕЛКА · ФАЛЬШПОЛЫ</div><div class="doctype">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</div><div class="title">${quoteEscape(title)}</div><div class="hero-mark" aria-hidden="true"></div></header><div class="meta"><div><span class="label">Заказчик</span><span class="meta-value">${quoteEscape(customer || 'Не указан')}</span></div><div><span class="label">Контакт заказчика</span><span class="meta-value">${quoteEscape(contact || 'Не указан')}</span></div><div><span class="label">Адрес объекта</span><span class="meta-value">${quoteEscape(address || 'Будет уточнён')}</span></div><div><span class="label">Дата подготовки</span><span class="meta-value">${quoteEscape(preparedDate)}</span></div></div><div class="section">Состав и стоимость работ</div><table><thead><tr><th style="width:5%">№</th><th>Наименование работ</th><th>Ед.</th><th class="num">Кол-во</th><th class="num">Цена</th><th class="num">Сумма</th></tr></thead><tbody>${rows}</tbody></table><div class="totals"><div class="total-label">ИТОГО ПО ПРЕДЛОЖЕНИЮ</div><div class="total">${quoteMoney(total)}</div>${discount ? `<div class="discount">Скидка учтена в расчёте: ${quoteMoney(discount)}</div>` : ''}</div><div class="terms"><strong>Условия предложения</strong><br>Срок действия: ${quoteEscape(validity)}. Сроки выполнения, порядок оплаты и окончательный объём работ согласовываются сторонами до начала работ. Стоимость может быть уточнена после осмотра объекта и подтверждения объёмов. Дополнительные работы, не указанные в таблице, согласовываются отдельно. Настоящее коммерческое предложение не является договором подряда.</div><div class="signatures"><div class="sign-main"><div class="sign-title">ИСПОЛНИТЕЛЬ</div><div class="executor">ИП Борзенко Семен Сергеевич</div><div class="signature-line"><span class="line-label">Подпись</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Ф. И. О.</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Дата</span><span class="line"></span></div></div><div class="stamp-wrap"><div class="stamp">МЕСТО<br>ДЛЯ ПЕЧАТИ<br><span style="font-size:6pt">при наличии</span></div><div class="stamp-label">М. П.</div></div></div><div class="footer"><span>Сформировано в STRUKTURA CRM</span><span>Демонтаж · Отделка · Фальшполы</span></div></body></html>`;
+  </style></head><body><header><div class="brand">ОПЛОТ</div><div class="tag">ДЕМОНТАЖ · ОТДЕЛКА · ФАЛЬШПОЛЫ</div><div class="doctype">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</div><div class="title">${quoteEscape(title)}</div><div class="hero-mark" aria-hidden="true"></div></header><div class="meta"><div><span class="label">Заказчик</span><span class="meta-value">${quoteEscape(customer || 'Не указан')}</span></div><div><span class="label">Контакт заказчика</span><span class="meta-value">${quoteEscape(contact || 'Не указан')}</span></div><div><span class="label">Адрес объекта</span><span class="meta-value">${quoteEscape(address || 'Будет уточнён')}</span></div><div><span class="label">Дата подготовки</span><span class="meta-value">${quoteEscape(preparedDate)}</span></div></div><div class="section">Состав и стоимость работ</div><table><thead><tr><th style="width:5%">№</th><th>Наименование работ</th><th>Ед.</th><th class="num">Кол-во</th><th class="num">Цена</th><th class="num">Сумма</th></tr></thead><tbody>${rows}</tbody></table><div class="totals"><div class="total-label">ИТОГО ПО ПРЕДЛОЖЕНИЮ</div><div class="total">${quoteMoney(total)}</div>${discount ? `<div class="discount">Скидка учтена в расчёте: ${quoteMoney(discount)}</div>` : ''}</div><div class="terms"><strong>Условия предложения</strong><br>Срок действия: ${quoteEscape(validity)}. Сроки выполнения, порядок оплаты и окончательный объём работ согласовываются сторонами до начала работ. Стоимость может быть уточнена после осмотра объекта и подтверждения объёмов. Дополнительные работы, не указанные в таблице, согласовываются отдельно. Настоящее коммерческое предложение не является договором подряда.</div><div class="signatures"><div class="sign-main"><div class="sign-title">ИСПОЛНИТЕЛЬ</div><div class="executor">ИП Борзенко Семен Сергеевич</div><div class="signature-line"><span class="line-label">Подпись</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Ф. И. О.</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Дата</span><span class="line"></span></div></div><div class="stamp-wrap"><div class="stamp">МЕСТО<br>ДЛЯ ПЕЧАТИ<br><span style="font-size:6pt">при наличии</span></div><div class="stamp-label">М. П.</div></div></div><div class="footer"><span>Сформировано в STRUKTURA CRM</span><span>Демонтаж · Отделка · Фальшполы</span></div></body></html>`;
   const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить коммерческое предложение в PDF', defaultPath: `${title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,80)}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (canceled || !filePath) return { canceled: true };
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
