@@ -30,6 +30,8 @@ function normalizeProjectInput(input = {}) {
     status: STATUSES.has(input.status) ? input.status : 'planned',
     contract_rub: Math.round(contract),
     address: String(input.address ?? '').trim().slice(0, 250),
+    client_id: input.client_id ? Number(input.client_id) : null,
+    lead_id: input.lead_id ? Number(input.lead_id) : null,
     start_date: startDate || null,
     end_date: endDate || null,
     planned_people: plannedPeople,
