@@ -1399,7 +1399,7 @@ $('runWebSearchBtn').addEventListener('click', async () => {
   result.textContent = 'Выполняем три поисковых запроса. Это может занять до нескольких десятков секунд.';
   try {
     const report = await window.crm.searchProspects({ service: $('domainSearchService').value, region: $('domainSearchRegion').value });
-    const lines = [`Поисковых запросов: ${report.queries.length}`, `Получено результатов: ${report.received}`, `Добавлено сайтов в CRM: ${report.imported}`, `Пропущено дублей: ${report.skipped}`, `Ошибок запросов: ${report.errors.length}`];
+    const lines = [`Поисковых запросов: ${report.queries.length}`, `Получено результатов: ${report.received}`, `Добавлено сайтов в Оплот: ${report.imported}`, `Пропущено дублей: ${report.skipped}`, `Ошибок запросов: ${report.errors.length}`];
     if (report.errors.length) lines.push('', 'Ошибки:', ...report.errors.map(e => `• ${e.query}: ${e.error}`));
     lines.push('', 'Важно: телефоны и email из выдачи не подтверждены. Открой сайт и запусти парсер публичных страниц.');
     result.textContent = lines.join('\n'); await refreshProspects();
