@@ -87,8 +87,8 @@ function iconIco() {
   dib.writeUInt16LE(1, 12); dib.writeUInt16LE(32, 14); dib.writeUInt32LE(0, 16); dib.writeUInt32LE(xorBytes, 20);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     const dx = x - 15.5, dy = y - 15.5, inTile = Math.abs(dx) < 13 && Math.abs(dy) < 13;
-    const inG = inTile && ((x >= 8 && x <= 24 && y >= 8 && y <= 12) || (x >= 8 && x <= 12 && y >= 8 && y <= 24) || (x >= 8 && x <= 24 && y >= 20 && y <= 24) || (x >= 19 && x <= 24 && y >= 16 && y <= 24) || (x >= 16 && x <= 24 && y >= 15 && y <= 18));
-    const c = inG ? palette.white : (inTile ? palette.orange : palette.navy);
+    const inS = inTile && ((x >= 8 && x <= 24 && y >= 8 && y <= 11) || (x >= 8 && x <= 11 && y >= 8 && y <= 16) || (x >= 8 && x <= 24 && y >= 13 && y <= 16) || (x >= 20 && x <= 23 && y >= 13 && y <= 23) || (x >= 8 && x <= 23 && y >= 20 && y <= 23));
+    const c = inS ? palette.white : (inTile ? palette.orange : palette.navy);
     const off = 40 + ((n - 1 - y) * n + x) * 4;
     dib[off] = c[2]; dib[off + 1] = c[1]; dib[off + 2] = c[0]; dib[off + 3] = 255;
   }
