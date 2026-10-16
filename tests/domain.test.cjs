@@ -119,10 +119,11 @@ test('finance insights forecasts dated receivables and unpaid expenses without h
       { amount_rub: 3000, expense_date: '2026-10-20', is_paid: 1 }
     ]
   });
-  assert.equal(result.forecasts.find(x => x.days === 7).expectedReceipts, 150000);
+  assert.equal(result.forecasts.find(x => x.days === 7).expectedReceipts, 0);
   assert.equal(result.forecasts.find(x => x.days === 7).plannedOutflow, 17000);
-  assert.equal(result.forecasts.find(x => x.days === 7).projectedCash, 183000);
-  assert.equal(result.unscheduledReceivablesTotal, 80000);
+  assert.equal(result.forecasts.find(x => x.days === 7).projectedCash, 33000);
+  assert.equal(result.unscheduledReceivablesTotal, 230000);
+  assert.ok(result.dataWarnings.some(warning => /нет графика платежей/u.test(warning)));
   assert.equal(result.overdueExpensesTotal, 5000);
   assert.equal(result.risks[0].level, 'warning');
 });
