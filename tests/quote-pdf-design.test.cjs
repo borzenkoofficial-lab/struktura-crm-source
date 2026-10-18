@@ -26,7 +26,11 @@ test('PDF embeds content-specific technical illustrations directly in the docume
   assert.match(quote, /\$\{processIllustration\}/);
   assert.match(quote, /не является фотографией объекта или подтверждением ранее выполненных работ/i);
   assert.match(quote, /не представляют собой портфолио или фотографии реализованных объектов/i);
-  assert.doesNotMatch(quote, /<img\s+[^>]*src=["']https?:/i, 'the document must not rely on remote image loading');
+  assert.match(quote, /id="coverPhoto"[^>]*src="https:\/\/images\.unsplash\.com\//);
+  assert.match(quote, /Steffen Lemmerzahl \/ Unsplash/);
+  assert.match(quote, /coverIllustrationFallback/);
+  assert.match(quote, /naturalWidth > 0[\s\S]*?fallback\.hidden = false/);
+  assert.match(quote, /img-src https:\/\/images\.unsplash\.com data:/);
 });
 
 test('PDF has separate cover, work scope, and execution sequence editorial pages', () => {
