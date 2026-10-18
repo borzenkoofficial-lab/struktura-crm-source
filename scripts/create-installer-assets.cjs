@@ -113,7 +113,7 @@ rect(side, 23, 43, 48, 48, palette.navy2);
 circle(side, 47, 67, 15, palette.white, 4);
 text(side, 'ОПЛОТ', 23, 109, 2, palette.white, 1);
 rect(side, 23, 135, 42, 2, palette.orange);
-text(side, 'СИСТЕМА', 23, 153, 1, [220, 225, 230], 1);
+text(side, 'LOCAL CRM', 23, 153, 1, [220, 225, 230], 1);
 text(side, 'BUSINESS', 23, 184, 1, [169, 180, 190], 1);
 text(side, 'MANAGEMENT', 23, 196, 1, [169, 180, 190], 1);
 line(side, 23, 226, 141, 226, [60, 88, 107], 1);
@@ -125,7 +125,7 @@ const header = canvas(150, 57, (x, y) => blend(palette.navy, palette.navy2, x / 
 rect(header, 12, 12, 31, 31, palette.navy2);
 circle(header, 27.5, 27.5, 10, palette.white, 3);
 text(header, 'ОПЛОТ', 51, 17, 2, palette.white, 1);
-text(header, 'СИСТЕМА', 52, 34, 1, [190, 197, 204], 1);
+text(header, 'LOCAL CRM', 52, 34, 1, [190, 197, 204], 1);
 
 fs.writeFileSync(path.join(outDir, 'installer-sidebar.bmp'), bmp(side));
 fs.writeFileSync(path.join(outDir, 'installer-header.bmp'), bmp(header));
