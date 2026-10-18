@@ -983,3 +983,14 @@ test('editing a project loads relationship options before filling fields and ope
   const block = renderer.slice(start, end);
   assert.match(block, /await populateProjectRelationships\(project\.client_id, project\.lead_id\);[\s\S]*?form\.elements\[key\]\.value = project\[key\][\s\S]*?openDialog\('projectDialog'\)/);
 });
+
+
+test('expense form has a single submit handler so one click cannot create duplicate expenses', () => {
+  const handlers = renderer.match(/\$\('expenseForm'\)\.addEventListener\('submit'/g) || [];
+  assert.equal(handlers.length, 1, 'expense form must have exactly one submit handler');
+  const start = renderer.indexOf("$('expenseForm').addEventListener('submit'");
+  const end = renderer.indexOf("$('expensesTable').addEventListener('click'", start);
+  const block = renderer.slice(start, end);
+  assert.match(block, /if \(data\.id\) await window\.crm\.updateExpense\(data\); else await window\.crm\.createExpense\(data\);/);
+  assert.match(block, /catch \(err\) \{ toast\(err\.message,true\); \}/);
+});
