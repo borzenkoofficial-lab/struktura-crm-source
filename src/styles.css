@@ -1718,3 +1718,40 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
   .app-shell .toast { background: #141d21; }
   .app-shell .command-palette { background: #121b1f; }
 }
+
+
+/* Navigation and workspace transitions — one motion language across all views. */
+.app-shell .nav-item {
+  position: relative;
+  isolation: isolate;
+}
+.app-shell .nav-item.active {
+  background: linear-gradient(100deg, rgba(39, 215, 160, .13), rgba(39, 215, 160, .045));
+  color: #a1f4d8;
+  box-shadow: inset 0 0 0 1px rgba(39, 215, 160, .09);
+}
+.app-shell .nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 4px 4px 0;
+  background: var(--st-accent);
+  box-shadow: 0 0 13px rgba(39, 215, 160, .48);
+}
+.app-shell .nav-item.active > span {
+  color: var(--st-accent);
+  filter: drop-shadow(0 0 5px rgba(39, 215, 160, .22));
+}
+.app-shell .view.active {
+  animation: st-view-enter 240ms cubic-bezier(.2,.75,.25,1) both;
+}
+@keyframes st-view-enter {
+  from { opacity: .65; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .view.active { animation: none !important; }
+}
