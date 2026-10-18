@@ -1881,5 +1881,47 @@ Promise.race([
     }
   })
   .finally(hideStartupSplash);
+
+/* First-run onboarding: a short, replayable guided tour with no network calls. */
+const WELCOME_COMPLETED_KEY = 'struktura-crm-welcome-completed-v1';
+const welcomeSteps = [
+  {label:'01 / ЗНАКОМСТВО',title:'Бизнес —<br><em>собран в одном месте.</em>',description:'STRUKTURA CRM помогает вести заявки, клиентов, объекты, сметы и деньги в одной рабочей системе — без разрозненных таблиц.',points:[['01','Видеть главное','Обзор текущей ситуации'],['02','Держать процесс','От обращения до завершения работ']],scene:'overview',mockTitle:'Обзор бизнеса',eyebrow:'СВОДКА ПО БИЗНЕСУ',headline:'Всё под контролем.',stats:[['Заявки','12'],['Объекты','04'],['Контроль','OK']],panel:'Последние действия',rows:[['Новая заявка','Входящее обращение','НОВАЯ'],['Объект на контроле','План и фактические данные','В РАБОТЕ']],floatTop:'Рабочая картина',floatBottom:'Без лишних таблиц',chart:'СИСТЕМА СВЯЗЫВАЕТ РАБОЧИЕ ДАННЫЕ'},
+  {label:'02 / КЛИЕНТЫ И ЗАЯВКИ',title:'Ни одно обращение<br><em>не должно потеряться.</em>',description:'Фиксируй источник, контакты, статус и следующий шаг. Веди клиентов отдельно от заявок и возвращайся к истории договорённостей.',points:[['01','Заявки в работе','Статус и дальнейшее действие'],['02','Контакты под рукой','Клиенты и заметки в одном месте']],scene:'leads',mockTitle:'Заявки и клиенты',eyebrow:'ВОРОНКА ОБРАЩЕНИЙ',headline:'От первого контакта — к заказу.',stats:[['Новые','03'],['В работе','07'],['На связи','OK']],panel:'Карточки обращений',rows:[['Демонтаж офиса','Источник · телефон','НОВАЯ'],['Ремонтная компания','Следующий шаг · звонок','КОНТАКТ']],floatTop:'История контакта',floatBottom:'Следующий шаг задан',chart:'ОБРАЩЕНИЯ НЕ ТЕРЯЮТСЯ В ПЕРЕПИСКАХ'},
+  {label:'03 / ОБЪЕКТЫ И СМЕТЫ',title:'Смета, объект и сроки —<br><em>в одной связке.</em>',description:'Создавай объекты, рассчитывай стоимость работ и расходы, формируй коммерческие предложения. Сверяй оценку с фактическими данными.',points:[['01','Расчёт до старта','Работы, объёмы и затраты'],['02','Меньше догадок','План рядом с фактом']],scene:'objects',mockTitle:'Объекты и сметы',eyebrow:'РАСЧЁТ И ПЛАНИРОВАНИЕ',headline:'Понимай экономику работ.',stats:[['Объекты','04'],['Смета','₽'],['План','01']],panel:'Работы по объекту',rows:[['Демонтаж стяжки','Объём · стоимость · срок','РАСЧЁТ'],['Затраты бригады','Себестоимость и маржа','ПЛАН']],floatTop:'Экономика объекта',floatBottom:'КП и расчёты',chart:'ПЛАНИРУЙ ДО НАЧАЛА РАБОТ'},
+  {label:'04 / ПРОИЗВОДСТВО И ФИНАНСЫ',title:'Контролируй выполнение,<br><em>а не только планы.</em>',description:'Отмечай смены и расходы, сравнивай план с фактом. Производственный интеллект помогает анализировать данные, но не заменяет отсутствующие цифры догадками.',points:[['01','Фактические данные','Смены, расходы и отклонения'],['02','Решения на данных','Резервные копии — под контролем']],scene:'production',mockTitle:'Производство и финансы',eyebrow:'ПЛАН / ФАКТ / РЕЗУЛЬТАТ',headline:'Видеть, что происходит.',stats:[['Смены','06'],['План / факт','↗'],['Данные','OK']],panel:'Контроль выполнения',rows:[['Отчёт смены','Фактический объём работ','ЗАПИСАН'],['Денежный поток','Поступления и расходы','УЧЁТ']],floatTop:'План против факта',floatBottom:'Решения на данных',chart:'ПИ АНАЛИЗИРУЕТ СОХРАНЁННЫЕ ДАННЫЕ'}
+];
+let welcomeStepIndex = 0;
+function welcomeSetText(id, value) { const node = $(id); if (node) node.textContent = value; }
+function welcomeSetStep(index) {
+  welcomeStepIndex = Math.max(0, Math.min(welcomeSteps.length - 1, index));
+  const step = welcomeSteps[welcomeStepIndex], root = $('firstRunWelcome');
+  if (!root) return;
+  welcomeSetText('welcomeStepLabel',step.label); $('welcomeTitle').innerHTML=step.title; welcomeSetText('welcomeDescription',step.description);
+  $('welcomeFeaturePoints').innerHTML=step.points.map(([n,title,desc])=>'<div><span class="welcome-point-icon">'+n+'</span><span><strong>'+title+'</strong><small>'+desc+'</small></span></div>').join('');
+  const demo=$('welcomeDemo'); demo.dataset.scene=step.scene; demo.classList.remove('scene-refresh'); void demo.offsetWidth; demo.classList.add('scene-refresh');
+  [['welcomeMockTitle',step.mockTitle],['welcomeMockEyebrow',step.eyebrow],['welcomeMockHeadline',step.headline],['welcomeMockPanelTitle',step.panel],['welcomeFloatTop',step.floatTop],['welcomeFloatBottom',step.floatBottom],['welcomeChartCaption',step.chart]].forEach(([id,value])=>welcomeSetText(id,value));
+  [['welcomeStatOneLabel','welcomeStatOne',step.stats[0]],['welcomeStatTwoLabel','welcomeStatTwo',step.stats[1]],['welcomeStatThreeLabel','welcomeStatThree',step.stats[2]]].forEach(([label,value,pair])=>{welcomeSetText(label,pair[0]);welcomeSetText(value,pair[1]);});
+  [['welcomeRowOneTitle','welcomeRowOneMeta','welcomeRowOneStatus',step.rows[0]],['welcomeRowTwoTitle','welcomeRowTwoMeta','welcomeRowTwoStatus',step.rows[1]]].forEach(([title,meta,status,row])=>{welcomeSetText(title,row[0]);welcomeSetText(meta,row[1]);welcomeSetText(status,row[2]);});
+  $('welcomeStepDots').querySelectorAll('span').forEach((dot,i)=>{dot.classList.toggle('is-current',i===welcomeStepIndex);dot.classList.toggle('is-complete',i<welcomeStepIndex);});
+  $('welcomeBackBtn').hidden=welcomeStepIndex===0; $('welcomeNextBtn').innerHTML=welcomeStepIndex===welcomeSteps.length-1?'Начать работу <span aria-hidden="true">↗</span>':'Далее <span aria-hidden="true">→</span>';
+  $('welcomeNextBtn').setAttribute('aria-label',welcomeStepIndex===welcomeSteps.length-1?'Завершить знакомство и открыть CRM':'Следующий шаг знакомства');
+  root.querySelector('.welcome-demo-caption b').textContent='0'+(welcomeStepIndex+1)+'—04';
+}
+function closeFirstRunWelcome(markComplete=true) {
+  const root=$('firstRunWelcome'); if(!root)return;
+  if(markComplete){try{localStorage.setItem(WELCOME_COMPLETED_KEY,'1');}catch(error){console.warn('Не удалось сохранить статус знакомства:',error);}}
+  root.classList.remove('is-visible'); root.setAttribute('aria-hidden','true'); window.setTimeout(()=>{root.hidden=true;},320);
+}
+function showFirstRunWelcome(force=false) {
+  const root=$('firstRunWelcome'); if(!root||!startupUnlocked||!startupDashboardReady)return;
+  if(!force){try{if(localStorage.getItem(WELCOME_COMPLETED_KEY)==='1')return;}catch(error){console.warn('Не удалось прочитать статус знакомства:',error);}}
+  welcomeSetStep(0); root.hidden=false; root.setAttribute('aria-hidden','false'); requestAnimationFrame(()=>root.classList.add('is-visible')); $('welcomeNextBtn').focus();
+}
+$('welcomeNextBtn').addEventListener('click',()=>{if(welcomeStepIndex<welcomeSteps.length-1)welcomeSetStep(welcomeStepIndex+1);else closeFirstRunWelcome(true);});
+$('welcomeBackBtn').addEventListener('click',()=>welcomeSetStep(welcomeStepIndex-1));
+$('welcomeSkipBtn').addEventListener('click',()=>closeFirstRunWelcome(true));
+$('replayWelcomeBtn')?.addEventListener('click',()=>showFirstRunWelcome(true));
+$('firstRunWelcome').addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closeFirstRunWelcome(true);}});
+
 // PI does not query business data until the startup PIN gate has been passed.
 setInterval(() => { if (startupUnlocked) refreshPiCoach().catch(() => {}); }, 5 * 60 * 1000);
