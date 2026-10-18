@@ -42,7 +42,7 @@ jobs:
         run: |
           npm test
           node --check src/*.js src/*.cjs tests/*.cjs
-          python scripts/verify-schema.py
+          python3 scripts/verify-schema.py
 
   build-windows:
     name: Build and verify Windows installer
