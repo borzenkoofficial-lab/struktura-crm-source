@@ -1755,3 +1755,20 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
 @media (prefers-reduced-motion: reduce) {
   .app-shell .view.active { animation: none !important; }
 }
+
+
+/* System-wide reduced motion: every workspace surface honors the OS accessibility preference. */
+@media (prefers-reduced-motion: reduce) {
+  .app-shell *,
+  .app-shell *::before,
+  .app-shell *::after,
+  #pinLockScreen *,
+  #pinLockScreen *::before,
+  #pinLockScreen *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}
