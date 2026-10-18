@@ -1,6 +1,8 @@
 'use strict';
 const dns = require('node:dns').promises;
 const net = require('node:net');
+const { Agent } = require('undici');
+const pinnedDispatchers = new Map();
 
 function isPublicAddress(ip) {
   const family = net.isIP(ip);
@@ -27,15 +29,19 @@ async function validatePublicUrl(value) {
   if (url.username || url.password) throw new Error('URL с логином или паролем не поддерживается.');
   const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (host === 'localhost' || !host.includes('.') || host.endsWith('.local') || host.endsWith('.internal')) throw new Error('Разрешены только публичные домены.');
+  let resolvedAddresses = [];
   if (net.isIP(host)) {
     if (!isPublicAddress(host)) throw new Error('Локальные и непубличные IP-адреса запрещены.');
+    resolvedAddresses = [host];
   } else {
     let records;
     try { records = await dns.lookup(host, { all: true, verbatim: true }); }
     catch { throw new Error('Не удалось разрешить домен: ' + host); }
     if (!records.length || records.some(record => !isPublicAddress(record.address))) throw new Error('Домен разрешается в непубличный IP и заблокирован.');
+    resolvedAddresses = records.map(record => record.address);
   }
   url.hash = '';
+  Object.defineProperty(url, '__resolvedAddresses', { value: resolvedAddresses, enumerable: false });
   return url;
 }
 
@@ -88,11 +94,32 @@ function robotsAllows(robotsText, pathname) {
   const rules = matched.flatMap(g => g.rules).filter(r => pathname.startsWith(r.path)).sort((a,b) => b.path.length-a.path.length);
   return !rules.length || rules[0].allow;
 }
+function createPinnedLookup(host, addresses) {
+  const normalizedHost = String(host).toLowerCase().replace(/^\\[|\\]$/g, '');
+  const pinned = [...addresses];
+  if (!pinned.length || pinned.some(address => !isPublicAddress(address))) throw new Error('Для соединения не задан проверенный публичный IP.');
+  return (hostname, options, callback) => {
+    const requestedHost = String(hostname).toLowerCase().replace(/^\\[|\\]$/g, '');
+    if (requestedHost !== normalizedHost) return dns.lookup(hostname, options, callback);
+    const entries = pinned.map(address => ({ address, family: net.isIP(address) }));
+    if (options && options.all) return callback(null, entries);
+    return callback(null, entries[0].address, entries[0].family);
+  };
+}
+function pinnedDispatcher(url) {
+  const host = url.hostname.toLowerCase().replace(/^\\[|\\]$/g, '');
+  const addresses = url.__resolvedAddresses || (net.isIP(host) ? [host] : []);
+  const key = host + '|' + addresses.join(',');
+  if (!pinnedDispatchers.has(key)) {
+    pinnedDispatchers.set(key, new Agent({ connect: { lookup: createPinnedLookup(host, addresses) } }));
+  }
+  return pinnedDispatchers.get(key);
+}
 async function fetchSafe(url, fetchImpl) {
   let current = await validatePublicUrl(url);
   for (let redirects = 0; redirects <= 3; redirects++) {
     const response = await fetchImpl(current.toString(), {
-      redirect: 'manual', signal: AbortSignal.timeout(9000),
+      dispatcher: pinnedDispatcher(current), redirect: 'manual', signal: AbortSignal.timeout(9000),
       headers: { 'User-Agent': 'StrukturaCRM/0.3 (+public business contact discovery; respects robots.txt)', Accept: 'text/html,application/xhtml+xml,text/plain;q=0.8' }
     });
     if ([301,302,303,307,308].includes(response.status)) {
@@ -156,4 +183,4 @@ async function crawlSites(seedUrls, options = {}) {
   }
   return { prospects: [...discovered.values()], pagesChecked: checked.length, errors: errors.slice(0, 30), checkedUrls: checked.slice(0, 100) };
 }
-module.exports = { isPublicAddress, validatePublicUrl, plainText, extractPage, robotsAllows, crawlSites };
+module.exports = { isPublicAddress, validatePublicUrl, createPinnedLookup, plainText, extractPage, robotsAllows, crawlSites };
