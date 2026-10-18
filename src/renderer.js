@@ -1315,16 +1315,31 @@ $('projectsTable').addEventListener('change', async event => {
   finally { control.disabled = false; }
 });
 $('projectForm').addEventListener('submit', async e => {
-  e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form));
+  e.preventDefault(); const form = e.currentTarget;
+  // Keep one in-flight write per form: rapid clicks must not create duplicate objects.
+  if (form.dataset.submitting === 'true') return;
+  form.dataset.submitting = 'true';
+  const submitButtons = [...form.querySelectorAll('button[type="submit"],input[type="submit"]')];
+  submitButtons.forEach(button => { button.disabled = true; });
+  const data = Object.fromEntries(new FormData(form));
   const editing = Boolean(data.id), planToAttach = editing ? null : pendingProjectPlan; pendingProjectPlan = null;
   try {
-    if (editing) await window.crm.updateProject(data);
-    else if (planToAttach?.lines?.length) await window.crm.createProjectWithPlan({ project: data, plan: planToAttach });
-    else await window.crm.createProject(data);
-  } catch (err) { pendingProjectPlan = planToAttach; toast(err.message,true); return; }
-  form.reset(); $('projectDialogTitle').textContent = 'Новый объект'; closeDialog('projectDialog');
-  toast(editing ? 'Карточка объекта обновлена.' : (planToAttach?.lines?.length ? 'Объект и производственный план сохранены одной операцией.' : 'Объект сохранён. План работ можно добавить в разделе «Производство».'));
-  await Promise.all([refreshProjects(), refreshDashboard(), refreshProduction(), refreshFinance()]).catch(err => toast(`Объект сохранён, но обновление списков завершилось ошибкой: ${err.message}`, true));
+    try {
+      if (editing) await window.crm.updateProject(data);
+      else if (planToAttach?.lines?.length) await window.crm.createProjectWithPlan({ project: data, plan: planToAttach });
+      else await window.crm.createProject(data);
+    } catch (err) {
+      pendingProjectPlan = planToAttach;
+      toast(err.message, true);
+      return;
+    }
+    form.reset(); $('projectDialogTitle').textContent = 'Новый объект'; closeDialog('projectDialog');
+    toast(editing ? 'Карточка объекта обновлена.' : (planToAttach?.lines?.length ? 'Объект и производственный план сохранены одной операцией.' : 'Объект сохранён. План работ можно добавить в разделе «Производство».'));
+    await Promise.all([refreshProjects(), refreshDashboard(), refreshProduction(), refreshFinance()]).catch(err => toast(`Объект сохранён, но обновление списков завершилось ошибкой: ${err.message}`, true));
+  } finally {
+    form.dataset.submitting = 'false';
+    submitButtons.forEach(button => { button.disabled = false; });
+  }
 });
 $('projectsTable').addEventListener('click', async event => {
   const button = event.target.closest('[data-edit-project]'); if (!button) return;
