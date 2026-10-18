@@ -778,3 +778,14 @@ test('PI explanation and warning panels have a readable visual hierarchy', () =>
   assert.match(css, /max-height:calc\(100dvh - 32px\)/);
   assert.match(css, /@media\(forced-colors:active\)/);
 });
+
+
+test('micro-detail pass keeps notices, PI copy, table actions and narrow dialogs readable', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.notice\.inline-notice\{max-width:none;width:100%/);
+  assert.match(css, /\.pi-explainer-steps small\{display:block;line-height:1\.5\}/);
+  assert.match(css, /\.data-table td button:focus-visible/);
+  assert.match(css, /\.modal \.modal-actions\{flex-wrap:wrap\}/);
+  assert.match(css, /max-width:min\(380px,calc\(100vw - 32px\)\)/);
+  assert.match(css, /@media\(max-width:560px\)/);
+});
