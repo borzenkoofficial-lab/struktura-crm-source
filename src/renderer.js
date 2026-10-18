@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-function applyDataProgressWidths(root = document) { root.querySelectorAll('[data-progress-width]').forEach(el => { const width = Math.max(0, Math.min(100, Number(el.dataset.progressWidth) || 0)); el.style.width = `${width}%`; }); }
+function applyDataProgressWidths(root = document) { const elements = [...root.querySelectorAll('[data-progress-width]')]; if (root.matches?.('[data-progress-width]')) elements.unshift(root); elements.forEach(el => { const width = Math.max(0, Math.min(100, Number(el.dataset.progressWidth) || 0)); el.style.width = `${width}%`; }); }
 const progressWidthObserver = new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(node => { if (node.nodeType === 1) applyDataProgressWidths(node); })));
 window.addEventListener('DOMContentLoaded', () => { applyDataProgressWidths(); progressWidthObserver.observe(document.body, { childList: true, subtree: true }); }, { once: true });
 const serviceLabels = { demolition: 'Демонтаж', finishing: 'Отделочные работы', raised_floor: 'Фальшполы' };
