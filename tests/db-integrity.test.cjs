@@ -80,6 +80,8 @@ test('payment integrity helper rejects excess refunds, incoming-to-refund change
     const paymentId = db.prepare("INSERT INTO payments(project_id,amount_rub,payment_date,payment_type) VALUES (?,?,'2026-10-18','incoming')").run(p1,1000).lastInsertRowid;
     assert.equal(assertPaymentBalance(db,p1,'incoming',500),1500);
     assert.throws(() => assertPaymentBalance(db,p1,'refund',1001), /возвратов не может превышать поступления/);
+    db.prepare(`INSERT INTO payments(project_id,amount_rub,payment_date,payment_type) VALUES (?,?,'2026-10-18','refund')`).run(p1,500);
+    assert.throws(() => assertPaymentBalance(db,p1,'incoming',0,paymentId), /возвратов не может превышать поступления/);
     assert.throws(() => assertPaymentBalance(db,p1,'refund',1000,paymentId), /возвратов не может превышать поступления/);
     assert.throws(() => assertPaymentBalance(db,p2,'refund',1,paymentId), /возвратов не может превышать поступления/);
   } finally { if (db && db.open) db.close(); fs.rmSync(userDataPath,{recursive:true,force:true}); }
