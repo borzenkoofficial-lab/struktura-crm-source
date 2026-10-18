@@ -908,5 +908,5 @@ test('every dialog has an accessible name tied to its visible heading or search 
     assert.match(dialog[0], new RegExp('aria-labelledby="' + titleId + '"'));
     assert.ok(html.includes('id="' + titleId + '"'), 'visible title exists: ' + titleId);
   }
-  assert.match(html, /<dialog\\b[^>]*id="commandPaletteDialog"[^>]*aria-label="Палитра команд"/);
+  assert.match(html, /<dialog\b[^>]*id="commandPaletteDialog"[^>]*aria-label="Палитра команд"/);
 });
