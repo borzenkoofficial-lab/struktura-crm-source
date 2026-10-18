@@ -1809,6 +1809,7 @@ const startupStartedAt = performance.now();
 let pinUnlockResolve = null;
 let startupGatePromise = null;
 let startupUnlocked = false;
+let startupDashboardReady = false;
 function refreshStartupSettings() {
   refreshSearchApiStatus();
   refreshNotificationSettings().catch(() => { $('notificationStatus').textContent = 'Настройки уведомлений недоступны'; });
@@ -1864,7 +1865,7 @@ function hideStartupSplash() {
 // Never leave the launch screen covering the app if initial data loading stalls.
 window.setTimeout(hideStartupSplash, 8000);
 Promise.race([
-  initializeStartupGate().then(() => refreshDashboard()),
+  initializeStartupGate().then(async () => { await refreshDashboard(); startupDashboardReady = true; }),
   new Promise((_, reject) => window.setTimeout(() => reject(new Error('Превышено время ожидания загрузки обзора (10 секунд). Проверьте локальную базу и перезапустите программу.')), 10000))
 ])
   .catch(e => {
@@ -1880,7 +1881,7 @@ Promise.race([
       errorBox.append(heading, detail, retry); target.append(errorBox);
     }
   })
-  .finally(hideStartupSplash);
+  .finally(() => { hideStartupSplash(); if (startupDashboardReady) window.setTimeout(() => showFirstRunWelcome(), 560); });
 
 /* First-run onboarding: a short, replayable guided tour with no network calls. */
 const WELCOME_COMPLETED_KEY = 'struktura-crm-welcome-completed-v1';
