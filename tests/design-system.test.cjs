@@ -15,7 +15,7 @@ test('Industrial Premium design tokens define the dark graphite and emerald syst
 test('global visual layer styles navigation, data tables, forms and dialogs consistently', () => {
   for (const selector of ['.sidebar','.nav-item.active','.button.primary','.stat-card','.data-table th','.data-table td','.modal, dialog.modal','.modal input','.modal select','.modal textarea','.settings-card']) assert.ok(css.includes(selector), 'missing global style target: ' + selector);
   assert.match(css, /dialog\.modal\[open\]\s*\{[\s\S]*?background:[\s\S]*?!important/);
-  assert.ok(css.lastIndexOf('dialog.modal,dialog.modal[open]{background-color:#fff!important') < css.lastIndexOf('dialog.modal, dialog.modal[open] {'), 'dark dialog override must follow the legacy light override');
+  assert.ok(css.lastIndexOf('dialog.modal,dialog.modal[open]{background-color:#fff!important') < css.lastIndexOf('.modal, dialog.modal, dialog.modal[open] {'), 'dark dialog override must follow the legacy light override');
 });
 
 test('motion system respects reduced-motion preferences and keeps fallback styling', () => {
