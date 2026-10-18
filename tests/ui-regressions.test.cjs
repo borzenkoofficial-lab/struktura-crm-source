@@ -810,3 +810,14 @@ test('operational alerts and empty states retain hierarchy in the dark theme', (
   assert.match(css, /\.app-shell \.section-head p\{max-width:720px;line-height:1\.6\}/);
   assert.match(css, /@media\(max-width:560px\)/);
 });
+
+
+test('modal close controls and dense table actions remain legible and keyboard accessible', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.app-shell \.close-btn:focus-visible\{outline:2px solid #e18a63;outline-offset:3px\}/);
+  assert.match(css, /\.app-shell \.close-btn:hover\{background:#343b40;border-color:#66747b;color:#fff\}/);
+  assert.match(css, /\.app-shell \.modal \.button:disabled/);
+  assert.match(css, /\.app-shell \.data-table tr:focus-within/);
+  assert.match(css, /@media\(hover:none\)/);
+  assert.match(css, /@media\(prefers-reduced-motion:reduce\)/);
+});
