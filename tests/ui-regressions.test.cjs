@@ -751,16 +751,17 @@ test('every preload invoke channel has a matching main handler and vice versa', 
 
 test('OPLOT modal close controls remain visible, reachable and consistently sized', () => {
   const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
-  const closeButtons = [...html.matchAll(/<button\\b(?=[^>]*\\bclose-btn\\b)([^>]*)>([\\s\\S]*?)<\\/button>/g)];
+  const closeButtons = [...html.matchAll(/<button\b(?=[^>]*\bclose-btn\b)([^>]*)>([\s\S]*?)<\/button>/g)];
   assert.ok(closeButtons.length >= 10, 'modal close controls are present across the application');
+  assert.equal((html.match(/aria-label="Закрыть окно"/g) || []).length, closeButtons.length - 1, 'close controls have accessible labels unless they already provide one');
   for (const match of closeButtons) {
     assert.match(match[1], /type="button"/, 'close control must not submit its form');
     assert.match(match[1], /data-close="[^"]+"/, 'close control must identify its dialog');
     assert.match(match[2], /×|✕|✖/, 'close control must show a visible close glyph');
   }
-  assert.match(css, /\\.close-btn\\{[^}]*width:36px!important/s);
-  assert.match(css, /\\.close-btn:hover\\{[^}]*border-color:#d9653c!important/s);
-  assert.match(css, /\\.close-btn:focus-visible\\{/);
+  assert.match(css, /\.close-btn\{[^}]*width:36px!important/s);
+  assert.match(css, /\.close-btn:hover\{[^}]*border-color:#d9653c!important/s);
+  assert.match(css, /\.close-btn:focus-visible\{/);
 });
 
 test('PI explanation and warning panels have a readable visual hierarchy', () => {
@@ -769,8 +770,8 @@ test('PI explanation and warning panels have a readable visual hierarchy', () =>
   assert.match(html, /id="piExplainerTitle"/);
   assert.match(html, /class="pi-explainer-steps"/);
   assert.match(html, /id="piHomeAlerts"/);
-  assert.match(css, /\\.pi-explainer-steps>div\\{/);
-  assert.match(css, /\\.pi-alert-list:empty\\{display:none\\}/);
-  assert.match(css, /\\[role="alert"\\]/);
+  assert.match(css, /\.pi-explainer-steps>div\{/);
+  assert.match(css, /\.pi-alert-list:empty\{display:none\}/);
+  assert.match(css, /\[role="alert"\]/);
   assert.match(css, /prefers-reduced-motion/);
 });
