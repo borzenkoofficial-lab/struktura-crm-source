@@ -2143,3 +2143,156 @@ input,select,textarea{accent-color:var(--oplot-accent)}
 }
 
 /* Build target: validate the complete desktop UI stylesheet in CI. */
+
+
+/* OPLOT UI consistency pass — one graphite palette across every workspace.
+   Keep this block last: earlier feature modules contain legacy light-surface rules. */
+:root{
+  color-scheme:dark;
+  --oplot-bg:#171c20;
+  --oplot-surface:#20262b;
+  --oplot-surface-muted:#252c32;
+  --oplot-line:#353e45;
+  --oplot-line-strong:#46515a;
+  --oplot-text:#e4e8eb;
+  --oplot-muted:#a0aab3;
+  --oplot-accent:#d9653c;
+  --oplot-accent-hover:#bd512d;
+  --st-bg:#171c20;
+  --st-surface:#20262b;
+  --st-surface-2:#252c32;
+  --st-border:#353e45;
+  --st-text:#e4e8eb;
+  --st-text-muted:#a0aab3;
+  --st-accent:#e47a53;
+}
+html,body,.app-shell,.main,.view,.view.active{
+  background-color:var(--oplot-bg)!important;
+  color:var(--oplot-text);
+}
+.sidebar{background:#20262b!important;border-right:1px solid #343d44!important;box-shadow:none!important}
+.main{min-width:0}
+.topbar,.app-footer{border-color:#343d44!important}
+.topbar h1,.section-head h3,.dashboard-section-head h3,.panel-head h3,
+.estimate-pro-head h3,.estimate-subhead h4,.estimate-catalog-head h4,
+h1,h2,h3,h4,h5,strong{color:inherit}
+.eyebrow,.today,.section-head p,.dashboard-section-head p,.panel-head p,
+.table-sub,.search-helper,.app-footer{color:#a0aab3}
+.welcome{
+  background:#2a3238!important;border:1px solid #3b454d!important;
+  box-shadow:none!important;color:#f2f4f5
+}
+.welcome::before,.welcome::after{display:none!important}
+.welcome h2,.welcome p,.welcome-tag{color:#f2f4f5}
+.welcome p{color:#c3cbd1}
+.welcome-art,.welcome-side,.hero-orbit,.hero-glow,.hero-float,.hero-mini-card{display:none!important}
+.stat-card,.finance-card,.panel,.settings-card,.crawler-panel,.domain-query,
+.pi-home-panel,.pi-explainer,.finance-insights,.estimate-panel,.estimate-pro-panel,
+.estimate-subpanel,.table-panel,.browser-inspector,.browser-workspace,
+.opportunity-radar,.estimate-pro-body,.finance-alert,.finance-forecast-grid article,
+.radar-metrics article,.estimate-results>div,.estimate-add-row,.crawler-result,
+.search-api-status,.browser-page-placeholder,.inspector-empty,.inspector-content,
+.pi-mockup,.pi-mockup-project,.pi-mockup-alert,.settings-section,.settings-group,
+.report-card,.report-panel,.task-card,.task-stats .stat-card,.production-card,
+.production-panel,.crew-card,.brigade-card,.object-card,.lead-card,.client-card,
+.project-card,.order-card,.contact-card,.calendar-card,.notification-card,
+.browser-card,.source-card,.analytics-card,.chart-card,.summary-card{
+  background:#20262b!important;
+  color:#e0e5e8!important;
+  border-color:#353e45!important;
+  box-shadow:none!important;
+}
+.stat-card:hover,.finance-card:hover{transform:none!important;box-shadow:none!important}
+.panel-head,.estimate-pro-head,.estimate-subhead,.estimate-demo-head,
+.browser-inspector,.estimate-table-wrap,.estimate-lines-table th{
+  border-color:#353e45!important
+}
+.panel-head,.estimate-pro-head,.estimate-subpanel,.estimate-table-wrap{
+  background:#20262b!important
+}
+.data-table,.estimate-lines-table{background:#20262b!important;color:#dbe1e5}
+.data-table th,.estimate-lines-table th{
+  background:#2a3238!important;color:#b5bec5!important;border-color:#353e45!important
+}
+.data-table td,.estimate-lines-table td{
+  background:transparent!important;color:#cbd3d9!important;border-color:#303940!important
+}
+.data-table td:first-child,.estimate-lines-table td:first-child strong{color:#edf0f2!important}
+.data-table tr:hover td{background:#283037!important}
+.action-row{background:transparent!important;border-color:#353e45!important}
+.action-row:hover{background:#293238!important}
+.tip,.empty-icon,.placeholder-symbol,.stat-icon,.action-icon{
+  box-shadow:none!important
+}
+.toolbar input,.toolbar select,.crawler-body input,.crawler-body select,
+.crawler-body textarea,.modal input,.modal select,.modal textarea,
+input,select,textarea,.estimate-meta-grid input,.estimate-meta-grid select,
+.estimate-add-row select,.estimate-input-grid input,.estimate-input-grid select,
+.estimate-lines-table input,.estimate-catalog-toolbar select,
+.inspector-service-select{
+  color:#e4e8eb!important;background:#171c20!important;
+  border:1px solid #46515a!important;box-shadow:none!important
+}
+input::placeholder,textarea::placeholder{color:#8d99a2!important}
+input:focus,select:focus,textarea:focus{
+  border-color:#d9653c!important;outline:2px solid rgba(217,101,60,.18)!important;
+  box-shadow:none!important
+}
+.modal,.modal form,.modal-head,.command-palette,.command-palette-footer{
+  color:#e4e8eb!important;background:#20262b!important;border-color:#3b454d!important
+}
+.modal::backdrop{background:rgba(0,0,0,.68)!important;backdrop-filter:none!important}
+.close-btn{background:#30383e!important;color:#dce2e6!important;border:1px solid #46515a!important}
+.button,.button.subtle,.small-button,.task-toggle{
+  background:#2b3339!important;color:#e0e5e8!important;border-color:#46515a!important;
+  box-shadow:none!important
+}
+.button:hover,.button.subtle:hover{background:#343e45!important;border-color:#5a6872!important;transform:none!important}
+.button.primary,.button.hero-primary,.welcome-next-btn{
+  background:#d9653c!important;color:#fff!important;border-color:#d9653c!important;box-shadow:none!important
+}
+.button.primary:hover,.button.hero-primary:hover,.welcome-next-btn:hover{background:#bd512d!important}
+.pill,.radar-tag,.radar-score,.inspector-tag-row span{
+  background:#30383e!important;color:#cbd3d9!important;border-color:#46515a!important
+}
+.pill.new,.pill.measurement,.pill.estimate,.radar-score.hot{
+  background:#4a3028!important;color:#ffb397!important
+}
+.pill.won{background:#233d31!important;color:#91d7b1!important}
+.pill.lost{background:#442b30!important;color:#f0a5ae!important}
+.pill.contacted,.pill.negotiation{background:#293746!important;color:#a9c9f0!important}
+.notice,.search-api-status,.search-api-status.ready,.search-api-status.error,
+.crawler-result,.crawler-result.error{
+  background:#252c32!important;color:#d4dbe0!important;border-color:#46515a!important
+}
+.estimate-results .estimate-price{background:#3b2b26!important;border-color:#694333!important}
+.estimate-results .estimate-price strong,.local-link,.inspector-url{color:#ef9b7b!important}
+.welcome-window,.welcome-story,.welcome-demo,.welcome-app-frame,
+.welcome-app-main,.welcome-mock-greeting,.welcome-mock-panel,
+.welcome-mock-stats>div,.welcome-mock-row,.pi-mockup{
+  background:#20262b!important;color:#dfe5e8!important;border-color:#3b454d!important
+}
+.welcome-window-head,.welcome-window-foot,.welcome-app-sidebar{
+  background:#2a3238!important;color:#dfe5e8!important;border-color:#3b454d!important
+}
+.welcome-story p,.welcome-privacy-note,.welcome-demo-caption,.welcome-demo-foot,
+.welcome-app-kicker,.welcome-mock-greeting small,.welcome-mock-chart small,
+.pi-mockup-top{color:#a0aab3!important}
+.welcome-feature-points>div,.welcome-controls,.welcome-demo-foot,
+.welcome-app-top,.welcome-mock-panel,.pi-mockup-project,.pi-mockup-alert{
+  border-color:#3b454d!important
+}
+.welcome-feature-points>div,.welcome-mock-glyph,.welcome-mock-avatar,
+.pi-mockup-alert{background:#2a3238!important;color:#dfe5e8!important}
+.welcome-side-line.active{background:#4a3028!important}
+.startup-splash,.pin-lock-screen,.welcome-backdrop,.first-run-welcome{
+  background:#171c20!important;color:#e4e8eb!important
+}
+.pin-lock-card{background:#20262b!important;border-color:#3b454d!important}
+.pi-explainer-steps>div,.estimate-lines-empty,.radar-queue,.radar-item,
+.finance-alert-list,.estimate-two-columns{border-color:#353e45!important}
+.pi-home-summary,.pi-alert-list,.inspector-value,.radar-item-main p{color:#d0d7dc!important}
+hr{border-color:#353e45!important}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
