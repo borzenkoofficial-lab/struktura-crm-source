@@ -821,3 +821,14 @@ test('modal close controls and dense table actions remain legible and keyboard a
   assert.match(css, /@media\(hover:none\)/);
   assert.match(css, /@media\(prefers-reduced-motion:reduce\)/);
 });
+
+
+test('every modal close button uses the same explicit accessible name', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const buttons = [...html.matchAll(/<button\\b[^>]*class="close-btn"[^>]*>/g)].map(match => match[0]);
+  assert.ok(buttons.length > 0, 'modal close controls exist');
+  for (const button of buttons) {
+    assert.match(button, /aria-label="Закрыть окно"/, button);
+    assert.match(button, /data-close="[^"]+"/, button);
+  }
+});
