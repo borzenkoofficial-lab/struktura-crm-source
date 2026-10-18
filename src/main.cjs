@@ -618,18 +618,23 @@ ipcMain.handle('payments:create', (_event, input = {}) => {
 ipcMain.handle('payments:delete', (_event, idValue) => {
   const id = Number(idValue);
   if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный платёж.');
+  const existing = db.prepare('SELECT id, project_id FROM payments WHERE id=?').get(id);
+  if (!existing) throw new Error('Платёж не найден. Обнови список и попробуй снова.');
+  assertPaymentBalance(db, existing.project_id, 'incoming', 0, id);
   const result = db.prepare('DELETE FROM payments WHERE id=?').run(id);
   if (!result.changes) throw new Error('Платёж не найден. Обнови список и попробуй снова.');
   return { deleted: true, id };
 });
 ipcMain.handle('payments:update', (_event, input = {}) => {
   const id = Number(input.id), projectId = Number(input.project_id);
-  if (!Number.isSafeInteger(id) || id < 1 || !db.prepare('SELECT id FROM payments WHERE id=?').get(id)) throw new Error('Платёж не найден. Обнови список и попробуй снова.');
+  const existingPayment = db.prepare('SELECT id, project_id FROM payments WHERE id=?').get(id);
+  if (!Number.isSafeInteger(id) || id < 1 || !existingPayment) throw new Error('Платёж не найден. Обнови список и попробуй снова.');
   if (!Number.isSafeInteger(projectId) || projectId < 1 || !db.prepare('SELECT id FROM projects WHERE id=?').get(projectId)) throw new Error('Выбери существующий объект.');
   const amountRub = amount(input.amount_rub), date = clean(input.payment_date,10);
   if (!validDate(date) || !date) throw new Error('Укажи корректную календарную дату платежа.');
   const type = input.payment_type === 'refund' ? 'refund' : 'incoming';
   const method = ['cash','bank','transfer','other'].includes(input.method) ? input.method : 'other';
+  assertPaymentBalance(db, existingPayment.project_id, 'incoming', 0, id);
   assertPaymentBalance(db, projectId, type, amountRub, id);
   db.prepare('UPDATE payments SET project_id=?, amount_rub=?, payment_date=?, payment_type=?, method=?, note=? WHERE id=?')
     .run(projectId, amountRub, date, type, method, clean(input.note,500), id);
