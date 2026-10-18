@@ -1,4 +1,11 @@
-; STRUKTURA CRM — branded NSIS wizard palette.
-; Electron Builder includes this file before the generated installer pages.
-!define MUI_BGCOLOR "F5F7FA"
-!define MUI_TEXTCOLOR "14283B"
+; ОПЛОТ — графитовый мастер установки с фирменными иллюстрациями.
+; Палитра: графит, серебро, белый. Не меняет и не удаляет существующую базу данных.
+!define MUI_BGCOLOR "25282C"
+!define MUI_TEXTCOLOR "F1F3F5"
+!define MUI_HEADERBACKGROUNDCOLOR "25282C"
+!define MUI_HEADERTEXTCOLOR "F1F3F5"
+!define MUI_WELCOMEPAGE_TITLE "Добро пожаловать в ОПЛОТ"
+!define MUI_WELCOMEPAGE_TEXT "ОПЛОТ — локальная система управления строительным бизнесом.$\r$\n$\r$\nЗаявки, клиенты, объекты, сметы, производство и финансы — в одном рабочем пространстве.$\r$\n$\r$\nРабочие данные хранятся на этом компьютере. Для работы не требуется обязательный облачный сервер."
+!define MUI_FINISHPAGE_TITLE "ОПЛОТ готов к работе"
+!define MUI_FINISHPAGE_TEXT "Установка завершена.$\r$\n$\r$\nЗапустите ОПЛОТ с рабочего стола, чтобы начать работу с заявками, объектами, сметами и производством."
+!define MUI_ABORTWARNING
