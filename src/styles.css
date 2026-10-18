@@ -1673,13 +1673,13 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
   background: #11191d;
   color: var(--st-text);
 }
-.app-shell .command-palette input,
-.app-shell .command-palette input:focus {
+.app-shell .modal.command-palette input:not([type="checkbox"]):not([type="radio"]),
+.app-shell .modal.command-palette input:not([type="checkbox"]):not([type="radio"]):focus {
   background: transparent !important;
   border-color: transparent !important;
   box-shadow: none !important;
 }
-.app-shell .command-palette input:focus-visible {
+.app-shell .modal.command-palette input:focus-visible {
   outline-offset: -2px;
 }
 .app-shell .toast {
