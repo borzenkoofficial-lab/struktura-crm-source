@@ -1,5 +1,6 @@
 'use strict';
-const dns = require('node:dns').promises;
+const dnsModule = require('node:dns');
+const dns = dnsModule.promises;
 const net = require('node:net');
 const { Agent } = require('undici');
 const pinnedDispatchers = new Map();
@@ -100,7 +101,7 @@ function createPinnedLookup(host, addresses) {
   if (!pinned.length || pinned.some(address => !isPublicAddress(address))) throw new Error('Для соединения не задан проверенный публичный IP.');
   return (hostname, options, callback) => {
     const requestedHost = String(hostname).toLowerCase().replace(/^\\[|\\]$/g, '');
-    if (requestedHost !== normalizedHost) return dns.lookup(hostname, options, callback);
+    if (requestedHost !== normalizedHost) return dnsModule.lookup(hostname, options, callback);
     const entries = pinned.map(address => ({ address, family: net.isIP(address) }));
     if (options && options.all) return callback(null, entries);
     return callback(null, entries[0].address, entries[0].family);
