@@ -733,3 +733,17 @@ test('PI shows user-friendly error explanations and hides raw IPC errors behind 
   assert.doesNotMatch(renderer, /<p><strong>Техническое сообщение<\/strong>/);
   assert.match(renderer, /item\.userMessage \|\| piErrorUserMessage\(item\.message\)/);
 });
+
+test('renderer and main HTML avoid inline style attributes under the strict CSP', () => {
+  assert.doesNotMatch(renderer, /style\s*=\s*["']/i);
+  assert.doesNotMatch(html, /style\s*=\s*["']/i);
+  assert.match(html, /style-src 'self'/);
+  assert.doesNotMatch(html, /style-src[^>]*unsafe-inline/);
+});
+
+test('every preload invoke channel has a matching main handler and vice versa', () => {
+  const invokes = new Set([...preload.matchAll(/ipcRenderer\.invoke\(\s*['"]([^'"]+)['"]/g)].map(m => m[1]));
+  const handlers = new Set([...main.matchAll(/ipcMain\.handle\(\s*['"]([^'"]+)['"]/g)].map(m => m[1]));
+  assert.deepEqual([...invokes].filter(channel => !handlers.has(channel)), []);
+  assert.deepEqual([...handlers].filter(channel => !invokes.has(channel)), []);
+});
