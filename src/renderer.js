@@ -1130,7 +1130,7 @@ $('estimatePdfBtn').addEventListener('click', async () => {
   const r = refreshEstimate(); if (!r) return;
   try { const saved = await window.crm.exportQuotePdf({ title: $('estimateTitle').value, customer: $('estimateCustomer').value, address: $('estimateAddress').value, contact: $('estimateContact').value, validity: $('estimateValidity').value, lines: r.lineItems.map(x => ({name:x.name,unit:x.unit,quantity:x.quantity,price:x.price})), revenue: r.revenue, discount: r.discount, estimatedCostRub: r.totalCost, estimatedProfitRub: r.profit, marginPct: r.actualMargin }); if (saved?.canceled) return; toast('КП в PDF сохранено и добавлено в историю ПИ.'); await refreshPiCoach({ force: true }).catch(() => {}); } catch (error) { toast(`Не удалось сформировать PDF: ${error.message}`, true); }
 });
-$('estimateCreateProjectBtn').addEventListener('click', () => {
+$('estimateCreateProjectBtn').addEventListener('click', async () => {
   const result = refreshEstimate(); if (!result) return;
   const form = $('projectForm'); form.reset();
   form.elements.title.value = $('estimateTitle').value || 'Предварительная смета';
@@ -1146,7 +1146,14 @@ $('estimateCreateProjectBtn').addEventListener('click', () => {
     else { const catalogId = line.catalogId || `manual-${line.lineId}`; planMap.set(catalogId, { catalog_id: catalogId, work_name: line.name, unit: line.unit, planned_quantity: Number(line.quantity), baseline_productivity: Math.max(0, Number(line.productivity) || 0) }); }
   }
   pendingProjectPlan = { planned_people: Number(form.elements.planned_people.value || 5), complexity_factor: Number(form.elements.complexity_factor.value || 1), lines: [...planMap.values()] };
-  openDialog('projectDialog');
+  try {
+    await populateProjectRelationships();
+    openDialog('projectDialog');
+  } catch (error) {
+    pendingProjectPlan = null;
+    toast(`Не удалось подготовить объект из сметы: ${error.message}`, true);
+    return;
+  }
   const missingRates = estimateLines.filter(line => Number(line.quantity) > 0 && !(Number(line.productivity) > 0)).length;
   toast(pendingProjectPlan.lines.length ? (missingRates ? `Смета перенесена в объект, включая ${missingRates} позиций без нормы. ПИ не сможет рассчитать полный срок, пока нормы не заданы.` : 'Сумма, состав бригады, сложность и позиции сметы будут перенесены в объект.') : 'Цена перенесена. Для прогноза сроков после сохранения добавь план работ.');
 });
