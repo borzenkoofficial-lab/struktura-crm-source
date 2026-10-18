@@ -43,6 +43,7 @@ const { forecastRemainingWork, buildRateModel } = require('./production-model.cj
 const { DEFAULT_REMINDER_SETTINGS, normalizeReminderSettings, buildReminders } = require('./reminder-engine.cjs');
 const { normalizeProductionPlan, normalizeShiftWorkLines } = require('./production-plan-utils.cjs');
 const { buildProductionReportHtml } = require('./production-report.cjs');
+const { assertPaymentBalance } = require('./payment-integrity.cjs');
 
 let db;
 let appUnlocked = true;
@@ -601,11 +602,6 @@ ipcMain.handle('income:update', (_event, input = {}) => {
   db.prepare('UPDATE income_records SET amount_rub=?,income_date=?,record_type=?,source=?,note=? WHERE id=?').run(amountRub,date,type,source,clean(input.note,500),id);
   return db.prepare('SELECT * FROM income_records WHERE id=?').get(id);
 });
-function assertPaymentBalance(projectId, paymentType, amountRub, excludeId = null) {
-  const current = db.prepare(`SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END),0) AS net FROM payments WHERE project_id=? AND (? IS NULL OR id<>?)`).get(projectId, excludeId, excludeId).net;
-  const resulting = current + (paymentType === 'refund' ? -amountRub : amountRub);
-  if (resulting < 0) throw new Error('Сумма возвратов не может превышать поступления по объекту. Проверь платежи.');
-}
 ipcMain.handle('payments:list', () => db.prepare(`SELECT py.*, p.title project_title FROM payments py JOIN projects p ON p.id=py.project_id ORDER BY py.payment_date DESC, py.id DESC`).all());
 ipcMain.handle('payments:create', (_event, input = {}) => {
   const projectId = Number(input.project_id);
@@ -615,7 +611,7 @@ ipcMain.handle('payments:create', (_event, input = {}) => {
   if (!validDate(date) || !date) throw new Error('Укажи корректную календарную дату платежа.');
   const type = input.payment_type === 'refund' ? 'refund' : 'incoming';
   const method = ['cash','bank','transfer','other'].includes(input.method) ? input.method : 'other';
-  assertPaymentBalance(projectId, type, amountRub);
+  assertPaymentBalance(db, projectId, type, amountRub);
   const result = db.prepare('INSERT INTO payments(project_id,amount_rub,payment_date,payment_type,method,note) VALUES (?,?,?,?,?,?)').run(projectId,amountRub,date,type,method,clean(input.note,500));
   return db.prepare('SELECT * FROM payments WHERE id=?').get(result.lastInsertRowid);
 });
@@ -634,7 +630,7 @@ ipcMain.handle('payments:update', (_event, input = {}) => {
   if (!validDate(date) || !date) throw new Error('Укажи корректную календарную дату платежа.');
   const type = input.payment_type === 'refund' ? 'refund' : 'incoming';
   const method = ['cash','bank','transfer','other'].includes(input.method) ? input.method : 'other';
-  assertPaymentBalance(projectId, type, amountRub, id);
+  assertPaymentBalance(db, projectId, type, amountRub, id);
   db.prepare('UPDATE payments SET project_id=?, amount_rub=?, payment_date=?, payment_type=?, method=?, note=? WHERE id=?')
     .run(projectId, amountRub, date, type, method, clean(input.note,500), id);
   return db.prepare('SELECT * FROM payments WHERE id=?').get(id);
