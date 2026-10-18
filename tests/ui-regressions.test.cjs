@@ -832,3 +832,13 @@ test('every modal close button uses the same explicit accessible name', () => {
     assert.match(button, /data-close="[^"]+"/, button);
   }
 });
+
+
+test('sidebar navigation keeps icon and count alignment with visible keyboard focus', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.app-shell \.sidebar \.nav-item>span\{[\s\S]*?flex:0 0 20px/);
+  assert.match(css, /\.app-shell \.sidebar \.nav-item>i\{[\s\S]*?margin-left:auto/);
+  assert.match(css, /\.app-shell \.sidebar \.nav-item:focus-visible\{outline:2px solid #e18a63/);
+  assert.match(css, /\.app-shell \.top-actions \.button:focus-visible/);
+  assert.match(css, /\.app-shell \.view.active\{animation:none\}/);
+});
