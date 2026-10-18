@@ -874,3 +874,13 @@ test('operational notices and empty states keep readable hierarchy and narrow la
   assert.match(css, /\.app-shell \.empty-state \.button\{margin-top:5px\}/);
   assert.match(css, /@media\(max-width:560px\)\{[\s\S]*?\.app-shell \.empty-state\{padding:18px 14px\}/);
 });
+
+
+test('modal headers, accessible tabs, and dense tables use consistent compact styling', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.app-shell \.modal-head\{[\s\S]*?border-bottom:1px solid var\(--st-border\)/);
+  assert.match(css, /\.app-shell \.close-btn:focus-visible\{outline:2px solid/);
+  assert.match(css, /\.app-shell \[role="tab"\]\[aria-selected="true"\]/);
+  assert.match(css, /\.app-shell \.table-wrap th,\.app-shell \.table-wrap td\{overflow-wrap:anywhere\}/);
+  assert.match(css, /@media\(max-width:560px\)\{[\s\S]*?\.app-shell \[role="tablist"\]\{overflow-x:auto/);
+});
