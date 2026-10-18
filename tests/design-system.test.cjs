@@ -59,3 +59,10 @@ test('navigation and all active workspace views use the shared motion system', (
   assert.match(css, /\.app-shell \.view\.active\s*\{\s*animation:\s*st-view-enter/);
   assert.match(css, /@keyframes\s+st-view-enter/);
 });
+
+
+test('system reduced-motion preference constrains animations and transitions across all workspace surfaces', () => {
+  const block = css.match(/@media\\s*\\(prefers-reduced-motion:\\s*reduce\\)[\\s\\S]*?animation-duration:\\s*0\\.01ms\\s*!important;[\\s\\S]*?transition-duration:\\s*0\\.01ms\\s*!important;[\\s\\S]*?transition-delay:\\s*0ms\\s*!important;[\\s\\S]*?\\}/);
+  assert.ok(block, 'global reduced-motion override must cap animations and transitions');
+  for (const selector of ['.app-shell *', '.app-shell *::before', '.app-shell *::after', '#pinLockScreen *']) assert.ok(block[0].includes(selector), 'reduced-motion override misses ' + selector);
+});
