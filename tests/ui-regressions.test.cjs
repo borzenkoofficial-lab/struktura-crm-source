@@ -838,7 +838,7 @@ test('sidebar navigation keeps icon and count alignment with visible keyboard fo
   const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
   assert.match(css, /\.app-shell \.sidebar \.nav-item>span\{[\s\S]*?flex:0 0 20px/);
   assert.match(css, /\.app-shell \.sidebar \.nav-item>i\{[\s\S]*?margin-left:auto/);
-  assert.match(css, /\.app-shell \.sidebar \.nav-item:focus-visible\{outline:2px solid #e18a63/);
+  assert.match(css, /\.app-shell \.sidebar \.nav-item:focus-visible\{\s*outline:2px solid #e18a63/);
   assert.match(css, /\.app-shell \.top-actions \.button:focus-visible/);
-  assert.match(css, /\.app-shell \.view.active\{animation:none\}/);
+  assert.match(css, /\.app-shell \.view.active\{\s*animation:none\}/);
 });
