@@ -1,8 +1,8 @@
 {
-  "name": "struktura-crm",
-  "version": "1.16.8",
+  "name": "oplot",
+  "version": "1.16.9",
   "private": true,
-  "description": "Struktura CRM — локальная настольная система управления клиентами, объектами, производством, сметами и финансами",
+  "description": "ОПЛОТ — локальная система управления строительным бизнесом: заявки, клиенты, объекты, сметы, производство и финансы",
   "main": "src/main.cjs",
   "scripts": {
     "start": "electron .",
@@ -20,7 +20,7 @@
   },
   "build": {
     "appId": "ru.struktura.crm",
-    "productName": "Struktura CRM",
+    "productName": "ОПЛОТ",
     "asar": true,
     "files": [
       "src/**/*",
@@ -35,15 +35,16 @@
           ]
         }
       ],
-      "artifactName": "Struktura-CRM-Setup-${version}.${ext}"
+      "artifactName": "Oplot-Setup-${version}.${ext}",
+      "icon": "build/oplot.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "installerIcon": "build/struktura.ico",
-      "uninstallerIcon": "build/struktura.ico",
+      "installerIcon": "build/oplot.ico",
+      "uninstallerIcon": "build/oplot.ico",
       "installerHeader": "build/installer-header.bmp",
       "installerSidebar": "build/installer-sidebar.bmp",
       "uninstallerSidebar": "build/installer-sidebar.bmp",
@@ -56,6 +57,6 @@
         "repo": "struktura-crm-source"
       }
     ],
-    "artifactName": "Struktura-CRM-Setup-${version}.${ext}"
+    "artifactName": "Oplot-Setup-${version}.${ext}"
   }
 }
