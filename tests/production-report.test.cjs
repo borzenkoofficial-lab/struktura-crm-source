@@ -51,3 +51,10 @@ test('completed-works act includes period quantities and clear non-legal-substit
   assert.match(html, /перед использованием как договорного документа проверьте требования/);
   assert.doesNotMatch(html, /Финансы за выбранный период/);
 });
+
+test('production report HTML has a restrictive CSP and escapes user fields', () => {
+  const html = buildProductionReportHtml({ project: { title: '<script>alert(1)</script>', client_name: 'Клиент' }, plan: [], shifts: [] });
+  assert.match(html, /Content-Security-Policy/);
+  assert.match(html, /default-src 'none'; style-src 'unsafe-inline'/);
+  assert.doesNotMatch(html, /<script>alert\(1\)<\/script>/);
+});
