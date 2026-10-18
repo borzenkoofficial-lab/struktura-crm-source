@@ -1,6 +1,6 @@
 {
   "name": "struktura-crm",
-  "version": "1.16.7",
+  "version": "1.16.8",
   "private": true,
   "description": "Struktura CRM — локальная настольная система управления клиентами, объектами, производством, сметами и финансами",
   "main": "src/main.cjs",
@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",
-    "electron-updater": "^6.6.2"
+    "electron-updater": "^6.6.2",
+    "undici": "^7.10.0"
   },
   "devDependencies": {
     "electron": "^35.2.1",

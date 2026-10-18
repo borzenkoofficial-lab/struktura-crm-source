@@ -911,3 +911,6 @@ dialog.modal>form{background:#fff;border-radius:inherit}
 @media(max-width:1120px){.about-hero-scene{transform:scale(.72);transform-origin:center center;margin:0 -25px}}
 @media(max-width:850px){.about-hero-scene{width:100%;transform:scale(.82);transform-origin:top center;margin:0 0 -25px;min-height:330px}}
 @media(max-width:560px){.settings-view{padding-top:14px}.settings-page-heading h2{font-size:26px}.settings-card-body{padding:17px}.settings-card .form-row{grid-template-columns:1fr}.about-hero-scene{width:140%;margin-left:-20%;transform:scale(.72);transform-origin:top center;min-height:265px;margin-bottom:-65px}.about-hero-scene .about-float-card{transform:scale(.88);transform-origin:center}.about-hero-scene .float-card-top{right:5%}.about-hero-scene .float-card-bottom{left:5%}}
+
+/* Static mockup progress width; avoids inline style attributes under the app CSP. */
+.pi-mockup-progress-68 { width: 68%; }

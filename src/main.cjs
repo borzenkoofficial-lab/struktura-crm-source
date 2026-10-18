@@ -43,6 +43,9 @@ const { forecastRemainingWork, buildRateModel } = require('./production-model.cj
 const { DEFAULT_REMINDER_SETTINGS, normalizeReminderSettings, buildReminders } = require('./reminder-engine.cjs');
 const { normalizeProductionPlan, normalizeShiftWorkLines } = require('./production-plan-utils.cjs');
 const { buildProductionReportHtml } = require('./production-report.cjs');
+const { assertPaymentBalance } = require('./payment-integrity.cjs');
+const { assertProjectDeletable } = require('./project-integrity.cjs');
+const { calculateQuoteTotals } = require('./quote-economics.cjs');
 
 let db;
 let appUnlocked = true;
@@ -319,6 +322,14 @@ ipcMain.handle('projects:create', (_event, input = {}) => {
     VALUES (@lead_id,@client_id,@title,@service,@status,@contract_rub,@address,@start_date,@end_date,@planned_people,@complexity_factor,@notes)`).run({ ...project, contract_rub: contract });
   return db.prepare('SELECT * FROM projects WHERE id=?').get(result.lastInsertRowid);
 });
+ipcMain.handle('projects:delete', (_event, idValue) => {
+  const id = Number(idValue);
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный объект.');
+  if (!db.prepare('SELECT id FROM projects WHERE id=?').get(id)) throw new Error('Объект не найден.');
+  assertProjectDeletable(db, id);
+  db.prepare('DELETE FROM projects WHERE id=?').run(id);
+  return { deleted: true, id };
+});
 ipcMain.handle('projects:update', (_event, input = {}) => {
   const id = Number(input.id);
   if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный номер объекта.');
@@ -574,6 +585,13 @@ ipcMain.handle('income:create', (_event, input = {}) => {
   const result = db.prepare('INSERT INTO income_records(amount_rub,income_date,record_type,source,note) VALUES (?,?,?,?,?)').run(amountRub,date,type,source,clean(input.note,500));
   return db.prepare('SELECT * FROM income_records WHERE id=?').get(result.lastInsertRowid);
 });
+ipcMain.handle('income:delete', (_event, idValue) => {
+  const id = Number(idValue);
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректная запись дохода.');
+  const result = db.prepare('DELETE FROM income_records WHERE id=?').run(id);
+  if (!result.changes) throw new Error('Запись дохода не найдена. Обнови список и попробуй снова.');
+  return { deleted: true, id };
+});
 ipcMain.handle('income:update', (_event, input = {}) => {
   const id = Number(input.id);
   if (!Number.isSafeInteger(id) || id < 1 || !db.prepare('SELECT id FROM income_records WHERE id=?').get(id)) throw new Error('Запись дохода не найдена.');
@@ -593,17 +611,31 @@ ipcMain.handle('payments:create', (_event, input = {}) => {
   if (!validDate(date) || !date) throw new Error('Укажи корректную календарную дату платежа.');
   const type = input.payment_type === 'refund' ? 'refund' : 'incoming';
   const method = ['cash','bank','transfer','other'].includes(input.method) ? input.method : 'other';
+  assertPaymentBalance(db, projectId, type, amountRub);
   const result = db.prepare('INSERT INTO payments(project_id,amount_rub,payment_date,payment_type,method,note) VALUES (?,?,?,?,?,?)').run(projectId,amountRub,date,type,method,clean(input.note,500));
   return db.prepare('SELECT * FROM payments WHERE id=?').get(result.lastInsertRowid);
 });
+ipcMain.handle('payments:delete', (_event, idValue) => {
+  const id = Number(idValue);
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный платёж.');
+  const existing = db.prepare('SELECT id, project_id FROM payments WHERE id=?').get(id);
+  if (!existing) throw new Error('Платёж не найден. Обнови список и попробуй снова.');
+  assertPaymentBalance(db, existing.project_id, 'incoming', 0, id);
+  const result = db.prepare('DELETE FROM payments WHERE id=?').run(id);
+  if (!result.changes) throw new Error('Платёж не найден. Обнови список и попробуй снова.');
+  return { deleted: true, id };
+});
 ipcMain.handle('payments:update', (_event, input = {}) => {
   const id = Number(input.id), projectId = Number(input.project_id);
-  if (!Number.isSafeInteger(id) || id < 1 || !db.prepare('SELECT id FROM payments WHERE id=?').get(id)) throw new Error('Платёж не найден. Обнови список и попробуй снова.');
+  const existingPayment = db.prepare('SELECT id, project_id FROM payments WHERE id=?').get(id);
+  if (!Number.isSafeInteger(id) || id < 1 || !existingPayment) throw new Error('Платёж не найден. Обнови список и попробуй снова.');
   if (!Number.isSafeInteger(projectId) || projectId < 1 || !db.prepare('SELECT id FROM projects WHERE id=?').get(projectId)) throw new Error('Выбери существующий объект.');
   const amountRub = amount(input.amount_rub), date = clean(input.payment_date,10);
   if (!validDate(date) || !date) throw new Error('Укажи корректную календарную дату платежа.');
   const type = input.payment_type === 'refund' ? 'refund' : 'incoming';
   const method = ['cash','bank','transfer','other'].includes(input.method) ? input.method : 'other';
+  assertPaymentBalance(db, existingPayment.project_id, 'incoming', 0, id);
+  assertPaymentBalance(db, projectId, type, amountRub, id);
   db.prepare('UPDATE payments SET project_id=?, amount_rub=?, payment_date=?, payment_type=?, method=?, note=? WHERE id=?')
     .run(projectId, amountRub, date, type, method, clean(input.note,500), id);
   return db.prepare('SELECT * FROM payments WHERE id=?').get(id);
@@ -631,6 +663,13 @@ ipcMain.handle('expenses:create', (_event, input = {}) => {
   const isPaid = input.is_paid === '0' || input.is_paid === false ? 0 : 1;
   const result = db.prepare('INSERT INTO expenses(project_id,amount_rub,expense_date,category,description,is_paid) VALUES (?,?,?,?,?,?)').run(projectId,amountRub,date,category,description,isPaid);
   return db.prepare('SELECT * FROM expenses WHERE id=?').get(result.lastInsertRowid);
+});
+ipcMain.handle('expenses:delete', (_event, idValue) => {
+  const id = Number(idValue);
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный расход.');
+  const result = db.prepare('DELETE FROM expenses WHERE id=?').run(id);
+  if (!result.changes) throw new Error('Расход не найден. Обнови список и попробуй снова.');
+  return { deleted: true, id };
 });
 ipcMain.handle('expenses:update', (_event, input = {}) => {
   const id = Number(input.id);
@@ -1097,20 +1136,6 @@ ipcMain.handle('browser:navigate', (_event, input = {}) => navigateBrowserInput(
 ipcMain.handle('browser:back', () => { if (browserView?.webContents.navigationHistory.canGoBack()) browserView.webContents.navigationHistory.goBack(); return browserState(); });
 ipcMain.handle('browser:forward', () => { if (browserView?.webContents.navigationHistory.canGoForward()) browserView.webContents.navigationHistory.goForward(); return browserState(); });
 ipcMain.handle('browser:reload', () => { browserView?.webContents.reload(); return { accepted: true }; });
-ipcMain.handle('browser:saveSite', () => {
-  const wc = browserView?.webContents;
-  if (!wc || wc.isDestroyed()) throw new Error('Браузер недоступен.');
-  const url = wc.getURL();
-  const title = clean(wc.getTitle(), 180);
-  let parsed; try { parsed = new URL(url); } catch { throw new Error('Открой сайт компании перед сохранением.'); }
-  if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname.includes('.')) throw new Error('Эту страницу нельзя сохранить как компанию. Открой публичный сайт.');
-  const existing = db.prepare('SELECT id FROM prospects WHERE website=? OR source_url=? LIMIT 1').get(parsed.origin, url);
-  if (existing) throw new Error(`Этот сайт уже сохранён в CRM (запись №${existing.id}).`);
-  const companyName = companyNameFromPage(title, parsed.hostname);
-  const result = db.prepare(`INSERT INTO prospects(company_name,category,service,region,website,source_url,source_name,status,notes)
-    VALUES (?,?,?,?,?,?,?,'new',?)`).run(companyName, 'Сохранено из браузера', 'demolition', 'Москва и Московская область', parsed.origin, url, 'Встроенный браузер', `Страница: ${title || parsed.hostname}`);
-  return { id: result.lastInsertRowid, company_name: companyName, website: parsed.origin, source_url: url };
-});
 ipcMain.handle('browser:saveAndScan', async (_event, input = {}) => {
   const wc = browserView?.webContents;
   if (!wc || wc.isDestroyed()) throw new Error('Браузер недоступен.');
@@ -1163,11 +1188,13 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   const title = clean(input.title || 'Коммерческое предложение', 180);
   const customer = clean(input.customer, 180); const address = clean(input.address, 240);
   const contact = clean(input.contact, 120); const validity = clean(input.validity || '7 календарных дней', 80);
-  const total = Math.max(0, Number(input.revenue) || 0);
+  const quoteTotals = calculateQuoteTotals(lines, input.discount);
+  const lineRevenue = quoteTotals.grossRevenueRub;
   const rows = lines.map((line, i) => `<tr><td class="num">${i + 1}</td><td><strong>${quoteEscape(clean(line.name,180))}</strong>${line.note ? `<small>${quoteEscape(clean(line.note,300))}</small>` : ''}</td><td>${quoteEscape(clean(line.unit,24))}</td><td class="num">${Number(line.quantity || 0).toLocaleString('ru-RU')}</td><td class="num">${quoteMoney(line.price)}</td><td class="num">${quoteMoney(Number(line.quantity || 0) * Number(line.price || 0))}</td></tr>`).join('');
-  const discount = Math.max(0, Number(input.discount) || 0);
+  const discount = quoteTotals.discountRub;
+  const total = quoteTotals.revenueRub;
   const preparedDate = new Date().toLocaleDateString('ru-RU');
-  const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${quoteEscape(title)}</title><style>
+  const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${quoteEscape(title)}</title><style>
   @page{size:A4;margin:13mm 13mm 15mm}*{box-sizing:border-box}body{font-family:Arial,'DejaVu Sans',sans-serif;color:#202a35;font-size:9pt;line-height:1.48;margin:0;background:#fff}header{position:relative;overflow:hidden;background:#172b3a;color:#fff;padding:21px 23px 20px;border-radius:2px;margin-bottom:18px;min-height:168px}header:after{content:"";position:absolute;right:-26px;top:-42px;width:205px;height:205px;border:1px solid rgba(255,255,255,.18);border-radius:50%;box-shadow:0 0 0 22px rgba(255,255,255,.035),0 0 0 45px rgba(255,255,255,.025)}.brand{font-size:23pt;letter-spacing:2.5px;font-weight:800;color:#fff;position:relative;z-index:1}.tag{font-size:7.2pt;letter-spacing:1.5px;color:#f1a36e;font-weight:bold;margin-top:4px;position:relative;z-index:1}.doctype{font-size:8pt;color:#c8d5dc;letter-spacing:1.4px;margin-top:22px;position:relative;z-index:1}.title{font-size:19pt;line-height:1.2;margin:5px 0 0;color:#fff;max-width:82%;position:relative;z-index:1}.hero-mark{position:absolute;right:19px;bottom:18px;width:95px;height:76px;border:1px solid rgba(255,255,255,.26);z-index:1;transform:skewY(-8deg)}.hero-mark:before,.hero-mark:after{content:"";position:absolute;border:1px solid rgba(241,163,110,.8)}.hero-mark:before{inset:12px -10px -10px 12px}.hero-mark:after{left:30px;top:-1px;bottom:-1px;border-width:0 0 0 1px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:7px 17px;margin:0 0 17px}.meta div{padding:7px 9px;background:#f4f6f7;border-left:2px solid #e38b55;min-height:43px}.label{display:block;font-size:7pt;letter-spacing:.65px;color:#687985;margin-bottom:2px;font-weight:700;text-transform:uppercase}.meta-value{overflow-wrap:anywhere}.section{font-size:10pt;font-weight:800;margin:17px 0 8px;color:#203747;display:flex;align-items:center;gap:8px}.section:before{content:"";width:4px;height:15px;background:#e38b55;display:inline-block}table{width:100%;border-collapse:collapse;font-size:8pt}thead{display:table-header-group}th{background:#203747;color:white;text-align:left;padding:8px 6px;font-weight:700}th:first-child{border-radius:2px 0 0 0}td{padding:7px 6px;border-bottom:1px solid #e4e9ec;vertical-align:top}tbody tr:nth-child(even){background:#f6f8f9}.num{text-align:right;white-space:nowrap}small{display:block;color:#6e7d87;font-size:7.3pt;margin-top:3px}.totals{margin:17px 0 0 auto;width:53%;background:#f3f6f7;padding:12px 14px;border-top:3px solid #e38b55}.total-label{color:#687985;font-size:7.5pt;font-weight:700;letter-spacing:.6px}.total{font-size:21pt;line-height:1.25;font-weight:800;color:#203747;margin-top:3px}.discount{font-size:8pt;color:#637079;margin-top:5px}.terms{margin-top:18px;padding:11px 12px;background:#f7f8f8;border-left:2px solid #cbd6dc;color:#596974;font-size:7.8pt}.terms strong{color:#203747}.signatures{display:grid;grid-template-columns:1.2fr .8fr;gap:15px;margin-top:19px;break-inside:avoid;page-break-inside:avoid}.sign-main{padding-top:8px}.sign-title{font-size:8pt;font-weight:800;color:#203747;margin-bottom:8px}.executor{font-size:9pt;font-weight:700;margin-bottom:18px}.signature-line{display:flex;align-items:end;gap:8px;margin-top:10px}.line{border-bottom:1px solid #667782;flex:1;height:22px}.line-label{font-size:7pt;color:#687985;white-space:nowrap}.stamp-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center}.stamp{width:100px;height:100px;border:1.5px dashed #9aaab3;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#8b9ba4;font-size:7pt;line-height:1.4;padding:12px;position:relative}.stamp:before{content:"";position:absolute;inset:5px;border:1px dashed #c0cbd1;border-radius:50%}.stamp-label{font-size:7pt;color:#687985;margin-top:5px}.footer{margin-top:17px;color:#82909a;font-size:6.8pt;border-top:1px solid #e2e7ea;padding-top:8px;display:flex;justify-content:space-between;gap:10px}tr{break-inside:avoid;page-break-inside:avoid}.terms,.totals{break-inside:avoid;page-break-inside:avoid}@media print{header{print-color-adjust:exact;-webkit-print-color-adjust:exact}.meta div,.totals,.terms,th{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
   </style></head><body><header><div class="brand">STRUKTURA</div><div class="tag">ДЕМОНТАЖ · ОТДЕЛКА · ФАЛЬШПОЛЫ</div><div class="doctype">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</div><div class="title">${quoteEscape(title)}</div><div class="hero-mark" aria-hidden="true"></div></header><div class="meta"><div><span class="label">Заказчик</span><span class="meta-value">${quoteEscape(customer || 'Не указан')}</span></div><div><span class="label">Контакт заказчика</span><span class="meta-value">${quoteEscape(contact || 'Не указан')}</span></div><div><span class="label">Адрес объекта</span><span class="meta-value">${quoteEscape(address || 'Будет уточнён')}</span></div><div><span class="label">Дата подготовки</span><span class="meta-value">${quoteEscape(preparedDate)}</span></div></div><div class="section">Состав и стоимость работ</div><table><thead><tr><th style="width:5%">№</th><th>Наименование работ</th><th>Ед.</th><th class="num">Кол-во</th><th class="num">Цена</th><th class="num">Сумма</th></tr></thead><tbody>${rows}</tbody></table><div class="totals"><div class="total-label">ИТОГО ПО ПРЕДЛОЖЕНИЮ</div><div class="total">${quoteMoney(total)}</div>${discount ? `<div class="discount">Скидка учтена в расчёте: ${quoteMoney(discount)}</div>` : ''}</div><div class="terms"><strong>Условия предложения</strong><br>Срок действия: ${quoteEscape(validity)}. Сроки выполнения, порядок оплаты и окончательный объём работ согласовываются сторонами до начала работ. Стоимость может быть уточнена после осмотра объекта и подтверждения объёмов. Дополнительные работы, не указанные в таблице, согласовываются отдельно. Настоящее коммерческое предложение не является договором подряда.</div><div class="signatures"><div class="sign-main"><div class="sign-title">ИСПОЛНИТЕЛЬ</div><div class="executor">ИП Борзенко Семен Сергеевич</div><div class="signature-line"><span class="line-label">Подпись</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Ф. И. О.</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Дата</span><span class="line"></span></div></div><div class="stamp-wrap"><div class="stamp">МЕСТО<br>ДЛЯ ПЕЧАТИ<br><span style="font-size:6pt">при наличии</span></div><div class="stamp-label">М. П.</div></div></div><div class="footer"><span>Сформировано в STRUKTURA CRM</span><span>Демонтаж · Отделка · Фальшполы</span></div></body></html>`;
   const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить коммерческое предложение в PDF', defaultPath: `${title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,80)}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
@@ -1177,13 +1204,14 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
     await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
     const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
     fs.writeFileSync(filePath, data);
-    const costRub = Math.max(0, Number(input.estimatedCostRub) || 0);
-    const profitRub = Number.isFinite(Number(input.estimatedProfitRub)) ? Number(input.estimatedProfitRub) : total - costRub;
-    const marginPct = Number.isFinite(Number(input.marginPct)) ? Number(input.marginPct) : (total > 0 ? profitRub / total * 100 : 0);
+    const costRub = quoteTotals.costRub;
+    const profitRub = quoteTotals.profitRub;
+    const marginPct = quoteTotals.marginPct;
+    const submittedTotalsMatch = Math.round(Number(input.revenue) || 0) === Math.round(total) && Math.round(Number(input.estimatedCostRub) || 0) === Math.round(costRub) && Math.round(Number(input.estimatedProfitRub) || 0) === Math.round(profitRub);
     db.prepare(`INSERT INTO quote_history(title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json,file_path) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
       .run(title, customer, address, new Date().toISOString(), total, costRub, profitRub, marginPct, discount, lines.length,
         JSON.stringify(lines.map(line => ({ name: clean(line.name,180), unit: clean(line.unit,24), quantity: Math.max(0, Number(line.quantity) || 0), price: Math.max(0, Number(line.price) || 0) }))), filePath);
-    return { canceled: false, filePath, historySaved: true };
+    return { canceled: false, filePath, historySaved: true, totalsMatched: submittedTotalsMatch };
   } finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
 });
 
