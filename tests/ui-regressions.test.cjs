@@ -842,3 +842,15 @@ test('sidebar navigation keeps icon and count alignment with visible keyboard fo
   assert.match(css, /\.app-shell \.top-actions \.button:focus-visible/);
   assert.match(css, /\.app-shell \.view.active\{\s*animation:none\}/);
 });
+
+
+test('estimate risk and actual-result alerts announce updated text consistently', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  for (const id of ['estimateRiskAlerts', 'estimateActualAlerts']) {
+    const match = html.match(new RegExp('<div id="' + id + '"[^>]*>'));
+    assert.ok(match, id + ' container exists');
+    assert.match(match[0], /role="status"/, id);
+    assert.match(match[0], /aria-live="polite"/, id);
+    assert.match(match[0], /aria-relevant="additions text"/, id);
+  }
+});
