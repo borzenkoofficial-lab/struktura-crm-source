@@ -910,3 +910,9 @@ test('every dialog has an accessible name tied to its visible heading or search 
   }
   assert.match(html, /<dialog\b[^>]*id="commandPaletteDialog"[^>]*aria-label="Палитра команд"/);
 });
+
+
+test('shared dialog helpers safely ignore missing or already-open/closed dialogs', () => {
+  assert.match(renderer, /function openDialog\(id\)\s*\{\s*const dialog = \$\(id\);\s*if \(!\(dialog instanceof HTMLDialogElement\) \|\| dialog\.open\) return false;\s*dialog\.showModal\(\);\s*return true;/);
+  assert.match(renderer, /function closeDialog\(id\)\s*\{\s*const dialog = \$\(id\);\s*if \(!\(dialog instanceof HTMLDialogElement\) \|\| !dialog\.open\) return false;\s*dialog\.close\(\);\s*return true;/);
+});
