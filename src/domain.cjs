@@ -14,20 +14,4 @@ const STATUS_LABELS = {
 function rub(value) {
   return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(Number(value || 0));
 }
-function projectMetrics(contractRub, incomingRub, refundRub, paidExpensesRub, plannedExpensesRub) {
-  const contract = Number(contractRub || 0);
-  const received = Number(incomingRub || 0) - Number(refundRub || 0);
-  const paidExpenses = Number(paidExpensesRub || 0);
-  const plannedExpenses = Number(plannedExpensesRub || 0);
-  if ([contract, received, paidExpenses, plannedExpenses].some(n => !Number.isFinite(n) || n < 0)) {
-    throw new RangeError('Суммы должны быть неотрицательными числами');
-  }
-  return {
-    debtRub: Math.max(0, contract - received),
-    cashAfterPaidExpensesRub: received - paidExpenses,
-    estimatedProfitRub: contract - plannedExpenses,
-    receivedRub: received,
-    paidExpensesRub: paidExpenses
-  };
-}
-module.exports = { SERVICE_LABELS, SOURCE_LABELS, STATUS_LABELS, rub, projectMetrics };
+module.exports = { SERVICE_LABELS, SOURCE_LABELS, STATUS_LABELS, rub };
