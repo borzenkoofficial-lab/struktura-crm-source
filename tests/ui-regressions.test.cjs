@@ -789,3 +789,14 @@ test('micro-detail pass keeps notices, PI copy, table actions and narrow dialogs
   assert.match(css, /max-width:min\(380px,calc\(100vw - 32px\)\)/);
   assert.match(css, /@media\(max-width:560px\)/);
 });
+
+
+test('dynamic production and finance signals are announced accessibly', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  for (const id of ['piHomeAlerts', 'piProductionAlerts', 'estimatePiAlerts', 'financeAlerts']) {
+    const tag = html.match(new RegExp('<div id="' + id + '"[^>]*>'));
+    assert.ok(tag, id + ' container exists');
+    assert.match(tag[0], /role="status"/, id + ' exposes status semantics');
+    assert.match(tag[0], /aria-live="polite"/, id + ' announces updates without interruption');
+  }
+});
