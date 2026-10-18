@@ -935,5 +935,5 @@ test('primary navigation maps supported views to their data refresh handlers', (
   for (const view of ['dashboard', 'leads', 'clients', 'projects', 'production', 'finance', 'prospects', 'tasks']) {
     assert.match(block, new RegExp(view + ': refresh[A-Za-z]+'));
   }
-  assert.match(block, /if \(loaders\[name\]\) loaders\[name\]\(\)\.catch/);
+  assert.match(block, /if \(loaders\[name\] && view\) \{[\s\S]*?loaders\[name\]\(\)[\s\S]*?\.catch\(error => \{[\s\S]*?renderSectionLoadError\(name\)/);
 });
