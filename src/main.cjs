@@ -44,6 +44,7 @@ const { DEFAULT_REMINDER_SETTINGS, normalizeReminderSettings, buildReminders } =
 const { normalizeProductionPlan, normalizeShiftWorkLines } = require('./production-plan-utils.cjs');
 const { buildProductionReportHtml } = require('./production-report.cjs');
 const { assertPaymentBalance } = require('./payment-integrity.cjs');
+const { assertProjectDeletable } = require('./project-integrity.cjs');
 
 let db;
 let appUnlocked = true;
@@ -324,9 +325,7 @@ ipcMain.handle('projects:delete', (_event, idValue) => {
   const id = Number(idValue);
   if (!Number.isSafeInteger(id) || id < 1) throw new Error('Некорректный объект.');
   if (!db.prepare('SELECT id FROM projects WHERE id=?').get(id)) throw new Error('Объект не найден.');
-  const payments = db.prepare('SELECT COUNT(*) AS count FROM payments WHERE project_id=?').get(id).count;
-  const expenses = db.prepare('SELECT COUNT(*) AS count FROM expenses WHERE project_id=?').get(id).count;
-  if (payments || expenses) throw new Error('Нельзя удалить объект, пока к нему привязаны платежи или расходы. Удали финансовые записи или исправь их привязку.');
+  assertProjectDeletable(db, id);
   db.prepare('DELETE FROM projects WHERE id=?').run(id);
   return { deleted: true, id };
 });
