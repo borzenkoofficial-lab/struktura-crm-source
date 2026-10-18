@@ -1861,13 +1861,15 @@ function hideStartupSplash() {
     startupSplash.classList.add('is-hidden');
     window.setTimeout(() => startupSplash.remove(), 520);
   }, Math.max(0, minimumMotionMs - elapsed));
+  if (startupDashboardReady) window.setTimeout(() => showFirstRunWelcome(), 560);
 }
 // Never leave the launch screen covering the app if initial data loading stalls.
 window.setTimeout(hideStartupSplash, 8000);
 Promise.race([
-  initializeStartupGate().then(async () => { await refreshDashboard(); startupDashboardReady = true; }),
+  initializeStartupGate().then(() => refreshDashboard()),
   new Promise((_, reject) => window.setTimeout(() => reject(new Error('Превышено время ожидания загрузки обзора (10 секунд). Проверьте локальную базу и перезапустите программу.')), 10000))
 ])
+  .then(() => { startupDashboardReady = true; })
   .catch(e => {
     toast(`Не удалось загрузить обзор: ${e.message}`, true);
     const target = $('recentLeads');
@@ -1881,7 +1883,7 @@ Promise.race([
       errorBox.append(heading, detail, retry); target.append(errorBox);
     }
   })
-  .finally(() => { hideStartupSplash(); if (startupDashboardReady) window.setTimeout(() => showFirstRunWelcome(), 560); });
+  .finally(hideStartupSplash);
 
 /* First-run onboarding: a short, replayable guided tour with no network calls. */
 const WELCOME_COMPLETED_KEY = 'struktura-crm-welcome-completed-v1';
