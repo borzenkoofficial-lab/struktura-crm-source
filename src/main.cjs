@@ -1204,7 +1204,7 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
     db.prepare(`INSERT INTO quote_history(title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json,file_path) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
       .run(title, customer, address, new Date().toISOString(), total, costRub, profitRub, marginPct, discount, lines.length,
         JSON.stringify(lines.map(line => ({ name: clean(line.name,180), unit: clean(line.unit,24), quantity: Math.max(0, Number(line.quantity) || 0), price: Math.max(0, Number(line.price) || 0) }))), filePath);
-    return { canceled: false, filePath, historySaved: true };
+    return { canceled: false, filePath, historySaved: true, totalsMatched: submittedTotalsMatch };
   } finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
 });
 
