@@ -2494,3 +2494,33 @@ hr{border-color:#353e45!important}
   .modal .modal-actions .button{flex:1 1 auto}
   .toast{left:16px;right:16px;bottom:16px;max-width:none}
 }
+
+
+/* Severity and empty-state hierarchy: make operational signals scannable without louder colors. */
+.app-shell .finance-alert{
+  gap:5px;padding:13px 15px;border-radius:10px;
+  background:linear-gradient(100deg,rgba(255,255,255,.025),transparent 72%) , var(--st-surface);
+}
+.app-shell .finance-alert strong,.app-shell .pi-alert strong,
+.app-shell .estimate-risk-alert strong{font-size:12px;line-height:1.45;font-weight:700}
+.app-shell .finance-alert span,.app-shell .pi-alert span,
+.app-shell .estimate-risk-alert span{font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.app-shell .finance-alert.warning{border-left-color:#d99a3e}
+.app-shell .finance-alert.danger{border-left-color:#e06d68}
+.app-shell .finance-alert.neutral{border-left-color:#7f9bd0}
+.app-shell .pi-alert{gap:5px;padding:12px 14px;border-radius:10px}
+.app-shell .pi-alert.warning{border-left:3px solid #d99a3e}
+.app-shell .pi-alert.danger{border-left:3px solid #e06d68}
+.app-shell .pi-no-alerts{padding:12px 14px;border:1px solid var(--st-border);border-radius:10px;line-height:1.6}
+.app-shell .empty-state{gap:9px}
+.app-shell .empty-state strong{font-size:13px}
+.app-shell .empty-state span{line-height:1.6}
+.app-shell .table-sub{display:block;margin-top:4px;font-size:11px;line-height:1.45;overflow-wrap:anywhere}
+.app-shell .section-head>div:first-child{min-width:0}
+.app-shell .section-head p{max-width:720px;line-height:1.6}
+@media(max-width:560px){
+  .app-shell .finance-alert,.app-shell .pi-alert{padding:11px 12px}
+  .app-shell .section-head{align-items:flex-start;flex-wrap:wrap}
+  .app-shell .section-head>.button-row{width:100%;flex-wrap:wrap}
+  .app-shell .section-head>.button-row .button{flex:1 1 auto}
+}
