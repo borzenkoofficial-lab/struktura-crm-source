@@ -58,7 +58,7 @@ test('startup animation includes reduced-motion accessibility support', () => {
 test('dashboard home has real navigation actions and no fabricated business metrics', () => {
   const dashboard = html.match(/<section class="view active" id="view-dashboard">([\s\S]*?)<\/section>\s*<section class="view" id="view-leads">/);
   assert.ok(dashboard, 'dashboard section exists');
-  assert.match(dashboard[1], /Бизнес начинается/);
+  assert.match(dashboard[1], /Заявки, объекты/);
   assert.match(dashboard[1], /data-goto="projects"/);
   assert.match(dashboard[1], /data-goto="leads"/);
   for (const id of ['statLeads', 'statProjects', 'statReceived', 'statCash', 'recentLeads']) {
