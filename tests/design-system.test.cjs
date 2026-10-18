@@ -30,3 +30,9 @@ test('visual refresh does not replace the existing app views or renderer entry p
   assert.match(html, /src="production-intelligence\.js"/);
   assert.match(html, /id="pinLockScreen"/);
 });
+
+test('legacy production, browser, estimator and command-palette surfaces receive the dark tokens', () => {
+  for (const selector of ['.finance-card, .browser-shell, .browser-inspector','.production-stats article, .production-project-card','.estimate-lines-table th','.command-palette','.app-shell input:not([type="checkbox"]):not([type="radio"])']) assert.ok(css.includes(selector), 'missing dark surface rule: ' + selector);
+  assert.match(css, /\.browser-address-form input\s*\{[^}]*background:\s*transparent\s*!important/);
+  assert.match(css, /\.production-project-card:hover/);
+});
