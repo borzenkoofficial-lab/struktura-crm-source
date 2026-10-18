@@ -884,3 +884,29 @@ test('modal headers, accessible tabs, and dense tables use consistent compact st
   assert.match(css, /\.app-shell \.table-wrap th,\.app-shell \.table-wrap td\{overflow-wrap:anywhere\}/);
   assert.match(css, /@media\(max-width:560px\)\{[\s\S]*?\.app-shell \[role="tablist"\]\{overflow-x:auto/);
 });
+
+
+test('every dialog has an accessible name tied to its visible heading or search purpose', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const titledDialogs = [
+    ['leadDialog', 'leadDialogTitle'], ['clientDialog', 'clientDialogTitle'],
+    ['projectDialog', 'projectDialogTitle'], ['paymentDialog', 'paymentDialogTitle'],
+    ['expenseDialog', 'expenseDialogTitle'], ['incomeDialog', 'incomeDialogTitle'],
+    ['taskDialog', 'taskDialogTitle'], ['prospectDialog', 'prospectDialogTitle'],
+    ['productionReportDialog', 'productionReportDialogTitle'],
+    ['productionPlanDialog', 'productionPlanDialogTitle'],
+    ['productionShiftDialog', 'productionShiftDialogTitle'],
+    ['updatesDialog', 'updatesDialogTitle'],
+    ['notificationSettingsDialog', 'notificationSettingsDialogTitle'],
+    ['piEconomicsDialog', 'piEconomicsDialogTitle'],
+    ['manualOrderDialog', 'manualOrderDialogTitle'],
+    ['piErrorHistoryDialog', 'piErrorHistoryDialogTitle']
+  ];
+  for (const [dialogId, titleId] of titledDialogs) {
+    const dialog = html.match(new RegExp('<dialog\\b[^>]*id="' + dialogId + '"[^>]*>'));
+    assert.ok(dialog, 'dialog exists: ' + dialogId);
+    assert.match(dialog[0], new RegExp('aria-labelledby="' + titleId + '"'));
+    assert.ok(html.includes('id="' + titleId + '"'), 'visible title exists: ' + titleId);
+  }
+  assert.match(html, /<dialog\\b[^>]*id="commandPaletteDialog"[^>]*aria-label="Палитра команд"/);
+});
