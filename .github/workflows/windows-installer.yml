@@ -39,12 +39,15 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Run automated tests
-        run: npm test
+        run: |
+          npm test
+          node --check src/*.js src/*.cjs tests/*.cjs
+          python scripts/verify-schema.py
 
   build-windows:
     name: Build and verify Windows installer
     needs: test
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.build_installer) || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
