@@ -71,7 +71,7 @@ function piRenderErrorHistory(selectedId) {
 function openPiErrorHistory(selectedId) {
   piRenderErrorHistory(selectedId);
   const dialog = $('piErrorHistoryDialog');
-  if (dialog && !dialog.open) dialog.showModal();
+  openDialog('piErrorHistoryDialog');
 }
 piErrorLoad();
 function toast(message, error = false) {
@@ -1000,7 +1000,8 @@ const commandSearch = $('commandPaletteSearch');
 $('openCommandPaletteBtn')?.addEventListener('click', openCommandPalette);
 function openCommandPalette() {
   if (!commandPalette) return;
-  commandPalette.showModal();
+  if (commandPalette.open) return;
+  openDialog('commandPaletteDialog');
   commandSearch.value = '';
   filterCommandPalette('');
   requestAnimationFrame(() => commandSearch.focus());
@@ -1020,15 +1021,15 @@ commandSearch?.addEventListener('input', () => filterCommandPalette(commandSearc
 commandPalette?.addEventListener('click', event => {
   const item = event.target.closest('[data-command-view]');
   if (!item) return;
-  commandPalette.close();
+  closeDialog('commandPaletteDialog');
   showView(item.dataset.commandView);
 });
 document.addEventListener('keydown', event => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault();
-    if (commandPalette?.open) commandPalette.close(); else openCommandPalette();
+    if (commandPalette?.open) closeDialog('commandPaletteDialog'); else openCommandPalette();
   }
-  if (event.key === 'Escape' && commandPalette?.open) commandPalette.close();
+  if (event.key === 'Escape' && commandPalette?.open) closeDialog('commandPaletteDialog');
 });
 const sidebarToggle = $('toggleSidebarBtn');
 function setSidebarCollapsed(collapsed) {
@@ -1203,7 +1204,7 @@ $('refreshRadarBtn').addEventListener('click', () => refreshProspects().then(() 
 $('domainSearchService').addEventListener('change', refreshDomainSearchLinks);
 $('domainSearchRegion').addEventListener('input', refreshDomainSearchLinks);
 refreshDomainSearchLinks();
-$('addTaskBtn').addEventListener('click', async () => { await refreshTasks(); $('taskForm').reset(); $('taskDialogTitle').textContent = 'Новая задача'; $('taskDialog').showModal(); });
+$('addTaskBtn').addEventListener('click', async () => { await refreshTasks(); $('taskForm').reset(); $('taskDialogTitle').textContent = 'Новая задача'; openDialog('taskDialog'); });
 $('taskForm').addEventListener('submit', async e => {
   e.preventDefault(); const form = e.currentTarget, data = Object.fromEntries(new FormData(form));
   try {
@@ -1224,7 +1225,7 @@ $('tasksTable').addEventListener('click', async event => {
       const field = form.elements[key]; if (!field) continue;
       field.value = task[key] == null ? '' : (key === 'due_at' ? String(task[key]).slice(0,16) : task[key]);
     }
-    $('taskDialogTitle').textContent = 'Изменить задачу'; $('taskDialog').showModal();
+    $('taskDialogTitle').textContent = 'Изменить задачу'; openDialog('taskDialog');
   } catch (error) { toast(error.message, true); }
 });
 $('taskSearch').addEventListener('input', () => refreshTasks().catch(e => toast(e.message, true)));
@@ -1347,7 +1348,7 @@ $('paymentsTable').addEventListener('click', async event => {
     await refreshProjects();
     const form = $('paymentForm');
     for (const key of ['id','project_id','amount_rub','payment_type','payment_date','method','note']) form.elements[key].value = payment[key] ?? '';
-    $('paymentDialogTitle').textContent = 'Изменить платёж'; $('paymentDialog').showModal();
+    $('paymentDialogTitle').textContent = 'Изменить платёж'; openDialog('paymentDialog');
   } catch (error) { toast(error.message,true); }
 });
 $('addIncomeBtn').addEventListener('click', () => {
@@ -1386,7 +1387,7 @@ $('expensesTable').addEventListener('click', async event => {
     await refreshProjects();
     const form = $('expenseForm');
     for (const key of ['id','project_id','amount_rub','expense_date','category','description','is_paid']) form.elements[key].value = expense[key] ?? '';
-    $('expenseDialogTitle').textContent = 'Изменить расход'; $('expenseDialog').showModal();
+    $('expenseDialogTitle').textContent = 'Изменить расход'; openDialog('expenseDialog');
   } catch (error) { toast(error.message,true); }
 });
 $('expenseForm').addEventListener('submit', async e => { e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form)); try { await window.crm.createExpense(data); form.reset(); closeDialog('expenseDialog'); toast('Расход сохранён.'); await refreshFinance(); await refreshDashboard(); } catch (err) { toast(err.message,true); } });
@@ -1457,13 +1458,13 @@ $('addManualOrderBtn').addEventListener('click',()=>{
  const form=$('manualOrderForm');form.reset();
  $('manualOrderService').value=$('orderRadarService').value||'demolition';
  $('manualOrderRegion').value=$('orderRadarRegion').value||'Москва и Московская область';
- $('manualOrderDialog').showModal();
+ openDialog('manualOrderDialog');
 });
 $('manualOrderForm').addEventListener('submit',async event=>{
  event.preventDefault();const form=event.currentTarget;const submit=form.querySelector('button[type="submit"]');submit.disabled=true;
  try{
   const result=await window.crm.createCommercialOrder({title:$('manualOrderTitle').value,source_url:$('manualOrderUrl').value,snippet:$('manualOrderSnippet').value,service:$('manualOrderService').value,region:$('manualOrderRegion').value});
-  $('manualOrderDialog').close();await refreshCommercialOrders();
+  closeDialog('manualOrderDialog');await refreshCommercialOrders();
   toast(result.duplicate?'Этот заказ уже есть в радаре — дубль не создан.':'Заказ добавлен. Открой карточку, чтобы посмотреть оценку ПИ.');
  }catch(e){toast(e.message,true)}
  finally{submit.disabled=false}
@@ -1483,7 +1484,7 @@ $('commercialOrdersList').addEventListener('click',e=>{
   $('piEconomicsWage').value=a.wage_per_worker_shift??0;$('piEconomicsOther').value=a.other_costs_rub??0;
   $('piEconomicsDifficulty').value=a.difficulty_factor??1;$('piEconomicsReserve').value=a.reserve_percent??15;
   $('piEconomicsCatalog').value=a.catalog_id||'';
-  $('piEconomicsDialog').showModal();
+  openDialog('piEconomicsDialog');
  }catch(error){toast('Не удалось открыть расчёт ПИ: '+error.message,true)}
 });
 $('piEconomicsCatalog').addEventListener('change',()=>{
@@ -1504,7 +1505,7 @@ $('piEconomicsForm').addEventListener('submit',async event=>{
    wage_per_worker_shift:Number($('piEconomicsWage').value),other_costs_rub:Number($('piEconomicsOther').value),
    difficulty_factor:Number($('piEconomicsDifficulty').value),reserve_percent:Number($('piEconomicsReserve').value)
   });
-  $('piEconomicsDialog').close();await refreshCommercialOrders();
+  closeDialog('piEconomicsDialog');await refreshCommercialOrders();
   toast(result.observations_count>0?'Расчёт сохранён; ПИ учёл историю смен по выбранной работе.':'Расчёт сохранён. Истории смен по этой работе нет — использована стартовая производительность.');
  }catch(error){toast(error.message,true)}
  finally{submit.disabled=false}
