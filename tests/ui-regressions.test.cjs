@@ -9,6 +9,7 @@ const main = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
 const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
 const pinSecurity = fs.readFileSync(path.join(__dirname, '../src/pin-security.cjs'), 'utf8');
+const filesDb = fs.readFileSync(path.join(__dirname, '../src/db.cjs'), 'utf8');
 
 test('async create forms capture their form before awaiting IPC', () => {
   for (const id of ['leadForm', 'clientForm', 'projectForm', 'paymentForm', 'expenseForm']) {
@@ -28,6 +29,16 @@ test('pricing and AI API preview clearly do not enable checkout or provider cred
   assert.match(html, /платёжный провайдер будет подключён отдельно/i);
   assert.match(html, /Поля отключены намеренно/);
   assert.match(html, /id="view-plans"/);
+  assert.match(html, /id="view-team"/);
+  assert.match(html, /id="crewContactForm"/);
+  assert.match(html, /id="crewContactTelegram"/);
+  assert.match(html, /id="crewContactMax"/);
+  assert.match(renderer, /async function refreshCrewContacts\(\)/);
+  assert.match(preload, /listCrewContacts: \(filter\) => ipcRenderer\.invoke\('crewContacts:list'/);
+  assert.match(main, /ipcMain\.handle\('crewContacts:create'/);
+  assert.match(main, /ipcMain\.handle\('crewContacts:update'/);
+  assert.match(main, /ipcMain\.handle\('crewContacts:delete'/);
+  assert.match(filesDb, /CREATE TABLE IF NOT EXISTS crew_contacts/);
 });
 
 test('HTML IDs are unique and all literal renderer element references resolve', () => {
@@ -378,7 +389,7 @@ test('Windows app startup hides the legacy menu and reports startup failures', (
   assert.match(main, /Menu\.setApplicationMenu\(null\)/);
   assert.match(main, /win\.setMenuBarVisibility\(false\)/);
   assert.match(main, /Failed to load CRM interface/);
-  assert.match(main, /Struktura CRM startup failed/);
+  assert.match(main, /Оплот startup failed/);
 });
 
 test('startup splash has an independent CSS failsafe if renderer JavaScript never runs', () => {
@@ -559,7 +570,7 @@ test('product presentation tab is reachable and contains the STRUKTURA story and
   assert.match(html, /ПИ — производственный интеллект/);
   assert.match(html, /data-goto="production"/);
   assert.match(html, /data-goto="projects"/);
-  assert.match(renderer, /about: 'О продукте STRUKTURA'/);
+  assert.match(renderer, /about: 'О продукте ОПЛОТ'/);
 });
 
 test('product presentation includes responsive 3D visuals and respects reduced-motion preferences', () => {
@@ -678,7 +689,7 @@ test('date-only defaults use local calendar fields rather than UTC ISO conversio
 
 
 test('export filenames and startup dialogs use the current brand and real line breaks', () => {
-  assert.ok(main.includes('STRUKTURA-'));
+  assert.ok(main.includes('OPLOT-'));
   assert.ok(!main.includes('gruzli-'));
   assert.ok(main.includes('Не удалось загрузить интерфейс приложения.\\n\\n'));
   assert.ok(!main.includes('Не удалось загрузить интерфейс приложения.\\\\n\\\\n'));
@@ -686,9 +697,9 @@ test('export filenames and startup dialogs use the current brand and real line b
 
 
 test('all prominent brand marks use STRUKTURA mark and client section does not promise missing activity history', () => {
-  assert.match(html, /hero-mini-symbol" >S</);
-  assert.match(html, /browser-welcome-mark" >S</);
-  assert.match(html, /plans-hero-mark" aria-hidden="true"><span >S</);
+  assert.match(html, /hero-mini-symbol" >О</);
+  assert.match(html, /browser-welcome-mark" >О</);
+  assert.match(html, /plans-hero-mark" aria-hidden="true"><span >О</);
   assert.doesNotMatch(html, /hero-mini-symbol" >G</);
   assert.doesNotMatch(html, /browser-welcome-mark" >G</);
   assert.match(html, /Контакты заказчиков и заметки/);
