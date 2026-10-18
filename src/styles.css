@@ -2296,3 +2296,22 @@ hr{border-color:#353e45!important}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+
+/* Final catch-all for module-specific cards introduced by individual tabs. */
+:is([class*="-card"],[class*="-panel"],[class*="-subpanel"],[class*="-workspace"],
+[class*="-query"],[class*="-result"],[class*="-metric"],[class*="-forecast"],
+[class*="-summary-card"],[class*="-section-card"]){
+  background-color:#20262b!important;
+  border-color:#353e45!important;
+  color:#e0e5e8;
+  box-shadow:none!important;
+}
+:is([class*="-card"],[class*="-panel"],[class*="-subpanel"],[class*="-workspace"],
+[class*="-query"],[class*="-result"],[class*="-metric"],[class*="-forecast"]) :is(p,small,label,.muted,.description,.subtitle){
+  color:#a0aab3;
+}
+:is([class*="-card"],[class*="-panel"],[class*="-subpanel"],[class*="-workspace"],
+[class*="-query"],[class*="-result"],[class*="-metric"],[class*="-forecast"]) :is(h1,h2,h3,h4,h5,strong){
+  color:#e4e8eb;
+}
