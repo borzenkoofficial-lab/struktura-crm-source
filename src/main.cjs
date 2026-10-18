@@ -457,7 +457,6 @@ ipcMain.handle('production:exportReportPdf', async (_event, input = {}) => {
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
   try {
     await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
-    await pdfWindow.webContents.executeJavaScript("Promise.all(Array.from(document.images, img => img.complete ? Promise.resolve() : new Promise(resolve => { img.onload = img.onerror = resolve; }))).then(() => { const image = document.getElementById('coverPhoto'); const fallback = document.getElementById('coverIllustrationFallback'); if (image && image.naturalWidth > 0) { if (fallback) fallback.hidden = true; } else { if (image) image.hidden = true; if (fallback) fallback.hidden = false; } return true; })");
     const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
     fs.writeFileSync(filePath, data);
     return { canceled: false, filePath };
@@ -1303,6 +1302,7 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
   try {
     await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+    await pdfWindow.webContents.executeJavaScript("Promise.all(Array.from(document.images, img => img.complete ? Promise.resolve() : new Promise(resolve => { img.onload = img.onerror = resolve; }))).then(() => { const image = document.getElementById('coverPhoto'); const fallback = document.getElementById('coverIllustrationFallback'); if (image && image.naturalWidth > 0) { if (fallback) fallback.hidden = true; } else { if (image) image.hidden = true; if (fallback) fallback.hidden = false; } return true; })");
     const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
     fs.writeFileSync(filePath, data);
     const costRub = quoteTotals.costRub;
