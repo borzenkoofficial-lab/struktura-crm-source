@@ -1395,3 +1395,90 @@ button, .button, .nav-item, .action-row, .text-button, .close-btn,
 .modal .pi-error-user-message { background: rgba(39,215,160,.07); border-color: rgba(39,215,160,.2); color: #bdebd9; }
 .modal .pi-technical-details { background: #10181c; border-color: #34444a; color: #c1cecf; }
 .modal .pi-technical-details pre { background: #0b1114; border-color: #34444a; color: #ffadb3; }
+
+
+/* Final pass: production intelligence, plan preview, command palette and global controls. */
+.app-shell input:not([type="checkbox"]):not([type="radio"]),
+.app-shell select, .app-shell textarea, .app-shell .form-control {
+  background-color: #11191d !important;
+  color: var(--st-text) !important;
+  border-color: #35464c !important;
+}
+.app-shell input::placeholder, .app-shell textarea::placeholder { color: #728287 !important; }
+.app-shell input:focus, .app-shell select:focus, .app-shell textarea:focus {
+  border-color: var(--st-accent) !important;
+  box-shadow: 0 0 0 3px rgba(39,215,160,.11) !important;
+}
+.browser-address-form input { background: transparent !important; border-color: transparent !important; box-shadow: none !important; }
+#view-projects #projectSearch { background: #11191d !important; color: var(--st-text) !important; }
+.production-stats article, .production-project-card, .production-live-rate,
+.production-history-rates>div, .production-forecast, .production-edit-row,
+.production-shift-hint, .pi-home-summary, .pi-alert, .pi-no-alerts,
+.pi-mockup, .pi-mockup-metrics>div, .pi-mockup-alert,
+.pi-order-brief, .pi-order-details-body, .pi-order-economics,
+.about-values-grid article, .mockup-metric-row>div, .mockup-work-card,
+.mockup-window-bar, .mockup-window-body, .ai-connect-fields,
+.ai-provider-tags span, .plans-status, .command-palette-footer,
+.command-item, .section-load-error, .production-modal .checkbox-line,
+.notification-settings-modal .checkbox-line {
+  color: var(--st-text);
+  background: #172126;
+  border-color: var(--st-border);
+}
+.production-stats article, .production-project-card { box-shadow: var(--st-shadow-panel); }
+.production-project-card:hover { border-color: #49605b; box-shadow: var(--st-shadow-panel), var(--st-accent-glow); }
+.production-project-card h3, .production-project-card strong,
+.production-stats article strong, .pi-mockup h4, .about-values-grid article h3,
+.mockup-work-card strong, .mockup-metric-row strong { color: var(--st-text); }
+.production-project-card p, .production-stats article small,
+.production-forecast p, .production-shift-hint, .production-history-rates,
+.pi-home-summary, .pi-order-brief, .pi-order-details-body,
+.about-values-grid article p { color: var(--st-text-muted); }
+.production-card-icon, .pi-mockup-chip, .pi-mockup-alert>span,
+#view-projects .object-block-title>span, .command-item>span,
+.section-load-error-icon {
+  background: rgba(39,215,160,.1);
+  color: var(--st-accent);
+  border-color: rgba(39,215,160,.18);
+}
+.production-forecast { background: rgba(242,184,75,.07); border-color: rgba(242,184,75,.2); }
+.production-live-rate.above, .production-live-rate.normal { background: rgba(39,215,160,.07); border-color: rgba(39,215,160,.2); color: #9cebd1; }
+.production-live-rate.below { background: rgba(255,100,112,.08); border-color: rgba(255,100,112,.22); color: #ff9aa2; }
+.production-shift-hint, .pi-no-alerts { background: rgba(39,215,160,.06); border-color: rgba(39,215,160,.16); }
+.pi-alert { background: rgba(242,184,75,.07); border-color: rgba(242,184,75,.2); }
+.pi-alert.danger { background: rgba(255,100,112,.07); border-color: rgba(255,100,112,.22); }
+.pi-mockup-metrics>div { background: #1d292e; border-color: #34444a; }
+.pi-mockup-alert { background: rgba(242,184,75,.07); border-color: rgba(242,184,75,.2); }
+.pi-order-score.medium { background: rgba(242,184,75,.12); color: #f2ca79; border-color: rgba(242,184,75,.2); }
+.pi-order-score.low { background: #26343a; color: #b5c3c6; border-color: #3a494f; }
+.pi-order-details-body { background: #11191d; border-color: #35464c; color: #b9c8c8; }
+.pi-order-economics.negative { background: rgba(255,100,112,.08); border-color: rgba(255,100,112,.22); color: #ff9aa2; }
+.ai-connect-fields { background: #141e22; border-color: #35464c; }
+.ai-provider-tags span { background: #202c31; color: #b7c5c6; }
+.plans-status { background: rgba(242,184,75,.07); border-color: rgba(242,184,75,.2); color: #f2ca79; }
+.pricing-ribbon { background: linear-gradient(135deg,#43e4b3,#159c75); color: #062219; }
+.command-palette { background: rgba(18,27,31,.96); border-color: #3b4b51; box-shadow: var(--st-shadow-float); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); }
+.command-palette input { background: transparent !important; border-color: transparent !important; }
+.command-palette kbd { background: #26343a; border-color: #405158; color: #c0cece; }
+.command-item { background: transparent; border-color: transparent; color: #d4e0de; }
+.command-item:hover, .command-item.command-first-match { background: rgba(39,215,160,.09); border-color: rgba(39,215,160,.22); }
+.command-item:hover>span, .command-item.command-first-match>span { background: rgba(39,215,160,.16); color: var(--st-accent); }
+.command-palette-footer { border-top-color: var(--st-border); color: var(--st-text-muted); }
+.section-load-error { background: rgba(255,100,112,.06); border-color: rgba(255,100,112,.2); }
+.section-load-error h3, .section-load-error strong { color: #ff9aa2; }
+.badge-danger, .status-danger, .urgent, .overdue {
+  color: #ff9aa2 !important; background: rgba(255,100,112,.1) !important;
+  border-color: rgba(255,100,112,.25) !important;
+}
+.badge-warning, .status-warning {
+  color: #f2ca79 !important; background: rgba(242,184,75,.1) !important;
+  border-color: rgba(242,184,75,.24) !important;
+}
+input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] {
+  border-color: var(--st-danger) !important;
+  background-color: rgba(255,100,112,.06) !important;
+}
+@media (max-width: 760px) {
+  .production-project-card, .finance-card, .estimate-subpanel { border-radius: 12px; }
+  .command-palette { width: calc(100vw - 24px); max-width: calc(100vw - 24px); }
+}
