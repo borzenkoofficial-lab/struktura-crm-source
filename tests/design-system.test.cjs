@@ -53,3 +53,9 @@ test('every workspace view and HTML dialog remains covered by the shared visual 
   assert.ok(dialogs.every(dialog => /class="[^"]*\bmodal\b/.test(dialog)), 'every dialog uses the shared modal class');
   assert.match(css, /\.app-shell \.modal,[\s\S]*?\.app-shell dialog\.modal/);
 });
+
+test('navigation and all active workspace views use the shared motion system', () => {
+  assert.match(css, /\.app-shell \.nav-item\.active::before/);
+  assert.match(css, /\.app-shell \.view\.active\s*\{\s*animation:\s*st-view-enter/);
+  assert.match(css, /@keyframes\s+st-view-enter/);
+});
