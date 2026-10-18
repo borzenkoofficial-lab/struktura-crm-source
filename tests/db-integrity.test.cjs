@@ -84,3 +84,20 @@ test('payment integrity helper rejects excess refunds, incoming-to-refund change
     assert.throws(() => assertPaymentBalance(db,p2,'refund',1,paymentId), /возвратов не может превышать поступления/);
   } finally { if (db && db.open) db.close(); fs.rmSync(userDataPath,{recursive:true,force:true}); }
 });
+
+test('project deletion is blocked while financial records remain attached', () => {
+  const { assertProjectDeletable } = require('../src/project-integrity.cjs');
+  const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'struktura-project-delete-'));
+  let db;
+  try {
+    db = openDatabase(userDataPath);
+    const clientId = db.prepare('INSERT INTO clients(name) VALUES (?)').run('Клиент').lastInsertRowid;
+    const projectId = db.prepare("INSERT INTO projects(client_id,title,service,status,contract_rub) VALUES (?,?,'demolition','planned',1000)").run(clientId,'Объект').lastInsertRowid;
+    assert.equal(assertProjectDeletable(db, projectId), true);
+    db.prepare("INSERT INTO payments(project_id,amount_rub,payment_date,payment_type) VALUES (?,100,'2026-10-18','incoming')").run(projectId);
+    assert.throws(() => assertProjectDeletable(db, projectId), /Нельзя удалить объект/);
+    db.prepare('DELETE FROM payments WHERE project_id=?').run(projectId);
+    db.prepare("INSERT INTO expenses(project_id,amount_rub,expense_date,category,description,is_paid) VALUES (?,50,'2026-10-18','other','Тестовый расход',1)").run(projectId);
+    assert.throws(() => assertProjectDeletable(db, projectId), /Нельзя удалить объект/);
+  } finally { if (db && db.open) db.close(); fs.rmSync(userDataPath,{recursive:true,force:true}); }
+});
