@@ -2583,3 +2583,37 @@ hr{border-color:#353e45!important}
   .app-shell .sidebar .nav-item{transition:none}
   .app-shell .view.active{animation:none}
 }
+
+
+/* PI explainer refinement: separate instruction from illustrative demo data. */
+.app-shell .pi-explainer{align-items:stretch;gap:clamp(20px,3vw,34px)}
+.app-shell .pi-explainer-copy{min-width:0}
+.app-shell .pi-explainer-copy .eyebrow{display:inline-block;line-height:1.6;max-width:100%}
+.app-shell .pi-explainer-copy>p{max-width:66ch;line-height:1.75;text-wrap:pretty}
+.app-shell .pi-explainer-steps>div{min-width:0;align-items:flex-start}
+.app-shell .pi-explainer-steps>div>b{flex:0 0 auto;font-variant-numeric:tabular-nums}
+.app-shell .pi-explainer-steps>div>span{min-width:0}
+.app-shell .pi-explainer-steps strong{display:block;line-height:1.4}
+.app-shell .pi-explainer-steps small{overflow-wrap:anywhere}
+.app-shell .pi-mockup{min-width:0;align-self:stretch}
+.app-shell .pi-mockup-top{gap:10px;flex-wrap:wrap}
+.app-shell .pi-mockup-chip{white-space:nowrap}
+.app-shell .pi-mockup-project>div{min-width:0}
+.app-shell .pi-mockup-project strong{overflow-wrap:anywhere}
+.app-shell .pi-mockup-state{flex:0 0 auto}
+.app-shell .pi-mockup-alert{align-items:flex-start}
+.app-shell .pi-mockup-alert>div{min-width:0}
+.app-shell .pi-mockup-alert small{line-height:1.55;overflow-wrap:anywhere}
+.app-shell .pi-mockup-foot{line-height:1.55}
+.app-shell .pi-explainer .button{min-height:40px}
+@media(max-width:760px){
+  .app-shell .pi-explainer{gap:20px}
+  .app-shell .pi-explainer-copy>p{max-width:none}
+  .app-shell .pi-mockup{width:100%}
+}
+@media(max-width:420px){
+  .app-shell .pi-mockup-project{align-items:flex-start;flex-wrap:wrap;gap:8px}
+  .app-shell .pi-mockup-metrics{grid-template-columns:1fr}
+  .app-shell .pi-mockup-alert{gap:9px}
+  .app-shell .pi-explainer .button{width:100%;white-space:normal}
+}
