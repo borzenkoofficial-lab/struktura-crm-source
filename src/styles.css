@@ -2557,3 +2557,29 @@ hr{border-color:#353e45!important}
 @media(prefers-reduced-motion:reduce){
   .app-shell .close-btn{transition:none}
 }
+
+
+/* Navigation polish: stable icon columns, quieter transitions and clear keyboard focus. */
+.app-shell .sidebar .nav-item{
+  min-height:40px;align-items:center;transition:background-color .14s ease,color .14s ease;
+}
+.app-shell .sidebar .nav-item>span{
+  display:inline-flex;align-items:center;justify-content:center;flex:0 0 20px;width:20px;
+  line-height:1.2;text-align:center;font-variant-numeric:tabular-nums;
+}
+.app-shell .sidebar .nav-item>i{
+  margin-left:auto;padding:3px 5px;font-size:9px;line-height:1.2;letter-spacing:.2px;
+  white-space:nowrap;font-style:normal;
+}
+.app-shell .sidebar .nav-item:focus-visible{
+  outline:2px solid #e18a63;outline-offset:2px;position:relative;z-index:1;
+}
+.app-shell .sidebar .nav-item.active{box-shadow:inset 3px 0 var(--oplot-accent)}
+.app-shell .top-actions .button:focus-visible,
+.app-shell .welcome-actions .button:focus-visible{
+  outline:2px solid #e18a63;outline-offset:3px;
+}
+@media(prefers-reduced-motion:reduce){
+  .app-shell .sidebar .nav-item{transition:none}
+  .app-shell .view.active{animation:none}
+}
