@@ -753,10 +753,10 @@ test('OPLOT modal close controls remain visible, reachable and consistently size
   const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
   const closeButtons = [...html.matchAll(/<button\b(?=[^>]*\bclose-btn\b)([^>]*)>([\s\S]*?)<\/button>/g)];
   assert.ok(closeButtons.length >= 10, 'modal close controls are present across the application');
-  assert.equal((html.match(/aria-label="Закрыть окно"/g) || []).length, closeButtons.length - 1, 'close controls have accessible labels unless they already provide one');
   for (const match of closeButtons) {
     assert.match(match[1], /type="button"/, 'close control must not submit its form');
     assert.match(match[1], /data-close="[^"]+"/, 'close control must identify its dialog');
+    assert.match(match[1], /aria-label="[^"]+"/, 'close control must have an accessible name');
     assert.match(match[2], /×|✕|✖/, 'close control must show a visible close glyph');
   }
   assert.match(css, /\.close-btn\{[^}]*width:36px!important/s);
@@ -774,4 +774,7 @@ test('PI explanation and warning panels have a readable visual hierarchy', () =>
   assert.match(css, /\.pi-alert-list:empty\{display:none\}/);
   assert.match(css, /\[role="alert"\]/);
   assert.match(css, /prefers-reduced-motion/);
+  assert.match(css, /\.app-shell \.data-table th\{/);
+  assert.match(css, /max-height:calc\(100dvh - 32px\)/);
+  assert.match(css, /@media\(forced-colors:active\)/);
 });
