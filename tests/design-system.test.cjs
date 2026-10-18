@@ -70,3 +70,17 @@ test('system reduced-motion preference constrains animations and transitions acr
   for (const selector of ['.app-shell *', '.app-shell *::before', '.app-shell *::after', '#pinLockScreen *']) assert.ok(block[1].includes(selector), 'reduced-motion override misses ' + selector);
   for (const declaration of ['animation-duration: 0.01ms !important;', 'animation-iteration-count: 1 !important;', 'scroll-behavior: auto !important;', 'transition-duration: 0.01ms !important;', 'transition-delay: 0ms !important;']) assert.ok(block[1].includes(declaration), 'reduced-motion override misses ' + declaration);
 });
+
+
+test('contrast audit overrides legacy light backgrounds in objects and production', () => {
+  assert.match(css, /\.app-shell #view-projects \.estimate-pro-panel[\s\S]*?background: var\(--st-surface\) !important/);
+  assert.match(css, /\.app-shell #view-projects \.estimate-pro-head[\s\S]*?background: linear-gradient\(115deg, #182328/);
+  assert.match(css, /\.app-shell #view-projects \.estimate-lines-table td[\s\S]*?color: #d0dcda !important/);
+  assert.match(css, /\.app-shell #view-production \.production-history-rates > div > span \{ color: #c3d0ce !important/);
+  assert.match(css, /\.app-shell #view-production #productionHistory \.data-table tbody td[\s\S]*?color: #d0dcda !important/);
+});
+
+test('contrast audit provides explicit readable table header and row colors', () => {
+  assert.match(css, /\.app-shell \.data-table thead th,[\s\S]*?color: #d8e5e2 !important/);
+  assert.match(css, /\.app-shell \.data-table tbody td[\s\S]*?color: #d0dcda !important/);
+});

@@ -1772,3 +1772,145 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
     transition-delay: 0ms !important;
   }
 }
+
+
+/* Contrast audit: fix legacy light surfaces that override the Industrial Premium theme. */
+.app-shell :is(.panel, .table-panel, .stat-card, .finance-card, .income-period-card,
+  .client-card, .project-card, .production-card, .task-card, .report-card,
+  .production-empty, .empty-state, .empty-state-card) {
+  color: var(--st-text);
+  background-color: var(--st-surface) !important;
+  border-color: var(--st-border) !important;
+}
+.app-shell :is(.panel, .table-panel, .stat-card, .finance-card, .income-period-card,
+  .client-card, .project-card, .production-card, .task-card, .report-card,
+  .production-empty, .empty-state, .empty-state-card) :is(h1,h2,h3,h4,h5,strong,b) {
+  color: var(--st-text);
+}
+.app-shell :is(.panel, .table-panel, .stat-card, .finance-card, .income-period-card,
+  .client-card, .project-card, .production-card, .task-card, .report-card,
+  .production-empty, .empty-state, .empty-state-card) :is(p,small,label,.muted,.hint) {
+  color: var(--st-text-muted);
+}
+.app-shell .data-table { color: var(--st-text); background: var(--st-surface); }
+.app-shell .data-table thead th,
+.app-shell .data-table th {
+  color: #d8e5e2 !important;
+  background: #202c31 !important;
+  border-color: var(--st-border) !important;
+}
+.app-shell .data-table tbody td {
+  color: #d0dcda !important;
+  background-color: #151e22;
+  border-color: #2d3b40 !important;
+}
+.app-shell .data-table tbody tr:nth-child(even) td { background-color: #192328; }
+.app-shell .data-table tbody tr:hover td { background-color: #1c302d !important; }
+.app-shell .data-table :is(a,button.link-button) { color: #83e9c5; }
+
+/* Objects: the legacy PRO calculator and object list previously forced white backgrounds. */
+.app-shell #view-projects { color: var(--st-text); }
+.app-shell #view-projects .estimate-pro-panel,
+.app-shell #view-projects > .panel.table-panel {
+  background: var(--st-surface) !important;
+  border-color: var(--st-border) !important;
+}
+.app-shell #view-projects .estimate-pro-head {
+  background: linear-gradient(115deg, #182328 0%, #1b282d 72%, #2a2421 100%) !important;
+  border-color: var(--st-border) !important;
+}
+.app-shell #view-projects :is(.estimate-pro-head h3, .object-block-title strong,
+  .estimate-subhead h4, .estimate-catalog-head h4, .object-list-head h4,
+  .estimate-pro-results strong, .estimate-actual-results strong,
+  .section-head h3, .panel-head h3) {
+  color: var(--st-text) !important;
+}
+.app-shell #view-projects :is(.section-head p, .estimate-pro-head p, .object-block-title small,
+  .estimate-subhead p, .estimate-catalog-head p, .object-list-head p,
+  .estimate-pro-results span, .estimate-pro-results small, .estimate-actual-results span,
+  .estimate-hint, .estimate-input-grid label, .estimate-actual-inputs label,
+  .estimate-calibration-grid label, .estimate-meta-grid label, .estimate-add-row label) {
+  color: var(--st-text-muted) !important;
+}
+.app-shell #view-projects :is(.estimate-duration-panel, .estimate-calibration-panel,
+  .estimate-actual-panel, .estimate-subpanel, .estimate-advisor, .estimate-catalog-panel,
+  .estimate-add-row, .estimate-table-wrap, .estimate-payroll-preview,
+  .estimate-pro-results > div, .estimate-actual-results > div) {
+  background: #172126 !important;
+  border-color: var(--st-border) !important;
+  color: var(--st-text) !important;
+}
+.app-shell #view-projects .estimate-pro-results > div.estimate-price {
+  background: linear-gradient(145deg, #26302e, #202a2d) !important;
+  border-color: rgba(39,215,160,.28) !important;
+}
+.app-shell #view-projects .estimate-lines-table { color: #d0dcda !important; }
+.app-shell #view-projects .estimate-lines-table th {
+  color: #d8e5e2 !important;
+  background: #26343a !important;
+  border-color: #3a494f !important;
+}
+.app-shell #view-projects .estimate-lines-table td {
+  color: #d0dcda !important;
+  background: #151e22 !important;
+  border-color: #2d3b40 !important;
+}
+.app-shell #view-projects .estimate-lines-table tbody tr:nth-child(even) td { background: #192328 !important; }
+.app-shell #view-projects :is(.estimate-meta-grid input, .estimate-meta-grid select,
+  .estimate-input-grid input, .estimate-input-grid select, .estimate-actual-inputs input,
+  .estimate-calibration-grid input, .estimate-calibration-grid select, .estimate-add-row select,
+  #projectSearch) {
+  background: #0f171b !important;
+  color: var(--st-text) !important;
+  border-color: #35464c !important;
+}
+.app-shell #view-projects :is(.estimate-risk-note, .notice.inline-notice) {
+  color: #d0dcda;
+  background-color: #1b282d;
+  border-color: #35464c;
+}
+.app-shell #view-projects .estimate-pro-footer,
+.app-shell #view-projects .estimate-actions { border-color: var(--st-border); }
+
+/* Production: restore readable contrast for stats, cards, shift history and nested details. */
+.app-shell #view-production { color: var(--st-text); }
+.app-shell #view-production :is(.section-head h3, .panel-head h3, .production-row-heading strong,
+  .production-project-card h3, .production-project-card strong, .production-stats article strong) {
+  color: var(--st-text) !important;
+}
+.app-shell #view-production :is(.section-head p, .production-stats article span,
+  .production-stats article small, .production-project-card p, .production-history-rates,
+  .production-history-rates > div > span, .production-forecast p, .production-empty,
+  #productionHistory .empty-state) {
+  color: var(--st-text-muted) !important;
+}
+.app-shell #view-production :is(.production-stats article, .production-project-card,
+  .production-history-rates > div, .production-forecast, .production-empty,
+  #productionHistory, #productionHistory .table-wrap) {
+  background: var(--st-surface) !important;
+  border-color: var(--st-border) !important;
+}
+.app-shell #view-production .production-history-rates > div > span { color: #c3d0ce !important; }
+.app-shell #view-production .production-deviation.above { color: #6ce8bd !important; }
+.app-shell #view-production .production-deviation.below { color: #ff9aa2 !important; }
+.app-shell #view-production .production-deviation.normal { color: #c0cecb !important; }
+.app-shell #view-production .production-forecast {
+  color: #f2d18c !important;
+  background: rgba(242,184,75,.08) !important;
+}
+.app-shell #view-production .production-shift-hint {
+  color: #c9e7dc !important;
+  background: rgba(39,215,160,.07) !important;
+  border-color: rgba(39,215,160,.2) !important;
+}
+.app-shell #view-production #productionHistory .data-table tbody td {
+  color: #d0dcda !important;
+  background-color: #151e22 !important;
+}
+.app-shell #view-production #productionHistory .data-table tbody tr:nth-child(even) td {
+  background-color: #192328 !important;
+}
+.app-shell #view-production #productionHistory .data-table thead th {
+  color: #d8e5e2 !important;
+  background: #202c31 !important;
+}
