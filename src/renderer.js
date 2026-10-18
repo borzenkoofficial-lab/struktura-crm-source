@@ -1397,7 +1397,7 @@ $('expensesTable').addEventListener('click', async event => {
     $('expenseDialogTitle').textContent = 'Изменить расход'; openDialog('expenseDialog');
   } catch (error) { toast(error.message,true); }
 });
-$('expenseForm').addEventListener('submit', async e => { e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form)); try { await window.crm.createExpense(data); form.reset(); closeDialog('expenseDialog'); toast('Расход сохранён.'); await refreshFinance(); await refreshDashboard(); } catch (err) { toast(err.message,true); } });
+
 $('importProspectsBtn').addEventListener('click', async () => { try { const r = await window.crm.importProspectsCsv(); if (!r.canceled) { toast(`Импортировано: ${r.imported}, пропущено дублей: ${r.skipped}.`); await refreshProspects(); } } catch (e) { toast(e.message,true); } });
 $('crawlWebsitesBtn').addEventListener('click', async () => {
   const button = $('crawlWebsitesBtn'), result = $('crawlerResult');
