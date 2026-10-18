@@ -36,3 +36,10 @@ test('legacy production, browser, estimator and command-palette surfaces receive
   assert.match(css, /\.browser-address-form input\s*\{[^}]*background:\s*transparent\s*!important/);
   assert.match(css, /\.production-project-card:hover/);
 });
+
+test('global interaction layer covers keyboard focus, disabled controls, modal lifecycle and reduced motion', () => {
+  for (const selector of [':focus-visible', ':disabled', '.data-table tbody tr:hover td', 'dialog.modal::backdrop', '.modal input[type="checkbox"]', '.command-palette input:focus', '.toast.success', '.toast.error']) assert.ok(css.includes(selector), 'missing interaction rule: ' + selector);
+  assert.match(css, /@keyframes\s+st-dialog-enter/);
+  assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation:\s*none\s*!important/);
+  assert.match(css, /@supports not\s*\(backdrop-filter:\s*blur\(8px\)\)/);
+});
