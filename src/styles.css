@@ -2524,3 +2524,36 @@ hr{border-color:#353e45!important}
   .app-shell .section-head>.button-row{width:100%;flex-wrap:wrap}
   .app-shell .section-head>.button-row .button{flex:1 1 auto}
 }
+
+
+/* Dialog and dense-table finish: clearer controls without changing the product layout. */
+.app-shell .modal-head{gap:14px;align-items:flex-start}
+.app-shell .modal-head>div{flex:1 1 auto}
+.app-shell .modal-head h2{line-height:1.25;text-wrap:pretty}
+.app-shell .close-btn{
+  display:inline-grid;place-items:center;width:36px;height:36px;min-width:36px;
+  padding:0;border:1px solid var(--st-border);border-radius:9px;
+  background:var(--st-surface-raised,#222b30);color:var(--st-text);
+  transition:background-color .15s ease,border-color .15s ease,color .15s ease;
+}
+.app-shell .close-btn:hover{background:#343b40;border-color:#66747b;color:#fff}
+.app-shell .close-btn:active{transform:scale(.97)}
+.app-shell .close-btn:focus-visible{outline:2px solid #e18a63;outline-offset:3px}
+.app-shell .modal .button:disabled,.app-shell .modal button:disabled{
+  opacity:.58;cursor:not-allowed;filter:saturate(.65)
+}
+.app-shell .data-table td{vertical-align:middle}
+.app-shell .data-table td :is(.muted,small){line-height:1.45}
+.app-shell .data-table tr:focus-within{background:rgba(225,138,99,.045)}
+.app-shell .data-table td .button{white-space:nowrap}
+@media(max-width:560px){
+  .app-shell .modal-head{gap:10px}
+  .app-shell .modal-head h2{font-size:18px}
+  .app-shell .close-btn{width:34px;height:34px;min-width:34px;flex-basis:34px}
+}
+@media(hover:none){
+  .app-shell .close-btn:hover{background:var(--st-surface-raised,#222b30);border-color:var(--st-border);color:var(--st-text)}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-shell .close-btn{transition:none}
+}
