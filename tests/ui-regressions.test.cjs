@@ -916,3 +916,24 @@ test('shared dialog helpers safely ignore missing or already-open/closed dialogs
   assert.match(renderer, /function openDialog\(id\)\s*\{\s*const dialog = \$\(id\);\s*if \(!\(dialog instanceof HTMLDialogElement\) \|\| dialog\.open\) return false;\s*dialog\.showModal\(\);\s*return true;/);
   assert.match(renderer, /function closeDialog\(id\)\s*\{\s*const dialog = \$\(id\);\s*if \(!\(dialog instanceof HTMLDialogElement\) \|\| !dialog\.open\) return false;\s*dialog\.close\(\);\s*return true;/);
 });
+
+
+test('project create flow preserves the pending production plan on failure and clears it on cancel', () => {
+  const submitAt = renderer.indexOf("$('projectForm').addEventListener('submit'");
+  assert.notEqual(submitAt, -1, 'project submit handler exists');
+  const submitBlock = renderer.slice(submitAt, submitAt + 1800);
+  assert.match(submitBlock, /const editing = Boolean\(data\.id\), planToAttach = editing \? null : pendingProjectPlan; pendingProjectPlan = null;/);
+  assert.match(submitBlock, /catch \(err\) \{ pendingProjectPlan = planToAttach; toast\(err\.message,true\); return; \}/);
+  assert.match(submitBlock, /form\.reset\(\); \$\('projectDialogTitle'\)\.textContent = 'Новый объект'; closeDialog\('projectDialog'\);/);
+  assert.match(renderer, /const close = e\.target\.closest\('\[data-close\]'\); if \(close\) \{ if \(close\.dataset\.close === 'projectDialog'\) pendingProjectPlan = null; closeDialog\(close\.dataset\.close\); \}/);
+});
+
+test('primary navigation maps supported views to their data refresh handlers', () => {
+  const start = renderer.indexOf('function showView(name)');
+  assert.notEqual(start, -1, 'showView exists');
+  const block = renderer.slice(start, start + 1800);
+  for (const view of ['dashboard', 'leads', 'clients', 'projects', 'production', 'finance', 'prospects', 'tasks']) {
+    assert.match(block, new RegExp(view + ': refresh[A-Za-z]+'));
+  }
+  assert.match(block, /if \(loaders\[name\]\) loaders\[name\]\(\)\.catch/);
+});
