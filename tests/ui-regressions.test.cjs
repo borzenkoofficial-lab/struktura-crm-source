@@ -946,3 +946,11 @@ test('close buttons only reference dialogs that exist', () => {
   assert.ok(targets.length > 0, 'close controls should exist');
   for (const target of targets) assert.ok(dialogIds.has(target), 'close target must exist as a dialog: ' + target);
 });
+
+
+test('all renderer modal open and close operations use the guarded helpers', () => {
+  assert.equal((renderer.match(/\.showModal\(\)/g) || []).length, 1, 'only openDialog should call showModal directly');
+  assert.equal((renderer.match(/\.close\(\)/g) || []).length, 1, 'only closeDialog should call close directly');
+  assert.match(renderer, /function openCommandPalette\(\) \{[\s\S]*?openDialog\('commandPaletteDialog'\)/);
+  assert.match(renderer, /commandPalette\?\.addEventListener\('click',[\s\S]*?closeDialog\('commandPaletteDialog'\)/);
+});
