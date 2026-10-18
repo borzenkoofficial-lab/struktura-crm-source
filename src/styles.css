@@ -1482,3 +1482,239 @@ input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="
   .production-project-card, .finance-card, .estimate-subpanel { border-radius: 12px; }
   .command-palette { width: calc(100vw - 24px); max-width: calc(100vw - 24px); }
 }
+
+
+/* Interaction quality pass: focus, disabled/loading, hover and dialog lifecycle. */
+:root {
+  --st-focus-ring: 0 0 0 3px rgba(39, 215, 160, .22);
+  --st-transition-fast: 140ms cubic-bezier(.2,.75,.25,1);
+  --st-transition-standard: 220ms cubic-bezier(.2,.75,.25,1);
+}
+.app-shell :is(button, a, input, select, textarea, [tabindex]):focus-visible,
+#pinLockScreen :is(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--st-accent) !important;
+  outline-offset: 3px;
+}
+.app-shell button:disabled,
+.app-shell button[aria-disabled="true"],
+.app-shell input:disabled,
+.app-shell select:disabled,
+.app-shell textarea:disabled {
+  opacity: .48;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.app-shell button:not(:disabled),
+.app-shell a,
+.app-shell .nav-item,
+.app-shell .action-row,
+.app-shell .domain-query,
+.app-shell .production-project-card {
+  -webkit-tap-highlight-color: transparent;
+}
+.app-shell .button,
+.app-shell .nav-item,
+.app-shell .action-row,
+.app-shell .text-button,
+.app-shell .close-btn {
+  transition:
+    color var(--st-transition-fast),
+    background-color var(--st-transition-fast),
+    border-color var(--st-transition-fast),
+    box-shadow var(--st-transition-standard),
+    transform var(--st-transition-fast);
+}
+.app-shell .button:not(:disabled):active,
+.app-shell .nav-item:not(:disabled):active,
+.app-shell .action-row:not(:disabled):active {
+  transform: translateY(0) scale(.99);
+}
+.app-shell .data-table tbody tr {
+  transition: background-color var(--st-transition-fast);
+}
+.app-shell .data-table tbody tr:hover td {
+  background: rgba(39, 215, 160, .035);
+}
+.app-shell .data-table tbody tr:focus-within td {
+  background: rgba(39, 215, 160, .06);
+}
+.app-shell .data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.app-shell ::selection {
+  color: #071a13;
+  background: rgba(39, 215, 160, .62);
+}
+.app-shell ::-webkit-scrollbar,
+#pinLockScreen ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.app-shell ::-webkit-scrollbar-track,
+#pinLockScreen ::-webkit-scrollbar-track {
+  background: #0d1417;
+}
+.app-shell ::-webkit-scrollbar-thumb,
+#pinLockScreen ::-webkit-scrollbar-thumb {
+  background: #35464c;
+  border: 2px solid #0d1417;
+  border-radius: 99px;
+}
+.app-shell ::-webkit-scrollbar-thumb:hover,
+#pinLockScreen ::-webkit-scrollbar-thumb:hover {
+  background: #50645f;
+}
+.app-shell .modal,
+.app-shell dialog.modal {
+  color-scheme: dark;
+  background: rgba(20, 29, 33, .97) !important;
+  color: var(--st-text) !important;
+  border: 1px solid rgba(128, 159, 153, .22) !important;
+  box-shadow: 0 28px 100px rgba(0, 0, 0, .58), 0 0 0 1px rgba(39, 215, 160, .035) !important;
+}
+.app-shell dialog.modal[open] {
+  animation: st-dialog-enter 220ms cubic-bezier(.2,.75,.25,1) both;
+}
+.app-shell dialog.modal::backdrop {
+  background: rgba(2, 7, 9, .72);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.app-shell .modal-head,
+.app-shell .modal-actions {
+  border-color: var(--st-border);
+}
+.app-shell .modal-head {
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(128, 159, 153, .14);
+}
+.app-shell .modal-head h2,
+.app-shell .modal h2,
+.app-shell .modal h3,
+.app-shell dialog.modal h2,
+.app-shell dialog.modal h3 {
+  color: var(--st-text);
+}
+.app-shell .modal label,
+.app-shell dialog.modal label {
+  color: #c1cecc;
+}
+.app-shell .modal .close-btn,
+.app-shell dialog.modal .close-btn {
+  background: #253238;
+  color: #b9c9c6;
+  border: 1px solid #394a50;
+}
+.app-shell .modal .close-btn:hover,
+.app-shell dialog.modal .close-btn:hover {
+  background: #303f44;
+  color: #f1f5f4;
+  border-color: #53665f;
+}
+.app-shell .modal .button:not(.primary),
+.app-shell dialog.modal .button:not(.primary) {
+  background: #202c31;
+  color: #c6d2d0;
+  border-color: #3a4a50;
+}
+.app-shell .modal .button:not(.primary):hover,
+.app-shell dialog.modal .button:not(.primary):hover {
+  background: #29383d;
+  color: var(--st-text);
+  border-color: #53665f;
+}
+.app-shell .modal .button.primary,
+.app-shell dialog.modal .button.primary {
+  background: linear-gradient(135deg, #35e4ae, #1db887);
+  color: #062219;
+  border-color: transparent;
+  box-shadow: 0 5px 20px rgba(39, 215, 160, .18);
+}
+.app-shell .modal .button.primary:hover,
+.app-shell dialog.modal .button.primary:hover {
+  box-shadow: 0 7px 26px rgba(39, 215, 160, .25);
+}
+.app-shell .modal input:not([type="checkbox"]):not([type="radio"]),
+.app-shell .modal select,
+.app-shell .modal textarea,
+.app-shell dialog.modal input:not([type="checkbox"]):not([type="radio"]),
+.app-shell dialog.modal select,
+.app-shell dialog.modal textarea {
+  background: #0e171a !important;
+  color: var(--st-text) !important;
+  border-color: #35464c !important;
+}
+.app-shell .modal input::placeholder,
+.app-shell .modal textarea::placeholder,
+.app-shell dialog.modal input::placeholder,
+.app-shell dialog.modal textarea::placeholder {
+  color: #77898d !important;
+}
+.app-shell .modal input:focus,
+.app-shell .modal select:focus,
+.app-shell .modal textarea:focus,
+.app-shell dialog.modal input:focus,
+.app-shell dialog.modal select:focus,
+.app-shell dialog.modal textarea:focus {
+  border-color: var(--st-accent) !important;
+  box-shadow: var(--st-focus-ring) !important;
+}
+.app-shell .modal input[type="checkbox"],
+.app-shell .modal input[type="radio"],
+.app-shell input[type="checkbox"],
+.app-shell input[type="radio"] {
+  accent-color: var(--st-accent);
+}
+.app-shell .modal select option,
+.app-shell select option {
+  background: #11191d;
+  color: var(--st-text);
+}
+.app-shell .command-palette input,
+.app-shell .command-palette input:focus {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.app-shell .command-palette input:focus-visible {
+  outline-offset: -2px;
+}
+.app-shell .toast {
+  border: 1px solid rgba(128, 159, 153, .2);
+  background: rgba(20, 29, 33, .96);
+  color: var(--st-text);
+  box-shadow: var(--st-shadow-float);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+.app-shell .toast.success {
+  border-color: rgba(39, 215, 160, .28);
+}
+.app-shell .toast.error {
+  border-color: rgba(255, 100, 112, .3);
+}
+@keyframes st-dialog-enter {
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-shell dialog.modal[open] {
+    animation: none !important;
+  }
+  .app-shell .button,
+  .app-shell .nav-item,
+  .app-shell .action-row,
+  .app-shell .text-button,
+  .app-shell .close-btn,
+  .app-shell .data-table tbody tr {
+    transition: none !important;
+  }
+}
+@supports not (backdrop-filter: blur(8px)) {
+  .app-shell dialog.modal::backdrop { background: rgba(2, 7, 9, .88); }
+  .app-shell .toast { background: #141d21; }
+  .app-shell .command-palette { background: #121b1f; }
+}
