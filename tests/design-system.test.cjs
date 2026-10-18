@@ -62,7 +62,11 @@ test('navigation and all active workspace views use the shared motion system', (
 
 
 test('system reduced-motion preference constrains animations and transitions across all workspace surfaces', () => {
-  const block = css.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation-duration:\s*0\.01ms\s*!important;[\s\S]*?transition-duration:\s*0\.01ms\s*!important;[\s\S]*?transition-delay:\s*0ms\s*!important;[\s\S]*?\}/);
-  assert.ok(block, 'global reduced-motion override must cap animations and transitions');
-  for (const selector of ['.app-shell *', '.app-shell *::before', '.app-shell *::after', '#pinLockScreen *']) assert.ok(block[0].includes(selector), 'reduced-motion override misses ' + selector);
+  const marker = '/* System-wide reduced motion: every workspace surface honors the OS accessibility preference. */';
+  const systemMotion = css.slice(css.indexOf(marker));
+  assert.ok(systemMotion.startsWith(marker), 'system-wide reduced-motion block must exist at the end of the stylesheet');
+  const block = systemMotion.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?)\n\}/);
+  assert.ok(block, 'global reduced-motion media query must exist');
+  for (const selector of ['.app-shell *', '.app-shell *::before', '.app-shell *::after', '#pinLockScreen *']) assert.ok(block[1].includes(selector), 'reduced-motion override misses ' + selector);
+  for (const declaration of ['animation-duration: 0.01ms !important;', 'animation-iteration-count: 1 !important;', 'scroll-behavior: auto !important;', 'transition-duration: 0.01ms !important;', 'transition-delay: 0ms !important;']) assert.ok(block[1].includes(declaration), 'reduced-motion override misses ' + declaration);
 });
