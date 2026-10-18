@@ -144,15 +144,18 @@ test('production intelligence and production PDF are connected through the safe 
   assert.match(main, /nodeIntegration: false/);
 });
 
-test('PDF commercial proposal has branded layout, named executor, signature and stamp area', () => {
+test('PDF commercial proposal has architectural branding, legal executor, signature and stamp area', () => {
   assert.match(main, /ИП Борзенко Семен Сергеевич/);
   assert.match(main, /МЕСТО<br>ДЛЯ ПЕЧАТИ/);
-  assert.match(main, /class="signatures"/);
+  assert.match(main, /class="signature-block"/);
   assert.match(main, /class="signature-line"/);
   assert.match(main, /КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ/);
-  assert.match(main, /hero-mark/);
-  assert.match(main, /Срок действия:/);
+  assert.match(main, /class="cover-illustration"/);
+  assert.match(main, /Срок действия/);
   assert.match(main, /не является договором подряда/);
+  assert.match(main, /--graphite:#25282B/);
+  assert.match(main, /--paper:#F5F3EF/);
+  assert.match(main, /--terracotta:#B66B4B/);
 });
 
 test('notification settings are wired through the safe preload bridge and a 15-minute scheduler', () => {
