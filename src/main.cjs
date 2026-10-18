@@ -1188,7 +1188,7 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   const title = clean(input.title || 'Коммерческое предложение', 180);
   const customer = clean(input.customer, 180); const address = clean(input.address, 240);
   const contact = clean(input.contact, 120); const validity = clean(input.validity || '7 календарных дней', 80);
-  const quoteTotals = calculateQuoteTotals(lines, input.discount);
+  const quoteTotals = calculateQuoteTotals(lines, input.discount, input.estimatedCostRub);
   const lineRevenue = quoteTotals.grossRevenueRub;
   const rows = lines.map((line, i) => `<tr><td class="num">${i + 1}</td><td><strong>${quoteEscape(clean(line.name,180))}</strong>${line.note ? `<small>${quoteEscape(clean(line.note,300))}</small>` : ''}</td><td>${quoteEscape(clean(line.unit,24))}</td><td class="num">${Number(line.quantity || 0).toLocaleString('ru-RU')}</td><td class="num">${quoteMoney(line.price)}</td><td class="num">${quoteMoney(Number(line.quantity || 0) * Number(line.price || 0))}</td></tr>`).join('');
   const discount = quoteTotals.discountRub;
