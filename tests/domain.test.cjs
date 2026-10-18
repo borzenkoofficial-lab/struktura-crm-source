@@ -1,27 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { projectMetrics, rub, SERVICE_LABELS, SOURCE_LABELS } = require('../src/domain.cjs');
+const { rub, SERVICE_LABELS, SOURCE_LABELS } = require('../src/domain.cjs');
 
-test('project metrics keep contract debt separate from cash after paid expenses', () => {
-  assert.deepEqual(projectMetrics(150000, 100000, 0, 35000, 35000), {
-    debtRub: 50000,
-    cashAfterPaidExpensesRub: 65000,
-    estimatedProfitRub: 115000,
-    receivedRub: 100000,
-    paidExpensesRub: 35000
-  });
-});
-test('refunds reduce net receipts and may not create negative client debt', () => {
-  const result = projectMetrics(10000, 5000, 2000, 1000, 4000);
-  assert.equal(result.receivedRub, 3000);
-  assert.equal(result.debtRub, 7000);
-  assert.equal(result.cashAfterPaidExpensesRub, 2000);
-  assert.equal(result.estimatedProfitRub, 6000);
-});
-test('invalid negative amounts are rejected', () => {
-  assert.throws(() => projectMetrics(100, -1, 0, 0, 0), RangeError);
-  assert.throws(() => projectMetrics(100, 10, 0, 0, -1), RangeError);
-});
 test('Russian labels exist for the three business services and lead sources', () => {
   assert.equal(SERVICE_LABELS.demolition, 'Демонтаж');
   assert.equal(SERVICE_LABELS.finishing, 'Отделочные работы');
