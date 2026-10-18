@@ -2410,3 +2410,60 @@ hr{border-color:#353e45!important}
   .pi-explainer-steps>div{display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:9px}
   .pi-explainer-steps b{grid-row:span 2;margin:0}
 }
+
+
+/* Second polish pass: keyboard access, dense tables and long-form dialogs. */
+.app-shell :where(button,a,input,select,textarea,[tabindex]):focus-visible{
+  outline:2px solid #ef9b7b;outline-offset:2px
+}
+.app-shell :where(button,a):focus:not(:focus-visible){outline:none}
+.app-shell .data-table th{
+  position:sticky;top:0;z-index:2;background:#252d32!important;
+  color:#aebbc2!important;box-shadow:0 1px 0 #3a454c
+}
+.app-shell .data-table tbody tr:hover td{
+  background:#283137!important
+}
+.app-shell .data-table td,.app-shell .data-table th{
+  overflow-wrap:normal;vertical-align:middle
+}
+.app-shell .table-wrap{
+  max-width:100%;overscroll-behavior-x:contain;
+  scrollbar-width:thin;scrollbar-color:#56636b #20262b
+}
+.app-shell .table-wrap:focus-visible{outline-offset:-2px}
+.app-shell .data-table td .muted,
+.app-shell .data-table td small{
+  color:#9eabb3!important;line-height:1.45
+}
+.app-shell .data-table td :is(button,a){
+  min-height:30px
+}
+.app-shell dialog.modal{
+  max-height:calc(100dvh - 32px);overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:#56636b #20262b
+}
+.app-shell dialog.modal>form{min-width:0}
+.app-shell .modal-head>div{min-width:0}
+.app-shell .modal-head .eyebrow{display:block;line-height:1.5}
+.app-shell .modal-head h2{overflow-wrap:anywhere}
+.app-shell .modal-actions{align-items:center}
+.app-shell .modal-actions .button{min-height:38px}
+.app-shell .modal :is(input,select,textarea):disabled{
+  opacity:.62;cursor:not-allowed;background:#252c32!important;color:#8f9ca4!important
+}
+.app-shell .modal :is(input,select,textarea)::placeholder{
+  color:#819098;opacity:1
+}
+.app-shell :is(.notice,.warning,.alert,[role="alert"]){
+  overflow-wrap:anywhere
+}
+@media(max-width:600px){
+  .app-shell dialog.modal{max-height:calc(100dvh - 16px);width:calc(100vw - 16px)}
+  .app-shell .modal-actions .button{min-width:0;white-space:normal}
+  .app-shell .data-table th,.app-shell .data-table td{padding:11px 12px}
+}
+@media(forced-colors:active){
+  .app-shell :where(button,a,input,select,textarea,[tabindex]):focus-visible{outline:2px solid Highlight}
+  .app-shell .close-btn{border:1px solid ButtonText!important}
+}
