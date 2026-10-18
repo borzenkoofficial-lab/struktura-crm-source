@@ -941,7 +941,7 @@ test('primary navigation maps supported views to their data refresh handlers', (
 
 test('close buttons only reference dialogs that exist', () => {
   const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
-  const dialogIds = new Set(Array.from(html.matchAll(/<dialog\\b[^>]*\\bid="([^"]+)"/g), match => match[1]));
+  const dialogIds = new Set(Array.from(html.matchAll(/<dialog[^>]*id="([^"]+)"/g), match => match[1]));
   const targets = Array.from(html.matchAll(/data-close="([^"]+)"/g), match => match[1]);
   assert.ok(targets.length > 0, 'close controls should exist');
   for (const target of targets) assert.ok(dialogIds.has(target), 'close target must exist as a dialog: ' + target);
