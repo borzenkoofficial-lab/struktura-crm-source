@@ -84,3 +84,17 @@ test('contrast audit provides explicit readable table header and row colors', ()
   assert.match(css, /\.app-shell \.data-table thead th,[\s\S]*?color: #d8e5e2 !important/);
   assert.match(css, /\.app-shell \.data-table tbody td[\s\S]*?color: #d0dcda !important/);
 });
+
+
+test('first-run welcome onboarding is accessible, replayable and explains the CRM workflow', () => {
+  assert.ok(html.includes('id="firstRunWelcome"'), 'first-run welcome dialog exists');
+  for (const id of ['welcomeTitle','welcomeDescription','welcomeBackBtn','welcomeNextBtn','welcomeSkipBtn','welcomeStepDots','welcomeDemo','replayWelcomeBtn']) assert.ok(html.includes('id="'+id+'"'), 'missing onboarding control: '+id);
+  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'utf8');
+  assert.match(renderer, /struktura-crm-welcome-completed-v1/);
+  assert.match(renderer, /showFirstRunWelcome\(true\)/);
+  assert.match(renderer, /startupDashboardReady/);
+  for (const phrase of ['КЛИЕНТЫ И ЗАЯВКИ','ОБЪЕКТЫ И СМЕТЫ','ПРОИЗВОДСТВО И ФИНАНСЫ']) assert.ok(renderer.includes(phrase), 'missing onboarding step: '+phrase);
+  assert.match(css, /\.first-run-welcome\.is-visible/);
+  assert.match(css, /\.welcome-demo\[data-scene="production"\]/);
+  assert.match(css, /@media\(prefers-reduced-motion:reduce\)/);
+});
