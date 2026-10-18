@@ -2467,3 +2467,30 @@ hr{border-color:#353e45!important}
   .app-shell :where(button,a,input,select,textarea,[tabindex]):focus-visible{outline:2px solid Highlight}
   .app-shell .close-btn{border:1px solid ButtonText!important}
 }
+
+
+/* Micro-detail pass: notices, dense data and production guidance */
+.notice.inline-notice{max-width:none;width:100%;line-height:1.65;overflow-wrap:anywhere}
+.notice.inline-notice strong{display:inline-block;margin-right:4px;color:inherit}
+.pi-explainer-copy p,.pi-explainer-steps small,.pi-mockup-foot{overflow-wrap:anywhere}
+.pi-explainer-steps>div{min-width:0}
+.pi-explainer-steps>div>span{min-width:0}
+.pi-explainer-steps small{display:block;line-height:1.5}
+.pi-alert{min-width:0;overflow-wrap:anywhere}
+.pi-alert strong,.pi-alert span{overflow-wrap:anywhere}
+.pi-no-alerts{display:flex;align-items:flex-start;gap:8px;overflow-wrap:anywhere}
+.data-table th{white-space:nowrap}
+.data-table td{line-height:1.5}
+.data-table td button:focus-visible,.data-table td a:focus-visible{outline:2px solid #d9653c;outline-offset:2px;border-radius:4px}
+.modal .modal-actions{flex-wrap:wrap}
+.modal .modal-actions .button{min-height:38px}
+.close-btn{flex:0 0 36px;line-height:1;font-size:22px;font-weight:500}
+.toast{overflow-wrap:anywhere;max-width:min(380px,calc(100vw - 32px))}
+@media(max-width:560px){
+  .notice.inline-notice{padding:11px 12px}
+  .pi-explainer-steps{grid-template-columns:1fr}
+  .pi-explainer-steps>div{min-height:58px}
+  .modal .modal-actions{justify-content:stretch}
+  .modal .modal-actions .button{flex:1 1 auto}
+  .toast{left:16px;right:16px;bottom:16px;max-width:none}
+}
