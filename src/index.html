@@ -1,6 +1,48 @@
 <!doctype html>
 <html lang="ru"><head><meta charset="UTF-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:"><meta name="viewport" content="width=device-width,initial-scale=1"><title>STRUKTURA CRM</title><link rel="stylesheet" href="styles.css"></head>
 <body>
+
+  <section id="firstRunWelcome" class="first-run-welcome" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle" aria-describedby="welcomeDescription">
+    <div class="welcome-backdrop" aria-hidden="true"><span class="welcome-backdrop-orb orb-a"></span><span class="welcome-backdrop-orb orb-b"></span><span class="welcome-backdrop-grid"></span></div>
+    <div class="welcome-window">
+      <header class="welcome-window-head">
+        <div class="welcome-brand"><span class="welcome-brand-mark">S<span>.</span></span><span><strong>STRUKTURA</strong><small>CRM · РАБОЧАЯ СИСТЕМА</small></span></div>
+        <div class="welcome-head-status"><i></i> Локальное рабочее пространство</div>
+        <button id="welcomeSkipBtn" class="welcome-skip" type="button">Пропустить знакомство <span aria-hidden="true">↗</span></button>
+      </header>
+      <div class="welcome-window-body">
+        <div class="welcome-story">
+          <div class="welcome-eyebrow"><span class="welcome-eyebrow-line"></span><span id="welcomeStepLabel">01 / ЗНАКОМСТВО</span></div>
+          <h1 id="welcomeTitle">Бизнес —<br><em>собран в одном месте.</em></h1>
+          <p id="welcomeDescription" aria-live="polite">STRUKTURA CRM помогает вести заявки, клиентов, объекты, сметы и деньги в одной рабочей системе — без разрозненных таблиц.</p>
+          <div class="welcome-feature-points" id="welcomeFeaturePoints"><div><span class="welcome-point-icon">01</span><span><strong>Видеть главное</strong><small>Обзор текущей ситуации</small></span></div><div><span class="welcome-point-icon">02</span><span><strong>Держать процесс</strong><small>От обращения до завершения работ</small></span></div></div>
+          <div class="welcome-controls">
+            <div class="welcome-step-dots" id="welcomeStepDots" aria-label="Шаги знакомства"><span class="is-current"></span><span></span><span></span><span></span></div>
+            <div class="welcome-nav-buttons"><button id="welcomeBackBtn" class="welcome-back-btn" type="button" hidden><span aria-hidden="true">←</span> Назад</button><button id="welcomeNextBtn" class="welcome-next-btn" type="button">Далее <span aria-hidden="true">→</span></button></div>
+          </div>
+          <div class="welcome-privacy-note"><span aria-hidden="true">◈</span> Данные хранятся на этом компьютере. Делайте резервные копии.</div>
+        </div>
+        <div class="welcome-demo" id="welcomeDemo" data-scene="overview" aria-label="Анимированный макет интерфейса STRUKTURA CRM">
+          <div class="welcome-demo-glow"></div>
+          <div class="welcome-demo-caption"><span><i></i> ПРЕВЬЮ РАБОЧЕГО ПРОСТРАНСТВА</span><b>01—04</b></div>
+          <div class="welcome-app-frame">
+            <div class="welcome-app-sidebar"><div class="welcome-app-logo">S<span>.</span></div><span class="welcome-side-line active"><i>▦</i></span><span class="welcome-side-line"><i>◉</i></span><span class="welcome-side-line"><i>▤</i></span><span class="welcome-side-line"><i>◷</i></span><span class="welcome-side-line"><i>₽</i></span><div class="welcome-side-bottom"><i></i></div></div>
+            <div class="welcome-app-main">
+              <div class="welcome-app-top"><div><span class="welcome-app-kicker">STRUKTURA / WORKSPACE</span><b id="welcomeMockTitle">Обзор бизнеса</b></div><span class="welcome-mock-avatar">S</span></div>
+              <div class="welcome-mock-greeting"><div><small id="welcomeMockEyebrow">СВОДКА ПО БИЗНЕСУ</small><strong id="welcomeMockHeadline">Всё под контролем.</strong></div><span class="welcome-mock-glyph">↗</span></div>
+              <div class="welcome-mock-stats"><div><i class="stat-dot orange-dot"></i><small id="welcomeStatOneLabel">Заявки</small><b id="welcomeStatOne">12</b><span></span></div><div><i class="stat-dot green-dot"></i><small id="welcomeStatTwoLabel">Объекты</small><b id="welcomeStatTwo">04</b><span></span></div><div><i class="stat-dot blue-dot"></i><small id="welcomeStatThreeLabel">Контроль</small><b id="welcomeStatThree">OK</b><span></span></div></div>
+              <div class="welcome-mock-panel"><div class="welcome-mock-panel-head"><b id="welcomeMockPanelTitle">Последние действия</b><span>•••</span></div><div class="welcome-mock-row"><span class="mock-row-icon">◉</span><span><b id="welcomeRowOneTitle">Новая заявка</b><small id="welcomeRowOneMeta">Входящее обращение</small></span><i id="welcomeRowOneStatus">НОВАЯ</i></div><div class="welcome-mock-row"><span class="mock-row-icon mint">▤</span><span><b id="welcomeRowTwoTitle">Объект на контроле</b><small id="welcomeRowTwoMeta">План и фактические данные</small></span><i id="welcomeRowTwoStatus">В РАБОТЕ</i></div><div class="welcome-mock-chart"><div><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><small id="welcomeChartCaption">СИСТЕМА СВЯЗЫВАЕТ РАБОЧИЕ ДАННЫЕ</small></div></div>
+            </div>
+          </div>
+          <div class="welcome-floating-chip chip-top"><span>✦</span><div><b id="welcomeFloatTop">Рабочая картина</b><small>Все важное связано</small></div></div>
+          <div class="welcome-floating-chip chip-bottom"><span class="chip-check">✓</span><div><b id="welcomeFloatBottom">Без лишних таблиц</b><small>Порядок в процессах</small></div></div>
+          <div class="welcome-demo-foot"><span><i></i> ИНТЕРФЕЙС CRM</span><span>АНИМАЦИЯ · 01</span></div>
+        </div>
+      </div>
+      <footer class="welcome-window-foot"><span>STRUKTURA CRM <i>·</i> УПРАВЛЕНИЕ БИЗНЕСОМ</span><span>Знакомство займёт меньше минуты</span></footer>
+    </div>
+  </section>
+
   <div class="startup-splash" id="startupSplash" role="status" aria-live="polite" aria-label="Запуск STRUKTURA CRM">
     <div class="startup-glow startup-glow-one"></div><div class="startup-glow startup-glow-two"></div>
     <div class="startup-content">
@@ -135,7 +177,7 @@
         <span class="about-kicker"><i></i> STRUKTURA · ИДЕЯ И СИСТЕМА</span>
         <h2>Порядок в работе.<br><em>Ясность в решениях.</em></h2>
         <p>Мы создаём рабочую среду для бизнеса, где заявки не теряются, объекты не живут отдельно от финансов, а производственные решения опираются на факты.</p>
-        <div class="about-hero-actions"><button class="button about-button-light" data-goto="projects">Посмотреть рабочий процесс <span>↗</span></button><span class="about-local-note"><i></i> Локально. Под контролем владельца.</span></div>
+        <div class="about-hero-actions"><button class="button about-button-light" data-goto="projects">Посмотреть рабочий процесс <span>↗</span></button><button class="button subtle about-replay-welcome" id="replayWelcomeBtn" type="button">Повторить знакомство ↻</button><span class="about-local-note"><i></i> Локально. Под контролем владельца.</span></div>
       </div>
       <div class="about-hero-scene" aria-hidden="true">
         <div class="about-orbit about-orbit-a"></div><div class="about-orbit about-orbit-b"></div><div class="about-orbit about-orbit-c"></div>
