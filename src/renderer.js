@@ -540,7 +540,7 @@ async function refreshClients() {
 async function refreshProjects() {
   const rows = await window.crm.listProjects(); const q = ($('projectSearch')?.value || '').toLowerCase();
   const filtered = rows.filter(p => `${p.title} ${p.address} ${p.client_name || ''}`.toLowerCase().includes(q));
-  $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th><th>Действия</th></tr></thead><tbody>${filtered.map(p => `<tr><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><select class="project-status-select" data-project-status="${p.id}" aria-label="Статус объекта: ${esc(p.title)}">${Object.entries(projectStatusLabels).map(([value,label]) => `<option value="${value}" ${p.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Math.max(0,Number(p.received_rub))))}</td><td><button type="button" class="button subtle compact" data-edit-project="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
+  $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th><th>Действия</th></tr></thead><tbody>${filtered.map(p => `<tr><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><select class="project-status-select" data-project-status="${p.id}" aria-label="Статус объекта: ${esc(p.title)}">${Object.entries(projectStatusLabels).map(([value,label]) => `<option value="${value}" ${p.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Math.max(0,Number(p.received_rub))))}</td><td><button type="button" class="button subtle compact" data-edit-project="${p.id}">Изменить</button> <button type="button" class="button subtle compact" data-delete-project="${p.id}">Удалить</button></td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
   const options = rows.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
   $('paymentProject').innerHTML = `<option value="">Выбери объект</option>${options}`;
   $('expenseProject').innerHTML = `<option value="">Общий расход без объекта</option>${options}`;
@@ -1276,6 +1276,15 @@ $('clientsTable').addEventListener('click', async event => {
     const form = $('clientForm');
     for (const key of ['id','name','phone','email','client_type','notes']) form.elements[key].value = client[key] ?? '';
     $('clientDialogTitle').textContent = 'Изменить клиента'; openDialog('clientDialog');
+  } catch (error) { toast(error.message, true); }
+});
+$('projectsTable').addEventListener('click', async event => {
+  const button = event.target.closest('[data-delete-project]'); if (!button) return;
+  if (!window.confirm('Удалить объект? Объекты с платежами или расходами удалить нельзя.')) return;
+  try {
+    await window.crm.deleteProject(Number(button.dataset.deleteProject));
+    toast('Объект удалён.');
+    await Promise.all([refreshProjects(), refreshDashboard(), refreshProduction(), refreshFinance()]);
   } catch (error) { toast(error.message, true); }
 });
 $('projectsTable').addEventListener('change', async event => {
