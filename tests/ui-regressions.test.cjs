@@ -864,3 +864,13 @@ test('PI explainer clearly separates instructions from illustrative data at narr
   assert.match(css, /\.app-shell \.pi-mockup-alert small\{[^}]*overflow-wrap:anywhere/);
   assert.match(css, /@media\(max-width:420px\)\{[\s\S]*?\.app-shell \.pi-mockup-metrics\{grid-template-columns:1fr\}/);
 });
+
+
+test('operational notices and empty states keep readable hierarchy and narrow layouts', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.app-shell \.notice\.inline-notice\{[\s\S]*?border-left:3px solid/);
+  assert.match(css, /\.app-shell \.notice\.inline-notice strong\{[^}]*font-weight:700/);
+  assert.match(css, /\.app-shell \.empty-state>span\{[^}]*line-height:1\.65/);
+  assert.match(css, /\.app-shell \.empty-state \.button\{margin-top:5px\}/);
+  assert.match(css, /@media\(max-width:560px\)\{[\s\S]*?\.app-shell \.empty-state\{padding:18px 14px\}/);
+});
