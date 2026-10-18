@@ -2617,3 +2617,33 @@ hr{border-color:#353e45!important}
   .app-shell .pi-mockup-alert{gap:9px}
   .app-shell .pi-explainer .button{width:100%;white-space:normal}
 }
+
+
+/* Operational notices and empty states: clearer reading order, restrained emphasis. */
+.app-shell .notice.inline-notice{
+  display:block;padding:13px 15px;border:1px solid var(--st-border);
+  border-left:3px solid #8b9ba2;border-radius:8px;
+  background:rgba(255,255,255,.025);color:var(--st-text);
+  font-size:12px;line-height:1.7;overflow-wrap:anywhere;
+}
+.app-shell .notice.inline-notice strong{
+  display:inline;color:#e7c18d;font-size:12px;font-weight:700;
+}
+.app-shell .empty-state{
+  min-width:0;padding:clamp(18px,3vw,28px);
+  text-align:center;align-items:center;justify-content:center;
+}
+.app-shell .empty-state .empty-icon{
+  display:grid;place-items:center;width:42px;height:42px;margin:0 auto 3px;
+  border:1px solid var(--st-border);border-radius:12px;
+  background:rgba(255,255,255,.035);color:#b9c5c9;font-size:19px;
+}
+.app-shell .empty-state>strong{max-width:38ch;line-height:1.45;text-wrap:pretty}
+.app-shell .empty-state>span{max-width:48ch;color:var(--st-muted);font-size:12px;line-height:1.65;text-wrap:pretty}
+.app-shell .empty-state .button{margin-top:5px}
+.app-shell .section-head p{overflow-wrap:anywhere;text-wrap:pretty}
+@media(max-width:560px){
+  .app-shell .notice.inline-notice{padding:11px 12px;line-height:1.65}
+  .app-shell .empty-state{padding:18px 14px}
+  .app-shell .empty-state .button{width:100%;white-space:normal}
+}
