@@ -854,3 +854,13 @@ test('estimate risk and actual-result alerts announce updated text consistently'
     assert.match(match[0], /aria-relevant="additions text"/, id);
   }
 });
+
+
+test('PI explainer clearly separates instructions from illustrative data at narrow widths', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.app-shell \.pi-explainer-copy>p\{[^}]*line-height:1\.75/);
+  assert.match(css, /\.app-shell \.pi-explainer-steps>div>b\{[^}]*font-variant-numeric:tabular-nums/);
+  assert.match(css, /\.app-shell \.pi-mockup-chip\{[^}]*white-space:nowrap/);
+  assert.match(css, /\.app-shell \.pi-mockup-alert small\{[^}]*overflow-wrap:anywhere/);
+  assert.match(css, /@media\(max-width:420px\)\{[\s\S]*?\.app-shell \.pi-mockup-metrics\{grid-template-columns:1fr\}/);
+});
