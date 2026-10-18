@@ -44,7 +44,7 @@ jobs:
       - name: Run automated tests
         run: |
           npm test
-          node --check src/*.js src/*.cjs tests/*.cjs
+          for file in src/*.js src/*.cjs tests/*.cjs; do node --check "$file"; done
           python3 scripts/verify-schema.py
 
   build-windows:
