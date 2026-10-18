@@ -44,3 +44,12 @@ test('global interaction layer covers keyboard focus, disabled controls, modal l
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation:\s*none\s*!important/);
   assert.match(css, /@supports not\s*\(backdrop-filter:\s*blur\(8px\)\)/);
 });
+
+test('every workspace view and HTML dialog remains covered by the shared visual layer', () => {
+  const views = [...html.matchAll(/id="view-[^"]+"/g)];
+  const dialogs = [...html.matchAll(/<dialog\b[^>]*>/g)].map(match => match[0]);
+  assert.equal(views.length, 13, 'all 13 workspace views remain present');
+  assert.equal(dialogs.length, 17, 'all 17 dialogs remain present');
+  assert.ok(dialogs.every(dialog => /class="[^"]*\bmodal\b/.test(dialog)), 'every dialog uses the shared modal class');
+  assert.match(css, /\.app-shell \.modal,[\s\S]*?\.app-shell dialog\.modal/);
+});
