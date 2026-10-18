@@ -2141,3 +2141,5 @@ input,select,textarea{accent-color:var(--oplot-accent)}
 @media(prefers-reduced-motion:reduce){
  *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+/* Build target: validate the complete desktop UI stylesheet in CI. */
