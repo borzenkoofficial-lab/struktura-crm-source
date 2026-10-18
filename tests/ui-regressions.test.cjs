@@ -923,7 +923,7 @@ test('project create flow preserves the pending production plan on failure and c
   assert.notEqual(submitAt, -1, 'project submit handler exists');
   const submitBlock = renderer.slice(submitAt, submitAt + 1800);
   assert.match(submitBlock, /const editing = Boolean\(data\.id\), planToAttach = editing \? null : pendingProjectPlan; pendingProjectPlan = null;/);
-  assert.match(submitBlock, /catch \\(err\\) {\s*pendingProjectPlan = planToAttach;\s*toast\(err\.message, true\);\s*return;/);
+  assert.match(submitBlock, /catch \(err\) {\s*pendingProjectPlan = planToAttach;\s*toast\(err\.message, true\);\s*return;/);
   assert.match(submitBlock, /form\.reset\(\); \$\('projectDialogTitle'\)\.textContent = 'Новый объект'; closeDialog\('projectDialog'\);/);
   assert.match(renderer, /const close = e\.target\.closest\('\[data-close\]'\); if \(close\) \{ if \(close\.dataset\.close === 'projectDialog'\) pendingProjectPlan = null; closeDialog\(close\.dataset\.close\); \}/);
 });
@@ -971,7 +971,7 @@ test('project save keeps the project dialog open and restores the pending plan o
   const end = renderer.indexOf("$('projectsTable').addEventListener('click'", start);
   const block = renderer.slice(start, end);
   assert.match(block, /const editing = Boolean\(data\.id\), planToAttach = editing \? null : pendingProjectPlan; pendingProjectPlan = null;/);
-  assert.match(block, /catch \\(err\\) {\s*pendingProjectPlan = planToAttach;\s*toast\(err\.message, true\);\s*return;/);
+  assert.match(block, /catch \(err\) {\s*pendingProjectPlan = planToAttach;\s*toast\(err\.message, true\);\s*return;/);
   assert.match(block, /form\.reset\(\);[\s\S]*?closeDialog\('projectDialog'\)/);
   assert.match(block, /createProjectWithPlan\(\{ project: data, plan: planToAttach \}\)/);
 });
