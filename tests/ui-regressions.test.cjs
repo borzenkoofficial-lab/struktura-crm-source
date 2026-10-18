@@ -800,3 +800,13 @@ test('dynamic production and finance signals are announced accessibly', () => {
     assert.match(tag[0], /aria-live="polite"/, id + ' announces updates without interruption');
   }
 });
+
+
+test('operational alerts and empty states retain hierarchy in the dark theme', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.app-shell \.finance-alert\.danger\{border-left-color:#e06d68\}/);
+  assert.match(css, /\.app-shell \.pi-alert\.warning\{border-left:3px solid #d99a3e\}/);
+  assert.match(css, /\.app-shell \.pi-no-alerts\{padding:12px 14px;border:1px solid var\(--st-border\)/);
+  assert.match(css, /\.app-shell \.section-head p\{max-width:720px;line-height:1\.6\}/);
+  assert.match(css, /@media\(max-width:560px\)/);
+});
