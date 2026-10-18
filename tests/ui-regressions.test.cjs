@@ -144,15 +144,18 @@ test('production intelligence and production PDF are connected through the safe 
   assert.match(main, /nodeIntegration: false/);
 });
 
-test('PDF commercial proposal has branded layout, named executor, signature and stamp area', () => {
+test('PDF commercial proposal has architectural branding, legal executor, signature and stamp area', () => {
   assert.match(main, /ИП Борзенко Семен Сергеевич/);
   assert.match(main, /МЕСТО<br>ДЛЯ ПЕЧАТИ/);
-  assert.match(main, /class="signatures"/);
+  assert.match(main, /class="signature-block"/);
   assert.match(main, /class="signature-line"/);
   assert.match(main, /КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ/);
-  assert.match(main, /hero-mark/);
-  assert.match(main, /Срок действия:/);
+  assert.match(main, /class="cover-illustration"/);
+  assert.match(main, /Срок действия/);
   assert.match(main, /не является договором подряда/);
+  assert.match(main, /--graphite:#25282B/);
+  assert.match(main, /--paper:#F5F3EF/);
+  assert.match(main, /--terracotta:#B66B4B/);
 });
 
 test('notification settings are wired through the safe preload bridge and a 15-minute scheduler', () => {
@@ -746,4 +749,264 @@ test('every preload invoke channel has a matching main handler and vice versa', 
   const handlers = new Set([...main.matchAll(/ipcMain\.handle\(\s*['"]([^'"]+)['"]/g)].map(m => m[1]));
   assert.deepEqual([...invokes].filter(channel => !handlers.has(channel)), []);
   assert.deepEqual([...handlers].filter(channel => !invokes.has(channel)), []);
+});
+
+
+test('OPLOT modal close controls remain visible, reachable and consistently sized', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  const closeButtons = [...html.matchAll(/<button\b(?=[^>]*\bclose-btn\b)([^>]*)>([\s\S]*?)<\/button>/g)];
+  assert.ok(closeButtons.length >= 10, 'modal close controls are present across the application');
+  for (const match of closeButtons) {
+    assert.match(match[1], /type="button"/, 'close control must not submit its form');
+    assert.match(match[1], /data-close="[^"]+"/, 'close control must identify its dialog');
+    assert.match(match[1], /aria-label="[^"]+"/, 'close control must have an accessible name');
+    assert.match(match[2], /×|✕|✖/, 'close control must show a visible close glyph');
+  }
+  assert.match(css, /\.close-btn\{[^}]*width:36px!important/s);
+  assert.match(css, /\.close-btn:hover\{[^}]*border-color:#d9653c!important/s);
+  assert.match(css, /\.close-btn:focus-visible\{/);
+});
+
+test('PI explanation and warning panels have a readable visual hierarchy', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(html, /class="panel pi-explainer"/);
+  assert.match(html, /id="piExplainerTitle"/);
+  assert.match(html, /class="pi-explainer-steps"/);
+  assert.match(html, /id="piHomeAlerts"/);
+  assert.match(css, /\.pi-explainer-steps>div\{/);
+  assert.match(css, /\.pi-alert-list:empty\{display:none\}/);
+  assert.match(css, /\[role="alert"\]/);
+  assert.match(css, /prefers-reduced-motion/);
+  assert.match(css, /\.app-shell \.data-table th\{/);
+  assert.match(css, /max-height:calc\(100dvh - 32px\)/);
+  assert.match(css, /@media\(forced-colors:active\)/);
+});
+
+
+test('micro-detail pass keeps notices, PI copy, table actions and narrow dialogs readable', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.notice\.inline-notice\{max-width:none;width:100%/);
+  assert.match(css, /\.pi-explainer-steps small\{display:block;line-height:1\.5\}/);
+  assert.match(css, /\.data-table td button:focus-visible/);
+  assert.match(css, /\.modal \.modal-actions\{flex-wrap:wrap\}/);
+  assert.match(css, /max-width:min\(380px,calc\(100vw - 32px\)\)/);
+  assert.match(css, /@media\(max-width:560px\)/);
+});
+
+
+test('dynamic production and finance signals are announced accessibly', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  for (const id of ['piHomeAlerts', 'piProductionAlerts', 'estimatePiAlerts', 'financeAlerts']) {
+    const tag = html.match(new RegExp('<div id="' + id + '"[^>]*>'));
+    assert.ok(tag, id + ' container exists');
+    assert.match(tag[0], /role="status"/, id + ' exposes status semantics');
+    assert.match(tag[0], /aria-live="polite"/, id + ' announces updates without interruption');
+  }
+});
+
+
+test('operational alerts and empty states retain hierarchy in the dark theme', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.app-shell \.finance-alert\.danger\{border-left-color:#e06d68\}/);
+  assert.match(css, /\.app-shell \.pi-alert\.warning\{border-left:3px solid #d99a3e\}/);
+  assert.match(css, /\.app-shell \.pi-no-alerts\{padding:12px 14px;border:1px solid var\(--st-border\)/);
+  assert.match(css, /\.app-shell \.section-head p\{max-width:720px;line-height:1\.6\}/);
+  assert.match(css, /@media\(max-width:560px\)/);
+});
+
+
+test('modal close controls and dense table actions remain legible and keyboard accessible', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.app-shell \.close-btn:focus-visible\{outline:2px solid #e18a63;outline-offset:3px\}/);
+  assert.match(css, /\.app-shell \.close-btn:hover\{background:#343b40;border-color:#66747b;color:#fff\}/);
+  assert.match(css, /\.app-shell \.modal \.button:disabled/);
+  assert.match(css, /\.app-shell \.data-table tr:focus-within/);
+  assert.match(css, /@media\(hover:none\)/);
+  assert.match(css, /@media\(prefers-reduced-motion:reduce\)/);
+});
+
+
+test('every modal close button uses the same explicit accessible name', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const buttons = [...html.matchAll(/<button\b[^>]*class="close-btn"[^>]*>/g)].map(match => match[0]);
+  assert.ok(buttons.length > 0, 'modal close controls exist');
+  for (const button of buttons) {
+    assert.match(button, /aria-label="Закрыть окно"/, button);
+    assert.match(button, /data-close="[^"]+"/, button);
+  }
+});
+
+
+test('sidebar navigation keeps icon and count alignment with visible keyboard focus', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.app-shell \.sidebar \.nav-item>span\{[\s\S]*?flex:0 0 20px/);
+  assert.match(css, /\.app-shell \.sidebar \.nav-item>i\{[\s\S]*?margin-left:auto/);
+  assert.match(css, /\.app-shell \.sidebar \.nav-item:focus-visible\{\s*outline:2px solid #e18a63/);
+  assert.match(css, /\.app-shell \.top-actions \.button:focus-visible/);
+  assert.match(css, /\.app-shell \.view.active\{\s*animation:none\}/);
+});
+
+
+test('estimate risk and actual-result alerts announce updated text consistently', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  for (const id of ['estimateRiskAlerts', 'estimateActualAlerts']) {
+    const match = html.match(new RegExp('<div id="' + id + '"[^>]*>'));
+    assert.ok(match, id + ' container exists');
+    assert.match(match[0], /role="status"/, id);
+    assert.match(match[0], /aria-live="polite"/, id);
+    assert.match(match[0], /aria-relevant="additions text"/, id);
+  }
+});
+
+
+test('PI explainer clearly separates instructions from illustrative data at narrow widths', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.app-shell \.pi-explainer-copy>p\{[^}]*line-height:1\.75/);
+  assert.match(css, /\.app-shell \.pi-explainer-steps>div>b\{[^}]*font-variant-numeric:tabular-nums/);
+  assert.match(css, /\.app-shell \.pi-mockup-chip\{[^}]*white-space:nowrap/);
+  assert.match(css, /\.app-shell \.pi-mockup-alert small\{[^}]*overflow-wrap:anywhere/);
+  assert.match(css, /@media\(max-width:420px\)\{[\s\S]*?\.app-shell \.pi-mockup-metrics\{grid-template-columns:1fr\}/);
+});
+
+
+test('operational notices and empty states keep readable hierarchy and narrow layouts', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.app-shell \.notice\.inline-notice\{[\s\S]*?border-left:3px solid/);
+  assert.match(css, /\.app-shell \.notice\.inline-notice strong\{[^}]*font-weight:700/);
+  assert.match(css, /\.app-shell \.empty-state>span\{[^}]*line-height:1\.65/);
+  assert.match(css, /\.app-shell \.empty-state \.button\{margin-top:5px\}/);
+  assert.match(css, /@media\(max-width:560px\)\{[\s\S]*?\.app-shell \.empty-state\{padding:18px 14px\}/);
+});
+
+
+test('modal headers, accessible tabs, and dense tables use consistent compact styling', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+  assert.match(css, /\.app-shell \.modal-head\{[\s\S]*?border-bottom:1px solid var\(--st-border\)/);
+  assert.match(css, /\.app-shell \.close-btn:focus-visible\{outline:2px solid/);
+  assert.match(css, /\.app-shell \[role="tab"\]\[aria-selected="true"\]/);
+  assert.match(css, /\.app-shell \.table-wrap th,\.app-shell \.table-wrap td\{overflow-wrap:anywhere\}/);
+  assert.match(css, /@media\(max-width:560px\)\{[\s\S]*?\.app-shell \[role="tablist"\]\{overflow-x:auto/);
+});
+
+
+test('every dialog has an accessible name tied to its visible heading or search purpose', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const titledDialogs = [
+    ['leadDialog', 'leadDialogTitle'], ['clientDialog', 'clientDialogTitle'],
+    ['projectDialog', 'projectDialogTitle'], ['paymentDialog', 'paymentDialogTitle'],
+    ['expenseDialog', 'expenseDialogTitle'], ['incomeDialog', 'incomeDialogTitle'],
+    ['taskDialog', 'taskDialogTitle'], ['prospectDialog', 'prospectDialogTitle'],
+    ['productionReportDialog', 'productionReportDialogTitle'],
+    ['productionPlanDialog', 'productionPlanDialogTitle'],
+    ['productionShiftDialog', 'productionShiftDialogTitle'],
+    ['updatesDialog', 'updatesDialogTitle'],
+    ['notificationSettingsDialog', 'notificationSettingsDialogTitle'],
+    ['piEconomicsDialog', 'piEconomicsDialogTitle'],
+    ['manualOrderDialog', 'manualOrderDialogTitle'],
+    ['piErrorHistoryDialog', 'piErrorHistoryDialogTitle']
+  ];
+  for (const [dialogId, titleId] of titledDialogs) {
+    const dialog = html.match(new RegExp('<dialog\\b[^>]*id="' + dialogId + '"[^>]*>'));
+    assert.ok(dialog, 'dialog exists: ' + dialogId);
+    assert.match(dialog[0], new RegExp('aria-labelledby="' + titleId + '"'));
+    assert.ok(html.includes('id="' + titleId + '"'), 'visible title exists: ' + titleId);
+  }
+  assert.match(html, /<dialog\b[^>]*id="commandPaletteDialog"[^>]*aria-label="Палитра команд"/);
+});
+
+
+test('shared dialog helpers safely ignore missing or already-open/closed dialogs', () => {
+  assert.match(renderer, /function openDialog\(id\)\s*\{\s*const dialog = \$\(id\);\s*if \(!\(dialog instanceof HTMLDialogElement\) \|\| dialog\.open\) return false;\s*dialog\.showModal\(\);\s*return true;/);
+  assert.match(renderer, /function closeDialog\(id\)\s*\{\s*const dialog = \$\(id\);\s*if \(!\(dialog instanceof HTMLDialogElement\) \|\| !dialog\.open\) return false;\s*dialog\.close\(\);\s*return true;/);
+});
+
+
+test('project create flow preserves the pending production plan on failure and clears it on cancel', () => {
+  const submitAt = renderer.indexOf("$('projectForm').addEventListener('submit'");
+  assert.notEqual(submitAt, -1, 'project submit handler exists');
+  const submitBlock = renderer.slice(submitAt, submitAt + 1800);
+  assert.match(submitBlock, /const editing = Boolean\(data\.id\), planToAttach = editing \? null : pendingProjectPlan; pendingProjectPlan = null;/);
+  assert.match(submitBlock, /catch \(err\) {\s*pendingProjectPlan = planToAttach;\s*toast\(err\.message, true\);\s*return;/);
+  assert.match(submitBlock, /form\.reset\(\); \$\('projectDialogTitle'\)\.textContent = 'Новый объект'; closeDialog\('projectDialog'\);/);
+  assert.match(renderer, /const close = e\.target\.closest\('\[data-close\]'\); if \(close\) \{ if \(close\.dataset\.close === 'projectDialog'\) pendingProjectPlan = null; closeDialog\(close\.dataset\.close\); \}/);
+});
+
+test('primary navigation maps supported views to their data refresh handlers', () => {
+  const start = renderer.indexOf('function showView(name)');
+  assert.notEqual(start, -1, 'showView exists');
+  const block = renderer.slice(start, start + 1800);
+  for (const view of ['dashboard', 'leads', 'clients', 'projects', 'production', 'finance', 'prospects', 'tasks']) {
+    assert.match(block, new RegExp(view + ': refresh[A-Za-z]+'));
+  }
+  assert.match(block, /if \(loaders\[name\] && view\) \{[\s\S]*?loaders\[name\]\(\)[\s\S]*?\.catch\(error => \{[\s\S]*?renderSectionLoadError\(name\)/);
+});
+
+
+test('close buttons only reference dialogs that exist', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const dialogIds = new Set(Array.from(html.matchAll(/<dialog[^>]*id="([^"]+)"/g), match => match[1]));
+  const targets = Array.from(html.matchAll(/data-close="([^"]+)"/g), match => match[1]);
+  assert.ok(targets.length > 0, 'close controls should exist');
+  for (const target of targets) assert.ok(dialogIds.has(target), 'close target must exist as a dialog: ' + target);
+});
+
+
+test('all renderer modal open and close operations use the guarded helpers', () => {
+  assert.equal((renderer.match(/\.showModal\(\)/g) || []).length, 1, 'only openDialog should call showModal directly');
+  assert.equal((renderer.match(/\.close\(\)/g) || []).length, 1, 'only closeDialog should call close directly');
+  assert.match(renderer, /function openCommandPalette\(\) \{[\s\S]*?openDialog\('commandPaletteDialog'\)/);
+  assert.match(renderer, /commandPalette\?\.addEventListener\('click',[\s\S]*?closeDialog\('commandPaletteDialog'\)/);
+});
+
+
+test('creating a project from an estimate loads client and lead relationships before opening', () => {
+  const start = renderer.indexOf("$('estimateCreateProjectBtn').addEventListener('click', async () => {");
+  assert.notEqual(start, -1, 'estimate-to-project handler exists');
+  const end = renderer.indexOf("const actualInputIds", start);
+  const block = renderer.slice(start, end);
+  assert.match(block, /await populateProjectRelationships\(\);[\s\S]*?openDialog\('projectDialog'\)/);
+  assert.match(block, /catch \(error\) \{[\s\S]*?pendingProjectPlan = null;[\s\S]*?Не удалось подготовить объект из сметы/);
+});
+
+test('project save keeps the project dialog open and restores the pending plan on save failure', () => {
+  const start = renderer.indexOf("$('projectForm').addEventListener('submit', async e => {");
+  assert.notEqual(start, -1, 'project form submit handler exists');
+  const end = renderer.indexOf("$('projectsTable').addEventListener('click'", start);
+  const block = renderer.slice(start, end);
+  assert.match(block, /const editing = Boolean\(data\.id\), planToAttach = editing \? null : pendingProjectPlan; pendingProjectPlan = null;/);
+  assert.match(block, /catch \(err\) {\s*pendingProjectPlan = planToAttach;\s*toast\(err\.message, true\);\s*return;/);
+  assert.match(block, /form\.reset\(\);[\s\S]*?closeDialog\('projectDialog'\)/);
+  assert.match(block, /createProjectWithPlan\(\{ project: data, plan: planToAttach \}\)/);
+});
+
+test('editing a project loads relationship options before filling fields and opening the dialog', () => {
+  const start = renderer.indexOf("$('projectsTable').addEventListener('click', async event => {");
+  assert.notEqual(start, -1, 'project edit handler exists');
+  const end = renderer.indexOf("$('paymentForm').addEventListener('submit'", start);
+  const block = renderer.slice(start, end);
+  assert.match(block, /await populateProjectRelationships\(project\.client_id, project\.lead_id\);[\s\S]*?form\.elements\[key\]\.value = project\[key\][\s\S]*?openDialog\('projectDialog'\)/);
+});
+
+
+test('expense form has a single submit handler so one click cannot create duplicate expenses', () => {
+  const handlers = renderer.match(/\$\('expenseForm'\)\.addEventListener\('submit'/g) || [];
+  assert.equal(handlers.length, 1, 'expense form must have exactly one submit handler');
+  const start = renderer.indexOf("$('expenseForm').addEventListener('submit'");
+  const end = renderer.indexOf("$('expensesTable').addEventListener('click'", start);
+  const block = renderer.slice(start, end);
+  assert.match(block, /if \(data\.id\) await window\.crm\.updateExpense\(data\); else await window\.crm\.createExpense\(data\);/);
+  assert.match(block, /catch \(err\) \{ toast\(err\.message,true\); \}/);
+});
+
+
+test('project form blocks concurrent submissions while an object write is pending', () => {
+  const start = renderer.indexOf("$('projectForm').addEventListener('submit'");
+  const end = renderer.indexOf("$('projectsTable').addEventListener('click'", start);
+  const block = renderer.slice(start, end);
+  assert.match(block, /if \(form\.dataset\.submitting === 'true'\) return;/);
+  assert.match(block, /form\.dataset\.submitting = 'true';/);
+  assert.match(block, /button\.disabled = true/);
+  assert.match(block, /finally \{/);
+  assert.match(block, /form\.dataset\.submitting = 'false';/);
+  assert.match(block, /pendingProjectPlan = planToAttach;/, 'failed save must preserve the pending production plan');
 });

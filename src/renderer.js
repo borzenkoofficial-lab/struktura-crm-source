@@ -71,7 +71,7 @@ function piRenderErrorHistory(selectedId) {
 function openPiErrorHistory(selectedId) {
   piRenderErrorHistory(selectedId);
   const dialog = $('piErrorHistoryDialog');
-  if (dialog && !dialog.open) dialog.showModal();
+  openDialog('piErrorHistoryDialog');
 }
 piErrorLoad();
 function toast(message, error = false) {
@@ -963,9 +963,19 @@ async function refreshReports() {
   $('sourceReport').innerHTML = sorted.length ? `<table class="data-table"><thead><tr><th>Источник</th><th>Заявок</th><th>Выиграно</th><th>Ожидаемый бюджет</th></tr></thead><tbody>${sorted.map(([source,v]) => `<tr><td>${esc(sourceLabels[source] || source)}</td><td>${v.count}</td><td>${v.won}</td><td>${fmt(v.budget)}</td></tr>`).join('')}</tbody></table>` : empty('Пока нет данных','После добавления заявок здесь появится разбивка по источникам.');
 }
 function empty(title, detail) { return `<div class="empty-state"><div class="empty-icon">◉</div><strong>${esc(title)}</strong><span>${esc(detail)}</span></div>`; }
-function openDialog(id) { $(id).showModal(); }
+function openDialog(id) {
+  const dialog = $(id);
+  if (!(dialog instanceof HTMLDialogElement) || dialog.open) return false;
+  dialog.showModal();
+  return true;
+}
 
-function closeDialog(id) { $(id).close(); }
+function closeDialog(id) {
+  const dialog = $(id);
+  if (!(dialog instanceof HTMLDialogElement) || !dialog.open) return false;
+  dialog.close();
+  return true;
+}
 $('piOpenErrorHistoryBtn')?.addEventListener('click', () => openPiErrorHistory());
 $('piErrorList')?.addEventListener('click', event => {
   const button = event.target.closest('[data-pi-error-id]');
@@ -990,7 +1000,8 @@ const commandSearch = $('commandPaletteSearch');
 $('openCommandPaletteBtn')?.addEventListener('click', openCommandPalette);
 function openCommandPalette() {
   if (!commandPalette) return;
-  commandPalette.showModal();
+  if (commandPalette.open) return;
+  openDialog('commandPaletteDialog');
   commandSearch.value = '';
   filterCommandPalette('');
   requestAnimationFrame(() => commandSearch.focus());
@@ -1010,15 +1021,15 @@ commandSearch?.addEventListener('input', () => filterCommandPalette(commandSearc
 commandPalette?.addEventListener('click', event => {
   const item = event.target.closest('[data-command-view]');
   if (!item) return;
-  commandPalette.close();
+  closeDialog('commandPaletteDialog');
   showView(item.dataset.commandView);
 });
 document.addEventListener('keydown', event => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault();
-    if (commandPalette?.open) commandPalette.close(); else openCommandPalette();
+    if (commandPalette?.open) closeDialog('commandPaletteDialog'); else openCommandPalette();
   }
-  if (event.key === 'Escape' && commandPalette?.open) commandPalette.close();
+  if (event.key === 'Escape' && commandPalette?.open) closeDialog('commandPaletteDialog');
 });
 const sidebarToggle = $('toggleSidebarBtn');
 function setSidebarCollapsed(collapsed) {
@@ -1119,7 +1130,7 @@ $('estimatePdfBtn').addEventListener('click', async () => {
   const r = refreshEstimate(); if (!r) return;
   try { const saved = await window.crm.exportQuotePdf({ title: $('estimateTitle').value, customer: $('estimateCustomer').value, address: $('estimateAddress').value, contact: $('estimateContact').value, validity: $('estimateValidity').value, lines: r.lineItems.map(x => ({name:x.name,unit:x.unit,quantity:x.quantity,price:x.price})), revenue: r.revenue, discount: r.discount, estimatedCostRub: r.totalCost, estimatedProfitRub: r.profit, marginPct: r.actualMargin }); if (saved?.canceled) return; toast('КП в PDF сохранено и добавлено в историю ПИ.'); await refreshPiCoach({ force: true }).catch(() => {}); } catch (error) { toast(`Не удалось сформировать PDF: ${error.message}`, true); }
 });
-$('estimateCreateProjectBtn').addEventListener('click', () => {
+$('estimateCreateProjectBtn').addEventListener('click', async () => {
   const result = refreshEstimate(); if (!result) return;
   const form = $('projectForm'); form.reset();
   form.elements.title.value = $('estimateTitle').value || 'Предварительная смета';
@@ -1135,7 +1146,14 @@ $('estimateCreateProjectBtn').addEventListener('click', () => {
     else { const catalogId = line.catalogId || `manual-${line.lineId}`; planMap.set(catalogId, { catalog_id: catalogId, work_name: line.name, unit: line.unit, planned_quantity: Number(line.quantity), baseline_productivity: Math.max(0, Number(line.productivity) || 0) }); }
   }
   pendingProjectPlan = { planned_people: Number(form.elements.planned_people.value || 5), complexity_factor: Number(form.elements.complexity_factor.value || 1), lines: [...planMap.values()] };
-  openDialog('projectDialog');
+  try {
+    await populateProjectRelationships();
+    openDialog('projectDialog');
+  } catch (error) {
+    pendingProjectPlan = null;
+    toast(`Не удалось подготовить объект из сметы: ${error.message}`, true);
+    return;
+  }
   const missingRates = estimateLines.filter(line => Number(line.quantity) > 0 && !(Number(line.productivity) > 0)).length;
   toast(pendingProjectPlan.lines.length ? (missingRates ? `Смета перенесена в объект, включая ${missingRates} позиций без нормы. ПИ не сможет рассчитать полный срок, пока нормы не заданы.` : 'Сумма, состав бригады, сложность и позиции сметы будут перенесены в объект.') : 'Цена перенесена. Для прогноза сроков после сохранения добавь план работ.');
 });
@@ -1193,7 +1211,7 @@ $('refreshRadarBtn').addEventListener('click', () => refreshProspects().then(() 
 $('domainSearchService').addEventListener('change', refreshDomainSearchLinks);
 $('domainSearchRegion').addEventListener('input', refreshDomainSearchLinks);
 refreshDomainSearchLinks();
-$('addTaskBtn').addEventListener('click', async () => { await refreshTasks(); $('taskForm').reset(); $('taskDialogTitle').textContent = 'Новая задача'; $('taskDialog').showModal(); });
+$('addTaskBtn').addEventListener('click', async () => { await refreshTasks(); $('taskForm').reset(); $('taskDialogTitle').textContent = 'Новая задача'; openDialog('taskDialog'); });
 $('taskForm').addEventListener('submit', async e => {
   e.preventDefault(); const form = e.currentTarget, data = Object.fromEntries(new FormData(form));
   try {
@@ -1214,7 +1232,7 @@ $('tasksTable').addEventListener('click', async event => {
       const field = form.elements[key]; if (!field) continue;
       field.value = task[key] == null ? '' : (key === 'due_at' ? String(task[key]).slice(0,16) : task[key]);
     }
-    $('taskDialogTitle').textContent = 'Изменить задачу'; $('taskDialog').showModal();
+    $('taskDialogTitle').textContent = 'Изменить задачу'; openDialog('taskDialog');
   } catch (error) { toast(error.message, true); }
 });
 $('taskSearch').addEventListener('input', () => refreshTasks().catch(e => toast(e.message, true)));
@@ -1297,16 +1315,31 @@ $('projectsTable').addEventListener('change', async event => {
   finally { control.disabled = false; }
 });
 $('projectForm').addEventListener('submit', async e => {
-  e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form));
+  e.preventDefault(); const form = e.currentTarget;
+  // Keep one in-flight write per form: rapid clicks must not create duplicate objects.
+  if (form.dataset.submitting === 'true') return;
+  form.dataset.submitting = 'true';
+  const submitButtons = [...form.querySelectorAll('button[type="submit"],input[type="submit"]')];
+  submitButtons.forEach(button => { button.disabled = true; });
+  const data = Object.fromEntries(new FormData(form));
   const editing = Boolean(data.id), planToAttach = editing ? null : pendingProjectPlan; pendingProjectPlan = null;
   try {
-    if (editing) await window.crm.updateProject(data);
-    else if (planToAttach?.lines?.length) await window.crm.createProjectWithPlan({ project: data, plan: planToAttach });
-    else await window.crm.createProject(data);
-  } catch (err) { pendingProjectPlan = planToAttach; toast(err.message,true); return; }
-  form.reset(); $('projectDialogTitle').textContent = 'Новый объект'; closeDialog('projectDialog');
-  toast(editing ? 'Карточка объекта обновлена.' : (planToAttach?.lines?.length ? 'Объект и производственный план сохранены одной операцией.' : 'Объект сохранён. План работ можно добавить в разделе «Производство».'));
-  await Promise.all([refreshProjects(), refreshDashboard(), refreshProduction(), refreshFinance()]).catch(err => toast(`Объект сохранён, но обновление списков завершилось ошибкой: ${err.message}`, true));
+    try {
+      if (editing) await window.crm.updateProject(data);
+      else if (planToAttach?.lines?.length) await window.crm.createProjectWithPlan({ project: data, plan: planToAttach });
+      else await window.crm.createProject(data);
+    } catch (err) {
+      pendingProjectPlan = planToAttach;
+      toast(err.message, true);
+      return;
+    }
+    form.reset(); $('projectDialogTitle').textContent = 'Новый объект'; closeDialog('projectDialog');
+    toast(editing ? 'Карточка объекта обновлена.' : (planToAttach?.lines?.length ? 'Объект и производственный план сохранены одной операцией.' : 'Объект сохранён. План работ можно добавить в разделе «Производство».'));
+    await Promise.all([refreshProjects(), refreshDashboard(), refreshProduction(), refreshFinance()]).catch(err => toast(`Объект сохранён, но обновление списков завершилось ошибкой: ${err.message}`, true));
+  } finally {
+    form.dataset.submitting = 'false';
+    submitButtons.forEach(button => { button.disabled = false; });
+  }
 });
 $('projectsTable').addEventListener('click', async event => {
   const button = event.target.closest('[data-edit-project]'); if (!button) return;
@@ -1337,7 +1370,7 @@ $('paymentsTable').addEventListener('click', async event => {
     await refreshProjects();
     const form = $('paymentForm');
     for (const key of ['id','project_id','amount_rub','payment_type','payment_date','method','note']) form.elements[key].value = payment[key] ?? '';
-    $('paymentDialogTitle').textContent = 'Изменить платёж'; $('paymentDialog').showModal();
+    $('paymentDialogTitle').textContent = 'Изменить платёж'; openDialog('paymentDialog');
   } catch (error) { toast(error.message,true); }
 });
 $('addIncomeBtn').addEventListener('click', () => {
@@ -1376,10 +1409,10 @@ $('expensesTable').addEventListener('click', async event => {
     await refreshProjects();
     const form = $('expenseForm');
     for (const key of ['id','project_id','amount_rub','expense_date','category','description','is_paid']) form.elements[key].value = expense[key] ?? '';
-    $('expenseDialogTitle').textContent = 'Изменить расход'; $('expenseDialog').showModal();
+    $('expenseDialogTitle').textContent = 'Изменить расход'; openDialog('expenseDialog');
   } catch (error) { toast(error.message,true); }
 });
-$('expenseForm').addEventListener('submit', async e => { e.preventDefault(); const form = e.currentTarget; const data = Object.fromEntries(new FormData(form)); try { await window.crm.createExpense(data); form.reset(); closeDialog('expenseDialog'); toast('Расход сохранён.'); await refreshFinance(); await refreshDashboard(); } catch (err) { toast(err.message,true); } });
+
 $('importProspectsBtn').addEventListener('click', async () => { try { const r = await window.crm.importProspectsCsv(); if (!r.canceled) { toast(`Импортировано: ${r.imported}, пропущено дублей: ${r.skipped}.`); await refreshProspects(); } } catch (e) { toast(e.message,true); } });
 $('crawlWebsitesBtn').addEventListener('click', async () => {
   const button = $('crawlWebsitesBtn'), result = $('crawlerResult');
@@ -1447,13 +1480,13 @@ $('addManualOrderBtn').addEventListener('click',()=>{
  const form=$('manualOrderForm');form.reset();
  $('manualOrderService').value=$('orderRadarService').value||'demolition';
  $('manualOrderRegion').value=$('orderRadarRegion').value||'Москва и Московская область';
- $('manualOrderDialog').showModal();
+ openDialog('manualOrderDialog');
 });
 $('manualOrderForm').addEventListener('submit',async event=>{
  event.preventDefault();const form=event.currentTarget;const submit=form.querySelector('button[type="submit"]');submit.disabled=true;
  try{
   const result=await window.crm.createCommercialOrder({title:$('manualOrderTitle').value,source_url:$('manualOrderUrl').value,snippet:$('manualOrderSnippet').value,service:$('manualOrderService').value,region:$('manualOrderRegion').value});
-  $('manualOrderDialog').close();await refreshCommercialOrders();
+  closeDialog('manualOrderDialog');await refreshCommercialOrders();
   toast(result.duplicate?'Этот заказ уже есть в радаре — дубль не создан.':'Заказ добавлен. Открой карточку, чтобы посмотреть оценку ПИ.');
  }catch(e){toast(e.message,true)}
  finally{submit.disabled=false}
@@ -1473,7 +1506,7 @@ $('commercialOrdersList').addEventListener('click',e=>{
   $('piEconomicsWage').value=a.wage_per_worker_shift??0;$('piEconomicsOther').value=a.other_costs_rub??0;
   $('piEconomicsDifficulty').value=a.difficulty_factor??1;$('piEconomicsReserve').value=a.reserve_percent??15;
   $('piEconomicsCatalog').value=a.catalog_id||'';
-  $('piEconomicsDialog').showModal();
+  openDialog('piEconomicsDialog');
  }catch(error){toast('Не удалось открыть расчёт ПИ: '+error.message,true)}
 });
 $('piEconomicsCatalog').addEventListener('change',()=>{
@@ -1494,7 +1527,7 @@ $('piEconomicsForm').addEventListener('submit',async event=>{
    wage_per_worker_shift:Number($('piEconomicsWage').value),other_costs_rub:Number($('piEconomicsOther').value),
    difficulty_factor:Number($('piEconomicsDifficulty').value),reserve_percent:Number($('piEconomicsReserve').value)
   });
-  $('piEconomicsDialog').close();await refreshCommercialOrders();
+  closeDialog('piEconomicsDialog');await refreshCommercialOrders();
   toast(result.observations_count>0?'Расчёт сохранён; ПИ учёл историю смен по выбранной работе.':'Расчёт сохранён. Истории смен по этой работе нет — использована стартовая производительность.');
  }catch(error){toast(error.message,true)}
  finally{submit.disabled=false}

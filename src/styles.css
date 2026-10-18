@@ -2315,3 +2315,374 @@ hr{border-color:#353e45!important}
 [class*="-query"],[class*="-result"],[class*="-metric"],[class*="-forecast"]) :is(h1,h2,h3,h4,h5,strong){
   color:#e4e8eb;
 }
+
+
+/* Micro-detail pass: clear close controls, legible PI explanations and actionable alerts. */
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.modal-head h2{min-width:0;line-height:1.3}
+.close-btn{
+  flex:0 0 36px!important;width:36px!important;height:36px!important;min-width:36px!important;
+  min-height:36px!important;display:inline-flex!important;align-items:center!important;
+  justify-content:center!important;padding:0!important;margin-left:auto!important;
+  border-radius:7px!important;background:#30383e!important;color:#f0f3f5!important;
+  border:1px solid #56616a!important;font-size:21px!important;line-height:1!important;
+  font-weight:400!important;cursor:pointer!important;opacity:1!important;
+  box-shadow:none!important;transition:background-color .12s,border-color .12s,color .12s!important
+}
+.close-btn:hover{background:#4a3028!important;border-color:#d9653c!important;color:#fff!important}
+.close-btn:focus-visible{outline:2px solid #ef9b7b!important;outline-offset:2px!important}
+.close-btn:disabled{opacity:.45!important;cursor:not-allowed!important}
+[role="dialog"] .modal-head .close-btn{align-self:flex-start}
+.modal-head{padding-bottom:12px;border-bottom:1px solid #353e45;margin-bottom:16px}
+.modal form{min-width:0}
+.modal label{display:block;color:#c8d0d6;font-size:12px;font-weight:600;margin-bottom:6px}
+.modal input,.modal select,.modal textarea{min-height:38px}
+.modal textarea{min-height:88px;resize:vertical}
+.modal .form-hint,.modal .field-hint,.modal .help-text{display:block;color:#a0aab3;font-size:11px;line-height:1.5;margin-top:5px}
+.modal .form-row,.modal .form-group{min-width:0}
+.modal :is(button,input,select,textarea){max-width:100%}
+
+/* Production Intelligence: distinguish explanation, current state and next action. */
+.pi-explainer{
+  padding:20px!important;border:1px solid #3b454d!important;border-radius:8px!important;
+  background:#20262b!important
+}
+.pi-explainer h3,.pi-explainer h4{margin:0 0 8px;color:#edf0f2!important;line-height:1.35}
+.pi-explainer p,.pi-explainer li{color:#c1cbd2!important;line-height:1.6}
+.pi-explainer p{margin:6px 0 12px}
+.pi-explainer-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.pi-explainer-steps>div{
+  min-width:0;padding:12px;border:1px solid #3b454d!important;border-radius:7px;
+  background:#252c32!important
+}
+.pi-explainer-steps b{
+  display:inline-grid;place-items:center;width:25px;height:25px;margin-bottom:8px;
+  background:#4a3028!important;color:#ffb397!important;border-radius:5px;font-size:11px
+}
+.pi-explainer-steps strong{display:block;color:#e7ebee!important;font-size:12px;margin-bottom:4px}
+.pi-explainer-steps small{display:block;color:#aeb8c0!important;font-size:11px;line-height:1.5}
+.pi-home-panel .panel-head{align-items:flex-start}
+.pi-home-summary{line-height:1.6}
+.pi-alert-list{display:grid;gap:8px;margin-top:10px}
+.pi-alert-list:empty{display:none}
+.pi-alert-list :is(.notice,.alert,.warning,.pi-alert,.alert-item){
+  border:1px solid #5a4936!important;border-left:3px solid #d9a45c!important;
+  background:#2b2925!important;color:#f0e2c9!important;border-radius:6px!important;
+  padding:11px 13px!important;line-height:1.5
+}
+.pi-alert-list :is(.critical,.danger,.error){
+  border-color:#694149!important;border-left-color:#e47783!important;
+  background:#302327!important;color:#f2d8dc!important
+}
+.pi-alert-list :is(.success,.ok,.resolved){
+  border-color:#315b48!important;border-left-color:#65bd8e!important;
+  background:#222e28!important;color:#d2ecdc!important
+}
+:is(.notice,.alert,.warning,.error-notice,.success-notice,[role="alert"]){
+  border-radius:6px;line-height:1.5
+}
+:is(.notice,.warning,.alert):not(.pi-alert){
+  background:#2b2925;color:#f0e2c9;border-color:#5a4936
+}
+:is(.notice,.warning,.alert) :is(strong,b){color:inherit}
+:is(.notice,.warning,.alert) :is(p,small){color:inherit;opacity:.88}
+:is(.notice,.warning,.alert) a{color:#ffb397;text-decoration:underline;text-underline-offset:2px}
+:is(.error-notice,[role="alert"].error){
+  background:#302327!important;color:#f2d8dc!important;border-color:#694149!important
+}
+:is(.success-notice,[role="status"].success){
+  background:#222e28!important;color:#d2ecdc!important;border-color:#315b48!important
+}
+.toast{max-width:min(420px,calc(100vw - 32px));line-height:1.45}
+.toast :is(strong,b){color:inherit}
+.empty-state{padding:26px 18px}
+.empty-state strong{line-height:1.4}
+.empty-state span{max-width:420px;line-height:1.6}
+:where(.panel-head,.section-head,.dashboard-section-head) :where(button,a){flex-shrink:0}
+:where(.panel,.stat-card,.finance-card,.settings-card,.pi-explainer) :focus-visible{
+  outline:2px solid #ef9b7b;outline-offset:2px
+}
+@media(max-width:760px){
+  .modal-head{gap:10px}
+  .modal-head h2{font-size:17px}
+  .close-btn{flex-basis:34px!important;width:34px!important;height:34px!important;min-width:34px!important;min-height:34px!important}
+  .pi-explainer-steps{grid-template-columns:1fr}
+  .pi-explainer-steps>div{display:grid;grid-template-columns:28px minmax(0,1fr);column-gap:9px}
+  .pi-explainer-steps b{grid-row:span 2;margin:0}
+}
+
+
+/* Second polish pass: keyboard access, dense tables and long-form dialogs. */
+.app-shell :where(button,a,input,select,textarea,[tabindex]):focus-visible{
+  outline:2px solid #ef9b7b;outline-offset:2px
+}
+.app-shell :where(button,a):focus:not(:focus-visible){outline:none}
+.app-shell .data-table th{
+  position:sticky;top:0;z-index:2;background:#252d32!important;
+  color:#aebbc2!important;box-shadow:0 1px 0 #3a454c
+}
+.app-shell .data-table tbody tr:hover td{
+  background:#283137!important
+}
+.app-shell .data-table td,.app-shell .data-table th{
+  overflow-wrap:normal;vertical-align:middle
+}
+.app-shell .table-wrap{
+  max-width:100%;overscroll-behavior-x:contain;
+  scrollbar-width:thin;scrollbar-color:#56636b #20262b
+}
+.app-shell .table-wrap:focus-visible{outline-offset:-2px}
+.app-shell .data-table td .muted,
+.app-shell .data-table td small{
+  color:#9eabb3!important;line-height:1.45
+}
+.app-shell .data-table td :is(button,a){
+  min-height:30px
+}
+.app-shell dialog.modal{
+  max-height:calc(100dvh - 32px);overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:#56636b #20262b
+}
+.app-shell dialog.modal>form{min-width:0}
+.app-shell .modal-head>div{min-width:0}
+.app-shell .modal-head .eyebrow{display:block;line-height:1.5}
+.app-shell .modal-head h2{overflow-wrap:anywhere}
+.app-shell .modal-actions{align-items:center}
+.app-shell .modal-actions .button{min-height:38px}
+.app-shell .modal :is(input,select,textarea):disabled{
+  opacity:.62;cursor:not-allowed;background:#252c32!important;color:#8f9ca4!important
+}
+.app-shell .modal :is(input,select,textarea)::placeholder{
+  color:#819098;opacity:1
+}
+.app-shell :is(.notice,.warning,.alert,[role="alert"]){
+  overflow-wrap:anywhere
+}
+@media(max-width:600px){
+  .app-shell dialog.modal{max-height:calc(100dvh - 16px);width:calc(100vw - 16px)}
+  .app-shell .modal-actions .button{min-width:0;white-space:normal}
+  .app-shell .data-table th,.app-shell .data-table td{padding:11px 12px}
+}
+@media(forced-colors:active){
+  .app-shell :where(button,a,input,select,textarea,[tabindex]):focus-visible{outline:2px solid Highlight}
+  .app-shell .close-btn{border:1px solid ButtonText!important}
+}
+
+
+/* Micro-detail pass: notices, dense data and production guidance */
+.notice.inline-notice{max-width:none;width:100%;line-height:1.65;overflow-wrap:anywhere}
+.notice.inline-notice strong{display:inline-block;margin-right:4px;color:inherit}
+.pi-explainer-copy p,.pi-explainer-steps small,.pi-mockup-foot{overflow-wrap:anywhere}
+.pi-explainer-steps>div{min-width:0}
+.pi-explainer-steps>div>span{min-width:0}
+.pi-explainer-steps small{display:block;line-height:1.5}
+.pi-alert{min-width:0;overflow-wrap:anywhere}
+.pi-alert strong,.pi-alert span{overflow-wrap:anywhere}
+.pi-no-alerts{display:flex;align-items:flex-start;gap:8px;overflow-wrap:anywhere}
+.data-table th{white-space:nowrap}
+.data-table td{line-height:1.5}
+.data-table td button:focus-visible,.data-table td a:focus-visible{outline:2px solid #d9653c;outline-offset:2px;border-radius:4px}
+.modal .modal-actions{flex-wrap:wrap}
+.modal .modal-actions .button{min-height:38px}
+.close-btn{flex:0 0 36px;line-height:1;font-size:22px;font-weight:500}
+.toast{overflow-wrap:anywhere;max-width:min(380px,calc(100vw - 32px))}
+@media(max-width:560px){
+  .notice.inline-notice{padding:11px 12px}
+  .pi-explainer-steps{grid-template-columns:1fr}
+  .pi-explainer-steps>div{min-height:58px}
+  .modal .modal-actions{justify-content:stretch}
+  .modal .modal-actions .button{flex:1 1 auto}
+  .toast{left:16px;right:16px;bottom:16px;max-width:none}
+}
+
+
+/* Severity and empty-state hierarchy: make operational signals scannable without louder colors. */
+.app-shell .finance-alert{
+  gap:5px;padding:13px 15px;border-radius:10px;
+  background:linear-gradient(100deg,rgba(255,255,255,.025),transparent 72%) , var(--st-surface);
+}
+.app-shell .finance-alert strong,.app-shell .pi-alert strong,
+.app-shell .estimate-risk-alert strong{font-size:12px;line-height:1.45;font-weight:700}
+.app-shell .finance-alert span,.app-shell .pi-alert span,
+.app-shell .estimate-risk-alert span{font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.app-shell .finance-alert.warning{border-left-color:#d99a3e}
+.app-shell .finance-alert.danger{border-left-color:#e06d68}
+.app-shell .finance-alert.neutral{border-left-color:#7f9bd0}
+.app-shell .pi-alert{gap:5px;padding:12px 14px;border-radius:10px}
+.app-shell .pi-alert.warning{border-left:3px solid #d99a3e}
+.app-shell .pi-alert.danger{border-left:3px solid #e06d68}
+.app-shell .pi-no-alerts{padding:12px 14px;border:1px solid var(--st-border);border-radius:10px;line-height:1.6}
+.app-shell .empty-state{gap:9px}
+.app-shell .empty-state strong{font-size:13px}
+.app-shell .empty-state span{line-height:1.6}
+.app-shell .table-sub{display:block;margin-top:4px;font-size:11px;line-height:1.45;overflow-wrap:anywhere}
+.app-shell .section-head>div:first-child{min-width:0}
+.app-shell .section-head p{max-width:720px;line-height:1.6}
+@media(max-width:560px){
+  .app-shell .finance-alert,.app-shell .pi-alert{padding:11px 12px}
+  .app-shell .section-head{align-items:flex-start;flex-wrap:wrap}
+  .app-shell .section-head>.button-row{width:100%;flex-wrap:wrap}
+  .app-shell .section-head>.button-row .button{flex:1 1 auto}
+}
+
+
+/* Dialog and dense-table finish: clearer controls without changing the product layout. */
+.app-shell .modal-head{gap:14px;align-items:flex-start}
+.app-shell .modal-head>div{flex:1 1 auto}
+.app-shell .modal-head h2{line-height:1.25;text-wrap:pretty}
+.app-shell .close-btn{
+  display:inline-grid;place-items:center;width:36px;height:36px;min-width:36px;
+  padding:0;border:1px solid var(--st-border);border-radius:9px;
+  background:var(--st-surface-raised,#222b30);color:var(--st-text);
+  transition:background-color .15s ease,border-color .15s ease,color .15s ease;
+}
+.app-shell .close-btn:hover{background:#343b40;border-color:#66747b;color:#fff}
+.app-shell .close-btn:active{transform:scale(.97)}
+.app-shell .close-btn:focus-visible{outline:2px solid #e18a63;outline-offset:3px}
+.app-shell .modal .button:disabled,.app-shell .modal button:disabled{
+  opacity:.58;cursor:not-allowed;filter:saturate(.65)
+}
+.app-shell .data-table td{vertical-align:middle}
+.app-shell .data-table td :is(.muted,small){line-height:1.45}
+.app-shell .data-table tr:focus-within{background:rgba(225,138,99,.045)}
+.app-shell .data-table td .button{white-space:nowrap}
+@media(max-width:560px){
+  .app-shell .modal-head{gap:10px}
+  .app-shell .modal-head h2{font-size:18px}
+  .app-shell .close-btn{width:34px;height:34px;min-width:34px;flex-basis:34px}
+}
+@media(hover:none){
+  .app-shell .close-btn:hover{background:var(--st-surface-raised,#222b30);border-color:var(--st-border);color:var(--st-text)}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-shell .close-btn{transition:none}
+}
+
+
+/* Navigation polish: stable icon columns, quieter transitions and clear keyboard focus. */
+.app-shell .sidebar .nav-item{
+  min-height:40px;align-items:center;transition:background-color .14s ease,color .14s ease;
+}
+.app-shell .sidebar .nav-item>span{
+  display:inline-flex;align-items:center;justify-content:center;flex:0 0 20px;width:20px;
+  line-height:1.2;text-align:center;font-variant-numeric:tabular-nums;
+}
+.app-shell .sidebar .nav-item>i{
+  margin-left:auto;padding:3px 5px;font-size:9px;line-height:1.2;letter-spacing:.2px;
+  white-space:nowrap;font-style:normal;
+}
+.app-shell .sidebar .nav-item:focus-visible{
+  outline:2px solid #e18a63;outline-offset:2px;position:relative;z-index:1;
+}
+.app-shell .sidebar .nav-item.active{box-shadow:inset 3px 0 var(--oplot-accent)}
+.app-shell .top-actions .button:focus-visible,
+.app-shell .welcome-actions .button:focus-visible{
+  outline:2px solid #e18a63;outline-offset:3px;
+}
+@media(prefers-reduced-motion:reduce){
+  .app-shell .sidebar .nav-item{transition:none}
+  .app-shell .view.active{animation:none}
+}
+
+
+/* PI explainer refinement: separate instruction from illustrative demo data. */
+.app-shell .pi-explainer{align-items:stretch;gap:clamp(20px,3vw,34px)}
+.app-shell .pi-explainer-copy{min-width:0}
+.app-shell .pi-explainer-copy .eyebrow{display:inline-block;line-height:1.6;max-width:100%}
+.app-shell .pi-explainer-copy>p{max-width:66ch;line-height:1.75;text-wrap:pretty}
+.app-shell .pi-explainer-steps>div{min-width:0;align-items:flex-start}
+.app-shell .pi-explainer-steps>div>b{flex:0 0 auto;font-variant-numeric:tabular-nums}
+.app-shell .pi-explainer-steps>div>span{min-width:0}
+.app-shell .pi-explainer-steps strong{display:block;line-height:1.4}
+.app-shell .pi-explainer-steps small{overflow-wrap:anywhere}
+.app-shell .pi-mockup{min-width:0;align-self:stretch}
+.app-shell .pi-mockup-top{gap:10px;flex-wrap:wrap}
+.app-shell .pi-mockup-chip{white-space:nowrap}
+.app-shell .pi-mockup-project>div{min-width:0}
+.app-shell .pi-mockup-project strong{overflow-wrap:anywhere}
+.app-shell .pi-mockup-state{flex:0 0 auto}
+.app-shell .pi-mockup-alert{align-items:flex-start}
+.app-shell .pi-mockup-alert>div{min-width:0}
+.app-shell .pi-mockup-alert small{line-height:1.55;overflow-wrap:anywhere}
+.app-shell .pi-mockup-foot{line-height:1.55}
+.app-shell .pi-explainer .button{min-height:40px}
+@media(max-width:760px){
+  .app-shell .pi-explainer{gap:20px}
+  .app-shell .pi-explainer-copy>p{max-width:none}
+  .app-shell .pi-mockup{width:100%}
+}
+@media(max-width:420px){
+  .app-shell .pi-mockup-project{align-items:flex-start;flex-wrap:wrap;gap:8px}
+  .app-shell .pi-mockup-metrics{grid-template-columns:1fr}
+  .app-shell .pi-mockup-alert{gap:9px}
+  .app-shell .pi-explainer .button{width:100%;white-space:normal}
+}
+
+
+/* Operational notices and empty states: clearer reading order, restrained emphasis. */
+.app-shell .notice.inline-notice{
+  display:block;padding:13px 15px;border:1px solid var(--st-border);
+  border-left:3px solid #8b9ba2;border-radius:8px;
+  background:rgba(255,255,255,.025);color:var(--st-text);
+  font-size:12px;line-height:1.7;overflow-wrap:anywhere;
+}
+.app-shell .notice.inline-notice strong{
+  display:inline;color:#e7c18d;font-size:12px;font-weight:700;
+}
+.app-shell .empty-state{
+  min-width:0;padding:clamp(18px,3vw,28px);
+  text-align:center;align-items:center;justify-content:center;
+}
+.app-shell .empty-state .empty-icon{
+  display:grid;place-items:center;width:42px;height:42px;margin:0 auto 3px;
+  border:1px solid var(--st-border);border-radius:12px;
+  background:rgba(255,255,255,.035);color:#b9c5c9;font-size:19px;
+}
+.app-shell .empty-state>strong{max-width:38ch;line-height:1.45;text-wrap:pretty}
+.app-shell .empty-state>span{max-width:48ch;color:var(--st-muted);font-size:12px;line-height:1.65;text-wrap:pretty}
+.app-shell .empty-state .button{margin-top:5px}
+.app-shell .section-head p{overflow-wrap:anywhere;text-wrap:pretty}
+@media(max-width:560px){
+  .app-shell .notice.inline-notice{padding:11px 12px;line-height:1.65}
+  .app-shell .empty-state{padding:18px 14px}
+  .app-shell .empty-state .button{width:100%;white-space:normal}
+}
+
+
+/* Final consistency pass: modal headers, selectable tabs, and dense table rhythm. */
+.app-shell .modal-head{
+  display:flex;align-items:center;gap:14px;padding-bottom:14px;
+  border-bottom:1px solid var(--st-border);margin-bottom:18px;
+}
+.app-shell .modal-head>div:first-child{min-width:0;flex:1}
+.app-shell .modal-head h2{margin:0;line-height:1.35;overflow-wrap:anywhere}
+.app-shell .modal-head p{margin:5px 0 0;color:var(--st-muted);font-size:12px;line-height:1.55}
+.app-shell .modal-head .close-btn{align-self:flex-start;flex-shrink:0}
+.app-shell .close-btn:focus-visible{outline:2px solid #ef9b7b;outline-offset:2px}
+.app-shell .tabs,.app-shell .tab-list,[role="tablist"]{
+  min-width:0;gap:5px;align-items:center;
+}
+.app-shell [role="tab"]{
+  min-height:36px;padding:8px 12px;border:1px solid transparent;
+  border-radius:7px;color:var(--st-muted);background:transparent;
+  font-size:12px;line-height:1.35;transition:background-color .14s ease,color .14s ease,border-color .14s ease;
+}
+.app-shell [role="tab"][aria-selected="true"]{
+  color:var(--st-text);background:rgba(255,255,255,.055);
+  border-color:var(--st-border);font-weight:650;
+}
+.app-shell [role="tab"]:focus-visible{outline:2px solid #ef9b7b;outline-offset:2px}
+.app-shell .table-wrap{min-width:0;overscroll-behavior-x:contain}
+.app-shell .table-wrap table{border-collapse:separate;border-spacing:0}
+.app-shell .table-wrap th{font-size:10px;line-height:1.45;letter-spacing:.035em}
+.app-shell .table-wrap td{line-height:1.5;vertical-align:middle}
+.app-shell .table-wrap th,.app-shell .table-wrap td{overflow-wrap:anywhere}
+@media(max-width:560px){
+  .app-shell .modal-head{gap:9px;padding-bottom:12px;margin-bottom:14px}
+  .app-shell .modal-head h2{font-size:16px}
+  .app-shell [role="tablist"]{overflow-x:auto;max-width:100%;padding-bottom:3px}
+  .app-shell [role="tab"]{flex:0 0 auto;white-space:nowrap}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-shell [role="tab"]{transition:none}
+}
