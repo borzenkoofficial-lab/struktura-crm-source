@@ -2647,3 +2647,42 @@ hr{border-color:#353e45!important}
   .app-shell .empty-state{padding:18px 14px}
   .app-shell .empty-state .button{width:100%;white-space:normal}
 }
+
+
+/* Final consistency pass: modal headers, selectable tabs, and dense table rhythm. */
+.app-shell .modal-head{
+  display:flex;align-items:center;gap:14px;padding-bottom:14px;
+  border-bottom:1px solid var(--st-border);margin-bottom:18px;
+}
+.app-shell .modal-head>div:first-child{min-width:0;flex:1}
+.app-shell .modal-head h2{margin:0;line-height:1.35;overflow-wrap:anywhere}
+.app-shell .modal-head p{margin:5px 0 0;color:var(--st-muted);font-size:12px;line-height:1.55}
+.app-shell .modal-head .close-btn{align-self:flex-start;flex-shrink:0}
+.app-shell .close-btn:focus-visible{outline:2px solid #ef9b7b;outline-offset:2px}
+.app-shell .tabs,.app-shell .tab-list,[role="tablist"]{
+  min-width:0;gap:5px;align-items:center;
+}
+.app-shell [role="tab"]{
+  min-height:36px;padding:8px 12px;border:1px solid transparent;
+  border-radius:7px;color:var(--st-muted);background:transparent;
+  font-size:12px;line-height:1.35;transition:background-color .14s ease,color .14s ease,border-color .14s ease;
+}
+.app-shell [role="tab"][aria-selected="true"]{
+  color:var(--st-text);background:rgba(255,255,255,.055);
+  border-color:var(--st-border);font-weight:650;
+}
+.app-shell [role="tab"]:focus-visible{outline:2px solid #ef9b7b;outline-offset:2px}
+.app-shell .table-wrap{min-width:0;overscroll-behavior-x:contain}
+.app-shell .table-wrap table{border-collapse:separate;border-spacing:0}
+.app-shell .table-wrap th{font-size:10px;line-height:1.45;letter-spacing:.035em}
+.app-shell .table-wrap td{line-height:1.5;vertical-align:middle}
+.app-shell .table-wrap th,.app-shell .table-wrap td{overflow-wrap:anywhere}
+@media(max-width:560px){
+  .app-shell .modal-head{gap:9px;padding-bottom:12px;margin-bottom:14px}
+  .app-shell .modal-head h2{font-size:16px}
+  .app-shell [role="tablist"]{overflow-x:auto;max-width:100%;padding-bottom:3px}
+  .app-shell [role="tab"]{flex:0 0 auto;white-space:nowrap}
+}
+@media(prefers-reduced-motion:reduce){
+  .app-shell [role="tab"]{transition:none}
+}
