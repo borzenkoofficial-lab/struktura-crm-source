@@ -963,9 +963,19 @@ async function refreshReports() {
   $('sourceReport').innerHTML = sorted.length ? `<table class="data-table"><thead><tr><th>Источник</th><th>Заявок</th><th>Выиграно</th><th>Ожидаемый бюджет</th></tr></thead><tbody>${sorted.map(([source,v]) => `<tr><td>${esc(sourceLabels[source] || source)}</td><td>${v.count}</td><td>${v.won}</td><td>${fmt(v.budget)}</td></tr>`).join('')}</tbody></table>` : empty('Пока нет данных','После добавления заявок здесь появится разбивка по источникам.');
 }
 function empty(title, detail) { return `<div class="empty-state"><div class="empty-icon">◉</div><strong>${esc(title)}</strong><span>${esc(detail)}</span></div>`; }
-function openDialog(id) { $(id).showModal(); }
+function openDialog(id) {
+  const dialog = $(id);
+  if (!(dialog instanceof HTMLDialogElement) || dialog.open) return false;
+  dialog.showModal();
+  return true;
+}
 
-function closeDialog(id) { $(id).close(); }
+function closeDialog(id) {
+  const dialog = $(id);
+  if (!(dialog instanceof HTMLDialogElement) || !dialog.open) return false;
+  dialog.close();
+  return true;
+}
 $('piOpenErrorHistoryBtn')?.addEventListener('click', () => openPiErrorHistory());
 $('piErrorList')?.addEventListener('click', event => {
   const button = event.target.closest('[data-pi-error-id]');
