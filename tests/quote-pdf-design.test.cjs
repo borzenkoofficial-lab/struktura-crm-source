@@ -29,7 +29,7 @@ test('PDF embeds content-specific technical illustrations directly in the docume
   assert.match(quote, /id="coverPhoto"[^>]*src="https:\/\/images\.unsplash\.com\//);
   assert.match(quote, /Steffen Lemmerzahl \/ Unsplash/);
   assert.match(quote, /coverIllustrationFallback/);
-  assert.match(quote, /naturalWidth > 0/);
+  assert.match(main, /naturalWidth > 0/);
   assert.match(quote, /fallback\.hidden = false/);
   assert.match(quote, /img-src https:\/\/images\.unsplash\.com data:/);
 });
