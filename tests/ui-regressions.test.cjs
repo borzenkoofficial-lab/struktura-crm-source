@@ -994,3 +994,16 @@ test('expense form has a single submit handler so one click cannot create duplic
   assert.match(block, /if \(data\.id\) await window\.crm\.updateExpense\(data\); else await window\.crm\.createExpense\(data\);/);
   assert.match(block, /catch \(err\) \{ toast\(err\.message,true\); \}/);
 });
+
+
+test('project form blocks concurrent submissions while an object write is pending', () => {
+  const start = renderer.indexOf("$('projectForm').addEventListener('submit'");
+  const end = renderer.indexOf("$('projectsTable').addEventListener('click'", start);
+  const block = renderer.slice(start, end);
+  assert.match(block, /if \(form\.dataset\.submitting === 'true'\) return;/);
+  assert.match(block, /form\.dataset\.submitting = 'true';/);
+  assert.match(block, /button\.disabled = true/);
+  assert.match(block, /finally \{/);
+  assert.match(block, /form\.dataset\.submitting = 'false';/);
+  assert.match(block, /pendingProjectPlan = planToAttach;/, 'failed save must preserve the pending production plan');
+});
