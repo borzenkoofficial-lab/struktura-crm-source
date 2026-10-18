@@ -954,3 +954,32 @@ test('all renderer modal open and close operations use the guarded helpers', () 
   assert.match(renderer, /function openCommandPalette\(\) \{[\s\S]*?openDialog\('commandPaletteDialog'\)/);
   assert.match(renderer, /commandPalette\?\.addEventListener\('click',[\s\S]*?closeDialog\('commandPaletteDialog'\)/);
 });
+
+
+test('creating a project from an estimate loads client and lead relationships before opening', () => {
+  const start = renderer.indexOf("$('estimateCreateProjectBtn').addEventListener('click', async () => {");
+  assert.notEqual(start, -1, 'estimate-to-project handler exists');
+  const end = renderer.indexOf("const actualInputIds", start);
+  const block = renderer.slice(start, end);
+  assert.match(block, /await populateProjectRelationships\(\);[\s\S]*?openDialog\('projectDialog'\)/);
+  assert.match(block, /catch \(error\) \{[\s\S]*?pendingProjectPlan = null;[\s\S]*?Не удалось подготовить объект из сметы/);
+});
+
+test('project save keeps the project dialog open and restores the pending plan on save failure', () => {
+  const start = renderer.indexOf("$('projectForm').addEventListener('submit', async e => {");
+  assert.notEqual(start, -1, 'project form submit handler exists');
+  const end = renderer.indexOf("$('projectsTable').addEventListener('click'", start);
+  const block = renderer.slice(start, end);
+  assert.match(block, /const editing = Boolean\(data\.id\), planToAttach = editing \? null : pendingProjectPlan; pendingProjectPlan = null;/);
+  assert.match(block, /catch \(err\) \{ pendingProjectPlan = planToAttach; toast\(err\.message,true\); return; \}/);
+  assert.match(block, /form\.reset\(\);[\s\S]*?closeDialog\('projectDialog'\)/);
+  assert.match(block, /createProjectWithPlan\(\{ project: data, plan: planToAttach \}\)/);
+});
+
+test('editing a project loads relationship options before filling fields and opening the dialog', () => {
+  const start = renderer.indexOf("$('projectsTable').addEventListener('click', async event => {");
+  assert.notEqual(start, -1, 'project edit handler exists');
+  const end = renderer.indexOf("$('paymentForm').addEventListener('submit'", start);
+  const block = renderer.slice(start, end);
+  assert.match(block, /await populateProjectRelationships\(project\.client_id, project\.lead_id\);[\s\S]*?form\.elements\[key\]\.value = project\[key\][\s\S]*?openDialog\('projectDialog'\)/);
+});
