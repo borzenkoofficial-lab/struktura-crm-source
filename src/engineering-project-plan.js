@@ -156,7 +156,51 @@
       parallelismNote: 'График распределяет доступных рабочих между операциями. Параллельная работа разрешена только в пределах указанной общей численности; зависимости и резерв срока учитываются отдельно.'
     };
   }
-  const api = { calculateProjectPlan, normalizeOperations };
+  function buildCalendarSchedule(result, options = {}) {
+    if (!result || !Array.isArray(result.operations) || result.operations.length === 0) {
+      throw new Error('Сначала рассчитай комплексный объект.');
+    }
+    const startDate = String(options.startDate || '').trim();
+    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(startDate)) throw new Error('Укажи дату начала объекта.');
+    const parsed = new Date(startDate + 'T12:00:00Z');
+    if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== startDate) {
+      throw new Error('Дата начала объекта указана некорректно.');
+    }
+    const weekdaysOnly = options.weekdaysOnly !== false;
+    function dateAtShift(shift, isFinish) {
+      const offset = isFinish ? Math.max(0, Math.ceil(shift - 1e-9) - 1) : Math.max(0, Math.floor(shift + 1e-9));
+      const date = new Date(parsed.getTime());
+      let workday = 0;
+      while (workday < offset) {
+        date.setUTCDate(date.getUTCDate() + 1);
+        const day = date.getUTCDay();
+        if (!weekdaysOnly || (day !== 0 && day !== 6)) workday++;
+      }
+      if (weekdaysOnly && offset === 0 && (date.getUTCDay() === 0 || date.getUTCDay() === 6)) {
+        while (date.getUTCDay() === 0 || date.getUTCDay() === 6) date.setUTCDate(date.getUTCDate() + 1);
+      }
+      return date.toISOString().slice(0, 10);
+    }
+    const dateLabel = value => {
+      const [year, month, day] = value.split('-');
+      return day + '.' + month + '.' + year;
+    };
+    return {
+      startDate, weekdaysOnly,
+      operations: result.operations.map(op => ({
+        id: op.id, name: op.name, crewSize: op.crewSize,
+        startShift: op.startShift, finishShift: op.finishShift,
+        plannedStartShift: op.plannedStartShift, plannedFinishShift: op.plannedFinishShift,
+        startDate: dateAtShift(op.startShift, false),
+        finishDate: dateAtShift(op.finishShift, true),
+        plannedStartDate: dateAtShift(op.plannedStartShift, false),
+        plannedFinishDate: dateAtShift(op.plannedFinishShift, true)
+      })).sort((a, b) => a.plannedStartShift - b.plannedStartShift || a.plannedFinishShift - b.plannedFinishShift)
+        .map(op => ({ ...op, startDateLabel: dateLabel(op.startDate), finishDateLabel: dateLabel(op.finishDate),
+          plannedStartDateLabel: dateLabel(op.plannedStartDate), plannedFinishDateLabel: dateLabel(op.plannedFinishDate) }))
+    };
+  }
+  const api = { calculateProjectPlan, normalizeOperations, buildCalendarSchedule };
   root.StrukturaEngineeringProjectPlan = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : window);
