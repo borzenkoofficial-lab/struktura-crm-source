@@ -161,7 +161,7 @@
       throw new Error('Сначала рассчитай комплексный объект.');
     }
     const startDate = String(options.startDate || '').trim();
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(startDate)) throw new Error('Укажи дату начала объекта.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) throw new Error('Укажи дату начала объекта.');
     const parsed = new Date(startDate + 'T12:00:00Z');
     if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== startDate) {
       throw new Error('Дата начала объекта указана некорректно.');
