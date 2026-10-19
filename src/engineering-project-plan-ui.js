@@ -93,7 +93,6 @@
     const { parsed, skipped } = parseEstimateText(text);
     if (!window.confirm('Распознано строк работ: ' + parsed.length + '. Заменить текущий список операций?')) return;
     operations = [];
-    let previousId = null;
     for (const entry of parsed) {
       const id = makeId();
       const item = entry.item;
@@ -103,12 +102,11 @@
         wagePerWorkerShift: 4000, pricePerUnit: Number(item.price || 0),
         extraCostPerUnit: Number(item.cost || 0), fixedCosts: 0,
         overheadPercent: 10, taxPercent: 6, reservePercent: 15,
-        difficultyFactor: 1, predecessors: previousId ? [previousId] : []
+        difficultyFactor: 1, predecessors: []
       });
-      previousId = id;
     }
     renderRows();
-    $('engEstimateImportStatus').textContent = 'Загружено операций: ' + parsed.length + '. Пропущено строк: ' + skipped.length + (skipped.length ? ' — ' + skipped.slice(0, 3).join(' | ') : '') + '. Проверь объёмы, нормы и зависимости.';
+    $('engEstimateImportStatus').textContent = 'Загружено операций: ' + parsed.length + '. Пропущено строк: ' + skipped.length + (skipped.length ? ' — ' + skipped.slice(0, 3).join(' | ') : '') + '. Проверь объёмы, единицы, нормы, состав бригад и зависимости: по умолчанию работы не связаны технологически.';
   }
   function renderRows() {
     const host = $('engProjectPlanRows');
