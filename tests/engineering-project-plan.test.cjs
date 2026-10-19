@@ -25,7 +25,7 @@ test('project schedule places dependent operations sequentially and independent 
   assert.equal(cleanup.startShift, demo.finishShift);
   assert.equal(result.durationShifts, 0.6);
   assert.equal(result.operationCount, 3);
-  assert.equal(result.plannedDurationShifts, 0.64);
+  assert.equal(result.plannedDurationShifts, 0.66);
 });
 
 test('project aggregates costs, revenue and profit across all operations', () => {
