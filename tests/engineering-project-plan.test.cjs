@@ -56,6 +56,34 @@ test('difficulty factor lowers effective productivity and extends schedule', () 
   assert.equal(hard.durationShifts, normal.durationShifts * 2);
 });
 
+
+test('shared workforce limit serializes independent operations when one brigade is available', () => {
+  const result = calculateProjectPlan([
+    base('a', 'Работа A', { quantity: 100, productivity: 100, crewSize: 5, reservePercent: 0 }),
+    base('b', 'Работа B', { quantity: 100, productivity: 100, crewSize: 5, reservePercent: 0 })
+  ], { availableWorkers: 5 });
+  const a = result.operations.find(x => x.id === 'a');
+  const b = result.operations.find(x => x.id === 'b');
+  assert.equal(result.availableWorkers, 5);
+  assert.equal(result.durationShifts, 0.4);
+  assert.ok(a.finishShift <= b.startShift || b.finishShift <= a.startShift);
+});
+
+test('shared workforce permits parallel operations when total crews fit the pool', () => {
+  const result = calculateProjectPlan([
+    base('a', 'Работа A', { quantity: 100, productivity: 100, crewSize: 3, reservePercent: 0 }),
+    base('b', 'Работа B', { quantity: 100, productivity: 100, crewSize: 2, reservePercent: 0 })
+  ], { availableWorkers: 5 });
+  assert.equal(result.durationShifts, 0.2);
+  assert.equal(result.operations[0].startShift, result.operations[1].startShift);
+});
+
+test('operation requiring more workers than the available pool is rejected', () => {
+  assert.throws(() => calculateProjectPlan([
+    base('a', 'Большая бригада', { crewSize: 6 })
+  ], { availableWorkers: 5 }), /требуется 6 рабочих/);
+});
+
 test('zero revenue yields null margin rather than division by zero', () => {
   const result = calculateProjectPlan([base('a', 'A', { pricePerUnit: 0 })]);
   assert.equal(result.marginPercent, null);
