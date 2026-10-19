@@ -284,8 +284,8 @@ function openDatabase(userDataPath) {
       migratePlans();
     } finally { db.pragma('foreign_keys = ON'); }
   }
-  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','7')").run();
-  db.prepare("UPDATE settings SET value='7' WHERE key='schema_version'").run();
+  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','8')").run();
+  db.prepare("UPDATE settings SET value='8' WHERE key='schema_version'").run();
   return db;
 }
 
