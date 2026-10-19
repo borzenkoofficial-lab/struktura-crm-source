@@ -116,7 +116,7 @@
     if (targetMarginPercent + taxPercent >= 100) return { quantity, baselineProductivity: baseRate, observations: observationCount, effectiveProductivity: round(effectiveRate, 3), personShifts: round(personShifts), crewShifts: round(crewShifts), plannedShifts: round(plannedShifts), targetShifts, requiredCrewForTarget, dailyOutput: round(dailyOutput, 2), crewScenarios, laborCost: round(laborCost), directCost: round(directCost), overhead: round(overhead), tax: round(tax), totalCost: round(totalCost), revenue: round(revenue), profit: round(profit), marginPercent: revenue > 0 ? round(profit / revenue * 100) : null, minimumPricePerUnit: minimumPrice == null ? null : round(minimumPrice, 2), targetPricePerUnit: null, warnings };
     return {
       quantity, baselineProductivity: baseRate, observedMedian: medianRate == null ? null : round(medianRate, 3),
-      observations: validRates.length, learnedWeight: weight, effectiveProductivity: round(effectiveRate, 3),
+      observations: observationCount, learnedWeight: weight, effectiveProductivity: round(effectiveRate, 3),
       personShifts: round(personShifts), crewShifts: round(crewShifts), plannedShifts: round(plannedShifts),
       targetShifts, requiredCrewForTarget, dailyOutput: round(dailyOutput, 2), crewScenarios,
       laborCost: round(laborCost), directCost: round(directCost), overhead: round(overhead), tax: round(tax),
