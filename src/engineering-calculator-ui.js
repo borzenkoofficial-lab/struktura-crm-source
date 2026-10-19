@@ -74,14 +74,14 @@
     $('engResult').hidden = false;
     $('engResult').innerHTML = '<div class="eng-confidence ' + (count < 3 ? 'low' : '') + '">' +
       (count >= 5 ? '5+ наблюдений · норма уточняется по факту' : count >= 3 ? '3–4 наблюдения · предварительное обучение' : count ? '1–2 наблюдения · низкая уверенность' : 'Стартовая норма · без фактической истории') + '</div>' +
-      '<div class="eng-result-grid" style="margin-top:13px">' +
+      '<div class="eng-result-grid eng-result-grid-spaced">' +
       metric('Эффективная выработка', result.effectiveProductivity + ' ' + input.unit + '/чел.-8 ч', 'Базовая норма с учётом сложности и истории') +
       metric('Трудоёмкость', result.personShifts + ' чел.-смен', 'Восьмичасовой эквивалент на одного рабочего') +
       metric('Смен бригады', result.crewShifts, 'Расчёт без резерва, состав ' + input.crewSize + ' чел.') +
       metric('Срок с резервом', result.plannedShifts + ' смен', 'Резерв ' + input.reservePercent + '%') +
       metric('Расчётная себестоимость', rub(result.totalCost), 'Зарплата + доп. затраты + накладные + налог') +
       metric('Прибыль по введённой цене', rub(result.profit), result.marginPercent == null ? 'Цена клиента не задана' : 'Маржа ' + result.marginPercent + '%') +
-      metric('Минимальная цена за единицу', rub(result.minimumPricePerUnit), 'Покрытие расчётных затрат, без целевой прибыли') +
+      metric('Минимальная цена за единицу', result.minimumPricePerUnit == null ? '—' : rub(result.minimumPricePerUnit), 'Покрытие расчётных затрат, без целевой прибыли') +
       metric('Цена за единицу для целевой маржи', result.targetPricePerUnit == null ? '—' : rub(result.targetPricePerUnit), 'Целевая маржа ' + input.targetMarginPercent + '% и налог ' + input.taxPercent + '%') + '</div>';
     $('engWarnings').innerHTML = (result.warnings || []).map(w => '<li>' + safe(w) + '</li>').join('');
   }
