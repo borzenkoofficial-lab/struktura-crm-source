@@ -46,8 +46,51 @@
     }
     return normalized;
   }
-  function calculateProjectPlan(operations) {
+  function schedulePass(ordered, durationFor, availableWorkers, finishField) {
+    const scheduled = new Map();
+    const resourceTimeline = [];
+    for (const op of ordered) {
+      const duration = durationFor(op);
+      const readyAt = op.predecessors.reduce((max, id) => Math.max(max, scheduled.get(id)[finishField]), 0);
+      let start = readyAt;
+      if (op.crewSize > availableWorkers) {
+        throw new Error(op.name + ': требуется ' + op.crewSize + ' рабочих, но в пуле только ' + availableWorkers + '. Увеличь общую численность или уменьши бригаду операции.');
+      }
+      let attempts = 0;
+      while (attempts++ < 10000) {
+        const end = start + duration;
+        const checkpoints = [start, ...resourceTimeline
+          .filter(task => task.start > start && task.start < end)
+          .map(task => task.start)
+          .sort((a,b) => a-b)];
+        let conflict = null;
+        for (const point of checkpoints) {
+          const active = resourceTimeline.filter(task => task.start <= point + 1e-9 && task.finish > point + 1e-9);
+          const used = active.reduce((sum, task) => sum + task.workers, 0);
+          if (used + op.crewSize > availableWorkers) {
+            conflict = active;
+            break;
+          }
+        }
+        if (!conflict) break;
+        const next = Math.min(...conflict.map(task => task.finish));
+        if (!Number.isFinite(next) || next <= start + 1e-9) {
+          throw new Error('Не удалось распределить рабочую силу для операции «' + op.name + '».');
+        }
+        start = next;
+      }
+      if (attempts >= 10000) throw new Error('Слишком сложный график ресурсов. Раздели объект на несколько этапов.');
+      const finish = start + duration;
+      scheduled.set(op.id, { start, finish, duration });
+      resourceTimeline.push({ id: op.id, start, finish, workers: op.crewSize });
+    }
+    return scheduled;
+  }
+  function calculateProjectPlan(operations, options = {}) {
     const items = normalizeOperations(operations);
+    const totalCrew = items.reduce((sum, op) => sum + op.crewSize, 0);
+    const availableWorkers = positive(options.availableWorkers ?? totalCrew, 'Общее число доступных рабочих');
+    if (!Number.isInteger(availableWorkers) || availableWorkers > 2000) throw new Error('Общее число рабочих должно быть целым от 1 до 2000.');
     const byId = new Map(items.map(op => [op.id, op]));
     const state = new Map();
     const ordered = [];
@@ -61,29 +104,33 @@
       ordered.push(op);
     }
     items.forEach(op => visit(op));
-    const scheduled = new Map();
+    const durations = new Map();
     for (const op of ordered) {
       const effectiveProductivity = op.productivity / op.difficultyFactor;
       const personShifts = op.quantity / effectiveProductivity;
       const duration = personShifts / op.crewSize * 8 / op.hoursPerShift;
-      const startShift = op.predecessors.reduce((max, id) => Math.max(max, scheduled.get(id).finishShift), 0);
-      const plannedStartShift = op.predecessors.reduce((max, id) => Math.max(max, scheduled.get(id).plannedFinishShift), 0);
-      const finishShift = startShift + duration;
-      const plannedFinishShift = plannedStartShift + duration * (1 + op.reservePercent / 100);
+      durations.set(op.id, { effectiveProductivity, personShifts, duration });
+    }
+    const actualSchedule = schedulePass(ordered, op => durations.get(op.id).duration, availableWorkers, 'finish');
+    const plannedSchedule = schedulePass(ordered, op => durations.get(op.id).duration * (1 + op.reservePercent / 100), availableWorkers, 'finish');
+    const scheduled = new Map();
+    for (const op of ordered) {
+      const { effectiveProductivity, personShifts, duration } = durations.get(op.id);
+      const actual = actualSchedule.get(op.id);
+      const planned = plannedSchedule.get(op.id);
       const laborCost = personShifts * (8 / op.hoursPerShift) * op.wagePerWorkerShift;
       const directCost = laborCost + op.quantity * op.extraCostPerUnit + op.fixedCosts;
       const overhead = directCost * op.overheadPercent / 100;
-      const preTaxCost = directCost + overhead;
       const revenue = op.quantity * op.pricePerUnit;
       const tax = revenue * op.taxPercent / 100;
-      const totalCost = preTaxCost + tax;
+      const totalCost = directCost + overhead + tax;
       const profit = revenue - totalCost;
       scheduled.set(op.id, {
         id: op.id, name: op.name, predecessors: op.predecessors,
         quantity: op.quantity, productivity: round(effectiveProductivity, 3),
         personShifts: round(personShifts), crewShifts: round(duration),
-        startShift: round(startShift), finishShift: round(finishShift),
-        plannedStartShift: round(plannedStartShift), plannedFinishShift: round(plannedFinishShift),
+        startShift: round(actual.start), finishShift: round(actual.finish),
+        plannedStartShift: round(planned.start), plannedFinishShift: round(planned.finish),
         laborCost: round(laborCost), directCost: round(directCost), overhead: round(overhead),
         tax: round(tax), totalCost: round(totalCost), revenue: round(revenue), profit: round(profit),
         marginPercent: revenue > 0 ? round(profit / revenue * 100) : null,
@@ -98,16 +145,15 @@
     const overhead = results.reduce((sum, op) => sum + op.overhead, 0);
     const tax = results.reduce((sum, op) => sum + op.tax, 0);
     const profit = revenue - totalCost;
-    const projectFinish = Math.max(...results.map(op => op.finishShift));
-    const plannedFinish = Math.max(...results.map(op => op.plannedFinishShift));
     return {
-      operations: results, operationCount: results.length,
+      operations: results, operationCount: results.length, availableWorkers,
       totalPersonShifts: round(results.reduce((sum, op) => sum + op.personShifts, 0)),
       totalLaborCost: round(laborCost), directCost: round(directCost), overhead: round(overhead),
       tax: round(tax), totalCost: round(totalCost), revenue: round(revenue), profit: round(profit),
       marginPercent: revenue > 0 ? round(profit / revenue * 100) : null,
-      durationShifts: round(projectFinish), plannedDurationShifts: round(plannedFinish),
-      parallelismNote: 'Независимые операции планируются параллельно. Расчёт предполагает отдельные бригады для одновременно выполняемых работ; общий ограниченный ресурс бригады пока не распределяется.'
+      durationShifts: round(Math.max(...results.map(op => op.finishShift))),
+      plannedDurationShifts: round(Math.max(...results.map(op => op.plannedFinishShift))),
+      parallelismNote: 'График распределяет доступных рабочих между операциями. Параллельная работа разрешена только в пределах указанной общей численности; зависимости и резерв срока учитываются отдельно.'
     };
   }
   const api = { calculateProjectPlan, normalizeOperations };
