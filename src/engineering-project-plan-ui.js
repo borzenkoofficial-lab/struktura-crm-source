@@ -124,26 +124,49 @@
     operations.forEach(op => { op.predecessors = op.predecessors.filter(id => id !== button.dataset.planRemove); });
     renderRows();
   });
-  $('engProjectPlanCalculateBtn').addEventListener('click', () => {
+  async function readPlanHistory() {
+    const local = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } })();
+    if (window.crm?.listEngineeringPlans) {
+      const stored = await window.crm.listEngineeringPlans();
+      if (!stored.length && local.length && window.crm.saveEngineeringPlan) {
+        for (const record of local.slice(0, 100)) await window.crm.saveEngineeringPlan(record);
+        return await window.crm.listEngineeringPlans();
+      }
+      return stored;
+    }
+    return local;
+  }
+  $('engProjectPlanCalculateBtn').addEventListener('click', async () => {
     try {
       const rows = readRows();
       const result = planner.calculateProjectPlan(rows);
       renderResult(result);
       const record = { id: makeId(), title: $('engProjectPlanTitle').value.trim() || 'Комплексный объект', createdAt: new Date().toISOString(), operations: rows, result };
-      const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      history.unshift(record);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 100)));
-      $('engProjectPlanSavedCount').textContent = String(Math.min(100, history.length));
-      $('engProjectPlanSaveNote').textContent = 'План сохранён локально: ' + record.title + '. История планов пока не входит в SQLite-резервную копию.';
-    } catch (error) { window.alert(error.message || 'Не удалось рассчитать комплексный объект.'); }
+      if (window.crm?.saveEngineeringPlan) {
+        await window.crm.saveEngineeringPlan(record);
+        const history = await window.crm.listEngineeringPlans();
+        $('engProjectPlanSavedCount').textContent = String(history.length);
+        $('engProjectPlanSaveNote').textContent = 'План сохранён в SQLite: ' + record.title + '. Он включается в резервную копию базы CRM.';
+      } else {
+        const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        history.unshift(record);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 100)));
+        $('engProjectPlanSavedCount').textContent = String(Math.min(100, history.length));
+        $('engProjectPlanSaveNote').textContent = 'План сохранён локально: ' + record.title + '. Режим браузера без SQLite.';
+      }
+    } catch (error) { window.alert(error.message || 'Не удалось рассчитать и сохранить комплексный объект.'); }
   });
-  $('engProjectPlanExportBtn').addEventListener('click', () => {
-    const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    const blob = new Blob([JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), plans: history }, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob), a = document.createElement('a');
-    a.href = url; a.download = 'struktura-project-plans-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); URL.revokeObjectURL(url);
+  $('engProjectPlanExportBtn').addEventListener('click', async () => {
+    try {
+      const history = await readPlanHistory();
+      const blob = new Blob([JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), plans: history }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = 'struktura-project-plans-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); URL.revokeObjectURL(url);
+    } catch (error) { window.alert(error.message || 'Не удалось экспортировать историю планов.'); }
   });
-  try { $('engProjectPlanSavedCount').textContent = String(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]').length); } catch {}
+  readPlanHistory().then(history => { $('engProjectPlanSavedCount').textContent = String(history.length); }).catch(error => {
+    $('engProjectPlanSaveNote').textContent = 'Не удалось загрузить историю из SQLite: ' + String(error.message || error);
+  });
   addOperation({ name: 'Демонтаж', quantity: 100 });
   const second = operations[0];
   addOperation({ name: 'Вынос и переноска', quantity: 100, predecessors: [second.id] });
