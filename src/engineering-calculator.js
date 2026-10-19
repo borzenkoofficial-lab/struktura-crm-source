@@ -53,6 +53,7 @@
     const rateCore = root.StrukturaProductionRateCore ||
       (typeof require === 'function' ? require('./production-model.cjs') : null);
     let validRates = [];
+    let observationCount = 0;
     let medianRate = null;
     let weight = 0;
     let learnedNormalRate = baseRate;
@@ -64,7 +65,7 @@
         targetDifficulty: 1,
         targetCrewSize: crew
       });
-      validRates = Array.from({ length: sharedRateModel.observations }, () => 1);
+      observationCount = sharedRateModel.observations;
       medianRate = sharedRateModel.observedMedian;
       weight = sharedRateModel.observedWeight;
       learnedNormalRate = sharedRateModel.learnedNormalRate;
@@ -83,6 +84,7 @@
         : null;
       weight = validRates.length >= 5 ? 0.75 : validRates.length >= 3 ? 0.5 : validRates.length ? 0.25 : 0;
       learnedNormalRate = medianRate == null ? baseRate : baseRate * (1 - weight) + medianRate * weight;
+      observationCount = validRates.length;
     }
     const effectiveRate = learnedNormalRate / difficultyFactor;
     const personShifts = quantity / effectiveRate;
@@ -107,11 +109,11 @@
     const minimumPrice = quantity > 0 && taxPercent < 100 ? (preTaxCost / (1 - taxPercent / 100)) / quantity : null;
     const targetPrice = quantity > 0 ? (preTaxCost / (1 - targetMarginPercent / 100 - taxPercent / 100)) / quantity : 0;
     const warnings = [];
-    if (validRates.length === 0) warnings.push('Нет фактических наблюдений: используется стартовая норма.');
-    else if (validRates.length < 3) warnings.push('Есть только 1–2 наблюдения: обученная норма предварительная.');
+    if (observationCount === 0) warnings.push('Нет фактических наблюдений: используется стартовая норма.');
+    else if (observationCount < 3) warnings.push('Есть только 1–2 наблюдения: обученная норма предварительная.');
     if (pricePerUnit <= 0) warnings.push('Не задана цена для клиента: прибыль и маржа не являются оценкой сделки.');
     if (targetMarginPercent + taxPercent >= 100) warnings.push('Целевая маржа вместе с налоговой долей не оставляет допустимой базы для цены.');
-    if (targetMarginPercent + taxPercent >= 100) return { quantity, baselineProductivity: baseRate, observations: validRates.length, effectiveProductivity: round(effectiveRate, 3), personShifts: round(personShifts), crewShifts: round(crewShifts), plannedShifts: round(plannedShifts), targetShifts, requiredCrewForTarget, dailyOutput: round(dailyOutput, 2), crewScenarios, laborCost: round(laborCost), directCost: round(directCost), overhead: round(overhead), tax: round(tax), totalCost: round(totalCost), revenue: round(revenue), profit: round(profit), marginPercent: revenue > 0 ? round(profit / revenue * 100) : null, minimumPricePerUnit: minimumPrice == null ? null : round(minimumPrice, 2), targetPricePerUnit: null, warnings };
+    if (targetMarginPercent + taxPercent >= 100) return { quantity, baselineProductivity: baseRate, observations: observationCount, effectiveProductivity: round(effectiveRate, 3), personShifts: round(personShifts), crewShifts: round(crewShifts), plannedShifts: round(plannedShifts), targetShifts, requiredCrewForTarget, dailyOutput: round(dailyOutput, 2), crewScenarios, laborCost: round(laborCost), directCost: round(directCost), overhead: round(overhead), tax: round(tax), totalCost: round(totalCost), revenue: round(revenue), profit: round(profit), marginPercent: revenue > 0 ? round(profit / revenue * 100) : null, minimumPricePerUnit: minimumPrice == null ? null : round(minimumPrice, 2), targetPricePerUnit: null, warnings };
     return {
       quantity, baselineProductivity: baseRate, observedMedian: medianRate == null ? null : round(medianRate, 3),
       observations: validRates.length, learnedWeight: weight, effectiveProductivity: round(effectiveRate, 3),
