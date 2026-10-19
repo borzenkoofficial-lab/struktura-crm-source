@@ -83,7 +83,7 @@
       metric('Прибыль', rub(result.profit), result.marginPercent == null ? 'Маржа не вычисляется без выручки' : 'Маржа ' + result.marginPercent + '%') +
       '</div><p class="eng-note">' + safe(result.parallelismNote) + '</p>' +
       '<div class="eng-plan-timeline">' + result.operations.slice().sort((a,b) => a.startShift-b.startShift).map(op =>
-        '<div class="eng-plan-timeline-row"><span>' + safe(op.name) + '</span><div class="eng-plan-track"><i style="left:' + (result.durationShifts ? op.startShift / result.durationShifts * 100 : 0) + '%;width:' + (result.durationShifts ? Math.max(1, op.crewShifts / result.durationShifts * 100) : 100) + '%"></i></div><strong>' + op.startShift + '–' + op.finishShift + '</strong><small>' + op.crewShifts + ' смены · ' + rub(op.totalCost) + '</small></div>'
+        '<div class="eng-plan-timeline-row"><span>' + safe(op.name) + '</span><div class="eng-plan-track"><i style="left:' + (result.plannedDurationShifts ? op.plannedStartShift / result.plannedDurationShifts * 100 : 0) + '%;width:' + (result.plannedDurationShifts ? Math.max(1, (op.plannedFinishShift - op.plannedStartShift) / result.plannedDurationShifts * 100) : 100) + '%"></i></div><strong>' + op.startShift + '–' + op.finishShift + '</strong><small>' + op.crewShifts + ' смены · ' + rub(op.totalCost) + '</small></div>'
       ).join('') + '</div>';
     $('engProjectPlanWarnings').textContent = 'План является расчётной оценкой. Перед фиксацией срока проверь технологические зависимости, доступность отдельных бригад, вывоз и ограничения объекта.';
   }
