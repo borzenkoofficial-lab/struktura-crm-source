@@ -11,7 +11,22 @@
   const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const round = (n, d=2) => Math.round((Number(n)+Number.EPSILON)*10**d)/10**d;
   function selectedItem() { return catalog.find(x => x.id === $('engWorkSelect').value) || catalog[0]; }
+  function deriveConditionFactor(item) {
+    const isScreed = /стяжк/i.test(String(item?.name || '')) || String(item?.id || '').includes('floor-screed');
+    const thickness = num('engThickness');
+    const thicknessFactor = isScreed && thickness > 0 ? Math.max(0.7, Math.min(2.2, Math.sqrt(thickness / 50))) : 1;
+    const reinforcementFactor = $('engReinforced').value === 'yes' ? 1.25 : $('engReinforced').value === 'unknown' ? 1.1 : 1;
+    const floorFactor = 1 + Math.max(0, num('engFloor') - 1) * 0.015;
+    const accessFactor = $('engElevator').value === 'no' ? 1.2 : $('engElevator').value === 'unknown' ? 1.1 : 1;
+    const carryFactor = Math.min(1.75, 1 + Math.max(0, num('engCarryDistance') - 10) / 100);
+    const methodFactor = $('engMethod').value === 'manual' ? 1.25 : $('engMethod').value === 'mixed' ? 1.1 : 1;
+    const physical = Math.min(3, thicknessFactor * reinforcementFactor * floorFactor * accessFactor * carryFactor * methodFactor);
+    const total = Math.min(3, Math.max(0.1, num('engDifficulty')) * physical);
+    $('engDerivedFactor').value = round(total, 2);
+    return { total, thicknessFactor, reinforcementFactor, floorFactor, accessFactor, carryFactor, methodFactor };
+  }
   function readInput(item, observations) {
+    const factors = deriveConditionFactor(item);
     return {
       title: $('engProjectName').value.trim() || 'Расчёт объекта',
       catalogId: item.id, workName: item.name, unit: item.unit || 'м²',
@@ -19,11 +34,11 @@
       crewSize: num('engCrew'), hoursPerShift: num('engHours'), wagePerWorkerShift: num('engWage'),
       pricePerUnit: num('engPrice'), extraCostPerUnit: num('engExtraCost'), fixedCosts: num('engFixedCosts'),
       overheadPercent: num('engOverhead'), taxPercent: num('engTax'), targetMarginPercent: num('engMargin'),
-      reservePercent: num('engReserve'), difficultyFactor: num('engDifficulty'), observations: observations,
+      reservePercent: num('engReserve'), difficultyFactor: factors.total, observations: observations,
       conditions: {
         thicknessMm: num('engThickness'), reinforced: $('engReinforced').value, floor: num('engFloor'),
         elevator: $('engElevator').value, carryDistanceM: num('engCarryDistance'), method: $('engMethod').value,
-        difficultyFactor: num('engDifficulty')
+        difficultyFactor: factors.total, conditionFactors: factors
       }
     };
   }
@@ -119,6 +134,8 @@
     if (item) $('engBaselineRate').value = item.productivity;
     renderMetrics(item, item ? getLocalObservations(item) : []);
   });
+  ['engThickness','engReinforced','engFloor','engElevator','engCarryDistance','engMethod','engDifficulty'].forEach(id => $(id).addEventListener('input', () => deriveConditionFactor(selectedItem())));
+  ['engReinforced','engElevator','engMethod'].forEach(id => $(id).addEventListener('change', () => deriveConditionFactor(selectedItem())));
   $('engCalculateBtn').addEventListener('click', async () => {
     const button = $('engCalculateBtn'); button.disabled = true; button.textContent = 'Считаем…';
     try { await calculateAndSave(); } catch (error) { window.alert(error.message || 'Не удалось выполнить расчёт.'); }
@@ -142,6 +159,7 @@
       }
     }
   });
+  $('engActualProject').addEventListener('change', () => { const p = history.find(x => x.id === $('engActualProject').value); if (p) $('engActualFactor').value = p.difficultyFactor || 1; });
   $('engSaveActualBtn').addEventListener('click', () => {
     try {
       const id = $('engActualProject').value, p = history.find(x => x.id === id);
@@ -169,5 +187,5 @@
     } catch (error) { window.alert('Не удалось импортировать историю: ' + error.message); }
     finally { event.target.value = ''; }
   });
-  populateCatalog(); renderHistory();
+  populateCatalog(); deriveConditionFactor(selectedItem()); renderHistory();
 })();
