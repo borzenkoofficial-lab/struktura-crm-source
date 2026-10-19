@@ -89,3 +89,28 @@ test('zero revenue yields null margin rather than division by zero', () => {
   assert.equal(result.marginPercent, null);
   assert.equal(result.operations[0].marginPercent, null);
 });
+
+
+test('calendar maps shift offsets to dates and skips weekends when requested', () => {
+  const { buildCalendarSchedule } = require('../src/engineering-project-plan.js');
+  const result = calculateProjectPlan([
+    base('a', 'Демонтаж', { quantity: 100, productivity: 100, crewSize: 5, reservePercent: 0 }),
+    base('b', 'Вынос', { quantity: 100, productivity: 100, crewSize: 5, reservePercent: 0, predecessors: ['a'] })
+  ], { availableWorkers: 5 });
+  const calendar = buildCalendarSchedule(result, { startDate: '2026-10-23', weekdaysOnly: true });
+  assert.equal(calendar.operations[0].startDate, '2026-10-23');
+  assert.equal(calendar.operations[0].finishDate, '2026-10-23');
+  assert.equal(calendar.operations[1].startDate, '2026-10-26');
+  assert.equal(calendar.operations[1].plannedStartDate, '2026-10-26');
+  assert.throws(() => buildCalendarSchedule(result, { startDate: 'not-a-date' }), /Дата начала/);
+});
+
+test('calendar can include weekends when weekday restriction is disabled', () => {
+  const { buildCalendarSchedule } = require('../src/engineering-project-plan.js');
+  const result = calculateProjectPlan([
+    base('a', 'Работа A', { quantity: 100, productivity: 100, crewSize: 5, reservePercent: 0 }),
+    base('b', 'Работа B', { quantity: 100, productivity: 100, crewSize: 5, reservePercent: 0, predecessors: ['a'] })
+  ], { availableWorkers: 5 });
+  const calendar = buildCalendarSchedule(result, { startDate: '2026-10-23', weekdaysOnly: false });
+  assert.equal(calendar.operations[1].startDate, '2026-10-24');
+});
