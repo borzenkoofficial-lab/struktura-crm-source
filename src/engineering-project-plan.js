@@ -170,14 +170,14 @@
     function dateAtShift(shift, isFinish) {
       const offset = isFinish ? Math.max(0, Math.ceil(shift - 1e-9) - 1) : Math.max(0, Math.floor(shift + 1e-9));
       const date = new Date(parsed.getTime());
+      if (weekdaysOnly) {
+        while (date.getUTCDay() === 0 || date.getUTCDay() === 6) date.setUTCDate(date.getUTCDate() + 1);
+      }
       let workday = 0;
       while (workday < offset) {
         date.setUTCDate(date.getUTCDate() + 1);
         const day = date.getUTCDay();
         if (!weekdaysOnly || (day !== 0 && day !== 6)) workday++;
-      }
-      if (weekdaysOnly && offset === 0 && (date.getUTCDay() === 0 || date.getUTCDay() === 6)) {
-        while (date.getUTCDay() === 0 || date.getUTCDay() === 6) date.setUTCDate(date.getUTCDate() + 1);
       }
       return date.toISOString().slice(0, 10);
     }
