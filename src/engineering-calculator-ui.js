@@ -29,7 +29,7 @@
       crewSize: num('engCrew'), hoursPerShift: num('engHours'), wagePerWorkerShift: num('engWage'),
       pricePerUnit: num('engPrice'), extraCostPerUnit: num('engExtraCost'), fixedCosts: num('engFixedCosts'),
       overheadPercent: num('engOverhead'), taxPercent: num('engTax'), targetMarginPercent: num('engMargin'),
-      reservePercent: num('engReserve'), difficultyFactor: factors.total, observations: observations,
+      reservePercent: num('engReserve'), targetShifts: num('engTargetShifts'), difficultyFactor: factors.total, observations: observations,
       conditions: {
         thicknessMm: num('engThickness'), reinforced: $('engReinforced').value, floor: num('engFloor'),
         elevator: $('engElevator').value, carryDistanceM: num('engCarryDistance'), method: $('engMethod').value,
@@ -73,11 +73,16 @@
       metric('Эффективная выработка', result.effectiveProductivity + ' ' + input.unit + '/чел.-8 ч', 'Базовая норма с учётом сложности и истории') +
       metric('Трудоёмкость', result.personShifts + ' чел.-смен', 'Восьмичасовой эквивалент на одного рабочего') +
       metric('Смен бригады', result.crewShifts, 'Расчёт без резерва, состав ' + input.crewSize + ' чел.') +
-      metric('Срок с резервом', result.plannedShifts + ' смен', 'Резерв ' + input.reservePercent + '%') +
+      metric('Срок с резервом', result.plannedShifts + ' смен', 'Для бригады ' + input.crewSize + ' чел.; резерв ' + input.reservePercent + '%') +
+      metric('Рабочих для целевого срока', result.requiredCrewForTarget + ' чел.', 'Чтобы уложиться в ' + result.targetShifts + ' рабочих смен с резервом') +
+      metric('Нужно выполнять за смену', result.dailyOutput + ' ' + input.unit, 'Средний объём за смену с учётом резерва для текущей бригады') +
       metric('Расчётная себестоимость', rub(result.totalCost), 'Зарплата + доп. затраты + накладные + налог') +
       metric('Прибыль по введённой цене', rub(result.profit), result.marginPercent == null ? 'Цена клиента не задана' : 'Маржа ' + result.marginPercent + '%') +
       metric('Минимальная цена за единицу', result.minimumPricePerUnit == null ? '—' : rub(result.minimumPricePerUnit), 'Покрытие расчётных затрат, без целевой прибыли') +
-      metric('Цена за единицу для целевой маржи', result.targetPricePerUnit == null ? '—' : rub(result.targetPricePerUnit), 'Целевая маржа ' + input.targetMarginPercent + '% и налог ' + input.taxPercent + '%') + '</div>';
+      metric('Цена за единицу для целевой маржи', result.targetPricePerUnit == null ? '—' : rub(result.targetPricePerUnit), 'Целевая маржа ' + input.targetMarginPercent + '% и налог ' + input.taxPercent + '%') + '</div>' +
+      '<div class="eng-scenario-wrap"><h4>Сравнение численности бригады</h4><div class="eng-calendar-table-wrap"><table class="eng-calendar-table"><thead><tr><th>Рабочих</th><th>Срок без резерва</th><th>Срок с резервом</th><th>Объём за смену</th></tr></thead><tbody>' +
+      (result.crewScenarios || []).map(s => '<tr' + (s.workers === input.crewSize ? ' class="eng-scenario-current"' : '') + '><td>' + s.workers + '</td><td>' + s.shifts + ' смен</td><td>' + s.plannedShifts + ' смен</td><td>' + s.outputPerShift + ' ' + safe(input.unit) + '</td></tr>').join('') +
+      '</tbody></table></div><p class="eng-note">Сроки рассчитаны из текущей нормы выработки и условий. Реальная производительность не всегда растёт линейно с числом людей; уточняй её по фактическим сменам.</p></div>';
     $('engWarnings').innerHTML = (result.warnings || []).map(w => '<li>' + safe(w) + '</li>').join('');
   }
   function metric(label, value, note) {
@@ -106,7 +111,7 @@
     $('engQuantity').value = p.quantity; $('engCrew').value = p.crewSize; $('engHours').value = p.hoursPerShift;
     $('engWage').value = p.wagePerWorkerShift; $('engPrice').value = p.pricePerUnit; $('engExtraCost').value = p.extraCostPerUnit;
     $('engFixedCosts').value = p.fixedCosts; $('engOverhead').value = p.overheadPercent; $('engTax').value = p.taxPercent;
-    $('engMargin').value = p.targetMarginPercent; $('engReserve').value = p.reservePercent; $('engDifficulty').value = p.difficultyFactor;
+    $('engMargin').value = p.targetMarginPercent; $('engReserve').value = p.reservePercent; $('engTargetShifts').value = p.targetShifts ?? 5; $('engDifficulty').value = p.difficultyFactor;
     $('engThickness').value = p.conditions?.thicknessMm ?? 50; $('engReinforced').value = p.conditions?.reinforced ?? 'no';
     $('engFloor').value = p.conditions?.floor ?? 1; $('engElevator').value = p.conditions?.elevator ?? 'yes';
     $('engCarryDistance').value = p.conditions?.carryDistanceM ?? 10; $('engMethod').value = p.conditions?.method ?? 'mechanized';
@@ -140,7 +145,7 @@
   $('engResetBtn').addEventListener('click', () => {
     $('engProjectName').value = ''; $('engQuantity').value = '100'; $('engCrew').value = '5'; $('engHours').value = '8';
     $('engWage').value = '4000'; $('engPrice').value = '0'; $('engExtraCost').value = '0'; $('engFixedCosts').value = '0';
-    $('engOverhead').value = '10'; $('engTax').value = '6'; $('engMargin').value = '25'; $('engReserve').value = '15'; $('engDifficulty').value = '1';
+    $('engOverhead').value = '10'; $('engTax').value = '6'; $('engMargin').value = '25'; $('engReserve').value = '15'; $('engTargetShifts').value = '5'; $('engDifficulty').value = '1';
     $('engThickness').value = '50'; $('engReinforced').value = 'no'; $('engFloor').value = '1'; $('engElevator').value = 'yes'; $('engCarryDistance').value = '10'; $('engMethod').value = 'mechanized';
     const item = selectedItem(); if (item) $('engBaselineRate').value = item.productivity;
   });
