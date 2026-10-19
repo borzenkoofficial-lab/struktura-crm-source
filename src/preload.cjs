@@ -77,6 +77,7 @@ contextBridge.exposeInMainWorld('crm', {
   onBrowserState: (callback) => { const listener = (_event, state) => callback(state); ipcRenderer.on('browser:state', listener); return () => ipcRenderer.removeListener('browser:state', listener); },
   exportQuotePdf: (data) => ipcRenderer.invoke('estimate:exportQuotePdf', data),
   estimateHistory: () => ipcRenderer.invoke('estimate:history'),
+  importEngineeringEstimateFile: () => ipcRenderer.invoke('engineering:importEstimateFile'),
   listEngineeringPlans: () => ipcRenderer.invoke('engineeringPlans:list'),
   saveEngineeringPlan: (data) => ipcRenderer.invoke('engineeringPlans:save', data),
   deleteEngineeringPlan: (id) => ipcRenderer.invoke('engineeringPlans:delete', id),
