@@ -55,14 +55,14 @@
     const totalCost = preTaxCost + tax;
     const revenue = quantity * pricePerUnit;
     const profit = revenue - totalCost;
-    const minimumPrice = quantity > 0 ? (preTaxCost / (1 - taxPercent / 100)) / quantity : 0;
+    const minimumPrice = quantity > 0 && taxPercent < 100 ? (preTaxCost / (1 - taxPercent / 100)) / quantity : null;
     const targetPrice = quantity > 0 ? (preTaxCost / (1 - targetMarginPercent / 100 - taxPercent / 100)) / quantity : 0;
     const warnings = [];
     if (validRates.length === 0) warnings.push('Нет фактических наблюдений: используется стартовая норма.');
     else if (validRates.length < 3) warnings.push('Есть только 1–2 наблюдения: обученная норма предварительная.');
     if (pricePerUnit <= 0) warnings.push('Не задана цена для клиента: прибыль и маржа не являются оценкой сделки.');
     if (targetMarginPercent + taxPercent >= 100) warnings.push('Целевая маржа вместе с налоговой долей не оставляет допустимой базы для цены.');
-    if (targetMarginPercent + taxPercent >= 100) return { quantity, baselineProductivity: baseRate, observations: validRates.length, effectiveProductivity: round(effectiveRate, 3), personShifts: round(personShifts), crewShifts: round(crewShifts), plannedShifts: round(plannedShifts), laborCost: round(laborCost), directCost: round(directCost), overhead: round(overhead), tax: round(tax), totalCost: round(totalCost), revenue: round(revenue), profit: round(profit), marginPercent: revenue > 0 ? round(profit / revenue * 100) : null, minimumPricePerUnit: round(minimumPrice, 2), targetPricePerUnit: null, warnings };
+    if (targetMarginPercent + taxPercent >= 100) return { quantity, baselineProductivity: baseRate, observations: validRates.length, effectiveProductivity: round(effectiveRate, 3), personShifts: round(personShifts), crewShifts: round(crewShifts), plannedShifts: round(plannedShifts), laborCost: round(laborCost), directCost: round(directCost), overhead: round(overhead), tax: round(tax), totalCost: round(totalCost), revenue: round(revenue), profit: round(profit), marginPercent: revenue > 0 ? round(profit / revenue * 100) : null, minimumPricePerUnit: minimumPrice == null ? null : round(minimumPrice, 2), targetPricePerUnit: null, warnings };
     return {
       quantity, baselineProductivity: baseRate, observedMedian: medianRate == null ? null : round(medianRate, 3),
       observations: validRates.length, learnedWeight: weight, effectiveProductivity: round(effectiveRate, 3),
@@ -70,7 +70,7 @@
       laborCost: round(laborCost), directCost: round(directCost), overhead: round(overhead), tax: round(tax),
       totalCost: round(totalCost), revenue: round(revenue), profit: round(profit),
       marginPercent: revenue > 0 ? round(profit / revenue * 100) : null,
-      minimumPricePerUnit: round(minimumPrice, 2),
+      minimumPricePerUnit: minimumPrice == null ? null : round(minimumPrice, 2),
       targetPricePerUnit: round((preTaxCost / (1 - targetMarginPercent / 100 - taxPercent / 100)) / quantity, 2),
       warnings
     };
