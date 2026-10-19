@@ -167,9 +167,12 @@
   readPlanHistory().then(history => { $('engProjectPlanSavedCount').textContent = String(history.length); }).catch(error => {
     $('engProjectPlanSaveNote').textContent = 'Не удалось загрузить историю из SQLite: ' + String(error.message || error);
   });
-  addOperation({ name: 'Демонтаж', quantity: 100 });
-  const second = operations[0];
-  addOperation({ name: 'Вынос и переноска', quantity: 100, predecessors: [second.id] });
-  const third = operations[1];
-  addOperation({ name: 'Погрузка и уборка', quantity: 100, predecessors: [third.id] });
+  const firstWork = catalog.find(item => item.id === 'd-floor-screed') || catalog[0];
+  addOperation({ catalogId: firstWork.id, name: 'Демонтаж стяжки', quantity: 100 });
+  const first = operations[0];
+  const carryWork = catalog.find(item => item.id === 'd-carry') || catalog[0];
+  addOperation({ catalogId: carryWork.id, name: 'Вынос строительного мусора', quantity: 5, predecessors: [first.id] });
+  const second = operations[1];
+  const containerWork = catalog.find(item => item.id === 'x-container') || catalog[0];
+  addOperation({ catalogId: containerWork.id, name: 'Контейнер и вывоз', quantity: 1, predecessors: [second.id] });
 })();
