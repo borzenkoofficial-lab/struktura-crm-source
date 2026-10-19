@@ -77,6 +77,7 @@
     $('engProjectPlanResult').innerHTML =
       '<div class="eng-result-grid eng-result-grid-spaced">' +
       metric('Операций', result.operationCount, 'В едином плане объекта') +
+      metric('Доступно рабочих', result.availableWorkers, 'Общий ограниченный ресурс') +
       metric('Срок по зависимостям', result.durationShifts + ' смен', 'Без резерва; критический путь') +
       metric('Срок с резервом', result.plannedDurationShifts + ' смен', 'По резерву каждой операции') +
       metric('Трудоёмкость', result.totalPersonShifts + ' чел.-смен', 'Сумма трудоёмкости операций') +
@@ -87,7 +88,7 @@
       '<div class="eng-plan-timeline">' + result.operations.slice().sort((a,b) => a.startShift-b.startShift).map(op =>
         '<div class="eng-plan-timeline-row"><span>' + safe(op.name) + '</span><div class="eng-plan-track"><i style="left:' + (result.plannedDurationShifts ? op.plannedStartShift / result.plannedDurationShifts * 100 : 0) + '%;width:' + (result.plannedDurationShifts ? Math.max(1, (op.plannedFinishShift - op.plannedStartShift) / result.plannedDurationShifts * 100) : 100) + '%"></i></div><strong>' + op.startShift + '–' + op.finishShift + '</strong><small>' + op.crewShifts + ' смены · ' + rub(op.totalCost) + '</small></div>'
       ).join('') + '</div>';
-    $('engProjectPlanWarnings').textContent = 'План является расчётной оценкой. Перед фиксацией срока проверь технологические зависимости, доступность отдельных бригад, вывоз и ограничения объекта.';
+    $('engProjectPlanWarnings').textContent = 'План является расчётной оценкой. Расписание учитывает общий пул рабочих, но не календарные выходные, оборудование, окна доступа и фактическую доступность подрядчиков.';
   }
   function metric(label, value, note) {
     return '<div class="eng-result"><span>' + safe(label) + '</span><strong>' + safe(value) + '</strong><small>' + safe(note) + '</small></div>';
@@ -139,7 +140,8 @@
   $('engProjectPlanCalculateBtn').addEventListener('click', async () => {
     try {
       const rows = readRows();
-      const result = planner.calculateProjectPlan(rows);
+      const availableWorkers = Number($('engProjectAvailableWorkers').value);
+      const result = planner.calculateProjectPlan(rows, { availableWorkers });
       renderResult(result);
       const record = { id: makeId(), title: $('engProjectPlanTitle').value.trim() || 'Комплексный объект', createdAt: new Date().toISOString(), operations: rows, result };
       if (window.crm?.saveEngineeringPlan) {
