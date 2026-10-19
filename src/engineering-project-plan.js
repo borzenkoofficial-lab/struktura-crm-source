@@ -67,7 +67,9 @@
       const personShifts = op.quantity / effectiveProductivity;
       const duration = personShifts / op.crewSize * 8 / op.hoursPerShift;
       const startShift = op.predecessors.reduce((max, id) => Math.max(max, scheduled.get(id).finishShift), 0);
+      const plannedStartShift = op.predecessors.reduce((max, id) => Math.max(max, scheduled.get(id).plannedFinishShift), 0);
       const finishShift = startShift + duration;
+      const plannedFinishShift = plannedStartShift + duration * (1 + op.reservePercent / 100);
       const laborCost = personShifts * (8 / op.hoursPerShift) * op.wagePerWorkerShift;
       const directCost = laborCost + op.quantity * op.extraCostPerUnit + op.fixedCosts;
       const overhead = directCost * op.overheadPercent / 100;
@@ -81,7 +83,7 @@
         quantity: op.quantity, productivity: round(effectiveProductivity, 3),
         personShifts: round(personShifts), crewShifts: round(duration),
         startShift: round(startShift), finishShift: round(finishShift),
-        plannedFinishShift: round(startShift + duration * (1 + op.reservePercent / 100)),
+        plannedStartShift: round(plannedStartShift), plannedFinishShift: round(plannedFinishShift),
         laborCost: round(laborCost), directCost: round(directCost), overhead: round(overhead),
         tax: round(tax), totalCost: round(totalCost), revenue: round(revenue), profit: round(profit),
         marginPercent: revenue > 0 ? round(profit / revenue * 100) : null,
