@@ -112,7 +112,7 @@
           <label>Лифт<select id="engElevator"><option value="yes">Есть грузовой / подходящий лифт</option><option value="no">Нет подходящего лифта</option><option value="unknown">Неизвестно</option></select></label>
           <label>Расстояние ручного выноса, м<input id="engCarryDistance" type="number" min="0" max="5000" step="1" value="10"></label>
           <label>Способ демонтажа<select id="engMethod"><option value="mechanized">Механизированный</option><option value="manual">Ручной</option><option value="mixed">Комбинированный</option></select></label>
-          <label>Коэффициент сложности условий<input id="engDifficulty" type="number" min="0.1" max="3" step="0.05" value="1"></label>
+          <label>Коэффициент сложности условий<input id="engDifficulty" type="number" min="0.1" max="3" step="0.05" value="1"></label><label>Итоговый коэффициент условий<input id="engDerivedFactor" type="number" readonly value="1" aria-label="Итоговый коэффициент условий"></label>
           <label>Размер бригады, человек<input id="engCrew" type="number" min="1" max="200" step="1" value="5"></label>
           <label>Часов в смене<input id="engHours" type="number" min="1" max="24" step="0.5" value="8"></label>
           <label>Оплата одного рабочего за смену, ₽<input id="engWage" type="number" min="0" step="100" value="4000"></label>
@@ -124,7 +124,7 @@
           <label>Целевая маржа, %<input id="engMargin" type="number" min="0" max="80" step="1" value="25"></label>
           <label>Резерв по сроку, %<input id="engReserve" type="number" min="0" max="100" step="5" value="15"></label>
         </div>
-        <div class="eng-note">Коэффициент сложности задаётся явно. Толщина, армирование, способ работ, этаж, лифт и вынос пока служат для фиксации условий и аудита допущений; их влияние нельзя считать подтверждённым, пока не накоплены замеры. Не меняй коэффициент без основания — сохраняй фактические данные после каждой смены.</div>
+        <div class="eng-note">Толщина, армирование, этаж, лифт, вынос и способ работ участвуют в предварительном расчёте коэффициента условий. Это стартовые инженерные гипотезы, а не подтверждённые нормативы: коэффициент показан отдельно, а общую сложность можно корректировать вручную. После каждой смены записывай фактическую выработку, чтобы уточнять норму на данных своих бригад.</div>
         <div class="eng-actions"><button class="button primary" id="engCalculateBtn">Рассчитать и сохранить</button><button class="button subtle" id="engResetBtn">Новый расчёт</button><button class="button subtle" id="engExportBtn">Экспорт истории</button><button class="button subtle" id="engImportBtn">Импорт истории</button><input id="engImportFile" type="file" accept=".json,application/json" hidden></div>
       </div></section>
       <section class="eng-card"><div class="eng-card-head"><h3>Результат математического расчёта</h3><p>Плановые значения по заданным исходным данным. Это расчётная оценка, не гарантия срока.</p></div><div class="eng-card-body"><div id="engResultEmpty" class="eng-empty">Заполни параметры и нажми «Рассчитать и сохранить». Результат и исходные условия попадут в историю.</div><div id="engResult" hidden></div><ul id="engWarnings" class="eng-warning-list"></ul></div></section>
