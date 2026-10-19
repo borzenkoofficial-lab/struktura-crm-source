@@ -44,6 +44,8 @@
         '<label>Доп. затраты за единицу, ₽<input data-plan-field="extraCostPerUnit" type="number" min="0" step="any" value="' + safe(op.extraCostPerUnit) + '"></label>' +
         '<label>Постоянные расходы, ₽<input data-plan-field="fixedCosts" type="number" min="0" step="any" value="' + safe(op.fixedCosts) + '"></label>' +
         '<label>Сложность ×<input data-plan-field="difficultyFactor" type="number" min="0.1" max="3" step="0.05" value="' + safe(op.difficultyFactor) + '"></label>' +
+        '<label>Накладные расходы, %<input data-plan-field="overheadPercent" type="number" min="0" max="100" step="1" value="' + safe(op.overheadPercent) + '"></label>' +
+        '<label>Налог с выручки, %<input data-plan-field="taxPercent" type="number" min="0" max="100" step="0.5" value="' + safe(op.taxPercent) + '"></label>' +
         '<label>Резерв срока, %<input data-plan-field="reservePercent" type="number" min="0" max="100" step="1" value="' + safe(op.reservePercent) + '"></label>' +
         '<label class="wide">Выполнять после (можно выбрать несколько)<select data-plan-field="predecessors" multiple size="3">' + predecessorOptions + '</select><small>Без зависимости операции считаются способными стартовать с начала объекта.</small></label>' +
         '</div></article>';
@@ -64,7 +66,7 @@
         wagePerWorkerShift: Number(value('wagePerWorkerShift').value), pricePerUnit: Number(value('pricePerUnit').value),
         extraCostPerUnit: Number(value('extraCostPerUnit').value), fixedCosts: Number(value('fixedCosts').value),
         difficultyFactor: Number(value('difficultyFactor').value), reservePercent: Number(value('reservePercent').value),
-        overheadPercent: 10, taxPercent: 6,
+        overheadPercent: Number(value('overheadPercent').value), taxPercent: Number(value('taxPercent').value),
         predecessors: Array.from(value('predecessors').selectedOptions).map(option => option.value)
       };
     });
