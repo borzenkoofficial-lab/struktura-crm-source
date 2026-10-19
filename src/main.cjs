@@ -1157,6 +1157,42 @@ function quoteEscape(value) { return String(value ?? '').replace(/[&<>"']/g, ch 
 function quoteMoney(value) { return `${Math.round(Number(value) || 0).toLocaleString('ru-RU')} ₽`; }
 ipcMain.handle('estimate:history', () => db.prepare(`SELECT id,title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json FROM quote_history ORDER BY prepared_at DESC,id DESC`).all().map(row => ({ ...row, lines: (() => { try { return JSON.parse(row.lines_json || '[]'); } catch { return []; } })() })));
 
+ipcMain.handle('engineering:importEstimateFile', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Загрузить смету для ПИ',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Сметы и таблицы', extensions: ['pdf', 'xlsx', 'xls', 'csv', 'txt', 'tsv'] },
+      { name: 'Все файлы', extensions: ['*'] }
+    ]
+  });
+  if (result.canceled || !result.filePaths?.[0]) return { canceled: true };
+  const filePath = result.filePaths[0];
+  const extension = path.extname(filePath).toLowerCase();
+  const stat = fs.statSync(filePath);
+  if (stat.size > 25 * 1024 * 1024) throw new Error('Файл больше 25 МБ. Раздели смету на несколько файлов.');
+  if (['.csv', '.txt', '.tsv'].includes(extension)) {
+    return { canceled: false, fileName: path.basename(filePath), text: fs.readFileSync(filePath, 'utf8'), format: extension.slice(1) };
+  }
+  if (['.xlsx', '.xls'].includes(extension)) {
+    const XLSX = require('xlsx');
+    const workbook = XLSX.readFile(filePath, { cellDates: false, dense: false });
+    const sheets = workbook.SheetNames.map(name => ({
+      name,
+      rows: XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, raw: false, defval: '' })
+    }));
+    return { canceled: false, fileName: path.basename(filePath), format: extension.slice(1), sheets };
+  }
+  if (extension === '.pdf') {
+    const pdfParse = require('pdf-parse');
+    const buffer = fs.readFileSync(filePath);
+    const parsed = await pdfParse(buffer, { max: 0 });
+    const text = String(parsed.text || '').trim();
+    if (!text) throw new Error('В PDF не найден текстовый слой. Если это скан, сначала распознай его OCR или сохрани таблицу в Excel/CSV.');
+    return { canceled: false, fileName: path.basename(filePath), format: 'pdf', text };
+  }
+  throw new Error('Поддерживаются PDF, XLSX, XLS, CSV, TXT и TSV.');
+});
 ipcMain.handle('engineeringPlans:list', () => db.prepare(`SELECT id,title,created_at,operations_json,result_json FROM engineering_project_plans ORDER BY created_at DESC,id DESC LIMIT 100`).all().map(row => ({
   id: row.id, title: row.title, createdAt: row.created_at,
   operations: (() => { try { return JSON.parse(row.operations_json || '[]'); } catch { return []; } })(),
