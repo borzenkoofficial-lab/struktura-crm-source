@@ -25,7 +25,7 @@ test('database core initializes, enforces constraints, and survives an idempoten
     db = openDatabase(userDataPath);
     assert.equal(db.pragma('integrity_check', { simple: true }), 'ok');
     assert.equal(db.prepare('SELECT title FROM projects WHERE id=?').get(project.lastInsertRowid).title, 'Тестовый объект');
-    assert.equal(db.prepare("SELECT value FROM settings WHERE key='schema_version'").get().value, '7');
+    assert.equal(db.prepare("SELECT value FROM settings WHERE key='schema_version'").get().value, '8');
     assert.equal(db.prepare('SELECT title FROM engineering_project_plans WHERE id=?').get('plan-test').title, 'Комплексный тест');
   } finally {
     if (db && db.open) db.close();
