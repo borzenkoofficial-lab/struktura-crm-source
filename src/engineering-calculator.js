@@ -47,6 +47,7 @@
     const taxPercent = number(input.taxPercent ?? 0, 'Налог', { max: 100 });
     const targetMarginPercent = number(input.targetMarginPercent ?? 25, 'Целевая маржа', { max: 80 });
     const reservePercent = number(input.reservePercent ?? 15, 'Резерв срока', { max: 100 });
+    const targetShifts = number(input.targetShifts ?? 5, 'Желаемый срок в рабочих сменах', { min: 1, max: 365, allowZero: false });
     const difficultyFactor = number(input.difficultyFactor ?? 1, 'Коэффициент условий', { min: 0.1, max: 3, allowZero: false });
     const observations = Array.isArray(input.observations) ? input.observations : [];
     const validRates = observations.map(o => {
@@ -67,6 +68,13 @@
     const personShifts = quantity / effectiveRate;
     const crewShifts = personShifts / crew * 8 / hoursPerShift;
     const plannedShifts = crewShifts * (1 + reservePercent / 100);
+    const requiredCrewForTarget = Math.ceil((personShifts * (1 + reservePercent / 100) * 8 / hoursPerShift) / targetShifts);
+    const dailyOutput = quantity / plannedShifts;
+    const scenarioCrews = [...new Set([1, 2, 3, 5, 8, 10, crew, requiredCrewForTarget].filter(n => Number.isInteger(n) && n >= 1 && n <= 200))].sort((a, b) => a - b);
+    const crewScenarios = scenarioCrews.map(workers => {
+      const rawShifts = personShifts / workers * 8 / hoursPerShift;
+      return { workers, shifts: round(rawShifts), plannedShifts: round(rawShifts * (1 + reservePercent / 100)), outputPerShift: round(quantity / (rawShifts * (1 + reservePercent / 100)), 2) };
+    });
     const laborCost = personShifts * (8 / hoursPerShift) * wagePerWorkerShift;
     const directCost = laborCost + quantity * extraCostPerUnit + fixedCosts;
     const overhead = directCost * overheadPercent / 100;
@@ -83,11 +91,12 @@
     else if (validRates.length < 3) warnings.push('Есть только 1–2 наблюдения: обученная норма предварительная.');
     if (pricePerUnit <= 0) warnings.push('Не задана цена для клиента: прибыль и маржа не являются оценкой сделки.');
     if (targetMarginPercent + taxPercent >= 100) warnings.push('Целевая маржа вместе с налоговой долей не оставляет допустимой базы для цены.');
-    if (targetMarginPercent + taxPercent >= 100) return { quantity, baselineProductivity: baseRate, observations: validRates.length, effectiveProductivity: round(effectiveRate, 3), personShifts: round(personShifts), crewShifts: round(crewShifts), plannedShifts: round(plannedShifts), laborCost: round(laborCost), directCost: round(directCost), overhead: round(overhead), tax: round(tax), totalCost: round(totalCost), revenue: round(revenue), profit: round(profit), marginPercent: revenue > 0 ? round(profit / revenue * 100) : null, minimumPricePerUnit: minimumPrice == null ? null : round(minimumPrice, 2), targetPricePerUnit: null, warnings };
+    if (targetMarginPercent + taxPercent >= 100) return { quantity, baselineProductivity: baseRate, observations: validRates.length, effectiveProductivity: round(effectiveRate, 3), personShifts: round(personShifts), crewShifts: round(crewShifts), plannedShifts: round(plannedShifts), targetShifts, requiredCrewForTarget, dailyOutput: round(dailyOutput, 2), crewScenarios, laborCost: round(laborCost), directCost: round(directCost), overhead: round(overhead), tax: round(tax), totalCost: round(totalCost), revenue: round(revenue), profit: round(profit), marginPercent: revenue > 0 ? round(profit / revenue * 100) : null, minimumPricePerUnit: minimumPrice == null ? null : round(minimumPrice, 2), targetPricePerUnit: null, warnings };
     return {
       quantity, baselineProductivity: baseRate, observedMedian: medianRate == null ? null : round(medianRate, 3),
       observations: validRates.length, learnedWeight: weight, effectiveProductivity: round(effectiveRate, 3),
       personShifts: round(personShifts), crewShifts: round(crewShifts), plannedShifts: round(plannedShifts),
+      targetShifts, requiredCrewForTarget, dailyOutput: round(dailyOutput, 2), crewScenarios,
       laborCost: round(laborCost), directCost: round(directCost), overhead: round(overhead), tax: round(tax),
       totalCost: round(totalCost), revenue: round(revenue), profit: round(profit),
       marginPercent: revenue > 0 ? round(profit / revenue * 100) : null,
