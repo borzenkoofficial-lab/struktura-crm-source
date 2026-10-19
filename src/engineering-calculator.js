@@ -13,6 +13,27 @@
     }
     return n;
   };
+  function calculateConditionFactor(input = {}) {
+    const isScreed = /стяжк/i.test(String(input.workName || '')) || String(input.workId || '').includes('floor-screed');
+    const thickness = Number(input.thicknessMm);
+    const thicknessFactor = isScreed && Number.isFinite(thickness) && thickness > 0 ? clamp(Math.sqrt(thickness / 50), 0.7, 2.2) : 1;
+    const reinforcementFactor = input.reinforced === 'yes' ? 1.25 : input.reinforced === 'unknown' ? 1.1 : 1;
+    const floor = Number(input.floor);
+    const floorFactor = Number.isFinite(floor) ? 1 + Math.max(0, floor - 1) * 0.015 : 1;
+    const accessFactor = input.elevator === 'no' ? 1.2 : input.elevator === 'unknown' ? 1.1 : 1;
+    const distance = Number(input.carryDistanceM);
+    const carryFactor = Number.isFinite(distance) ? Math.min(1.75, 1 + Math.max(0, distance - 10) / 100) : 1;
+    const methodFactor = input.method === 'manual' ? 1.25 : input.method === 'mixed' ? 1.1 : 1;
+    const physicalFactor = Math.min(3, thicknessFactor * reinforcementFactor * floorFactor * accessFactor * carryFactor * methodFactor);
+    const baseDifficulty = Number(input.baseDifficulty ?? 1);
+    if (!Number.isFinite(baseDifficulty) || baseDifficulty < 0.1 || baseDifficulty > 3) throw new Error('Коэффициент сложности должен быть от 0,1 до 3.');
+    return {
+      total: round(clamp(baseDifficulty * physicalFactor, 0.1, 3), 2),
+      physicalFactor: round(physicalFactor, 3), thicknessFactor: round(thicknessFactor, 3),
+      reinforcementFactor: round(reinforcementFactor, 3), floorFactor: round(floorFactor, 3),
+      accessFactor: round(accessFactor, 3), carryFactor: round(carryFactor, 3), methodFactor: round(methodFactor, 3)
+    };
+  }
   function calculateEngineeringEstimate(input = {}) {
     const quantity = number(input.quantity, 'Объём', { min: 0, allowZero: false });
     const baseRate = number(input.baselineProductivity, 'Базовая производительность', { min: 0, allowZero: false });
@@ -102,7 +123,7 @@
     project.observations.push({ ...observation, quantity, people, hours, conditionFactor, recordedAt: new Date().toISOString() });
     return projects;
   }
-  const api = { calculateEngineeringEstimate, loadHistory, saveHistory, observationsFor, recordActual, STORAGE_KEY };
+  const api = { calculateEngineeringEstimate, calculateConditionFactor, loadHistory, saveHistory, observationsFor, recordActual, STORAGE_KEY };
   root.StrukturaEngineeringCalculator = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : window);
