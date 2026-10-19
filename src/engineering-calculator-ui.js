@@ -110,6 +110,7 @@
     $('engThickness').value = p.conditions?.thicknessMm ?? 50; $('engReinforced').value = p.conditions?.reinforced ?? 'no';
     $('engFloor').value = p.conditions?.floor ?? 1; $('engElevator').value = p.conditions?.elevator ?? 'yes';
     $('engCarryDistance').value = p.conditions?.carryDistanceM ?? 10; $('engMethod').value = p.conditions?.method ?? 'mechanized';
+    deriveConditionFactor(item);
     if (p.result) renderResult(p.result, p, p.result.observations || 0);
   }
   async function calculateAndSave() {
