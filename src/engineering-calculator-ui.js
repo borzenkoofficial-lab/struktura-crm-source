@@ -94,21 +94,19 @@
     window.alert('Из описания распознано: ' + found.join(', ') + '. Проверь поля перед расчётом.');
   }
   function getLocalObservations(item) { return api.observationsFor(history, item.id, item.id); }
-  async function getAllObservations(item, crewSize) {
+  async function getRateEvidence(item, crewSize) {
     const local = getLocalObservations(item);
-    let external = [];
+    if (local.length) return { observations: local, externalModel: null, source: 'Локальная история расчётов' };
     if (window.crm?.productionRateModels && item?.id) {
       try {
         const models = await window.crm.productionRateModels([item.id], crewSize);
         const model = models?.find(x => x.catalog_id === item.id);
-        if (model && Number(model.observations) > 0 && Number(model.observedMedian) > 0) {
-          external = Array.from({ length: Math.min(100, Number(model.observations)) }, () => ({
-            quantity: Number(model.observedMedian), people: 1, hours: 8, conditionFactor: 1, source: 'ПИ · сменные отчёты'
-          }));
+        if (model && Number(model.observations) > 0 && Number(model.learnedNormalRate ?? model.observedMedian) > 0) {
+          return { observations: [], externalModel: model, source: 'Фактические сменные отчёты' };
         }
       } catch (error) { console.warn('PI rate model unavailable for engineering calculator:', error); }
     }
-    return local.concat(external);
+    return { observations: [], externalModel: null, source: 'Стартовая норма без фактической истории' };
   }
   function renderMetrics(item, observations) {
     const count = observations.length;
@@ -179,10 +177,19 @@
     const item = selectedItem();
     if (!item) throw new Error('В каталоге нет работ с заданной производительностью.');
     if (!(num('engBaselineRate') > 0)) throw new Error('Укажи положительную стартовую производительность.');
-    const observations = await getAllObservations(item, num('engCrew'));
+    const evidence = await getRateEvidence(item, num('engCrew'));
+    const observations = evidence.observations;
     const input = readInput(item, observations);
+    // A production model is already an aggregated, weighted estimate. Use its learned
+    // normal-condition rate as the baseline rather than fabricating repeated observations
+    // from its median and accidentally increasing the evidence weight.
+    if (evidence.externalModel && observations.length === 0) {
+      const modelRate = Number(evidence.externalModel.learnedNormalRate ?? evidence.externalModel.observedMedian);
+      if (Number.isFinite(modelRate) && modelRate > 0) input.baselineProductivity = modelRate;
+    }
     const result = api.calculateEngineeringEstimate(input);
-    result.observations = observations.length;
+    result.observations = observations.length || Number(evidence.externalModel?.observations || 0);
+    result.rateEvidenceSource = evidence.source;
     const p = { id: 'eng-' + Date.now().toString(36) + Math.random().toString(36).slice(2,7), createdAt: new Date().toISOString(), ...input, result, observations: [] };
     history.unshift(p); history = history.slice(0, 500); api.saveHistory(history);
     renderResult(result, input, observations.length); renderHistory();
