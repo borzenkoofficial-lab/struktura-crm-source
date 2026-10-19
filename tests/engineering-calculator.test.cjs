@@ -59,3 +59,22 @@ test('condition factor keeps non-screed thickness neutral and rejects invalid ba
   assert.equal(r.thicknessFactor, 1);
   assert.throws(() => calculateConditionFactor({ baseDifficulty: 0 }), /Коэффициент сложности/);
 });
+
+test('target duration yields required crew, daily output and comparable crew scenarios', () => {
+  const r = calculateEngineeringEstimate({
+    quantity: 100, baselineProductivity: 10, crewSize: 5, hoursPerShift: 8,
+    reservePercent: 20, targetShifts: 4, difficultyFactor: 1
+  });
+  assert.equal(r.personShifts, 10);
+  assert.equal(r.crewShifts, 2);
+  assert.equal(r.plannedShifts, 2.4);
+  assert.equal(r.requiredCrewForTarget, 3);
+  assert.equal(r.dailyOutput, 41.67);
+  assert.ok(r.crewScenarios.some(s => s.workers === 5 && s.plannedShifts === 2.4));
+  assert.ok(r.crewScenarios.some(s => s.workers === 3 && s.plannedShifts === 4));
+});
+
+test('target duration rejects zero and unreasonable values', () => {
+  assert.throws(() => calculateEngineeringEstimate({ quantity: 10, baselineProductivity: 8, targetShifts: 0 }), /Желаемый срок/);
+  assert.throws(() => calculateEngineeringEstimate({ quantity: 10, baselineProductivity: 8, targetShifts: 366 }), /Желаемый срок/);
+});
