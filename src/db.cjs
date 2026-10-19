@@ -186,6 +186,15 @@ CREATE TABLE IF NOT EXISTS quote_history (
   file_path TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_quote_history_prepared_at ON quote_history(prepared_at DESC);
+CREATE TABLE IF NOT EXISTS engineering_project_plans (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  operations_json TEXT NOT NULL DEFAULT '[]',
+  result_json TEXT NOT NULL DEFAULT '{}',
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_engineering_project_plans_created ON engineering_project_plans(created_at DESC);
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
