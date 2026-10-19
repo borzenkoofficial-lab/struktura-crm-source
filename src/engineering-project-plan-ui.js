@@ -194,18 +194,46 @@
     try { importEstimateText($('engEstimateImportText').value); }
     catch (error) { $('engEstimateImportStatus').textContent = error.message || 'Не удалось разобрать смету.'; }
   });
-  $('engUploadEstimateBtn').addEventListener('click', () => $('engEstimateFile').click());
-  $('engEstimateFile').addEventListener('change', async event => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  let importedEstimateSheets = [];
+  function estimateRowsToText(rows) {
+    return (rows || []).map(row => (row || []).map(value => String(value ?? '').replace(/[\t\r\n]+/g, ' ').trim()).join('\t')).join('\n');
+  }
+  function showEstimateSheet(index) {
+    const sheet = importedEstimateSheets[index];
+    if (!sheet) return;
+    $('engEstimateImportText').value = estimateRowsToText(sheet.rows);
+    $('engEstimateImportStatus').textContent = 'Файл: ' + importedEstimateFileName + '. Лист: ' + sheet.name + '. Проверь текст, затем нажми «Разобрать перечень».';
+  }
+  let importedEstimateFileName = '';
+  $('engUploadEstimateBtn').addEventListener('click', async () => {
     try {
-      if (!/\.(csv|txt|tsv)$/i.test(file.name)) throw new Error('Пока поддерживаются CSV, TXT и TSV. PDF/XLSX можно скопировать в текстовое поле или сохранить как CSV.');
-      const text = await file.text();
-      $('engEstimateImportText').value = text;
-      importEstimateText(text);
-    } catch (error) { $('engEstimateImportStatus').textContent = error.message || 'Не удалось загрузить файл сметы.'; }
-    finally { event.target.value = ''; }
+      if (!window.crm?.importEngineeringEstimateFile) throw new Error('Импорт файлов недоступен: обнови приложение до версии с поддержкой ПИ.');
+      $('engEstimateImportStatus').textContent = 'Выбери файл сметы в открывшемся окне…';
+      const result = await window.crm.importEngineeringEstimateFile();
+      if (!result || result.canceled) {
+        $('engEstimateImportStatus').textContent = 'Загрузка отменена.';
+        return;
+      }
+      importedEstimateFileName = result.fileName || 'смета';
+      if (Array.isArray(result.sheets) && result.sheets.length) {
+        importedEstimateSheets = result.sheets;
+        const selector = $('engEstimateSheetSelect');
+        selector.innerHTML = importedEstimateSheets.map((sheet, index) => '<option value="' + index + '">' + safe(sheet.name || ('Лист ' + (index + 1))) + '</option>').join('');
+        selector.hidden = importedEstimateSheets.length < 2;
+        selector.value = '0';
+        showEstimateSheet(0);
+        if (importedEstimateSheets.length > 1) $('engEstimateImportStatus').textContent += ' Доступно листов: ' + importedEstimateSheets.length + '. Выбери нужный лист.';
+      } else {
+        importedEstimateSheets = [];
+        $('engEstimateSheetSelect').hidden = true;
+        $('engEstimateImportText').value = result.text || '';
+        $('engEstimateImportStatus').textContent = 'Файл: ' + importedEstimateFileName + '. Извлечено символов: ' + String(result.text || '').length + '. Проверь извлечённый текст, затем нажми «Разобрать перечень».';
+      }
+    } catch (error) {
+      $('engEstimateImportStatus').textContent = error.message || 'Не удалось загрузить файл сметы.';
+    }
   });
+  $('engEstimateSheetSelect').addEventListener('change', event => showEstimateSheet(Number(event.target.value)));
   $('engPlanAddOperationBtn').addEventListener('click', () => {
     try { const previous = operations[operations.length - 1]; addOperation({ predecessors: previous ? [previous.id] : [] }); }
     catch (error) { window.alert(error.message); }
