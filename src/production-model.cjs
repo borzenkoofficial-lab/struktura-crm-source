@@ -17,7 +17,7 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
 
   const entries = observations.map((o) => {
     const quantity = Number(o.quantity_done ?? o.quantity);
-    const workers = Number(o.workers_count ?? o.workers);
+    const workers = Number(o.workers_count ?? o.workers ?? o.people);
     const hours = Number(o.hours ?? o.hours_per_worker);
     const factor = Number(o.complexity_factor ?? o.conditionFactor ?? 1);
     if (![quantity, workers, hours, factor].every(Number.isFinite) || quantity <= 0 || workers <= 0 || hours <= 0 || factor <= 0) return null;
