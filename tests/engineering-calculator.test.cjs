@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { calculateEngineeringEstimate, loadHistory, saveHistory, observationsFor, recordActual } = require('../src/engineering-calculator.js');
+const { calculateEngineeringEstimate, calculateConditionFactor, loadHistory, saveHistory, observationsFor, recordActual } = require('../src/engineering-calculator.js');
 
 test('engineering estimate calculates labor, schedule, costs and target price deterministically', () => {
   const r = calculateEngineeringEstimate({ quantity: 100, baselineProductivity: 10, crewSize: 5, hoursPerShift: 8, wagePerWorkerShift: 4000, pricePerUnit: 1000, extraCostPerUnit: 50, fixedCosts: 1000, overheadPercent: 10, taxPercent: 6, targetMarginPercent: 20, reservePercent: 10, difficultyFactor: 1 });
@@ -43,4 +43,19 @@ test('history storage keeps and reuses real completed-work observations', () => 
   const restored = loadHistory(store);
   assert.equal(observationsFor(restored, 'screed', 'screed').length, 1);
   assert.equal(observationsFor(restored, 'screed', 'screed')[0].quantity, 80);
+});
+
+
+test('condition factor reacts deterministically to screed thickness, reinforcement, access and method', () => {
+  const normal = calculateConditionFactor({ workName: 'Демонтаж цементной стяжки', thicknessMm: 50, reinforced: 'no', floor: 1, elevator: 'yes', carryDistanceM: 10, method: 'mechanized', baseDifficulty: 1 });
+  const difficult = calculateConditionFactor({ workName: 'Демонтаж цементной стяжки', thicknessMm: 100, reinforced: 'yes', floor: 4, elevator: 'no', carryDistanceM: 60, method: 'manual', baseDifficulty: 1 });
+  assert.equal(normal.total, 1);
+  assert.ok(difficult.total > normal.total);
+  assert.ok(difficult.total <= 3);
+});
+
+test('condition factor keeps non-screed thickness neutral and rejects invalid base difficulty', () => {
+  const r = calculateConditionFactor({ workName: 'Демонтаж перегородки ГКЛ', thicknessMm: 100, reinforced: 'no', floor: 1, elevator: 'yes', carryDistanceM: 10, method: 'mechanized', baseDifficulty: 1 });
+  assert.equal(r.thicknessFactor, 1);
+  assert.throws(() => calculateConditionFactor({ baseDifficulty: 0 }), /Коэффициент сложности/);
 });
