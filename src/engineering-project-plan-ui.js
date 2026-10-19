@@ -30,6 +30,86 @@
     });
     renderRows();
   }
+  function splitEstimateLine(line) {
+    const delimiter = line.includes('\t') ? '\t' : line.includes(';') ? ';' : line.includes(',') ? ',' : null;
+    if (!delimiter) return [line.trim()];
+    const cells = [];
+    let cell = '', quoted = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (quoted && line[i + 1] === '"') { cell += '"'; i++; }
+        else quoted = !quoted;
+      } else if (ch === delimiter && !quoted) {
+        cells.push(cell.trim()); cell = '';
+      } else cell += ch;
+    }
+    cells.push(cell.trim());
+    return cells;
+  }
+  function guessCatalogItem(text) {
+    const value = String(text || '').toLocaleLowerCase('ru-RU');
+    let item = catalog.find(x => value.includes(String(x.name || '').toLocaleLowerCase('ru-RU')));
+    if (item) return item;
+    const aliases = [
+      [/стяжк|бетонн.*пол/, /стяжк|пол/],
+      [/перегород|демонтаж стен|кирпичн.*стен/, /перегород|стен|кирпич/],
+      [/плитк|керамогранит/, /плитк|керамогранит/],
+      [/вынос|перенос мусор/, /вынос|перенос/],
+      [/погрузк/, /погруз/],
+      [/контейнер|вывоз мусор/, /контейнер|вывоз/],
+      [/уборк/, /уборк/],
+      [/потол/, /потол/]
+    ];
+    for (const [descriptionPattern, catalogPattern] of aliases) {
+      if (!descriptionPattern.test(value)) continue;
+      item = catalog.find(x => catalogPattern.test(String(x.name || '').toLocaleLowerCase('ru-RU')));
+      if (item) return item;
+    }
+    return null;
+  }
+  function parseEstimateText(text) {
+    const lines = String(text || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+    const parsed = [];
+    const skipped = [];
+    for (const line of lines) {
+      if (/наименован|количеств|единиц[аы]?\s+измер|итого|всего|сметная стоимость/i.test(line)) continue;
+      const cells = splitEstimateLine(line);
+      const item = guessCatalogItem(cells[0] || line);
+      const numericCell = cells.slice(1).map(x => x.replace(/\s/g, '').replace(',', '.')).find(x => /^\d+(?:\.\d+)?$/.test(x));
+      const withUnit = line.match(/(\d+(?:[.,]\d+)?)\s*(м²|м2|кв\.?\s*м|м³|м3|п\.?\s*м|пог\.?\s*м|шт\.?|т\b|усл\.?)/i);
+      const quantity = withUnit ? Number(withUnit[1].replace(',', '.')) : numericCell == null ? NaN : Number(numericCell);
+      if (!item || !Number.isFinite(quantity) || quantity <= 0) {
+        skipped.push(line);
+        continue;
+      }
+      parsed.push({ item, quantity, sourceLine: line });
+    }
+    if (!parsed.length) throw new Error('Не удалось распознать строки. Используй формат «Название работы; объём; единица», например «Демонтаж цементной стяжки; 850; м²».');
+    if (parsed.length > 100) throw new Error('В одном плане допускается не более 100 строк работ.');
+    return { parsed, skipped };
+  }
+  function importEstimateText(text) {
+    const { parsed, skipped } = parseEstimateText(text);
+    if (!window.confirm('Распознано строк работ: ' + parsed.length + '. Заменить текущий список операций?')) return;
+    operations = [];
+    let previousId = null;
+    for (const entry of parsed) {
+      const id = makeId();
+      const item = entry.item;
+      operations.push({
+        id, catalogId: item.id, name: item.name, quantity: entry.quantity,
+        productivity: Number(item.productivity), crewSize: 5, hoursPerShift: 8,
+        wagePerWorkerShift: 4000, pricePerUnit: Number(item.price || 0),
+        extraCostPerUnit: Number(item.cost || 0), fixedCosts: 0,
+        overheadPercent: 10, taxPercent: 6, reservePercent: 15,
+        difficultyFactor: 1, predecessors: previousId ? [previousId] : []
+      });
+      previousId = id;
+    }
+    renderRows();
+    $('engEstimateImportStatus').textContent = 'Загружено операций: ' + parsed.length + '. Пропущено строк: ' + skipped.length + (skipped.length ? ' — ' + skipped.slice(0, 3).join(' | ') : '') + '. Проверь объёмы, нормы и зависимости.';
+  }
   function renderRows() {
     const host = $('engProjectPlanRows');
     host.innerHTML = operations.map((op, index) => {
@@ -110,6 +190,22 @@
   function metric(label, value, note) {
     return '<div class="eng-result"><span>' + safe(label) + '</span><strong>' + safe(value) + '</strong><small>' + safe(note) + '</small></div>';
   }
+  $('engParseEstimateBtn').addEventListener('click', () => {
+    try { importEstimateText($('engEstimateImportText').value); }
+    catch (error) { $('engEstimateImportStatus').textContent = error.message || 'Не удалось разобрать смету.'; }
+  });
+  $('engUploadEstimateBtn').addEventListener('click', () => $('engEstimateFile').click());
+  $('engEstimateFile').addEventListener('change', async event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      if (!/\.(csv|txt|tsv)$/i.test(file.name)) throw new Error('Пока поддерживаются CSV, TXT и TSV. PDF/XLSX можно скопировать в текстовое поле или сохранить как CSV.');
+      const text = await file.text();
+      $('engEstimateImportText').value = text;
+      importEstimateText(text);
+    } catch (error) { $('engEstimateImportStatus').textContent = error.message || 'Не удалось загрузить файл сметы.'; }
+    finally { event.target.value = ''; }
+  });
   $('engPlanAddOperationBtn').addEventListener('click', () => {
     try { const previous = operations[operations.length - 1]; addOperation({ predecessors: previous ? [previous.id] : [] }); }
     catch (error) { window.alert(error.message); }
