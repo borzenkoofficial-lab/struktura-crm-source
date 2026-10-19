@@ -46,7 +46,7 @@
     const personShifts = quantity / effectiveRate;
     const crewShifts = personShifts / crew * 8 / hoursPerShift;
     const plannedShifts = crewShifts * (1 + reservePercent / 100);
-    const laborCost = personShifts * (hoursPerShift / 8) * wagePerWorkerShift;
+    const laborCost = personShifts * (8 / hoursPerShift) * wagePerWorkerShift;
     const directCost = laborCost + quantity * extraCostPerUnit + fixedCosts;
     const overhead = directCost * overheadPercent / 100;
     const preTaxCost = directCost + overhead;
