@@ -171,6 +171,13 @@
       }
     } catch (error) { window.alert(error.message || 'Не удалось рассчитать и сохранить комплексный объект.'); }
   });
+  ['engProjectStartDate', 'engProjectWeekdaysOnly'].forEach(id => {
+    $(id).addEventListener('change', () => {
+      if (!lastResult) return;
+      try { renderCalendar(lastResult); }
+      catch (error) { window.alert(error.message || 'Не удалось обновить календарь объекта.'); }
+    });
+  });
   $('engProjectPlanExportBtn').addEventListener('click', async () => {
     try {
       const history = await readPlanHistory();
