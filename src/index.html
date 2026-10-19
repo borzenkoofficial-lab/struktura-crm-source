@@ -136,7 +136,14 @@
       <div id="engProjectPlanRows"></div>
       <div class="eng-plan-controls"><button type="button" class="button subtle" id="engPlanAddOperationBtn">＋ Добавить операцию</button><button type="button" class="button primary" id="engProjectPlanCalculateBtn">Рассчитать комплексный объект</button><button type="button" class="button subtle" id="engProjectPlanExportBtn">Экспорт истории планов</button></div>
       <div class="eng-plan-subtitle">Сохранено планов на этом компьютере: <strong id="engProjectPlanSavedCount">0</strong>. История пока хранится в localStorage и не входит в SQLite-резервную копию.</div>
-      <div id="engProjectPlanResult" hidden></div><p id="engProjectPlanWarnings" class="eng-plan-subtitle"></p><p id="engProjectPlanSaveNote" class="eng-plan-subtitle" aria-live="polite"></p>
+      <div class="eng-calendar-controls">
+        <label>Дата начала объекта<input id="engProjectStartDate" type="date" value="2026-10-20" required></label>
+        <label class="checkbox-line"><input id="engProjectWeekdaysOnly" type="checkbox" checked> Планировать только по будням</label>
+        <p class="eng-note">Календарь переводит расчётные смены в даты. Пока учитываются только дата старта и выходные; праздники, неполные смены и отдельные календари бригад не моделируются.</p>
+      </div>
+      <div id="engProjectPlanResult" hidden></div>
+      <section id="engProjectCalendar" class="eng-project-calendar" hidden aria-live="polite"><h4>Календарный график работ</h4><div id="engProjectCalendarRows"></div></section>
+      <p id="engProjectPlanWarnings" class="eng-plan-subtitle"></p><p id="engProjectPlanSaveNote" class="eng-plan-subtitle" aria-live="polite"></p>
     </div></section>
     <div class="eng-section-title"><div><h3>История объектов и накопленные нормы</h3><p>Сохранённые расчёты, условия, прогнозы и фактическая выработка. Данные хранятся локально.</p></div><button class="button subtle" id="engRefreshHistoryBtn">Обновить</button></div>
     <div class="eng-layout"><section class="eng-card"><div class="eng-card-head"><h3>История расчётов</h3><p>Выбери завершённый объект, чтобы добавить фактический результат и уточнить производительность для будущих расчётов.</p></div><div class="eng-card-body"><div id="engHistoryList" class="eng-history-list"></div></div></section>
