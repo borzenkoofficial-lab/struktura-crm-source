@@ -1,6 +1,11 @@
 'use strict';
 (function() {
   const $ = id => document.getElementById(id);
+  const startDateInput = document.getElementById('engProjectStartDate');
+  if (startDateInput) {
+    const today = new Date();
+    startDateInput.value = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, '0'), String(today.getDate()).padStart(2, '0')].join('-');
+  }
   const planner = window.StrukturaEngineeringProjectPlan;
   const catalogApi = window.StrukturaEstimateCalculator;
   if (!planner || !catalogApi || !$('engProjectPlanRows')) return;
