@@ -50,20 +50,40 @@
     const targetShifts = number(input.targetShifts ?? 5, 'Желаемый срок в рабочих сменах', { min: 1, max: 365, allowZero: false });
     const difficultyFactor = number(input.difficultyFactor ?? 1, 'Коэффициент условий', { min: 0.1, max: 3, allowZero: false });
     const observations = Array.isArray(input.observations) ? input.observations : [];
-    const validRates = observations.map(o => {
-      const q = Number(o.quantity);
-      const people = Number(o.people);
-      const hours = Number(o.hours);
-      const factor = Number(o.conditionFactor ?? 1);
-      if (![q, people, hours, factor].every(Number.isFinite) || q <= 0 || people <= 0 || hours <= 0 || factor <= 0) return null;
-      return q / (people * hours / 8) * factor;
-    }).filter(n => Number.isFinite(n) && n > 0);
-    validRates.sort((a, b) => a - b);
-    const medianRate = validRates.length
-      ? (validRates.length % 2 ? validRates[(validRates.length - 1) / 2] : (validRates[validRates.length / 2 - 1] + validRates[validRates.length / 2]) / 2)
-      : null;
-    const weight = validRates.length >= 5 ? 0.75 : validRates.length >= 3 ? 0.5 : validRates.length ? 0.25 : 0;
-    const learnedNormalRate = medianRate == null ? baseRate : baseRate * (1 - weight) + medianRate * weight;
+    const rateCore = root.StrukturaProductionRateCore ||
+      (typeof require === 'function' ? require('./production-model.cjs') : null);
+    let validRates = [];
+    let medianRate = null;
+    let weight = 0;
+    let learnedNormalRate = baseRate;
+    let sharedRateModel = null;
+    if (rateCore && typeof rateCore.buildRateModel === 'function') {
+      sharedRateModel = rateCore.buildRateModel({
+        baselineProductivity: baseRate,
+        observations,
+        targetDifficulty: 1,
+        targetCrewSize: crew
+      });
+      validRates = Array.from({ length: sharedRateModel.observations }, () => 1);
+      medianRate = sharedRateModel.observedMedian;
+      weight = sharedRateModel.observedWeight;
+      learnedNormalRate = sharedRateModel.learnedNormalRate;
+    } else {
+      validRates = observations.map(o => {
+        const q = Number(o.quantity);
+        const people = Number(o.people);
+        const hours = Number(o.hours);
+        const factor = Number(o.conditionFactor ?? 1);
+        if (![q, people, hours, factor].every(Number.isFinite) || q <= 0 || people <= 0 || hours <= 0 || factor <= 0) return null;
+        return q / (people * hours / 8) * factor;
+      }).filter(n => Number.isFinite(n) && n > 0);
+      validRates.sort((x, y) => x - y);
+      medianRate = validRates.length
+        ? (validRates.length % 2 ? validRates[(validRates.length - 1) / 2] : (validRates[validRates.length / 2 - 1] + validRates[validRates.length / 2]) / 2)
+        : null;
+      weight = validRates.length >= 5 ? 0.75 : validRates.length >= 3 ? 0.5 : validRates.length ? 0.25 : 0;
+      learnedNormalRate = medianRate == null ? baseRate : baseRate * (1 - weight) + medianRate * weight;
+    }
     const effectiveRate = learnedNormalRate / difficultyFactor;
     const personShifts = quantity / effectiveRate;
     const crewShifts = personShifts / crew * 8 / hoursPerShift;
