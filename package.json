@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",
-    "electron-updater": "^6.6.2"
+    "electron-updater": "^6.6.2",
+    "pdf-parse": "^1.1.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "electron": "^35.2.1",
