@@ -1157,6 +1157,33 @@ function quoteEscape(value) { return String(value ?? '').replace(/[&<>"']/g, ch 
 function quoteMoney(value) { return `${Math.round(Number(value) || 0).toLocaleString('ru-RU')} ₽`; }
 ipcMain.handle('estimate:history', () => db.prepare(`SELECT id,title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json FROM quote_history ORDER BY prepared_at DESC,id DESC`).all().map(row => ({ ...row, lines: (() => { try { return JSON.parse(row.lines_json || '[]'); } catch { return []; } })() })));
 
+ipcMain.handle('engineeringPlans:list', () => db.prepare(`SELECT id,title,created_at,operations_json,result_json FROM engineering_project_plans ORDER BY created_at DESC,id DESC LIMIT 100`).all().map(row => ({
+  id: row.id, title: row.title, createdAt: row.created_at,
+  operations: (() => { try { return JSON.parse(row.operations_json || '[]'); } catch { return []; } })(),
+  result: (() => { try { return JSON.parse(row.result_json || '{}'); } catch { return {}; } })()
+})));
+ipcMain.handle('engineeringPlans:save', (_event, input = {}) => {
+  const id = clean(input.id, 120);
+  const title = clean(input.title || 'Комплексный объект', 180);
+  const createdAt = clean(input.createdAt || new Date().toISOString(), 40);
+  const operations = Array.isArray(input.operations) ? input.operations.slice(0, 100) : null;
+  const result = input.result && typeof input.result === 'object' && !Array.isArray(input.result) ? input.result : null;
+  if (!id || !operations || !operations.length || !result) throw new Error('Некорректный план комплексного объекта.');
+  const operationsJson = JSON.stringify(operations);
+  const resultJson = JSON.stringify(result);
+  if (operationsJson.length > 800000 || resultJson.length > 300000) throw new Error('Размер плана превышает допустимый предел.');
+  db.prepare(`INSERT INTO engineering_project_plans(id,title,created_at,operations_json,result_json,updated_at)
+    VALUES(?,?,?,?,?,CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET title=excluded.title,operations_json=excluded.operations_json,result_json=excluded.result_json,updated_at=CURRENT_TIMESTAMP`)
+    .run(id,title,createdAt,operationsJson,resultJson);
+  return { id, title, createdAt };
+});
+ipcMain.handle('engineeringPlans:delete', (_event, id) => {
+  const key = clean(id, 120);
+  if (!key) throw new Error('Не указан ID плана.');
+  return { deleted: db.prepare('DELETE FROM engineering_project_plans WHERE id=?').run(key).changes > 0 };
+});
+
 ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   const lines = Array.isArray(input.lines) ? input.lines.slice(0, 500) : [];
   if (!lines.length) throw new Error('Добавь в смету хотя бы одну работу перед созданием КП.');
