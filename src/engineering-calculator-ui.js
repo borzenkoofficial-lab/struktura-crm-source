@@ -24,6 +24,7 @@
     const factors = deriveConditionFactor(item);
     return {
       title: $('engProjectName').value.trim() || 'Расчёт объекта',
+      description: $('engWorkDescription').value.trim(),
       catalogId: item.id, workName: item.name, unit: item.unit || 'м²',
       quantity: num('engQuantity'), baselineProductivity: num('engBaselineRate'),
       crewSize: num('engCrew'), hoursPerShift: num('engHours'), wagePerWorkerShift: num('engWage'),
@@ -36,6 +37,61 @@
         difficultyFactor: factors.total, conditionFactors: factors
       }
     };
+  }
+  function parseWorkDescription() {
+    const text = $('engWorkDescription').value.trim();
+    if (!text) throw new Error('Сначала опиши работу и условия объекта.');
+    const lower = text.toLocaleLowerCase('ru-RU');
+    const aliases = [
+      [/стяжк|бетонн.*пол/, ['стяжк', 'пол']],
+      [/перегород|кирпичн.*стен|демонтаж стен/, ['перегород', 'стен']],
+      [/плитк|керамогранит/, ['плитк']],
+      [/обо[и]?|штукатурк/, ['обо', 'штукатур']],
+      [/потол/, ['потол']],
+      [/вынос|перенос мусор/, ['вынос']],
+      [/погрузк/, ['погруз']],
+      [/контейнер|вывоз мусор/, ['контейнер', 'вывоз']]
+    ];
+    let item = catalog.find(x => lower.includes(String(x.name || '').toLocaleLowerCase('ru-RU')));
+    if (!item) {
+      for (const [pattern] of aliases) {
+        if (!pattern.test(lower)) continue;
+        item = catalog.find(x => pattern.test(String(x.name || '').toLocaleLowerCase('ru-RU')));
+        if (item) break;
+      }
+    }
+    if (item) {
+      $('engWorkSelect').value = item.id;
+      $('engBaselineRate').value = item.productivity;
+    }
+    const quantityMatch = text.match(/(\d+(?:[.,]\d+)?)\s*(м²|м2|кв\.?\s*м|м³|м3|п\.?\s*м|пог\.?\s*м|шт\.?|тонн(?:ы)?|т\b)/i);
+    if (quantityMatch) $('engQuantity').value = Number(quantityMatch[1].replace(',', '.'));
+    const thicknessMatch = text.match(/(?:толщин\w*|стяжк\w*)[^\d]{0,18}(\d+(?:[.,]\d+)?)\s*мм/i) || text.match(/(\d+(?:[.,]\d+)?)\s*мм/i);
+    if (thicknessMatch && /стяжк|бетон|толщин/i.test(lower)) $('engThickness').value = Number(thicknessMatch[1].replace(',', '.'));
+    if (/без армирован|не армирован|армировани[ея] нет/i.test(lower)) $('engReinforced').value = 'no';
+    else if (/армирован|сетка|арматур/i.test(lower)) $('engReinforced').value = 'yes';
+    const floorMatch = text.match(/(\d+)\s*(?:-й|-ый|-ой)?\s*этаж/i) || text.match(/этаж\s*(\d+)/i);
+    if (floorMatch) $('engFloor').value = Number(floorMatch[1]);
+    if (/лифта нет|без лифта|нет лифта|лифт отсутств/i.test(lower)) $('engElevator').value = 'no';
+    else if (/есть лифт|грузовой лифт|лифт работает/i.test(lower)) $('engElevator').value = 'yes';
+    const carryMatch = text.match(/(?:вынос|перенос|до контейнера)[^\d]{0,18}(\d+(?:[.,]\d+)?)\s*м/i) || text.match(/(\d+(?:[.,]\d+)?)\s*м[^\n,;]{0,12}(?:вынос|контейнер)/i);
+    if (carryMatch) $('engCarryDistance').value = Number(carryMatch[1].replace(',', '.'));
+    if (/вручную|ручной|ручное/i.test(lower)) $('engMethod').value = 'manual';
+    else if (/механизирован|механически|отбойн.*молот/i.test(lower)) $('engMethod').value = 'mechanized';
+    else if (/комбинирован/i.test(lower)) $('engMethod').value = 'mixed';
+    if (/очень сложн|особо сложн/i.test(lower)) $('engDifficulty').value = '1.5';
+    else if (/сложн/i.test(lower)) $('engDifficulty').value = '1.25';
+    deriveConditionFactor(selectedItem());
+    const found = [];
+    if (item) found.push('вид работ');
+    if (quantityMatch) found.push('объём');
+    if (thicknessMatch && /стяжк|бетон|толщин/i.test(lower)) found.push('толщина');
+    if (floorMatch) found.push('этаж');
+    if (carryMatch) found.push('расстояние выноса');
+    if (/лифта нет|без лифта|нет лифта|лифт отсутств|есть лифт|грузовой лифт|лифт работает/i.test(lower)) found.push('лифт');
+    if (/армирован|сетка|арматур/i.test(lower)) found.push('армирование');
+    if (!found.length) throw new Error('Не удалось распознать параметры. Укажи вид работ и объём, например: «демонтаж стяжки 850 м², толщина 70 мм, 5-й этаж, лифта нет».');
+    window.alert('Из описания распознано: ' + found.join(', ') + '. Проверь поля перед расчётом.');
   }
   function getLocalObservations(item) { return api.observationsFor(history, item.id, item.id); }
   async function getAllObservations(item, crewSize) {
@@ -105,6 +161,7 @@
     const p = history.find(x => x.id === id);
     if (!p) return;
     $('engProjectName').value = p.title || '';
+    $('engWorkDescription').value = p.description || '';
     $('engWorkSelect').value = p.catalogId;
     const item = selectedItem();
     $('engBaselineRate').value = p.baselineProductivity ?? item?.productivity ?? 8;
@@ -130,6 +187,7 @@
     history.unshift(p); history = history.slice(0, 500); api.saveHistory(history);
     renderResult(result, input, observations.length); renderHistory();
   }
+  $('engParseDescriptionBtn').addEventListener('click', () => { try { parseWorkDescription(); } catch (error) { window.alert(error.message || 'Не удалось разобрать описание.'); } });
   $('engWorkSelect').addEventListener('change', () => {
     const item = selectedItem();
     if (item) $('engBaselineRate').value = item.productivity;
@@ -143,7 +201,7 @@
     finally { button.disabled = false; button.textContent = 'Рассчитать и сохранить'; }
   });
   $('engResetBtn').addEventListener('click', () => {
-    $('engProjectName').value = ''; $('engQuantity').value = '100'; $('engCrew').value = '5'; $('engHours').value = '8';
+    $('engProjectName').value = ''; $('engWorkDescription').value = ''; $('engQuantity').value = '100'; $('engCrew').value = '5'; $('engHours').value = '8';
     $('engWage').value = '4000'; $('engPrice').value = '0'; $('engExtraCost').value = '0'; $('engFixedCosts').value = '0';
     $('engOverhead').value = '10'; $('engTax').value = '6'; $('engMargin').value = '25'; $('engReserve').value = '15'; $('engTargetShifts').value = '5'; $('engDifficulty').value = '1';
     $('engThickness').value = '50'; $('engReinforced').value = 'no'; $('engFloor').value = '1'; $('engElevator').value = 'yes'; $('engCarryDistance').value = '10'; $('engMethod').value = 'mechanized';
