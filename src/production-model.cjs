@@ -19,7 +19,7 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
     const quantity = Number(o.quantity_done ?? o.quantity);
     const workers = Number(o.workers_count ?? o.workers);
     const hours = Number(o.hours ?? o.hours_per_worker);
-    const factor = Number(o.complexity_factor ?? 1);
+    const factor = Number(o.complexity_factor ?? o.conditionFactor ?? 1);
     if (![quantity, workers, hours, factor].every(Number.isFinite) || quantity <= 0 || workers <= 0 || hours <= 0 || factor <= 0) return null;
     // Convert the observed speed back to a normal-condition rate before comparing sites.
     return { rate: (quantity / (workers * hours / 8)) * factor, crewSize: workers };
