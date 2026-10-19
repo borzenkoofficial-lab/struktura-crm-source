@@ -111,4 +111,6 @@ function round(value, decimals = 2) {
   return Math.round((value + Number.EPSILON) * p) / p;
 }
 
-module.exports = { median, buildRateModel, forecastRemainingWork };
+const productionModelApi = { median, buildRateModel, forecastRemainingWork };
+if (typeof module !== 'undefined' && module.exports) module.exports = productionModelApi;
+if (typeof globalThis !== 'undefined') globalThis.StrukturaProductionRateCore = productionModelApi;
