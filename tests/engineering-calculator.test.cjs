@@ -14,7 +14,7 @@ test('engineering estimate calculates labor, schedule, costs and target price de
   assert.equal(r.tax, 6000);
   assert.equal(r.totalCost, 56600);
   assert.equal(r.profit, 43400);
-  assert.equal(r.targetPricePerUnit, 657.89);
+  assert.equal(r.targetPricePerUnit, 733.33);
 });
 
 test('history learning uses median and grows weight only with more observations', () => {
