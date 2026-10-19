@@ -78,3 +78,23 @@ test('target duration rejects zero and unreasonable values', () => {
   assert.throws(() => calculateEngineeringEstimate({ quantity: 10, baselineProductivity: 8, targetShifts: 0 }), /Желаемый срок/);
   assert.throws(() => calculateEngineeringEstimate({ quantity: 10, baselineProductivity: 8, targetShifts: 366 }), /Желаемый срок/);
 });
+
+
+test('engineering estimate uses the shared crew-size productivity model', () => {
+  const observations = [
+    ...[20, 21, 19].map(rate => ({ quantity: rate * 5, people: 5, hours: 8, conditionFactor: 1 })),
+    ...[10, 11, 9].map(rate => ({ quantity: rate * 15, people: 15, hours: 8, conditionFactor: 1 }))
+  ];
+  const small = calculateEngineeringEstimate({
+    quantity: 100, baselineProductivity: 10, crewSize: 5, difficultyFactor: 1,
+    pricePerUnit: 0, observations
+  });
+  const large = calculateEngineeringEstimate({
+    quantity: 100, baselineProductivity: 10, crewSize: 15, difficultyFactor: 1,
+    pricePerUnit: 0, observations
+  });
+  assert.equal(small.observations, 6);
+  assert.equal(large.observations, 6);
+  assert.ok(large.effectiveProductivity < small.effectiveProductivity,
+    'engineering estimate should use the same crew-size adjustment as the production model');
+});
