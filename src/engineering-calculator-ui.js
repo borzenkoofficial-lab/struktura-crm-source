@@ -12,18 +12,13 @@
   const round = (n, d=2) => Math.round((Number(n)+Number.EPSILON)*10**d)/10**d;
   function selectedItem() { return catalog.find(x => x.id === $('engWorkSelect').value) || catalog[0]; }
   function deriveConditionFactor(item) {
-    const isScreed = /стяжк/i.test(String(item?.name || '')) || String(item?.id || '').includes('floor-screed');
-    const thickness = num('engThickness');
-    const thicknessFactor = isScreed && thickness > 0 ? Math.max(0.7, Math.min(2.2, Math.sqrt(thickness / 50))) : 1;
-    const reinforcementFactor = $('engReinforced').value === 'yes' ? 1.25 : $('engReinforced').value === 'unknown' ? 1.1 : 1;
-    const floorFactor = 1 + Math.max(0, num('engFloor') - 1) * 0.015;
-    const accessFactor = $('engElevator').value === 'no' ? 1.2 : $('engElevator').value === 'unknown' ? 1.1 : 1;
-    const carryFactor = Math.min(1.75, 1 + Math.max(0, num('engCarryDistance') - 10) / 100);
-    const methodFactor = $('engMethod').value === 'manual' ? 1.25 : $('engMethod').value === 'mixed' ? 1.1 : 1;
-    const physical = Math.min(3, thicknessFactor * reinforcementFactor * floorFactor * accessFactor * carryFactor * methodFactor);
-    const total = Math.min(3, Math.max(0.1, num('engDifficulty')) * physical);
-    $('engDerivedFactor').value = round(total, 2);
-    return { total, thicknessFactor, reinforcementFactor, floorFactor, accessFactor, carryFactor, methodFactor };
+    const result = api.calculateConditionFactor({
+      workName: item?.name, workId: item?.id, thicknessMm: num('engThickness'),
+      reinforced: $('engReinforced').value, floor: num('engFloor'), elevator: $('engElevator').value,
+      carryDistanceM: num('engCarryDistance'), method: $('engMethod').value, baseDifficulty: num('engDifficulty')
+    });
+    $('engDerivedFactor').value = result.total;
+    return result;
   }
   function readInput(item, observations) {
     const factors = deriveConditionFactor(item);
