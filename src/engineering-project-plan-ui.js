@@ -71,6 +71,18 @@
       };
     });
   }
+  function renderCalendar(result) {
+    const host = $('engProjectCalendarRows');
+    const panel = $('engProjectCalendar');
+    const calendar = planner.buildCalendarSchedule(result, {
+      startDate: $('engProjectStartDate').value,
+      weekdaysOnly: $('engProjectWeekdaysOnly').checked
+    });
+    host.innerHTML = '<div class="eng-calendar-table-wrap"><table class="eng-calendar-table"><thead><tr><th>Операция</th><th>Бригада</th><th>Начало</th><th>Окончание</th><th>С резервом</th></tr></thead><tbody>' +
+      calendar.operations.map(op => '<tr><td>' + safe(op.name) + '</td><td>' + op.crewSize + ' чел.</td><td>' + op.startDateLabel + '</td><td>' + op.finishDateLabel + '</td><td>' + op.plannedStartDateLabel + ' — ' + op.plannedFinishDateLabel + '</td></tr>').join('') +
+      '</tbody></table></div><p class="eng-note">Плановые даты с резервом показывают отдельный сценарий с увеличенной длительностью каждой операции. Это календарная оценка по заданным нормам, а не гарантия выполнения.</p>';
+    panel.hidden = false;
+  }
   function renderResult(result) {
     lastResult = result;
     $('engProjectPlanResult').hidden = false;
@@ -143,6 +155,7 @@
       const availableWorkers = Number($('engProjectAvailableWorkers').value);
       const result = planner.calculateProjectPlan(rows, { availableWorkers });
       renderResult(result);
+      renderCalendar(result);
       const record = { id: makeId(), title: $('engProjectPlanTitle').value.trim() || 'Комплексный объект', createdAt: new Date().toISOString(), operations: rows, result };
       if (window.crm?.saveEngineeringPlan) {
         await window.crm.saveEngineeringPlan(record);
