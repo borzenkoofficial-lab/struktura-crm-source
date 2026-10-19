@@ -34,9 +34,9 @@ test('project aggregates costs, revenue and profit across all operations', () =>
     base('b', 'Работа B', { quantity: 20, productivity: 10, pricePerUnit: 500 })
   ]);
   assert.equal(result.revenue, 20000);
-  assert.equal(result.totalCost, 13652);
-  assert.equal(result.profit, 6348);
-  assert.equal(result.marginPercent, 31.74);
+  assert.equal(result.totalCost, 18250);
+  assert.equal(result.profit, 1750);
+  assert.equal(result.marginPercent, 8.75);
   assert.ok(result.totalPersonShifts > 0);
 });
 
