@@ -298,9 +298,12 @@
       let stored = await window.crm.listEngineeringPlans();
       if (local.length && window.crm.saveEngineeringPlan) {
         const existingIds = new Set(stored.map(record => record.id));
-        const missing = local.filter(record => !existingIds.has(record.id)).slice(0, 100);
+        const missing = local.filter(record => !existingIds.has(record.id));
         for (const record of missing) await window.crm.saveEngineeringPlan(record);
         if (missing.length) stored = await window.crm.listEngineeringPlans();
+        // SQLite is authoritative in the desktop app. Remove the legacy migration copy only
+        // after every save succeeds, otherwise a later refresh could resurrect deleted plans.
+        localStorage.removeItem(STORAGE_KEY);
       }
       return stored;
     }
