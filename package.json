@@ -28,6 +28,7 @@
       "package.json"
     ],
     "win": {
+      "icon": "build/struktura.ico",
       "target": [
         {
           "target": "nsis",
