@@ -142,7 +142,11 @@
   function loadHistory(storage = root.localStorage) {
     try {
       const data = JSON.parse(storage?.getItem(STORAGE_KEY) || '[]');
-      return Array.isArray(data) ? data.filter(x => x && typeof x.id === 'string' && Array.isArray(x.observations)).slice(0, 500) : [];
+      return Array.isArray(data)
+        ? data.filter(x => x && typeof x.id === 'string' && Array.isArray(x.observations))
+          .slice(0, 500)
+          .map(project => ({ ...project, observations: project.observations.filter(o => o && typeof o === 'object' && !Array.isArray(o)) }))
+        : [];
     } catch (_) { return []; }
   }
   function saveHistory(items, storage = root.localStorage) {
@@ -151,7 +155,8 @@
     return true;
   }
   function observationsFor(history, catalogId, workKey) {
-    return history.flatMap(project => (project.observations || [])
+    return history.flatMap(project => (project?.observations || [])
+      .filter(o => o && typeof o === 'object' && !Array.isArray(o))
       .filter(o => (catalogId && o.catalogId === catalogId) || (!catalogId && o.workKey === workKey))
       .map(o => ({ quantity: o.quantity, people: o.people, hours: o.hours, conditionFactor: o.conditionFactor || 1, projectId: project.id })));
   }
