@@ -51,7 +51,7 @@
     const difficultyFactor = number(input.difficultyFactor ?? 1, 'Коэффициент условий', { min: 0.1, max: 3, allowZero: false });
     const observations = Array.isArray(input.observations) ? input.observations : [];
     const rateCore = root.StrukturaProductionRateCore ||
-      (typeof require === 'function' ? require('./production-model.cjs') : null);
+      (typeof require === 'function' ? require('./production-model.js') : null);
     let validRates = [];
     let observationCount = 0;
     let medianRate = null;
