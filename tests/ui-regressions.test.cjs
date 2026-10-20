@@ -214,6 +214,18 @@ test('backup restore normalizes SQLite files so source WAL data is included and 
   assert.match(restore, /fs\.rmSync\(restoreCandidatePath, \{ force: true \}\)/);
 });
 
+test('backup restore cleans candidate and incomplete safety backup if safety backup creation fails', () => {
+  const restoreStart = main.indexOf("ipcMain.handle('backup:restore'");
+  const restoreEnd = main.indexOf("ipcMain.handle('browser:state'", restoreStart);
+  const restore = main.slice(restoreStart, restoreEnd);
+  const safetyBlock = restore.slice(restore.indexOf('const safetyPath'), restore.indexOf('  db.close();', restore.indexOf('const safetyPath')));
+  assert.match(safetyBlock, /try\s*\{[\s\S]*db\.pragma\('wal_checkpoint\(FULL\)'\)[\s\S]*await db\.backup\(safetyPath\)[\s\S]*\}\s*catch\s*\(error\)/);
+  assert.match(safetyBlock, /fs\.rmSync\(safetyPath, \{ force: true \}\)/);
+  assert.match(safetyBlock, /fs\.rmSync\(restoreCandidatePath, \{ force: true \}\)/);
+  assert.match(safetyBlock, /Действующая база не изменена/);
+  assert.ok(restore.indexOf('db.close();', restore.indexOf('const safetyPath')) > restore.indexOf('await db.backup(safetyPath)'), 'live database stays open until safety backup succeeds');
+});
+
 test('payments and expenses reject impossible calendar dates before writing to SQLite', () => {
   const paymentHandler = main.match(/ipcMain\.handle\('payments:create',[\s\S]*?\n\}\);/);
   const expenseHandler = main.match(/ipcMain\.handle\('expenses:create',[\s\S]*?\n\}\);/);
