@@ -764,3 +764,16 @@ test('production economics explains that per-unit costs exclude crew payroll', (
   assert.match(html, /Прочие затраты на единицу, ₽/);
   assert.match(html, /Без зарплаты рабочих: оплата бригады учитывается отдельно/);
 });
+
+test('engineering calculator UI script is loaded after its core module', () => {
+  const coreScript = '<script src="engineering-calculator.js"></script>';
+  const uiScript = '<script src="engineering-calculator-ui.js"></script>';
+  const coreIndex = html.indexOf(coreScript);
+  const uiIndex = html.indexOf(uiScript);
+  assert.notEqual(coreIndex, -1, 'engineering calculator core script is linked');
+  assert.notEqual(uiIndex, -1, 'engineering calculator UI script is linked');
+  assert.ok(uiIndex > coreIndex, 'UI script loads after the calculator core');
+  const ui = fs.readFileSync(path.join(__dirname, '../src/engineering-calculator-ui.js'), 'utf8');
+  assert.match(ui, /engCalculateBtn/);
+  assert.match(ui, /engSaveActualBtn/);
+});
