@@ -1056,8 +1056,15 @@ ipcMain.handle('backup:restore', async () => {
 
   const safetyPath = path.join(userDataPath, `STRUKTURA-CRM-before-restore-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`);
   const walPath = `${livePath}-wal`, shmPath = `${livePath}-shm`;
-  db.pragma('wal_checkpoint(FULL)');
-  await db.backup(safetyPath);
+  try {
+    db.pragma('wal_checkpoint(FULL)');
+    await db.backup(safetyPath);
+  } catch (error) {
+    // The live database is still open and untouched; remove incomplete temporary files.
+    try { fs.rmSync(safetyPath, { force: true }); } catch {}
+    try { fs.rmSync(restoreCandidatePath, { force: true }); } catch {}
+    throw new Error(`Не удалось создать страховочную копию. Действующая база не изменена. ${error.message}`);
+  }
   db.close();
   try {
     for (const sidecar of [walPath, shmPath]) if (fs.existsSync(sidecar)) fs.rmSync(sidecar, { force: true });
