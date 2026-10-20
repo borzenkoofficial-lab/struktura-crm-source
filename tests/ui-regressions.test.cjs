@@ -792,3 +792,12 @@ test('production rate-model IPC returns evidence weight for conservative estimat
   const engineeringUi = fs.readFileSync(path.join(__dirname, '../src/engineering-calculator-ui.js'), 'utf8');
   assert.match(engineeringUi, /api\.blendObservedProductivity\(input\.baselineProductivity, evidence\.externalModel\)/);
 });
+
+test('engineering calculator compares local history with production shift evidence', () => {
+  const core = fs.readFileSync(path.join(__dirname, '../src/engineering-calculator.js'), 'utf8');
+  const engineeringUi = fs.readFileSync(path.join(__dirname, '../src/engineering-calculator-ui.js'), 'utf8');
+  assert.match(core, /function selectRateEvidence\(localObservations = \[\], externalModel = null\)/);
+  assert.match(core, /externalCount > local\.length/);
+  assert.match(engineeringUi, /return api\.selectRateEvidence\(local, externalModel\)/);
+  assert.doesNotMatch(engineeringUi, /if \(local\.length\) return \{ observations: local/);
+});
