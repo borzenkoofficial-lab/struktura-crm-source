@@ -95,3 +95,23 @@ test('production plan retains missing-norm work without fabricating a duration',
   assert.equal(result.lines[1].laborShiftsRemaining, null);
   assert.equal(result.estimated, false);
 });
+
+
+test('production model ignores malformed observations instead of crashing', () => {
+  const result = buildRateModel({
+    baselineProductivity: 10,
+    observations: [null, undefined, 'bad-record', {}, { quantity_done: 50, workers_count: 5, hours: 8 }]
+  });
+  assert.equal(result.observations, 1);
+  assert.equal(result.effectiveProductivity, 10);
+});
+
+test('forecast handles malformed observation lists as no evidence', () => {
+  const result = forecastRemainingWork({
+    planItems: [{ catalog_id: 'demo', name: 'Демонтаж', quantity: 100, productivity: 10 }],
+    observationsByCatalog: { demo: [null, {}] },
+    crewSize: 5
+  });
+  assert.equal(result.lines[0].observations, 0);
+  assert.equal(result.lines[0].effectiveProductivity, 10);
+});
