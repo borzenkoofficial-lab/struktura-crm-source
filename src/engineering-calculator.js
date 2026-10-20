@@ -34,6 +34,17 @@
       accessFactor: round(accessFactor, 3), carryFactor: round(carryFactor, 3), methodFactor: round(methodFactor, 3)
     };
   }
+  function blendObservedProductivity(baselineProductivity, evidence = {}) {
+    const baseline = number(baselineProductivity, 'Базовая производительность', { min: 0, allowZero: false });
+    const observedMedian = Number(evidence.observedMedian);
+    const observedWeight = Number(evidence.observedWeight);
+    if (!Number.isFinite(observedMedian) || observedMedian <= 0 ||
+        !Number.isFinite(observedWeight) || observedWeight <= 0 || observedWeight > 1) {
+      return round(baseline, 3);
+    }
+    return round(baseline * (1 - observedWeight) + observedMedian * observedWeight, 3);
+  }
+
   function calculateEngineeringEstimate(input = {}) {
     const quantity = number(input.quantity, 'Объём', { min: 0, allowZero: false });
     const baseRate = number(input.baselineProductivity, 'Базовая производительность', { min: 0, allowZero: false });
@@ -155,7 +166,7 @@
     project.observations.push({ ...observation, quantity, people, hours, conditionFactor, recordedAt: new Date().toISOString() });
     return projects;
   }
-  const api = { calculateEngineeringEstimate, calculateConditionFactor, loadHistory, saveHistory, observationsFor, recordActual, STORAGE_KEY };
+  const api = { calculateEngineeringEstimate, calculateConditionFactor, blendObservedProductivity, loadHistory, saveHistory, observationsFor, recordActual, STORAGE_KEY };
   root.StrukturaEngineeringCalculator = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : window);
