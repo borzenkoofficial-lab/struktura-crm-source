@@ -12,4 +12,5 @@ test('Windows app and installer use the generated STRUKTURA icon', () => {
   assert.equal(pkg.build.nsis.installerIcon, 'build/struktura.ico');
   assert.ok(pkg.scripts['dist:win'].includes('create-installer-assets.cjs'));
   assert.ok(buildScript.includes("'struktura.ico'"));
+  assert.ok(buildScript.includes('const n = 256'), 'Windows app icon must be at least 256x256 pixels');
 });
