@@ -45,6 +45,15 @@
     return round(baseline * (1 - observedWeight) + observedMedian * observedWeight, 3);
   }
 
+  function applyRateEvidence(input = {}, evidence = {}) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Параметры расчёта должны быть объектом.');
+    const calculationInput = { ...input };
+    if (evidence.externalModel && (!Array.isArray(evidence.observations) || evidence.observations.length === 0)) {
+      calculationInput.baselineProductivity = blendObservedProductivity(input.baselineProductivity, evidence.externalModel);
+    }
+    return calculationInput;
+  }
+
   function selectRateEvidence(localObservations = [], externalModel = null) {
     const local = (Array.isArray(localObservations) ? localObservations : []).filter(o => {
       if (!o || typeof o !== 'object' || Array.isArray(o)) return false;
@@ -196,7 +205,7 @@
     project.observations.push({ ...observation, quantity, people, hours, conditionFactor, recordedAt: new Date().toISOString() });
     return projects;
   }
-  const api = { calculateEngineeringEstimate, calculateConditionFactor, blendObservedProductivity, selectRateEvidence, loadHistory, saveHistory, observationsFor, recordActual, STORAGE_KEY };
+  const api = { calculateEngineeringEstimate, calculateConditionFactor, blendObservedProductivity, applyRateEvidence, selectRateEvidence, loadHistory, saveHistory, observationsFor, recordActual, STORAGE_KEY };
   root.StrukturaEngineeringCalculator = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : window);
