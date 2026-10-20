@@ -13,7 +13,7 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
   const crewTarget = Number(targetCrewSize);
   if (!Number.isFinite(baseline) || baseline <= 0) throw new Error('Базовая производительность должна быть больше нуля.');
   if (!Number.isFinite(difficulty) || difficulty <= 0) throw new Error('Коэффициент сложности должен быть больше нуля.');
-  if (!Number.isFinite(crewTarget) || crewTarget < 1 || crewTarget > 200) throw new Error('Размер целевой бригады должен быть от 1 до 200 человек.');
+  if (!Number.isInteger(crewTarget) || crewTarget < 1 || crewTarget > 200) throw new Error('Размер целевой бригады должен быть целым числом от 1 до 200 человек.');
 
   const sourceObservations = Array.isArray(observations) ? observations : [];
   const entries = sourceObservations.map((o) => {
@@ -84,7 +84,7 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
 
 function forecastRemainingWork({ planItems = [], actualByCatalog = {}, observationsByCatalog = {}, targetDifficulty = 1, crewSize = 5 } = {}) {
   const crew = Number(crewSize);
-  if (!Number.isFinite(crew) || crew < 1 || crew > 200) throw new Error('Размер бригады должен быть от одного до 200 человек.');
+  if (!Number.isInteger(crew) || crew < 1 || crew > 200) throw new Error('Размер бригады должен быть целым числом от 1 до 200 человек.');
   const lines = planItems.map((item) => {
     const planned = Number(item.planned_quantity ?? item.quantity ?? 0);
     const completed = Number(actualByCatalog[item.catalog_id] ?? item.actual_quantity ?? 0);
