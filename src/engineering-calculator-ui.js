@@ -146,7 +146,7 @@
   function renderHistory() {
     const host = $('engHistoryList'), select = $('engActualProject');
     const recent = history.slice().sort((a,b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-    host.innerHTML = recent.length ? recent.map(p => '<article class="eng-history-item"><strong>' + safe(p.title) + '</strong><p>' + safe(p.workName) + ' · ' + safe(p.quantity) + ' ' + safe(p.unit) + ' · ' + safe(new Date(p.createdAt).toLocaleString('ru-RU')) + '</p><p>Прогноз: ' + safe(p.result?.plannedShifts ?? '—') + ' смен · Себестоимость: ' + rub(p.result?.totalCost) + ' · Фактических наблюдений: ' + (p.observations || []).length + '</p><div class="eng-actions"><button class="button subtle small-button" data-eng-load="' + safe(p.id) + '">Загрузить расчёт</button><button class="button subtle small-button" data-eng-delete="' + safe(p.id) + '">Удалить из истории</button></div></article>').join('') : '<div class="eng-empty">История пока пуста. Первый расчёт сохранится здесь автоматически.</div>';
+    host.innerHTML = recent.length ? recent.map(p => '<article class="eng-history-item"><strong>' + safe(p.title) + '</strong><p>' + safe(p.workName) + ' · ' + safe(p.quantity) + ' ' + safe(p.unit) + ' · ' + safe(new Date(p.createdAt).toLocaleString('ru-RU')) + '</p><p>Прогноз: ' + safe(p.result?.plannedShifts ?? '—') + ' смен · Себестоимость: ' + rub(p.result?.totalCost) + ' · Фактических наблюдений: ' + (Number.isFinite(Number(p.result?.observations)) ? Number(p.result.observations) : (p.observations || []).length) + (p.result?.rateEvidenceSource === 'Фактические сменные отчёты' ? ' · Источник: сменные отчёты' : '') + '</p><div class="eng-actions"><button class="button subtle small-button" data-eng-load="' + safe(p.id) + '">Загрузить расчёт</button><button class="button subtle small-button" data-eng-delete="' + safe(p.id) + '">Удалить из истории</button></div></article>').join('') : '<div class="eng-empty">История пока пуста. Первый расчёт сохранится здесь автоматически.</div>';
     select.innerHTML = recent.length ? recent.map(p => '<option value="' + safe(p.id) + '">' + safe(p.title) + ' · ' + safe(p.workName) + '</option>').join('') : '<option value="">Сначала сохрани расчёт</option>';
     const item = selectedItem();
     renderMetrics(item, item ? getLocalObservations(item) : []);
@@ -189,11 +189,20 @@
       if (Number.isFinite(modelRate) && modelRate > 0) input.baselineProductivity = modelRate;
     }
     const result = api.calculateEngineeringEstimate(input);
-    result.observations = observations.length || Number(evidence.externalModel?.observations || 0);
+    const externalCount = Number(evidence.externalModel?.observations || 0);
+    result.observations = observations.length || externalCount;
     result.rateEvidenceSource = evidence.source;
+    if (evidence.externalModel && observations.length === 0 && externalCount > 0) {
+      const observedMedian = Number(evidence.externalModel.observedMedian);
+      const observedWeight = Number(evidence.externalModel.observedWeight);
+      result.observedMedian = Number.isFinite(observedMedian) && observedMedian > 0 ? observedMedian : null;
+      result.learnedWeight = Number.isFinite(observedWeight) ? observedWeight : 0;
+      result.warnings = (result.warnings || []).filter(w => !String(w).startsWith('Нет фактических наблюдений:'));
+      if (externalCount < 3) result.warnings.push('Есть только 1–2 наблюдения: обученная норма предварительная.');
+    }
     const p = { id: 'eng-' + Date.now().toString(36) + Math.random().toString(36).slice(2,7), createdAt: new Date().toISOString(), ...input, result, observations: [] };
     history.unshift(p); history = history.slice(0, 500); api.saveHistory(history);
-    renderResult(result, input, observations.length); renderHistory();
+    renderResult(result, input, Number(result.observations ?? observations.length)); renderHistory();
   }
   $('engParseDescriptionBtn').addEventListener('click', () => { try { parseWorkDescription(); } catch (error) { window.alert(error.message || 'Не удалось разобрать описание.'); } });
   $('engWorkSelect').addEventListener('change', () => {
