@@ -96,17 +96,14 @@
   function getLocalObservations(item) { return api.observationsFor(history, item.id, item.id); }
   async function getRateEvidence(item, crewSize) {
     const local = getLocalObservations(item);
-    if (local.length) return { observations: local, externalModel: null, source: 'Локальная история расчётов' };
+    let externalModel = null;
     if (window.crm?.productionRateModels && item?.id) {
       try {
         const models = await window.crm.productionRateModels([item.id], crewSize);
-        const model = models?.find(x => x.catalog_id === item.id);
-        if (model && Number(model.observations) > 0 && Number(model.learnedNormalRate ?? model.observedMedian) > 0) {
-          return { observations: [], externalModel: model, source: 'Фактические сменные отчёты' };
-        }
+        externalModel = models?.find(x => x.catalog_id === item.id) || null;
       } catch (error) { console.warn('PI rate model unavailable for engineering calculator:', error); }
     }
-    return { observations: [], externalModel: null, source: 'Стартовая норма без фактической истории' };
+    return api.selectRateEvidence(local, externalModel);
   }
   function renderMetrics(item, observations) {
     const count = observations.length;
