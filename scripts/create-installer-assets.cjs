@@ -81,20 +81,29 @@ function bmp(img) {
   return buf;
 }
 function iconIco() {
-  const n = 32, xorBytes = n * n * 4, maskRow = Math.ceil(n / 32) * 4, maskBytes = maskRow * n;
+  // Electron Builder requires a 256x256 Windows application icon.
+  const n = 256, scale = n / 32;
+  const xorBytes = n * n * 4, maskRow = Math.ceil(n / 32) * 4, maskBytes = maskRow * n;
   const dib = Buffer.alloc(40 + xorBytes + maskBytes);
   dib.writeUInt32LE(40, 0); dib.writeInt32LE(n, 4); dib.writeInt32LE(n * 2, 8);
   dib.writeUInt16LE(1, 12); dib.writeUInt16LE(32, 14); dib.writeUInt32LE(0, 16); dib.writeUInt32LE(xorBytes, 20);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    const dx = x - 15.5, dy = y - 15.5, inTile = Math.abs(dx) < 13 && Math.abs(dy) < 13;
-    const inS = inTile && ((x >= 8 && x <= 24 && y >= 8 && y <= 11) || (x >= 8 && x <= 11 && y >= 8 && y <= 16) || (x >= 8 && x <= 24 && y >= 13 && y <= 16) || (x >= 20 && x <= 23 && y >= 13 && y <= 23) || (x >= 8 && x <= 23 && y >= 20 && y <= 23));
+    const dx = x - (n - 1) / 2, dy = y - (n - 1) / 2;
+    const inTile = Math.abs(dx) < 13 * scale && Math.abs(dy) < 13 * scale;
+    const inS = inTile && (
+      (x >= 8 * scale && x <= 24 * scale && y >= 8 * scale && y <= 11 * scale) ||
+      (x >= 8 * scale && x <= 11 * scale && y >= 8 * scale && y <= 16 * scale) ||
+      (x >= 8 * scale && x <= 24 * scale && y >= 13 * scale && y <= 16 * scale) ||
+      (x >= 20 * scale && x <= 23 * scale && y >= 13 * scale && y <= 23 * scale) ||
+      (x >= 8 * scale && x <= 23 * scale && y >= 20 * scale && y <= 23 * scale)
+    );
     const c = inS ? palette.white : (inTile ? palette.orange : palette.navy);
     const off = 40 + ((n - 1 - y) * n + x) * 4;
     dib[off] = c[2]; dib[off + 1] = c[1]; dib[off + 2] = c[0]; dib[off + 3] = 255;
   }
   const header = Buffer.alloc(6 + 16);
   header.writeUInt16LE(0, 0); header.writeUInt16LE(1, 2); header.writeUInt16LE(1, 4);
-  header[6] = n; header[7] = n; header[8] = 0; header[9] = 0; header.writeUInt16LE(1, 10); header.writeUInt16LE(32, 12);
+  header[6] = 0; header[7] = 0; header[8] = 0; header[9] = 0; header.writeUInt16LE(1, 10); header.writeUInt16LE(32, 12);
   header.writeUInt32LE(dib.length, 14); header.writeUInt32LE(22, 18);
   return Buffer.concat([header, dib]);
 }
