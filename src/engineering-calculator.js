@@ -49,6 +49,7 @@
     const quantity = number(input.quantity, 'Объём', { min: 0, allowZero: false });
     const baseRate = number(input.baselineProductivity, 'Базовая производительность', { min: 0, allowZero: false });
     const crew = number(input.crewSize ?? 5, 'Размер бригады', { min: 1, max: 200, allowZero: false });
+    if (!Number.isInteger(crew)) throw new Error('Размер бригады должен быть целым числом от 1 до 200 человек.');
     const hoursPerShift = number(input.hoursPerShift ?? 8, 'Длительность смены', { min: 1, max: 24, allowZero: false });
     const wagePerWorkerShift = number(input.wagePerWorkerShift ?? 0, 'Оплата рабочего за смену');
     const pricePerUnit = number(input.pricePerUnit ?? 0, 'Цена за единицу');
