@@ -266,7 +266,8 @@
     const transportPaid = number(input.transportPaid, 'Фактический транспорт');
     const equipmentPaid = number(input.equipmentPaid, 'Фактическая техника');
     const otherPaid = number(input.otherPaid, 'Прочие фактические расходы');
-    const plannedCost = input.plannedCost == null ? 0 : number(input.plannedCost, 'Плановая себестоимость');
+    const hasPlannedCost = input.plannedCost != null;
+    const plannedCost = hasPlannedCost ? number(input.plannedCost, 'Плановая себестоимость') : 0;
     const extraCosts = materialsPaid + disposalPaid + transportPaid + equipmentPaid + otherPaid;
     const actualCosts = wagesPaid + extraCosts;
     const actualProfit = actualRevenue - actualCosts;
@@ -276,7 +277,7 @@
       equipmentPaid, otherPaid, extraCosts, actualCosts, actualProfit, actualMargin,
       receivable: Math.max(0, actualRevenue - received),
       cashBalance: received - actualCosts,
-      overrun: actualCosts - plannedCost,
+      overrun: hasPlannedCost ? actualCosts - plannedCost : 0,
       overrunPercent: plannedCost > 0 ? (actualCosts - plannedCost) / plannedCost * 100 : 0,
       warnings: [
         ...(received > actualRevenue ? [{ level: 'warning', title: 'Поступления выше цены договора', message: 'Проверь аванс, дополнительные работы или сумму договора.' }] : []),
