@@ -130,7 +130,7 @@ test('plan/fact calculator rejects negative actual expense values', () => {
 
 test('plan/fact calculator rejects a negative planned cost instead of silently clamping it', () => {
   assert.throws(() => calculateActuals({ contractRevenue: 100, wagesPaid: 10, plannedCost: -50 }), /Плановая себестоимость/);
-  assert.equal(calculateActuals({ contractRevenue: 100, wagesPaid: 10 }).overrun, 10);
+  assert.equal(calculateActuals({ contractRevenue: 100, wagesPaid: 10 }).overrun, 0, 'without a planned cost, do not report a budget overrun');
 });
 
 
