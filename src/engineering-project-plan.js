@@ -23,7 +23,8 @@
       const productivity = positive(op.productivity, name + ' · производительность');
       const crewSize = positive(op.crewSize ?? 5, name + ' · бригада');
       const hoursPerShift = positive(op.hoursPerShift ?? 8, name + ' · часы смены');
-      if (crewSize > 200 || hoursPerShift > 24) throw new Error(name + ': бригада не более 200 человек, смена не более 24 часов.');
+      if (!Number.isInteger(crewSize) || crewSize < 1 || crewSize > 200) throw new Error(name + ': численность бригады должна быть целым числом от 1 до 200.');
+      if (hoursPerShift > 24) throw new Error(name + ': смена не более 24 часов.');
       const difficultyFactor = positive(op.difficultyFactor ?? 1, name + ' · коэффициент сложности');
       if (difficultyFactor < 0.1 || difficultyFactor > 3) throw new Error(name + ': коэффициент сложности должен быть от 0,1 до 3.');
       const observations = Array.isArray(op.observations) ? op.observations : [];
