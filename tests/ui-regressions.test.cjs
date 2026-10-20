@@ -427,6 +427,7 @@ test('primary navigation is registered before optional renderer widgets initiali
 test('renderer and Electron entry scripts pass Node syntax validation', () => {
   const files = [
     '../src/main.cjs', '../src/preload.cjs', '../src/renderer.js',
+    '../src/engineering-calculator-ui.js', '../src/engineering-project-plan.js', '../src/engineering-project-plan-ui.js',
     '../src/production-intelligence.js', '../src/prospect-scoring.js',
     '../src/prospect-radar.js', '../src/estimate-calculator.js'
   ];
