@@ -255,7 +255,11 @@
     try {
       const parsed = JSON.parse(await file.text()), incoming = Array.isArray(parsed) ? parsed : parsed.projects;
       if (!Array.isArray(incoming) || incoming.length > 5000 || incoming.some(p => !p || typeof p.id !== 'string' || !Array.isArray(p.observations))) throw new Error('Файл истории имеет неверный формат.');
-      const map = new Map(history.map(p => [p.id, p])); for (const p of incoming) map.set(p.id, p);
+      const map = new Map(history.map(p => [p.id, p]));
+      for (const p of incoming) {
+        const normalized = { ...p, observations: p.observations.filter(o => o && typeof o === 'object' && !Array.isArray(o)) };
+        map.set(normalized.id, normalized);
+      }
       history = [...map.values()].slice(-500); api.saveHistory(history); renderHistory();
       window.alert('Импортировано записей: ' + incoming.length + '. Совпадающие ID обновлены.');
     } catch (error) { window.alert('Не удалось импортировать историю: ' + error.message); }
