@@ -178,12 +178,10 @@
     const evidence = await getRateEvidence(item, num('engCrew'));
     const observations = evidence.observations;
     const input = readInput(item, observations);
-    // Shift reports provide an observed median and evidence weight. Blend that evidence
-    // with the editable starting norm so a small sample cannot replace it outright.
-    if (evidence.externalModel && observations.length === 0) {
-      input.baselineProductivity = api.blendObservedProductivity(input.baselineProductivity, evidence.externalModel);
-    }
-    const result = api.calculateEngineeringEstimate(input);
+    // Apply learned evidence to a calculation copy. Keep the user's editable baseline
+    // unchanged in history so the same shift sample is not blended repeatedly on reload.
+    const calculationInput = api.applyRateEvidence(input, evidence);
+    const result = api.calculateEngineeringEstimate(calculationInput);
     const externalCount = Number(evidence.externalModel?.observations || 0);
     result.observations = observations.length || externalCount;
     result.rateEvidenceSource = evidence.source;
