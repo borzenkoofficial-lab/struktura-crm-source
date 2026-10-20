@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { calculateEngineeringEstimate, calculateConditionFactor, blendObservedProductivity, selectRateEvidence, loadHistory, saveHistory, observationsFor, recordActual } = require('../src/engineering-calculator.js');
+const { calculateEngineeringEstimate, calculateConditionFactor, blendObservedProductivity, applyRateEvidence, selectRateEvidence, loadHistory, saveHistory, observationsFor, recordActual } = require('../src/engineering-calculator.js');
 
 test('engineering estimate calculates labor, schedule, costs and target price deterministically', () => {
   const r = calculateEngineeringEstimate({ quantity: 100, baselineProductivity: 10, crewSize: 5, hoursPerShift: 8, wagePerWorkerShift: 4000, pricePerUnit: 1000, extraCostPerUnit: 50, fixedCosts: 1000, overheadPercent: 10, taxPercent: 6, targetMarginPercent: 20, reservePercent: 10, difficultyFactor: 1 });
@@ -158,4 +158,15 @@ test('rate evidence selection prefers the source with more valid observations', 
 
   const noEvidence = selectRateEvidence([], null);
   assert.equal(noEvidence.source, 'Стартовая норма без фактической истории');
+});
+
+test('applying the same shift evidence repeatedly never mutates the saved baseline', () => {
+  const input = { baselineProductivity: 10, quantity: 100, crewSize: 5 };
+  const evidence = { externalModel: { observations: 8, observedMedian: 20, observedWeight: 0.75 } };
+  const first = applyRateEvidence(input, evidence);
+  const second = applyRateEvidence(input, evidence);
+  assert.equal(first.baselineProductivity, 17.5);
+  assert.equal(second.baselineProductivity, 17.5);
+  assert.equal(input.baselineProductivity, 10);
+  assert.notEqual(first, input);
 });
