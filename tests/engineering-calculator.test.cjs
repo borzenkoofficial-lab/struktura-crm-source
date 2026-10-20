@@ -98,3 +98,21 @@ test('engineering estimate uses the shared crew-size productivity model', () => 
   assert.ok(large.effectiveProductivity < small.effectiveProductivity,
     'engineering estimate should use the same crew-size adjustment as the production model');
 });
+
+
+test('fallback production model safely ignores malformed observations and accepts canonical fields', () => {
+  const previous = global.StrukturaProductionRateCore;
+  try {
+    global.StrukturaProductionRateCore = {};
+    const result = calculateEngineeringEstimate({
+      quantity: 10,
+      baselineProductivity: 10,
+      observations: [null, {}, { quantity_done: 50, workers_count: 5, hours: 8, complexity_factor: 1 }]
+    });
+    assert.equal(result.observations, 1);
+    assert.equal(result.effectiveProductivity, 10);
+  } finally {
+    if (previous === undefined) delete global.StrukturaProductionRateCore;
+    else global.StrukturaProductionRateCore = previous;
+  }
+});
