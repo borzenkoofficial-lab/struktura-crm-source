@@ -801,3 +801,18 @@ test('engineering calculator compares local history with production shift eviden
   assert.match(engineeringUi, /return api\.selectRateEvidence\(local, externalModel\)/);
   assert.doesNotMatch(engineeringUi, /if \(local\.length\) return \{ observations: local/);
 });
+
+test('complex project-plan history can be opened, updated, deleted, and retains calendar settings', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const plannerUi = fs.readFileSync(path.join(__dirname, '../src/engineering-project-plan-ui.js'), 'utf8');
+  assert.match(html, /id="engPlanNewBtn"/);
+  assert.match(html, /id="engProjectPlanHistory"/);
+  assert.match(html, /Планы хранятся в SQLite и входят в резервную копию CRM/);
+  assert.match(plannerUi, /data-plan-load=/);
+  assert.match(plannerUi, /data-plan-delete=/);
+  assert.match(plannerUi, /window\.crm\?\.deleteEngineeringPlan/);
+  assert.match(plannerUi, /activeSavedPlanId \|\| makePlanId\(\)/);
+  assert.match(plannerUi, /const index = history\.findIndex\(item => item && item\.id === record\.id\)/);
+  assert.match(plannerUi, /calendarOptions/);
+  assert.match(plannerUi, /if \(missing\.length\) stored = await window\.crm\.listEngineeringPlans\(\)/);
+});
