@@ -125,3 +125,16 @@ test('external shift evidence is blended with the editable baseline according to
   assert.equal(blendObservedProductivity(10, { observedMedian: null, observedWeight: 0.5 }), 10);
   assert.throws(() => blendObservedProductivity(0, { observedMedian: 20, observedWeight: 0.5 }), /Базовая производительность/);
 });
+
+test('history loader and lookup ignore malformed observation entries', () => {
+  const store = {
+    value: JSON.stringify([{ id: 'p1', observations: [null, 'bad-record', { catalogId: 'wall', workKey: 'wall', quantity: 10, people: 2, hours: 8 }] }]),
+    getItem() { return this.value; },
+    setItem(_key, value) { this.value = value; }
+  };
+  const loaded = loadHistory(store);
+  assert.equal(loaded.length, 1);
+  assert.equal(loaded[0].observations.length, 1);
+  assert.equal(observationsFor(loaded, 'wall', 'wall').length, 1);
+  assert.equal(observationsFor([{ id: 'raw', observations: [null, {}, { catalogId: 'wall', quantity: 10, people: 2, hours: 8 }] }], 'wall', 'wall').length, 1);
+});
