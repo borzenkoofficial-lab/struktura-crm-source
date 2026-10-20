@@ -69,3 +69,48 @@ test('database upgrades a legacy schema without dropping existing project and le
     fs.rmSync(userDataPath, { recursive: true, force: true });
   }
 });
+
+
+test('database migrates legacy production plans that forbid a missing productivity norm', () => {
+  const Database = require('better-sqlite3');
+  const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'struktura-db-plan-migration-'));
+  let db;
+  try {
+    db = openDatabase(userDataPath);
+    const clientId = db.prepare('INSERT INTO clients(name) VALUES (?)').run('Клиент миграции').lastInsertRowid;
+    const projectId = db.prepare("INSERT INTO projects(client_id,title,service,status) VALUES (?,'Объект миграции','demolition','active')").run(clientId).lastInsertRowid;
+    db.prepare("INSERT INTO production_plans(project_id,catalog_id,work_name,unit,planned_quantity,baseline_productivity) VALUES (?,?,?,?,?,?)")
+      .run(projectId, 'wall', 'Демонтаж стены', 'м²', 40, 8);
+    db.pragma('foreign_keys = OFF');
+    db.exec('DROP INDEX IF EXISTS idx_production_plan_project');
+    db.exec('ALTER TABLE production_plans RENAME TO production_plans_current');
+    db.exec(`CREATE TABLE production_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      catalog_id TEXT NOT NULL,
+      work_name TEXT NOT NULL,
+      unit TEXT NOT NULL,
+      planned_quantity REAL NOT NULL CHECK(planned_quantity > 0),
+      baseline_productivity REAL NOT NULL CHECK(baseline_productivity > 0),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(project_id, catalog_id)
+    )`);
+    db.exec('INSERT INTO production_plans SELECT * FROM production_plans_current');
+    db.exec('DROP TABLE production_plans_current');
+    db.pragma('foreign_keys = ON');
+    db.close(); db = null;
+
+    db = openDatabase(userDataPath);
+    const migrated = db.prepare('SELECT project_id,catalog_id,planned_quantity,baseline_productivity FROM production_plans WHERE catalog_id=?').get('wall');
+    assert.deepEqual(migrated, { project_id: projectId, catalog_id: 'wall', planned_quantity: 40, baseline_productivity: 8 });
+    assert.doesNotThrow(() => db.prepare("INSERT INTO production_plans(project_id,catalog_id,work_name,unit,planned_quantity,baseline_productivity) VALUES (?,?,?,?,?,0)")
+      .run(projectId, 'unknown', 'Работа без нормы', 'м²', 10));
+    assert.equal(db.pragma('foreign_keys', { simple: true }), 1);
+    assert.equal(db.pragma('integrity_check', { simple: true }), 'ok');
+    assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type='index' AND name='idx_production_plan_project'").get());
+  } finally {
+    if (db && db.open) db.close();
+    fs.rmSync(userDataPath, { recursive: true, force: true });
+  }
+});
