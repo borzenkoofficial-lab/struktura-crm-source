@@ -114,3 +114,35 @@ test('database migrates legacy production plans that forbid a missing productivi
     fs.rmSync(userDataPath, { recursive: true, force: true });
   }
 });
+
+
+test('SQLite backup API preserves committed rows held in a source WAL file', async () => {
+  const Database = require('better-sqlite3');
+  const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'struktura-wal-backup-'));
+  const sourcePath = path.join(userDataPath, 'source.sqlite');
+  const normalizedPath = path.join(userDataPath, 'normalized.sqlite');
+  let writer;
+  let reader;
+  let normalized;
+  try {
+    writer = new Database(sourcePath);
+    writer.pragma('journal_mode = WAL');
+    writer.pragma('wal_autocheckpoint = 0');
+    writer.exec('CREATE TABLE wal_probe (id INTEGER PRIMARY KEY, value TEXT NOT NULL)');
+    writer.prepare('INSERT INTO wal_probe(value) VALUES (?)').run('committed-in-wal');
+    assert.ok(fs.existsSync(sourcePath + '-wal'), 'source WAL exists while writer connection is open');
+
+    reader = new Database(sourcePath, { readonly: true, fileMustExist: true });
+    assert.equal(reader.pragma('integrity_check', { simple: true }), 'ok');
+    await reader.backup(normalizedPath);
+    reader.close(); reader = null;
+    normalized = new Database(normalizedPath, { readonly: true, fileMustExist: true });
+    assert.equal(normalized.prepare('SELECT value FROM wal_probe WHERE id=1').get().value, 'committed-in-wal');
+    assert.equal(normalized.pragma('integrity_check', { simple: true }), 'ok');
+  } finally {
+    if (normalized && normalized.open) normalized.close();
+    if (reader && reader.open) reader.close();
+    if (writer && writer.open) writer.close();
+    fs.rmSync(userDataPath, { recursive: true, force: true });
+  }
+});
