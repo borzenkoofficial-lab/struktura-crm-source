@@ -15,7 +15,9 @@ function buildRateModel({ baselineProductivity, observations = [], targetDifficu
   if (!Number.isFinite(difficulty) || difficulty <= 0) throw new Error('Коэффициент сложности должен быть больше нуля.');
   if (!Number.isFinite(crewTarget) || crewTarget < 1 || crewTarget > 200) throw new Error('Размер целевой бригады должен быть от 1 до 200 человек.');
 
-  const entries = observations.map((o) => {
+  const sourceObservations = Array.isArray(observations) ? observations : [];
+  const entries = sourceObservations.map((o) => {
+    if (!o || typeof o !== 'object') return null;
     const quantity = Number(o.quantity_done ?? o.quantity);
     const workers = Number(o.workers_count ?? o.workers ?? o.people);
     const hours = Number(o.hours ?? o.hours_per_worker);
