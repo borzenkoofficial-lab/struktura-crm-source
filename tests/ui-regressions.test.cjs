@@ -201,6 +201,19 @@ test('backup restore validates SQLite integrity and preserves an automatic rollb
   assert.match(main, /Действующая база не изменена/);
 });
 
+test('backup restore normalizes SQLite files so source WAL data is included and rollback sidecars are cleared', () => {
+  const restoreStart = main.indexOf("ipcMain.handle('backup:restore'");
+  const restoreEnd = main.indexOf("ipcMain.handle('browser:state'", restoreStart);
+  const restore = main.slice(restoreStart, restoreEnd);
+  assert.ok(restoreStart >= 0 && restoreEnd > restoreStart, 'restore handler exists');
+  assert.match(restore, /await candidate\.backup\(restoreCandidatePath\)/);
+  assert.match(restore, /new Database\(restoreCandidatePath, \{ readonly: true, fileMustExist: true \}\)/);
+  assert.match(restore, /fs\.copyFileSync\(restoreCandidatePath, livePath\)/);
+  assert.doesNotMatch(restore, /fs\.copyFileSync\(sourcePath, livePath\)/);
+  assert.match(restore, /for \(const sidecar of \[walPath, shmPath\]\).*fs\.rmSync\(sidecar/);
+  assert.match(restore, /fs\.rmSync\(restoreCandidatePath, \{ force: true \}\)/);
+});
+
 test('payments and expenses reject impossible calendar dates before writing to SQLite', () => {
   const paymentHandler = main.match(/ipcMain\.handle\('payments:create',[\s\S]*?\n\}\);/);
   const expenseHandler = main.match(/ipcMain\.handle\('expenses:create',[\s\S]*?\n\}\);/);
