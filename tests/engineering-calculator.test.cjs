@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { calculateEngineeringEstimate, calculateConditionFactor, loadHistory, saveHistory, observationsFor, recordActual } = require('../src/engineering-calculator.js');
+const { calculateEngineeringEstimate, calculateConditionFactor, blendObservedProductivity, loadHistory, saveHistory, observationsFor, recordActual } = require('../src/engineering-calculator.js');
 
 test('engineering estimate calculates labor, schedule, costs and target price deterministically', () => {
   const r = calculateEngineeringEstimate({ quantity: 100, baselineProductivity: 10, crewSize: 5, hoursPerShift: 8, wagePerWorkerShift: 4000, pricePerUnit: 1000, extraCostPerUnit: 50, fixedCosts: 1000, overheadPercent: 10, taxPercent: 6, targetMarginPercent: 20, reservePercent: 10, difficultyFactor: 1 });
@@ -115,4 +115,13 @@ test('fallback production model safely ignores malformed observations and accept
     if (previous === undefined) delete global.StrukturaProductionRateCore;
     else global.StrukturaProductionRateCore = previous;
   }
+});
+
+test('external shift evidence is blended with the editable baseline according to sample size', () => {
+  assert.equal(blendObservedProductivity(10, { observedMedian: 20, observedWeight: 0.25 }), 12.5);
+  assert.equal(blendObservedProductivity(10, { observedMedian: 20, observedWeight: 0.5 }), 15);
+  assert.equal(blendObservedProductivity(10, { observedMedian: 20, observedWeight: 0.75 }), 17.5);
+  assert.equal(blendObservedProductivity(10, { observedMedian: 20, observedWeight: 0 }), 10);
+  assert.equal(blendObservedProductivity(10, { observedMedian: null, observedWeight: 0.5 }), 10);
+  assert.throws(() => blendObservedProductivity(0, { observedMedian: 20, observedWeight: 0.5 }), /Базовая производительность/);
 });
