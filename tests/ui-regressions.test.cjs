@@ -790,7 +790,7 @@ test('engineering calculator reports shift-report evidence instead of false zero
 test('production rate-model IPC returns evidence weight for conservative estimate learning', () => {
   assert.match(main, /observedWeight:\s*model\.observedWeight/);
   const engineeringUi = fs.readFileSync(path.join(__dirname, '../src/engineering-calculator-ui.js'), 'utf8');
-  assert.match(engineeringUi, /api\.blendObservedProductivity\(input\.baselineProductivity, evidence\.externalModel\)/);
+  assert.match(engineeringUi, /api\.applyRateEvidence\(input, evidence\)/);
 });
 
 test('engineering calculator compares local history with production shift evidence', () => {
