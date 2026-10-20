@@ -733,3 +733,9 @@ test('PI shows user-friendly error explanations and hides raw IPC errors behind 
   assert.doesNotMatch(renderer, /<p><strong>Техническое сообщение<\/strong>/);
   assert.match(renderer, /item\.userMessage \|\| piErrorUserMessage\(item\.message\)/);
 });
+
+
+test('production economics explains that per-unit costs exclude crew payroll', () => {
+  assert.match(html, /Прочие затраты на единицу, ₽/);
+  assert.match(html, /Без зарплаты рабочих: оплата бригады учитывается отдельно/);
+});
