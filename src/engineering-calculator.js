@@ -45,6 +45,30 @@
     return round(baseline * (1 - observedWeight) + observedMedian * observedWeight, 3);
   }
 
+  function selectRateEvidence(localObservations = [], externalModel = null) {
+    const local = (Array.isArray(localObservations) ? localObservations : []).filter(o => {
+      if (!o || typeof o !== 'object' || Array.isArray(o)) return false;
+      const quantity = Number(o.quantity ?? o.quantity_done);
+      const people = Number(o.people ?? o.workers_count ?? o.workers);
+      const hours = Number(o.hours ?? o.hours_per_worker);
+      const factor = Number(o.conditionFactor ?? o.complexity_factor ?? 1);
+      return [quantity, people, hours, factor].every(Number.isFinite) &&
+        quantity > 0 && people > 0 && hours > 0 && factor > 0;
+    });
+    const externalCount = Number(externalModel?.observations || 0);
+    const externalMedian = Number(externalModel?.observedMedian);
+    const externalWeight = Number(externalModel?.observedWeight);
+    const hasExternal = Number.isInteger(externalCount) && externalCount > 0 &&
+      Number.isFinite(externalMedian) && externalMedian > 0 &&
+      Number.isFinite(externalWeight) && externalWeight > 0 && externalWeight <= 1;
+    if (hasExternal && externalCount > local.length) {
+      return { observations: [], externalModel, source: 'Фактические сменные отчёты' };
+    }
+    if (local.length) return { observations: local, externalModel: null, source: 'Локальная история расчётов' };
+    if (hasExternal) return { observations: [], externalModel, source: 'Фактические сменные отчёты' };
+    return { observations: [], externalModel: null, source: 'Стартовая норма без фактической истории' };
+  }
+
   function calculateEngineeringEstimate(input = {}) {
     const quantity = number(input.quantity, 'Объём', { min: 0, allowZero: false });
     const baseRate = number(input.baselineProductivity, 'Базовая производительность', { min: 0, allowZero: false });
@@ -172,7 +196,7 @@
     project.observations.push({ ...observation, quantity, people, hours, conditionFactor, recordedAt: new Date().toISOString() });
     return projects;
   }
-  const api = { calculateEngineeringEstimate, calculateConditionFactor, blendObservedProductivity, loadHistory, saveHistory, observationsFor, recordActual, STORAGE_KEY };
+  const api = { calculateEngineeringEstimate, calculateConditionFactor, blendObservedProductivity, selectRateEvidence, loadHistory, saveHistory, observationsFor, recordActual, STORAGE_KEY };
   root.StrukturaEngineeringCalculator = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof globalThis !== 'undefined' ? globalThis : window);
