@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { calculateEngineeringEstimate, calculateConditionFactor, blendObservedProductivity, loadHistory, saveHistory, observationsFor, recordActual } = require('../src/engineering-calculator.js');
+const { calculateEngineeringEstimate, calculateConditionFactor, blendObservedProductivity, selectRateEvidence, loadHistory, saveHistory, observationsFor, recordActual } = require('../src/engineering-calculator.js');
 
 test('engineering estimate calculates labor, schedule, costs and target price deterministically', () => {
   const r = calculateEngineeringEstimate({ quantity: 100, baselineProductivity: 10, crewSize: 5, hoursPerShift: 8, wagePerWorkerShift: 4000, pricePerUnit: 1000, extraCostPerUnit: 50, fixedCosts: 1000, overheadPercent: 10, taxPercent: 6, targetMarginPercent: 20, reservePercent: 10, difficultyFactor: 1 });
@@ -141,4 +141,21 @@ test('history loader and lookup ignore malformed observation entries', () => {
   assert.equal(loaded[0].observations.length, 1);
   assert.equal(observationsFor(loaded, 'wall', 'wall').length, 1);
   assert.equal(observationsFor([{ id: 'raw', observations: [null, {}, { catalogId: 'wall', quantity: 10, people: 2, hours: 8 }] }], 'wall', 'wall').length, 1);
+});
+
+test('rate evidence selection prefers the source with more valid observations', () => {
+  const localOne = [{ quantity: 20, people: 2, hours: 8, conditionFactor: 1 }];
+  const shiftModel = { observations: 8, observedMedian: 18, observedWeight: 0.75 };
+  const fromShifts = selectRateEvidence(localOne, shiftModel);
+  assert.equal(fromShifts.source, 'Фактические сменные отчёты');
+  assert.equal(fromShifts.externalModel, shiftModel);
+  assert.equal(fromShifts.observations.length, 0);
+
+  const localMany = [...localOne, { quantity: 22, people: 2, hours: 8 }];
+  const fromLocal = selectRateEvidence(localMany, { observations: 1, observedMedian: 18, observedWeight: 0.25 });
+  assert.equal(fromLocal.source, 'Локальная история расчётов');
+  assert.equal(fromLocal.observations.length, 2);
+
+  const noEvidence = selectRateEvidence([], null);
+  assert.equal(noEvidence.source, 'Стартовая норма без фактической истории');
 });
