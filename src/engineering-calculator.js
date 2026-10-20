@@ -71,10 +71,11 @@
       learnedNormalRate = sharedRateModel.learnedNormalRate;
     } else {
       validRates = observations.map(o => {
-        const q = Number(o.quantity);
-        const people = Number(o.people);
-        const hours = Number(o.hours);
-        const factor = Number(o.conditionFactor ?? 1);
+        if (!o || typeof o !== 'object') return null;
+        const q = Number(o.quantity_done ?? o.quantity);
+        const people = Number(o.workers_count ?? o.workers ?? o.people);
+        const hours = Number(o.hours ?? o.hours_per_worker);
+        const factor = Number(o.complexity_factor ?? o.conditionFactor ?? 1);
         if (![q, people, hours, factor].every(Number.isFinite) || q <= 0 || people <= 0 || hours <= 0 || factor <= 0) return null;
         return q / (people * hours / 8) * factor;
       }).filter(n => Number.isFinite(n) && n > 0);
