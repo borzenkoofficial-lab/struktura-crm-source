@@ -181,12 +181,10 @@
     const evidence = await getRateEvidence(item, num('engCrew'));
     const observations = evidence.observations;
     const input = readInput(item, observations);
-    // A production model is already an aggregated, weighted estimate. Use its learned
-    // normal-condition rate as the baseline rather than fabricating repeated observations
-    // from its median and accidentally increasing the evidence weight.
+    // Shift reports provide an observed median and evidence weight. Blend that evidence
+    // with the editable starting norm so a small sample cannot replace it outright.
     if (evidence.externalModel && observations.length === 0) {
-      const modelRate = Number(evidence.externalModel.learnedNormalRate ?? evidence.externalModel.observedMedian);
-      if (Number.isFinite(modelRate) && modelRate > 0) input.baselineProductivity = modelRate;
+      input.baselineProductivity = api.blendObservedProductivity(input.baselineProductivity, evidence.externalModel);
     }
     const result = api.calculateEngineeringEstimate(input);
     const externalCount = Number(evidence.externalModel?.observations || 0);
