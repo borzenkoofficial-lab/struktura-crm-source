@@ -33,6 +33,10 @@ test('invalid inputs are rejected and missing baseline data is never invented', 
   assert.throws(() => calculateEngineeringEstimate({ quantity: 10, baselineProductivity: 0 }), /Базовая производительность/);
 });
 
+test('engineering estimate rejects fractional crew sizes', () => {
+  assert.throws(() => calculateEngineeringEstimate({ quantity: 10, baselineProductivity: 8, crewSize: 2.5 }), /должен быть целым числом/);
+});
+
 test('history storage keeps and reuses real completed-work observations', () => {
   const store = { value: '[]', getItem() { return this.value; }, setItem(_k, v) { this.value = v; } };
   const saved = [{ id: 'p1', catalogId: 'screed', observations: [] }];
