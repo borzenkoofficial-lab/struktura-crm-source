@@ -49,6 +49,10 @@ test('invalid references, duplicate ids, cycles and missing operations are rejec
   ]), /цикл технологических зависимостей/);
 });
 
+test('project plans reject fractional crew sizes', () => {
+  assert.throws(() => calculateProjectPlan([base('fractional', 'Дробная бригада', { crewSize: 2.5 })]), /численность бригады должна быть целым числом/);
+});
+
 test('difficulty factor lowers effective productivity and extends schedule', () => {
   const normal = calculateProjectPlan([base('a', 'A', { quantity: 100, productivity: 10, difficultyFactor: 1 })]);
   const hard = calculateProjectPlan([base('a', 'A', { quantity: 100, productivity: 10, difficultyFactor: 2 })]);
