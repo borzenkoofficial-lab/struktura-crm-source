@@ -786,3 +786,9 @@ test('engineering calculator reports shift-report evidence instead of false zero
   assert.ok(engineeringUi.includes("result.warnings = (result.warnings || []).filter(w => !String(w).startsWith('Нет фактических наблюдений:'))"));
   assert.ok(engineeringUi.includes('if (externalCount < 3) result.warnings.push'));
 });
+
+test('production rate-model IPC returns evidence weight for conservative estimate learning', () => {
+  assert.match(main, /observedWeight:\s*model\.observedWeight/);
+  const engineeringUi = fs.readFileSync(path.join(__dirname, '../src/engineering-calculator-ui.js'), 'utf8');
+  assert.match(engineeringUi, /api\.blendObservedProductivity\(input\.baselineProductivity, evidence\.externalModel\)/);
+});
