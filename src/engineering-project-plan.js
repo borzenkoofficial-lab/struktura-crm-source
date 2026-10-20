@@ -26,10 +26,11 @@
       if (crewSize > 200 || hoursPerShift > 24) throw new Error(name + ': бригада не более 200 человек, смена не более 24 часов.');
       const difficultyFactor = positive(op.difficultyFactor ?? 1, name + ' · коэффициент сложности');
       if (difficultyFactor < 0.1 || difficultyFactor > 3) throw new Error(name + ': коэффициент сложности должен быть от 0,1 до 3.');
+      const observations = Array.isArray(op.observations) ? op.observations : [];
       const predecessors = Array.isArray(op.predecessors) ? [...new Set(op.predecessors.map(String))] : [];
       if (predecessors.includes(id)) throw new Error(name + ': операция не может зависеть сама от себя.');
       return {
-        ...op, id, name, quantity, productivity, crewSize, hoursPerShift, difficultyFactor, predecessors,
+        ...op, id, name, quantity, productivity, crewSize, hoursPerShift, difficultyFactor, observations, predecessors,
         wagePerWorkerShift: positive(op.wagePerWorkerShift ?? 0, name + ' · оплата', true),
         pricePerUnit: positive(op.pricePerUnit ?? 0, name + ' · цена', true),
         extraCostPerUnit: positive(op.extraCostPerUnit ?? 0, name + ' · доп. расходы', true),
@@ -104,18 +105,28 @@
       ordered.push(op);
     }
     items.forEach(op => visit(op));
+    const rateCore = root.StrukturaProductionRateCore ||
+      (typeof require === 'function' ? require('./production-model.js') : null);
     const durations = new Map();
     for (const op of ordered) {
-      const effectiveProductivity = op.productivity / op.difficultyFactor;
+      const rateModel = op.observations.length && rateCore && typeof rateCore.buildRateModel === 'function'
+        ? rateCore.buildRateModel({
+            baselineProductivity: op.productivity,
+            observations: op.observations,
+            targetDifficulty: op.difficultyFactor,
+            targetCrewSize: op.crewSize
+          })
+        : null;
+      const effectiveProductivity = rateModel ? rateModel.effectiveProductivity : op.productivity / op.difficultyFactor;
       const personShifts = op.quantity / effectiveProductivity;
       const duration = personShifts / op.crewSize * 8 / op.hoursPerShift;
-      durations.set(op.id, { effectiveProductivity, personShifts, duration });
+      durations.set(op.id, { effectiveProductivity, personShifts, duration, observations: rateModel ? rateModel.observations : 0 });
     }
     const actualSchedule = schedulePass(ordered, op => durations.get(op.id).duration, availableWorkers, 'finish');
     const plannedSchedule = schedulePass(ordered, op => durations.get(op.id).duration * (1 + op.reservePercent / 100), availableWorkers, 'finish');
     const scheduled = new Map();
     for (const op of ordered) {
-      const { effectiveProductivity, personShifts, duration } = durations.get(op.id);
+      const { effectiveProductivity, personShifts, duration, observations } = durations.get(op.id);
       const actual = actualSchedule.get(op.id);
       const planned = plannedSchedule.get(op.id);
       const laborCost = personShifts * (8 / op.hoursPerShift) * op.wagePerWorkerShift;
@@ -127,7 +138,7 @@
       const profit = revenue - totalCost;
       scheduled.set(op.id, {
         id: op.id, name: op.name, predecessors: op.predecessors,
-        quantity: op.quantity, productivity: round(effectiveProductivity, 3),
+        quantity: op.quantity, productivity: round(effectiveProductivity, 3), observationsCount: observations,
         personShifts: round(personShifts), crewShifts: round(duration),
         startShift: round(actual.start), finishShift: round(actual.finish),
         plannedStartShift: round(planned.start), plannedFinishShift: round(planned.finish),
