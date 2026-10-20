@@ -114,3 +114,10 @@ test('calendar can include weekends when weekday restriction is disabled', () =>
   const calendar = buildCalendarSchedule(result, { startDate: '2026-10-23', weekdaysOnly: false });
   assert.equal(calendar.operations[1].startDate, '2026-10-25');
 });
+
+test('multi-operation plan reports observations used by shared production model', () => {
+  const observations = [20, 21, 19, 10, 11, 9].map((rate, i) => ({ quantity_done: rate * (i < 3 ? 5 : 15), workers_count: i < 3 ? 5 : 15, hours: 8, complexity_factor: 1 }));
+  const result = calculateProjectPlan([base('learned', 'Обученная работа', { quantity: 100, productivity: 12, crewSize: 15, observations, difficultyFactor: 1.25, reservePercent: 0 })]);
+  assert.equal(result.operations[0].observationsCount, 6);
+  assert.ok(result.operations[0].productivity > 0);
+});
