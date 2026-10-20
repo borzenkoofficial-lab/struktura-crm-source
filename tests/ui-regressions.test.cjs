@@ -815,4 +815,5 @@ test('complex project-plan history can be opened, updated, deleted, and retains 
   assert.match(plannerUi, /const index = history\.findIndex\(item => item && item\.id === record\.id\)/);
   assert.match(plannerUi, /calendarOptions/);
   assert.match(plannerUi, /if \(missing\.length\) stored = await window\.crm\.listEngineeringPlans\(\)/);
+  assert.match(plannerUi, /localStorage\.removeItem\(STORAGE_KEY\)/);
 });
