@@ -43,10 +43,12 @@ test('remaining-time forecast accounts for completed work, crew size, and items 
   assert.equal(result.completedLines, 1);
 });
 
-test('rate model rejects invalid baseline or difficulty rather than generating a fake forecast', () => {
+test('rate model rejects invalid baseline, difficulty, and non-integer crews', () => {
   assert.throws(() => buildRateModel({ baselineProductivity: 0 }), /больше нуля/);
   assert.throws(() => buildRateModel({ baselineProductivity: 5, targetDifficulty: 0 }), /больше нуля/);
-  assert.throws(() => buildRateModel({ baselineProductivity: 5, targetCrewSize: 0 }), /от 1 до 200/);
+  assert.throws(() => buildRateModel({ baselineProductivity: 5, targetCrewSize: 0 }), /целым числом от 1 до 200/);
+  assert.throws(() => buildRateModel({ baselineProductivity: 5, targetCrewSize: 2.5 }), /целым числом от 1 до 200/);
+  assert.throws(() => forecastRemainingWork({ planItems: [], crewSize: 2.5 }), /целым числом от 1 до 200/);
 });
 
 
