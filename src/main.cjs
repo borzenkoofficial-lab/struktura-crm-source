@@ -1007,8 +1007,8 @@ ipcMain.handle('backup:create', async () => {
   return { canceled: false, filePath };
 });
 
-// Restore only validated SQLite backups. Before replacement, preserve the current database
-// as an automatic rollback copy and reopen the live connection after the file swap.
+// Restore only validated SQLite backups. Normalize the selected database through SQLite's
+// backup API so committed data in a source -wal file is included in the standalone restore file.
 ipcMain.handle('backup:restore', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
     title: 'Выберите резервную копию STRUKTURA CRM',
@@ -1017,9 +1017,11 @@ ipcMain.handle('backup:restore', async () => {
   });
   if (canceled || !filePaths?.[0]) return { canceled: true };
   const sourcePath = path.resolve(filePaths[0]);
-  const livePath = path.join(app.getPath('userData'), 'struktura-crm.sqlite');
+  const userDataPath = app.getPath('userData');
+  const livePath = path.join(userDataPath, 'struktura-crm.sqlite');
   if (sourcePath === path.resolve(livePath)) throw new Error('Нельзя восстановить базу из файла, который CRM использует прямо сейчас. Выберите отдельную резервную копию.');
 
+  const restoreCandidatePath = path.join(userDataPath, `STRUKTURA-CRM-restore-candidate-${Date.now()}.sqlite`);
   let candidate;
   try {
     candidate = new Database(sourcePath, { readonly: true, fileMustExist: true });
@@ -1029,9 +1031,15 @@ ipcMain.handle('backup:restore', async () => {
     const required = ['clients', 'leads', 'projects', 'payments', 'expenses', 'settings'];
     const missing = required.filter(name => !tables.has(name));
     if (missing.length) throw new Error(`Это не резервная копия STRUKTURA CRM: отсутствуют таблицы ${missing.join(', ')}.`);
+    await candidate.backup(restoreCandidatePath);
     candidate.close(); candidate = null;
+    const normalized = new Database(restoreCandidatePath, { readonly: true, fileMustExist: true });
+    try {
+      if (normalized.pragma('integrity_check', { simple: true }) !== 'ok') throw new Error('Нормализованная копия не прошла проверку целостности.');
+    } finally { normalized.close(); }
   } catch (error) {
     if (candidate) { try { candidate.close(); } catch {} }
+    if (fs.existsSync(restoreCandidatePath)) { try { fs.rmSync(restoreCandidatePath, { force: true }); } catch {} }
     throw new Error(`Копия не прошла проверку. Действующая база не изменена. ${error.message}`);
   }
 
@@ -1041,9 +1049,11 @@ ipcMain.handle('backup:restore', async () => {
     message: 'Текущие данные будут заменены данными выбранной копии.',
     detail: 'Перед заменой CRM автоматически сохранит текущую базу в отдельный файл. После восстановления окно программы перезагрузится.'
   });
-  if (answer.response !== 1) return { canceled: true };
+  if (answer.response !== 1) {
+    try { fs.rmSync(restoreCandidatePath, { force: true }); } catch {}
+    return { canceled: true };
+  }
 
-  const userDataPath = app.getPath('userData');
   const safetyPath = path.join(userDataPath, `STRUKTURA-CRM-before-restore-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`);
   const walPath = `${livePath}-wal`, shmPath = `${livePath}-shm`;
   db.pragma('wal_checkpoint(FULL)');
@@ -1051,21 +1061,27 @@ ipcMain.handle('backup:restore', async () => {
   db.close();
   try {
     for (const sidecar of [walPath, shmPath]) if (fs.existsSync(sidecar)) fs.rmSync(sidecar, { force: true });
-    fs.copyFileSync(sourcePath, livePath);
+    fs.copyFileSync(restoreCandidatePath, livePath);
     db = openDatabase(userDataPath);
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload();
     return { canceled: false, safetyPath };
   } catch (error) {
     try { if (db && db.open) db.close(); } catch {}
     try {
+      for (const sidecar of [walPath, shmPath]) if (fs.existsSync(sidecar)) fs.rmSync(sidecar, { force: true });
       fs.copyFileSync(safetyPath, livePath);
       db = openDatabase(userDataPath);
     } catch (rollbackError) {
       throw new Error(`Восстановление не завершено: ${error.message}. Автоматический откат также не удался: ${rollbackError.message}. Сохранённая копия: ${safetyPath}`);
+    } finally {
+      try { fs.rmSync(restoreCandidatePath, { force: true }); } catch {}
     }
     throw new Error(`Восстановление не удалось; прежняя база возвращена. ${error.message}`);
+  } finally {
+    try { fs.rmSync(restoreCandidatePath, { force: true }); } catch {}
   }
 });
+
 ipcMain.handle('browser:state', () => browserState());
 ipcMain.handle('browser:visibility', (_event, input = {}) => {
   browserIsVisible = Boolean(input.visible);
