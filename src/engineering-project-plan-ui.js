@@ -15,7 +15,10 @@
   let catalog = catalogApi.getCatalog().filter(x => Number(x.productivity) > 0);
   let operations = [];
   let lastResult = null;
+  let activeSavedPlanId = null;
+  let activeSavedPlanCreatedAt = null;
   const makeId = () => 'op-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const makePlanId = () => 'plan-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   function addOperation(seed = {}) {
     const item = catalog.find(x => x.id === seed.catalogId) || catalog[0];
     if (!item) throw new Error('В каталоге нет работ с положительной стартовой производительностью.');
@@ -264,18 +267,123 @@
     operations.forEach(op => { op.predecessors = op.predecessors.filter(id => id !== button.dataset.planRemove); });
     renderRows();
   });
+  function renderSavedPlans(history) {
+    const host = $('engProjectPlanHistory');
+    if (!history.length) {
+      host.innerHTML = '<div class="eng-plan-history-empty">Сохранённых планов пока нет. Рассчитай первый объект — он появится здесь.</div>';
+      return;
+    }
+    const recent = history.slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    host.innerHTML = recent.map(record => {
+      const stamp = new Date(record.createdAt || '');
+      const stampLabel = Number.isFinite(stamp.getTime()) ? stamp.toLocaleString('ru-RU') : 'Дата не указана';
+      const operationCount = Array.isArray(record.operations) ? record.operations.length : 0;
+      const revenue = record.result?.revenue;
+      const profit = record.result?.profit;
+      return '<article class="eng-plan-history-item"><div class="eng-plan-history-copy"><strong>' + safe(record.title || 'Комплексный объект') +
+        '</strong><small>' + safe(stampLabel) + ' · ' + operationCount + ' операций' +
+        (Number.isFinite(Number(revenue)) ? ' · Выручка ' + safe(rub(revenue)) : '') +
+        (Number.isFinite(Number(profit)) ? ' · Прибыль ' + safe(rub(profit)) : '') +
+        '</small></div><div class="eng-plan-history-actions"><button type="button" class="button subtle small-button" data-plan-load="' + safe(record.id) + '">Открыть</button><button type="button" class="button subtle small-button" data-plan-delete="' + safe(record.id) + '">Удалить</button></div></article>';
+    }).join('');
+  }
   async function readPlanHistory() {
-    const local = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } })();
+    const local = (() => {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        return Array.isArray(parsed) ? parsed.filter(record => record && typeof record.id === 'string') : [];
+      } catch { return []; }
+    })();
     if (window.crm?.listEngineeringPlans) {
-      const stored = await window.crm.listEngineeringPlans();
-      if (!stored.length && local.length && window.crm.saveEngineeringPlan) {
-        for (const record of local.slice(0, 100)) await window.crm.saveEngineeringPlan(record);
-        return await window.crm.listEngineeringPlans();
+      let stored = await window.crm.listEngineeringPlans();
+      if (local.length && window.crm.saveEngineeringPlan) {
+        const existingIds = new Set(stored.map(record => record.id));
+        const missing = local.filter(record => !existingIds.has(record.id)).slice(0, 100);
+        for (const record of missing) await window.crm.saveEngineeringPlan(record);
+        if (missing.length) stored = await window.crm.listEngineeringPlans();
       }
       return stored;
     }
     return local;
   }
+  async function refreshPlanHistory() {
+    const history = await readPlanHistory();
+    $('engProjectPlanSavedCount').textContent = String(history.length);
+    renderSavedPlans(history);
+    return history;
+  }
+  function openSavedPlan(record) {
+    if (!record || !Array.isArray(record.operations) || !record.operations.length) {
+      throw new Error('В сохранённом плане нет операций. Создай новый план или восстанови экспорт JSON.');
+    }
+    const missingCatalog = record.operations.find(operation => !catalog.some(item => item.id === operation.catalogId));
+    if (missingCatalog) throw new Error('В каталоге нет работы «' + String(missingCatalog.name || missingCatalog.catalogId) + '». Обнови каталог или создай новый план.');
+    operations = record.operations.map(operation => ({
+      ...operation,
+      predecessors: Array.isArray(operation.predecessors) ? [...operation.predecessors] : []
+    }));
+    activeSavedPlanId = String(record.id || '');
+    activeSavedPlanCreatedAt = record.createdAt || new Date().toISOString();
+    $('engProjectPlanTitle').value = record.title || 'Комплексный объект';
+    if (Number.isInteger(Number(record.result?.availableWorkers)) && Number(record.result.availableWorkers) >= 1) {
+      $('engProjectAvailableWorkers').value = String(Number(record.result.availableWorkers));
+    }
+    const calendarOptions = record.calendarOptions || record.result?.calendarOptions;
+    if (calendarOptions && typeof calendarOptions === 'object') {
+      const date = String(calendarOptions.startDate || '');
+      const parsed = /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(date + 'T12:00:00Z') : null;
+      if (parsed && Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date) $('engProjectStartDate').value = date;
+      if (typeof calendarOptions.weekdaysOnly === 'boolean') $('engProjectWeekdaysOnly').checked = calendarOptions.weekdaysOnly;
+    }
+    renderRows();
+    const result = planner.calculateProjectPlan(readRows(), { availableWorkers: Number($('engProjectAvailableWorkers').value) });
+    renderResult(result);
+    renderCalendar(result);
+    $('engProjectPlanSaveNote').textContent = 'Открыт сохранённый план «' + (record.title || 'Комплексный объект') + '». Следующий расчёт обновит эту запись.';
+  }
+  $('engProjectPlanHistory').addEventListener('click', async event => {
+    const openButton = event.target.closest('[data-plan-load]');
+    const deleteButton = event.target.closest('[data-plan-delete]');
+    if (!openButton && !deleteButton) return;
+    try {
+      const history = await readPlanHistory();
+      if (openButton) {
+        const record = history.find(item => item.id === openButton.dataset.planLoad);
+        if (!record) throw new Error('Сохранённый план не найден. Обнови историю и попробуй снова.');
+        openSavedPlan(record);
+        return;
+      }
+      const record = history.find(item => item.id === deleteButton.dataset.planDelete);
+      if (!record) throw new Error('Сохранённый план уже удалён.');
+      if (!window.confirm('Удалить сохранённый план «' + String(record.title || 'Комплексный объект') + '»? Действие нельзя отменить.')) return;
+      if (window.crm?.deleteEngineeringPlan) {
+        await window.crm.deleteEngineeringPlan(record.id);
+      } else {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(history.filter(item => item.id !== record.id)));
+      }
+      if (activeSavedPlanId === record.id) {
+        activeSavedPlanId = null;
+        activeSavedPlanCreatedAt = null;
+      }
+      await refreshPlanHistory();
+      $('engProjectPlanSaveNote').textContent = 'Сохранённый план удалён.';
+    } catch (error) {
+      window.alert(error.message || 'Не удалось изменить историю планов.');
+    }
+  });
+  $('engPlanNewBtn').addEventListener('click', () => {
+    if (operations.length && !window.confirm('Начать новый план? Несохранённые изменения текущей формы будут потеряны.')) return;
+    activeSavedPlanId = null;
+    activeSavedPlanCreatedAt = null;
+    operations = [];
+    lastResult = null;
+    $('engProjectPlanTitle').value = 'Комплексный объект';
+    $('engProjectPlanResult').hidden = true;
+    $('engProjectCalendar').hidden = true;
+    $('engProjectPlanWarnings').textContent = '';
+    $('engProjectPlanSaveNote').textContent = 'Новый план: добавь операции и рассчитай объект для сохранения.';
+    renderRows();
+  });
   $('engProjectPlanCalculateBtn').addEventListener('click', async () => {
     try {
       const rows = readRows();
@@ -283,18 +391,36 @@
       const result = planner.calculateProjectPlan(rows, { availableWorkers });
       renderResult(result);
       renderCalendar(result);
-      const record = { id: makeId(), title: $('engProjectPlanTitle').value.trim() || 'Комплексный объект', createdAt: new Date().toISOString(), operations: rows, result };
+      const updatingExisting = Boolean(activeSavedPlanId);
+      const calendarOptions = {
+        startDate: $('engProjectStartDate').value,
+        weekdaysOnly: $('engProjectWeekdaysOnly').checked
+      };
+      const record = {
+        id: activeSavedPlanId || makePlanId(),
+        title: $('engProjectPlanTitle').value.trim() || 'Комплексный объект',
+        createdAt: activeSavedPlanCreatedAt || new Date().toISOString(),
+        operations: rows,
+        calendarOptions,
+        result: { ...result, calendarOptions }
+      };
       if (window.crm?.saveEngineeringPlan) {
         await window.crm.saveEngineeringPlan(record);
-        const history = await window.crm.listEngineeringPlans();
-        $('engProjectPlanSavedCount').textContent = String(history.length);
-        $('engProjectPlanSaveNote').textContent = 'План сохранён в SQLite: ' + record.title + '. Он включается в резервную копию базы CRM.';
+        activeSavedPlanId = record.id;
+        activeSavedPlanCreatedAt = record.createdAt;
+        await refreshPlanHistory();
+        $('engProjectPlanSaveNote').textContent = (updatingExisting ? 'План обновлён' : 'План сохранён') + ' в SQLite: ' + record.title + '. Он включается в резервную копию базы CRM.';
       } else {
-        const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        history.unshift(record);
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        const history = Array.isArray(parsed) ? parsed : [];
+        const index = history.findIndex(item => item && item.id === record.id);
+        if (index >= 0) history[index] = record;
+        else history.unshift(record);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(history.slice(0, 100)));
-        $('engProjectPlanSavedCount').textContent = String(Math.min(100, history.length));
-        $('engProjectPlanSaveNote').textContent = 'План сохранён локально: ' + record.title + '. Режим браузера без SQLite.';
+        activeSavedPlanId = record.id;
+        activeSavedPlanCreatedAt = record.createdAt;
+        await refreshPlanHistory();
+        $('engProjectPlanSaveNote').textContent = (updatingExisting ? 'План обновлён' : 'План сохранён') + ' локально: ' + record.title + '. Режим браузера без SQLite.';
       }
     } catch (error) { window.alert(error.message || 'Не удалось рассчитать и сохранить комплексный объект.'); }
   });
@@ -313,8 +439,9 @@
       a.href = url; a.download = 'struktura-project-plans-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); URL.revokeObjectURL(url);
     } catch (error) { window.alert(error.message || 'Не удалось экспортировать историю планов.'); }
   });
-  readPlanHistory().then(history => { $('engProjectPlanSavedCount').textContent = String(history.length); }).catch(error => {
-    $('engProjectPlanSaveNote').textContent = 'Не удалось загрузить историю из SQLite: ' + String(error.message || error);
+  refreshPlanHistory().catch(error => {
+    $('engProjectPlanSaveNote').textContent = 'Не удалось загрузить историю планов: ' + String(error.message || error);
+    $('engProjectPlanHistory').innerHTML = '<div class="eng-plan-history-empty">Ошибка загрузки истории. Проверь резервную копию и перезапусти CRM.</div>';
   });
   const firstWork = catalog.find(item => item.id === 'd-floor-screed') || catalog[0];
   addOperation({ catalogId: firstWork.id, name: 'Демонтаж стяжки', quantity: 100 });
