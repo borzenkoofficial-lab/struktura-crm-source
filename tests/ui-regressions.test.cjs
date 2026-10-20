@@ -777,3 +777,12 @@ test('engineering calculator UI script is loaded after its core module', () => {
   assert.match(ui, /engCalculateBtn/);
   assert.match(ui, /engSaveActualBtn/);
 });
+
+test('engineering calculator reports shift-report evidence instead of false zero-confidence warnings', () => {
+  const engineeringUi = fs.readFileSync(path.join(__dirname, '../src/engineering-calculator-ui.js'), 'utf8');
+  assert.ok(engineeringUi.includes('renderResult(result, input, Number(result.observations ?? observations.length))'));
+  assert.ok(engineeringUi.includes('Number.isFinite(Number(p.result?.observations))'));
+  assert.ok(engineeringUi.includes("p.result?.rateEvidenceSource === 'Фактические сменные отчёты'"));
+  assert.ok(engineeringUi.includes("result.warnings = (result.warnings || []).filter(w => !String(w).startsWith('Нет фактических наблюдений:'))"));
+  assert.ok(engineeringUi.includes('if (externalCount < 3) result.warnings.push'));
+});
