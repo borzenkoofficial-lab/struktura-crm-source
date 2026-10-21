@@ -696,12 +696,13 @@ test('PDF commercial quote recalculates the final total from submitted work line
   const quoteStart = main.indexOf("ipcMain.handle('estimate:exportQuotePdf'");
   const quoteEnd = main.indexOf("ipcMain.handle('updates:status'", quoteStart);
   const quote = main.slice(quoteStart, quoteEnd);
-  assert.match(quote, /calculateQuoteTotals\(lines, input\.discount\)/);
+  assert.match(quote, /calculateQuoteTotals\(lines, input\.discount, input\.costInputs \|\| \{\}\)/);
   assert.match(quote, /const total = totals\.revenueRub/);
   assert.match(quote, /const discount = totals\.discountRub/);
   assert.doesNotMatch(quote, /Number\(input\.revenue\)/);
-  assert.doesNotMatch(quote, /Number\.isFinite\(Number\(input\.estimatedProfitRub\)\)/);
-  assert.match(quote, /const profitRub = total - costRub/);
+  assert.doesNotMatch(quote, /estimatedCostRub|estimatedProfitRub|input\.marginPct/);
+  assert.match(quote, /const profitRub = totals\.profitRub/);
+  assert.match(quote, /costInputs: \{ payroll: r\.payroll/);
 });
 
 test('project editor exposes client and lead selectors and persists relationship columns', () => {

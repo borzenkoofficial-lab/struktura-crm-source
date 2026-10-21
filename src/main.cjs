@@ -25,7 +25,6 @@ const { parseCommercialOrdersCsv } = require('./order-import.cjs');
 const { assessCommercialOrder } = require('./order-pi.cjs');
 const { calculateOrderEconomics } = require('./order-economics.cjs');
 const { calculateQuoteTotals } = require('./quote-economics.cjs');
-const { calculateQuoteTotals } = require('./quote-economics.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
 const { normalizeTaskInput } = require('./task-utils.cjs');
 const { normalizeContactEmail, normalizePhone } = require('./contact-utils.cjs');

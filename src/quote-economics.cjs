@@ -2,7 +2,7 @@
 
 function nonNegativeFinite(value, field) {
   const n = Number(value ?? 0);
-  if (!Number.isFinite(n) || n < 0 || n > Number.MAX_SAFE_INTEGER) {
+  if (!Number.isFinite(n) || n < 0) {
     throw new Error(field + ' должно быть конечным неотрицательным числом в допустимом диапазоне.');
   }
   return n;

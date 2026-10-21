@@ -8,7 +8,7 @@ test('quote totals are recalculated from line quantities, prices, costs, and bou
     { quantity: 2, price: 1000, cost: 600 },
     { quantity: 3, price: 500, cost: 250 }
   ], 400), {
-    grossRevenueRub: 3500, revenueRub: 3100, costRub: 1950, profitRub: 1150, discountRub: 400, marginPct: 1150 / 3100 * 100
+    grossRevenueRub: 3500, revenueRub: 3100, costRub: 1950, profitRub: 1150, discountRub: 400, lineCostsRub: 1950, directCostsRub: 1950, overheadRub: 0, taxReserveRub: 0, marginPct: 1150 / 3100 * 100
   });
 });
 
