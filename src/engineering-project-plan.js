@@ -122,6 +122,10 @@
       const effectiveProductivity = rateModel ? rateModel.effectiveProductivity : op.productivity / op.difficultyFactor;
       const personShifts = op.quantity / effectiveProductivity;
       const duration = personShifts / op.crewSize * 8 / op.hoursPerShift;
+      if (![effectiveProductivity, personShifts, duration].every(Number.isFinite) ||
+          effectiveProductivity <= 0 || personShifts <= 0 || duration <= 0) {
+        throw new Error(op.name + ': расчёт вышел за допустимый числовой диапазон. Проверь объём, производительность и размер бригады.');
+      }
       durations.set(op.id, { effectiveProductivity, personShifts, duration, observations: rateModel ? rateModel.observations : 0 });
     }
     const actualSchedule = schedulePass(ordered, op => durations.get(op.id).duration, availableWorkers, 'finish');
