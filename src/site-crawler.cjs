@@ -84,7 +84,7 @@ function robotsAllows(robotsText, pathname) {
       current.rulesStarted = true; if (value) current.rules.push({ allow: key === 'allow', path: value });
     }
   }
-  const matched = groups.filter(g => g.agents.some(a => a === '*' || a === 'struktura-crm'));
+  const matched = groups.filter(g => g.agents.some(a => a === '*' || a === 'skol' || a === 'struktura-crm'));
   const rules = matched.flatMap(g => g.rules).filter(r => pathname.startsWith(r.path)).sort((a,b) => b.path.length-a.path.length);
   return !rules.length || rules[0].allow;
 }
@@ -93,7 +93,7 @@ async function fetchSafe(url, fetchImpl) {
   for (let redirects = 0; redirects <= 3; redirects++) {
     const response = await fetchImpl(current.toString(), {
       redirect: 'manual', signal: AbortSignal.timeout(9000),
-      headers: { 'User-Agent': 'StrukturaCRM/0.3 (+public business contact discovery; respects robots.txt)', Accept: 'text/html,application/xhtml+xml,text/plain;q=0.8' }
+      headers: { 'User-Agent': 'SKOL/1.16.9 (+public business contact discovery; respects robots.txt)', Accept: 'text/html,application/xhtml+xml,text/plain;q=0.8' }
     });
     if ([301,302,303,307,308].includes(response.status)) {
       const location = response.headers.get('location');

@@ -38,6 +38,20 @@ test('customer quote and production report show СКОЛ instead of the former b
   assert.doesNotMatch(report, /STRUKTURA|Struktura CRM|данным смен CRM|СКОЛ СКОЛ/);
 });
 
+
+test('all downloaded estimates and planning archives carry the СКОЛ prefix', () => {
+  const renderer = read('src/renderer.js');
+  const calculatorUi = read('src/engineering-calculator-ui.js');
+  const planUi = read('src/engineering-project-plan-ui.js');
+  const crawler = read('src/site-crawler.cjs');
+  assert.match(renderer, /a\.download = `СКОЛ-/);
+  assert.match(calculatorUi, /СКОЛ-инженерная-история-/);
+  assert.match(planUi, /СКОЛ-планы-объекта-/);
+  assert.match(crawler, /User-Agent': 'SKOL\/1\.16\.9/);
+  assert.doesNotMatch(calculatorUi, /struktura-engineering-history-/);
+  assert.doesNotMatch(planUi, /struktura-project-plans-/);
+});
+
 test('rebrand retains existing local database discovery and internal storage keys', () => {
   const main = read('src/main.cjs');
   assert.match(main, /app\.setName\('СКОЛ'\)/);

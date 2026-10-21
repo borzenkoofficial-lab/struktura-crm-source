@@ -242,7 +242,7 @@
   $('engExportBtn').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), projects: history }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob), a = document.createElement('a');
-    a.href = url; a.download = 'struktura-engineering-history-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); URL.revokeObjectURL(url);
+    a.href = url; a.download = 'СКОЛ-инженерная-история-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); URL.revokeObjectURL(url);
   });
   $('engImportBtn').addEventListener('click', () => $('engImportFile').click());
   $('engImportFile').addEventListener('change', async event => {

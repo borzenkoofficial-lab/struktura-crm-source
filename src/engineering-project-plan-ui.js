@@ -439,7 +439,7 @@
       const history = await readPlanHistory();
       const blob = new Blob([JSON.stringify({ schemaVersion: 1, exportedAt: new Date().toISOString(), plans: history }, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob), a = document.createElement('a');
-      a.href = url; a.download = 'struktura-project-plans-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); URL.revokeObjectURL(url);
+      a.href = url; a.download = 'СКОЛ-планы-объекта-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); URL.revokeObjectURL(url);
     } catch (error) { window.alert(error.message || 'Не удалось экспортировать историю планов.'); }
   });
   refreshPlanHistory().catch(error => {

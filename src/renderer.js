@@ -836,7 +836,7 @@ function estimateDownloadCsv() {
   const actual = estimateRefreshActuals(result.totalCost);
   if (actual) rows.push([],['ФАКТ ПО ОБЪЕКТУ','Сумма'],['Цена договора',actual.actualRevenue],['Получено от клиента',actual.received],['Выплачено рабочим',actual.wagesPaid],['Фактические расходы',actual.actualCosts],['Фактическая прибыль',actual.actualProfit],['Осталось получить',actual.receivable],['Денежный остаток',actual.cashBalance],['Отклонение от плана',actual.overrun]);
   const csv = '\uFEFF' + rows.map(row => row.map(value => `"${String(value ?? '').replace(/"/g,'""')}"`).join(';')).join('\r\n');
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })); const a = document.createElement('a'); a.href = url; a.download = `${($('estimateTitle').value || 'smeta').replace(/[^a-zа-яё0-9_-]+/gi,'_')}.csv`; a.click(); URL.revokeObjectURL(url); toast('Смета экспортирована в CSV.');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })); const a = document.createElement('a'); a.href = url; a.download = `СКОЛ-${($('estimateTitle').value || 'smeta').replace(/[^a-zа-яё0-9_-]+/gi,'_')}.csv`; a.click(); URL.revokeObjectURL(url); toast('Смета экспортирована в CSV.');
 }
 async function estimateCopySummary() {
   const r = refreshEstimate(); if (!r) return;
