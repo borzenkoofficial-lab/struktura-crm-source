@@ -18,3 +18,14 @@ test('prospect duplicate keys do not merge distinct case-sensitive website paths
   assert.ok(lower.includes('website:https://example.com/about'));
   assert.notEqual(about.find(key => key.startsWith('website:')), lower.find(key => key.startsWith('website:')));
 });
+
+
+test('Russian phone formats produce the same prospect duplicate key', () => {
+  const formats = [
+    '+7 (999) 123-45-67',
+    '8 999 123 45 67',
+    '9991234567'
+  ];
+  const keys = formats.map(phone => prospectDuplicateKeys({ company_name: 'Example', region: 'Москва', phone }).find(key => key.startsWith('phone:')));
+  assert.deepEqual(keys, ['phone:79991234567', 'phone:79991234567', 'phone:79991234567']);
+});
