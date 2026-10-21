@@ -8,7 +8,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const buildScript = fs.readFileSync(path.join(root, 'scripts/create-installer-assets.cjs'), 'utf8');
 
 test('Windows app and installer use the СКОЛ logo and product identity', () => {
-  assert.equal(pkg.version, '1.16.13');
+  assert.equal(pkg.version, '1.16.14');
   assert.equal(pkg.name, 'skol-desktop');
   assert.equal(pkg.build.productName, 'СКОЛ');
   assert.equal(pkg.build.win.icon, 'build/skol.ico');

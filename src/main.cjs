@@ -5,13 +5,18 @@ const fs = require('node:fs');
 const { normalizePin, createPinConfig, pinMatches, evaluatePinAttempt } = require('./pin-security.cjs');
 const { skolWordmarkSvg } = require('./branding.cjs');
 const { validateBackupDatabase } = require('./backup-utils.cjs');
+const { findLegacyUserDataPath } = require('./user-data-path.cjs');
 app.setName('СКОЛ');
-// Keep the existing local database when the visible product name changes.
+// Keep an existing current profile; fall back to legacy data only if the current profile has no database.
 const legacyDataCandidates = ['Struktura CRM', 'struktura-crm', 'struktura-crm-source'];
 const currentUserDataPath = app.getPath('userData');
-const legacyDataPath = legacyDataCandidates
-  .map(name => path.join(app.getPath('appData'), name))
-  .find(candidate => fs.existsSync(path.join(candidate, 'struktura-crm.sqlite')));
+const legacyDataPath = findLegacyUserDataPath({
+  appDataPath: app.getPath('appData'),
+  currentUserDataPath,
+  legacyDataCandidates,
+  databaseFilename: 'struktura-crm.sqlite',
+  existsSync: fs.existsSync
+});
 if (legacyDataPath && path.resolve(legacyDataPath) !== path.resolve(currentUserDataPath)) {
   app.setPath('userData', legacyDataPath);
 }
