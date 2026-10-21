@@ -33,6 +33,18 @@ test('invalid inputs are rejected and missing baseline data is never invented', 
   assert.throws(() => calculateEngineeringEstimate({ quantity: 10, baselineProductivity: 0 }), /Базовая производительность/);
 });
 
+
+test('engineering estimate rejects inputs that overflow derived calculations', () => {
+  assert.throws(
+    () => calculateEngineeringEstimate({ quantity: 100, baselineProductivity: Number.MIN_VALUE }),
+    /Результат расчёта выходит за допустимый числовой диапазон/
+  );
+  assert.throws(
+    () => calculateEngineeringEstimate({ quantity: Number.MIN_VALUE, baselineProductivity: 10 }),
+    /Результат расчёта выходит за допустимый числовой диапазон/
+  );
+});
+
 test('engineering estimate rejects fractional crew sizes', () => {
   assert.throws(() => calculateEngineeringEstimate({ quantity: 10, baselineProductivity: 8, crewSize: 2.5 }), /должен быть целым числом/);
 });
