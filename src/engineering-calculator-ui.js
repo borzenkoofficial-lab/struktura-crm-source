@@ -189,7 +189,7 @@
     input.preAdjustedRateSource=String(evidence.source||preAdjustedRateSource||'');
     if(currentTransferMetadata)input.transferMetadata={...currentTransferMetadata};
     if(currentSourceEconomics)input.sourceEconomics={...currentSourceEconomics};
-    const calculationInput=preAdjusted?input:api.applyRateEvidence(input,evidence);
+    const calculationInput=preAdjusted?input:api.applyRateEvidence(input, evidence);
     const result=api.calculateEngineeringEstimate(calculationInput),externalCount=Number(evidence.externalModel?.observations||0);
     result.observations=observations.length||externalCount||Number(evidence.observationCount||0);
     result.rateEvidenceSource=evidence.source||'Локальная история расчётов';
@@ -200,7 +200,7 @@
       if(externalCount<3)result.warnings.push('Есть только 1–2 наблюдения: обученная норма предварительная.');
     }
     const record={id:'eng-'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),createdAt:new Date().toISOString(),...input,result,observations:[]};
-    history.unshift(record);history=history.slice(0,500);api.saveHistory(history);renderResult(result,input,Number(result.observations??observations.length));renderHistory();
+    history.unshift(record);history=history.slice(0,500);api.saveHistory(history);renderResult(result, input, Number(result.observations ?? observations.length));renderHistory();
   }
   async function runEngineeringCalculation(evidenceOverride=null){
     const button=$('engCalculateBtn');button.disabled=true;button.textContent='Считаем…';
