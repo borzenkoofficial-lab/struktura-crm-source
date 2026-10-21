@@ -702,7 +702,7 @@ test('PDF commercial quote recalculates the final total from submitted work line
   assert.doesNotMatch(quote, /Number\(input\.revenue\)/);
   assert.doesNotMatch(quote, /estimatedCostRub|estimatedProfitRub|input\.marginPct/);
   assert.match(quote, /const profitRub = totals\.profitRub/);
-  assert.match(quote, /costInputs: \{ payroll: r\.payroll/);
+  assert.match(renderer, /costInputs: \{ payroll: r\.payroll/);
 });
 
 test('project editor exposes client and lead selectors and persists relationship columns', () => {
