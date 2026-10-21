@@ -25,6 +25,7 @@ const { parseCommercialOrdersCsv } = require('./order-import.cjs');
 const { assessCommercialOrder } = require('./order-pi.cjs');
 const { calculateOrderEconomics } = require('./order-economics.cjs');
 const { calculateQuoteTotals } = require('./quote-economics.cjs');
+const { calculateQuoteTotals } = require('./quote-economics.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
 const { normalizeTaskInput } = require('./task-utils.cjs');
 const { normalizeContactEmail, normalizePhone } = require('./contact-utils.cjs');
@@ -1258,14 +1259,12 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
   const title = clean(input.title || 'Коммерческое предложение', 180);
   const customer = clean(input.customer, 180); const address = clean(input.address, 240);
   const contact = clean(input.contact, 120); const validity = clean(input.validity || '7 календарных дней', 80);
-  const totals = calculateQuoteTotals(lines, input.discount);
+  const totals = calculateQuoteTotals(lines, input.discount, input.costInputs || {});
   const total = totals.revenueRub;
   const discount = totals.discountRub;
-  const rawCostRub = Number(input.estimatedCostRub ?? 0);
-  if (!Number.isFinite(rawCostRub) || rawCostRub < 0 || !Number.isSafeInteger(Math.round(rawCostRub))) throw new Error('Расчётная себестоимость должна быть конечной неотрицательной суммой.');
-  const costRub = Math.round(rawCostRub);
-  const profitRub = total - costRub;
-  const marginPct = total > 0 ? profitRub / total * 100 : 0;
+  const costRub = totals.costRub;
+  const profitRub = totals.profitRub;
+  const marginPct = totals.marginPct;
   const rows = lines.map((line, i) => `<tr><td class="num">${i + 1}</td><td><strong>${quoteEscape(line.name)}</strong>${line.note ? `<small>${quoteEscape(line.note)}</small>` : ''}</td><td>${quoteEscape(line.unit)}</td><td class="num">${line.quantity.toLocaleString('ru-RU')}</td><td class="num">${quoteMoney(line.price)}</td><td class="num">${quoteMoney(line.lineTotal)}</td></tr>`).join('');
   const preparedDate = new Date().toLocaleDateString('ru-RU');
   const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${quoteEscape(title)}</title><style>

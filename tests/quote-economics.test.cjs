@@ -37,3 +37,27 @@ test('quote economics rejects negative, infinite and overflowing line values', (
   assert.throws(() => calculateQuoteTotals([{ quantity: Number.MAX_VALUE, price: Number.MAX_VALUE }]), /Сумма строки КП/);
   assert.throws(() => calculateQuoteTotals([{ quantity: 1, price: 100 }], -1), /Скидка/);
 });
+
+test('quote economics derives full internal cost from line costs and explicit expenses', () => {
+  const result = calculateQuoteTotals(
+    [{ quantity: 2, price: 1000, cost: 400 }],
+    100,
+    { payroll: 200, materials: 100, disposal: 50, transport: 25, equipment: 0, other: 25, overheadPercent: 10, taxPercent: 6 }
+  );
+  assert.equal(result.grossRevenueRub, 2000);
+  assert.equal(result.discountRub, 100);
+  assert.equal(result.revenueRub, 1900);
+  assert.equal(result.lineCostsRub, 800);
+  assert.equal(result.directCostsRub, 1200);
+  assert.equal(result.overheadRub, 120);
+  assert.equal(result.taxReserveRub, 114);
+  assert.equal(result.costRub, 1434);
+  assert.equal(result.profitRub, 466);
+  assert.equal(result.marginPct, 466 / 1900 * 100);
+});
+
+test('quote economics validates each cost input before the PDF is created', () => {
+  assert.throws(() => calculateQuoteTotals([{quantity:1,price:100,cost:10}],0,{payroll:-1}), /Оплата бригады/);
+  assert.throws(() => calculateQuoteTotals([{quantity:1,price:100,cost:10}],0,{overheadPercent:101}), /Накладные расходы/);
+  assert.throws(() => calculateQuoteTotals([{quantity:1,price:100,cost:10}],0,{taxPercent:51}), /Налоговый резерв/);
+});
