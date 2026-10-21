@@ -17,6 +17,8 @@
   let lastResult = null;
   let activeSavedPlanId = null;
   let activeSavedPlanCreatedAt = null;
+  let activeSourceMetadata=null;
+  let activeSourceEconomics=null;
   const makeId = () => 'op-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const makePlanId = () => 'plan-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   function addOperation(seed = {}) {
@@ -267,6 +269,12 @@
     operations.forEach(op => { op.predecessors = op.predecessors.filter(id => id !== button.dataset.planRemove); });
     renderRows();
   });
+  function transferSourceSummary(metadata,economics){
+    if(!metadata&&!economics)return '';
+    const parts=['Источник: калькулятор сметы'];if(metadata?.customer)parts.push('заказчик '+metadata.customer);
+    if(metadata?.address)parts.push('адрес '+metadata.address);if(Number.isFinite(Number(economics?.revenue)))parts.push('цена после скидки '+rub(economics.revenue));
+    return ' · '+parts.join(' · ')+'.';
+  }
   function renderSavedPlans(history) {
     const host = $('engProjectPlanHistory');
     if (!history.length) {
@@ -284,6 +292,7 @@
         '</strong><small>' + safe(stampLabel) + ' · ' + operationCount + ' операций' +
         (Number.isFinite(Number(revenue)) ? ' · Выручка ' + safe(rub(revenue)) : '') +
         (Number.isFinite(Number(profit)) ? ' · Прибыль ' + safe(rub(profit)) : '') +
+        safe(transferSourceSummary(record.sourceMetadata,record.sourceEconomics)) +
         '</small></div><div class="eng-plan-history-actions"><button type="button" class="button subtle small-button" data-plan-load="' + safe(record.id) + '">Открыть</button><button type="button" class="button subtle small-button" data-plan-delete="' + safe(record.id) + '">Удалить</button></div></article>';
     }).join('');
   }
@@ -325,9 +334,10 @@
       ...operation,
       predecessors: Array.isArray(operation.predecessors) ? [...operation.predecessors] : []
     }));
-    activeSavedPlanId = String(record.id || '');
-    activeSavedPlanCreatedAt = record.createdAt || new Date().toISOString();
-    $('engProjectPlanTitle').value = record.title || 'Комплексный объект';
+    activeSavedPlanId=String(record.id||'');activeSavedPlanCreatedAt=record.createdAt||new Date().toISOString();
+    activeSourceMetadata=record.sourceMetadata&&typeof record.sourceMetadata==='object'?{...record.sourceMetadata}:null;
+    activeSourceEconomics=record.sourceEconomics&&typeof record.sourceEconomics==='object'?{...record.sourceEconomics}:null;
+    $('engProjectPlanTitle').value=record.title||'Комплексный объект';
     if (Number.isInteger(Number(record.result?.availableWorkers)) && Number(record.result.availableWorkers) >= 1) {
       $('engProjectAvailableWorkers').value = String(Number(record.result.availableWorkers));
     }
@@ -342,7 +352,7 @@
     const result = planner.calculateProjectPlan(readRows(), { availableWorkers: Number($('engProjectAvailableWorkers').value) });
     renderResult(result);
     renderCalendar(result);
-    $('engProjectPlanSaveNote').textContent = 'Открыт сохранённый план «' + (record.title || 'Комплексный объект') + '». Следующий расчёт обновит эту запись.';
+    $('engProjectPlanSaveNote').textContent='Открыт сохранённый план «'+(record.title||'Комплексный объект')+'». Следующий расчёт обновит эту запись.'+transferSourceSummary(activeSourceMetadata,activeSourceEconomics);
   }
   $('engProjectPlanHistory').addEventListener('click', async event => {
     const openButton = event.target.closest('[data-plan-load]');
@@ -376,9 +386,7 @@
   });
   $('engPlanNewBtn').addEventListener('click', () => {
     if (operations.length && !window.confirm('Начать новый план? Несохранённые изменения текущей формы будут потеряны.')) return;
-    activeSavedPlanId = null;
-    activeSavedPlanCreatedAt = null;
-    operations = [];
+    activeSavedPlanId=null;activeSavedPlanCreatedAt=null;activeSourceMetadata=null;activeSourceEconomics=null;operations=[];
     lastResult = null;
     $('engProjectPlanTitle').value = 'Комплексный объект';
     $('engProjectPlanResult').hidden = true;
@@ -403,16 +411,18 @@
         id: activeSavedPlanId || makePlanId(),
         title: $('engProjectPlanTitle').value.trim() || 'Комплексный объект',
         createdAt: activeSavedPlanCreatedAt || new Date().toISOString(),
-        operations: rows,
+        operations:rows,
         calendarOptions,
-        result: { ...result, calendarOptions }
+        sourceMetadata:activeSourceMetadata?{...activeSourceMetadata}:null,
+        sourceEconomics:activeSourceEconomics?{...activeSourceEconomics}:null,
+        result:{...result,calendarOptions}
       };
       if (window.crm?.saveEngineeringPlan) {
         await window.crm.saveEngineeringPlan(record);
         activeSavedPlanId = record.id;
         activeSavedPlanCreatedAt = record.createdAt;
         await refreshPlanHistory();
-        $('engProjectPlanSaveNote').textContent = (updatingExisting ? 'План обновлён' : 'План сохранён') + ' в SQLite: ' + record.title + '. Он включается в резервную копию базы CRM.';
+        $('engProjectPlanSaveNote').textContent=(updatingExisting?'План обновлён':'План сохранён')+' в SQLite: '+record.title+'. Он включается в резервную копию базы CRM.'+transferSourceSummary(activeSourceMetadata,activeSourceEconomics);
       } else {
         const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
         const history = Array.isArray(parsed) ? parsed : [];
@@ -423,7 +433,7 @@
         activeSavedPlanId = record.id;
         activeSavedPlanCreatedAt = record.createdAt;
         await refreshPlanHistory();
-        $('engProjectPlanSaveNote').textContent = (updatingExisting ? 'План обновлён' : 'План сохранён') + ' локально: ' + record.title + '. Режим браузера без SQLite.';
+        $('engProjectPlanSaveNote').textContent=(updatingExisting?'План обновлён':'План сохранён')+' локально: '+record.title+'. Режим браузера без SQLite.'+transferSourceSummary(activeSourceMetadata,activeSourceEconomics);
       }
     } catch (error) { window.alert(error.message || 'Не удалось рассчитать и сохранить комплексный объект.'); }
   });
@@ -441,6 +451,26 @@
       const url = URL.createObjectURL(blob), a = document.createElement('a');
       a.href = url; a.download = 'СКОЛ-планы-объекта-' + new Date().toISOString().slice(0,10) + '.json'; a.click(); URL.revokeObjectURL(url);
     } catch (error) { window.alert(error.message || 'Не удалось экспортировать историю планов.'); }
+  });
+  window.addEventListener('skol:engineering-transfer',event=>{
+    const payload=event.detail;if(!payload||payload.mode!=='complex'||!Array.isArray(payload.operations))return;
+    try{
+      if(!payload.operations.length)throw new Error('В переданной смете нет работ для комплексного расчёта.');
+      if(payload.operations.length>100)throw new Error('Комплексный расчёт поддерживает не более 100 позиций.');
+      const missing=payload.operations.find(op=>!catalog.some(item=>item.id===String(op.catalogId)));
+      if(missing)throw new Error('В каталоге ПИ не найдена работа «'+String(missing.name||missing.catalogId)+'». Проверь прайс и повтори перенос.');
+      activeSavedPlanId=null;activeSavedPlanCreatedAt=null;activeSourceMetadata=payload.metadata&&typeof payload.metadata==='object'?{...payload.metadata}:null;
+      activeSourceEconomics=payload.sourceEconomics&&typeof payload.sourceEconomics==='object'?{...payload.sourceEconomics}:null;
+      operations=payload.operations.map(op=>({...op,id:makeId(),catalogId:String(op.catalogId),predecessors:Array.isArray(op.predecessors)?[...op.predecessors]:[]}));
+      $('engProjectPlanTitle').value=payload.title||activeSourceMetadata?.title||'Комплексный объект';
+      $('engProjectAvailableWorkers').value=String(payload.availableWorkers||5);
+      const startDate=String(payload.calendarOptions?.startDate||'');if(/^\d{4}-\d{2}-\d{2}$/.test(startDate))$('engProjectStartDate').value=startDate;
+      $('engProjectWeekdaysOnly').checked=payload.calendarOptions?.weekdaysOnly!==false;
+      $('engProjectPlanResult').hidden=true;$('engProjectCalendar').hidden=true;$('engProjectPlanWarnings').textContent='';
+      $('engProjectPlanSaveNote').textContent='Перенесено из сметы: '+operations.length+' операций.'+transferSourceSummary(activeSourceMetadata,activeSourceEconomics);
+      renderRows();$('engProjectPlanCalculateBtn').click();$('engProjectPlanTitle').scrollIntoView({behavior:'smooth',block:'center'});
+      (payload.warnings||[]).forEach(warning=>window.alert(warning));
+    }catch(error){window.alert(error.message||'Не удалось перенести смету в комплексный расчёт.');}
   });
   refreshPlanHistory().catch(error => {
     $('engProjectPlanSaveNote').textContent = 'Не удалось загрузить историю планов: ' + String(error.message || error);

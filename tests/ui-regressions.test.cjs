@@ -840,3 +840,17 @@ test('complex project-plan history can be opened, updated, deleted, and retains 
   assert.match(plannerUi, /if \(missing\.length\) stored = await window\.crm\.listEngineeringPlans\(\)/);
   assert.match(plannerUi, /localStorage\.removeItem\(STORAGE_KEY\)/);
 });
+
+test('estimate data transfers into standard or complex PI and triggers the chosen calculation',()=>{
+ const transfer=fs.readFileSync(path.join(__dirname,'../src/engineering-transfer.js'),'utf8');
+ const standardUI=fs.readFileSync(path.join(__dirname,'../src/engineering-calculator-ui.js'),'utf8');
+ const plannerUI=fs.readFileSync(path.join(__dirname,'../src/engineering-project-plan-ui.js'),'utf8');
+ assert.match(html,/id="estimatePiTransferBtn"/);assert.match(html,/id="estimateEngineeringTransferDialog"/);
+ assert.match(html,/value="standard"/);assert.match(html,/value="complex"/);assert.match(html,/Перенести и сразу рассчитать/);
+ assert.match(html,/src="engineering-transfer\.js"/);assert.match(renderer,/buildEstimateEngineeringTransfer\(mode,selectedLineId\)/);
+ assert.match(renderer,/durationLines:duration\.lines/);assert.match(renderer,/new CustomEvent\('skol:engineering-transfer'/);
+ assert.match(transfer,/function buildEngineeringTransfer\(source=\{\}\)/);assert.match(standardUI,/window\.addEventListener\('skol:engineering-transfer'/);
+ assert.match(standardUI,/runEngineeringCalculation\(\{/);assert.match(standardUI,/rateEvidenceAlreadyAdjusted/);
+ assert.match(plannerUI,/window\.addEventListener\('skol:engineering-transfer'/);assert.match(plannerUI,/sourceMetadata:activeSourceMetadata/);
+ assert.match(plannerUI,/\$\('engProjectPlanCalculateBtn'\)\.click\(\)/);
+});

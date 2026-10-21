@@ -6,6 +6,8 @@
   if (!api || !catalogApi || !$('view-engineering')) return;
   let catalog = [];
   let history = api.loadHistory();
+  let rateEvidenceAlreadyAdjusted=false, preAdjustedObservationCount=0, preAdjustedRateSource='';
+  let currentTransferMetadata=null, currentSourceEconomics=null;
   const rub = value => new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(Number(value || 0));
   const num = id => Number($(id).value);
   const safe = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -167,55 +169,60 @@
     $('engMargin').value = p.targetMarginPercent; $('engReserve').value = p.reservePercent; $('engTargetShifts').value = p.targetShifts ?? 5; $('engDifficulty').value = p.difficultyFactor;
     $('engThickness').value = p.conditions?.thicknessMm ?? 50; $('engReinforced').value = p.conditions?.reinforced ?? 'no';
     $('engFloor').value = p.conditions?.floor ?? 1; $('engElevator').value = p.conditions?.elevator ?? 'yes';
-    $('engCarryDistance').value = p.conditions?.carryDistanceM ?? 10; $('engMethod').value = p.conditions?.method ?? 'mechanized';
+    $('engCarryDistance').value=p.conditions?.carryDistanceM??10;$('engMethod').value=p.conditions?.method??'mechanized';
+    rateEvidenceAlreadyAdjusted=p.rateEvidenceAlreadyAdjusted===true;preAdjustedObservationCount=Number(p.preAdjustedObservationCount||0);
+    preAdjustedRateSource=String(p.preAdjustedRateSource||'');currentTransferMetadata=p.transferMetadata&&typeof p.transferMetadata==='object'?{...p.transferMetadata}:null;
+    currentSourceEconomics=p.sourceEconomics&&typeof p.sourceEconomics==='object'?{...p.sourceEconomics}:null;
     deriveConditionFactor(item);
-    if (p.result) renderResult(p.result, p, p.result.observations || 0);
+    if(p.result)renderResult(p.result,p,p.result.observations||0);
   }
-  async function calculateAndSave() {
-    const item = selectedItem();
-    if (!item) throw new Error('В каталоге нет работ с заданной производительностью.');
-    if (!(num('engBaselineRate') > 0)) throw new Error('Укажи положительную стартовую производительность.');
-    const evidence = await getRateEvidence(item, num('engCrew'));
-    const observations = evidence.observations;
-    const input = readInput(item, observations);
-    // Apply learned evidence to a calculation copy. Keep the user's editable baseline
-    // unchanged in history so the same shift sample is not blended repeatedly on reload.
-    const calculationInput = api.applyRateEvidence(input, evidence);
-    const result = api.calculateEngineeringEstimate(calculationInput);
-    const externalCount = Number(evidence.externalModel?.observations || 0);
-    result.observations = observations.length || externalCount;
-    result.rateEvidenceSource = evidence.source;
-    if (evidence.externalModel && observations.length === 0 && externalCount > 0) {
-      const observedMedian = Number(evidence.externalModel.observedMedian);
-      const observedWeight = Number(evidence.externalModel.observedWeight);
-      result.observedMedian = Number.isFinite(observedMedian) && observedMedian > 0 ? observedMedian : null;
-      result.learnedWeight = Number.isFinite(observedWeight) ? observedWeight : 0;
-      result.warnings = (result.warnings || []).filter(w => !String(w).startsWith('Нет фактических наблюдений:'));
-      if (externalCount < 3) result.warnings.push('Есть только 1–2 наблюдения: обученная норма предварительная.');
+  async function calculateAndSave(evidenceOverride=null) {
+    const item=selectedItem();
+    if(!item)throw new Error('В каталоге нет работ с заданной производительностью.');
+    if(!(num('engBaselineRate')>0))throw new Error('Укажи положительную стартовую производительность.');
+    const evidence=evidenceOverride||(rateEvidenceAlreadyAdjusted
+      ?{observations:[],externalModel:null,source:preAdjustedRateSource||'Норма перенесена из калькулятора сметы',observationCount:preAdjustedObservationCount,preAdjusted:true}
+      :await getRateEvidence(item,num('engCrew')));
+    const observations=Array.isArray(evidence.observations)?evidence.observations:[];
+    const input=readInput(item,observations),preAdjusted=evidence.preAdjusted===true||rateEvidenceAlreadyAdjusted;
+    input.rateEvidenceAlreadyAdjusted=preAdjusted;input.preAdjustedObservationCount=Number(evidence.observationCount||preAdjustedObservationCount||0);
+    input.preAdjustedRateSource=String(evidence.source||preAdjustedRateSource||'');
+    if(currentTransferMetadata)input.transferMetadata={...currentTransferMetadata};
+    if(currentSourceEconomics)input.sourceEconomics={...currentSourceEconomics};
+    const calculationInput=preAdjusted?input:api.applyRateEvidence(input,evidence);
+    const result=api.calculateEngineeringEstimate(calculationInput),externalCount=Number(evidence.externalModel?.observations||0);
+    result.observations=observations.length||externalCount||Number(evidence.observationCount||0);
+    result.rateEvidenceSource=evidence.source||'Локальная история расчётов';
+    if(evidence.externalModel&&observations.length===0&&externalCount>0){
+      const median=Number(evidence.externalModel.observedMedian),weight=Number(evidence.externalModel.observedWeight);
+      result.observedMedian=Number.isFinite(median)&&median>0?median:null;result.learnedWeight=Number.isFinite(weight)?weight:0;
+      result.warnings=(result.warnings||[]).filter(w=>!String(w).startsWith('Нет фактических наблюдений:'));
+      if(externalCount<3)result.warnings.push('Есть только 1–2 наблюдения: обученная норма предварительная.');
     }
-    const p = { id: 'eng-' + Date.now().toString(36) + Math.random().toString(36).slice(2,7), createdAt: new Date().toISOString(), ...input, result, observations: [] };
-    history.unshift(p); history = history.slice(0, 500); api.saveHistory(history);
-    renderResult(result, input, Number(result.observations ?? observations.length)); renderHistory();
+    const record={id:'eng-'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),createdAt:new Date().toISOString(),...input,result,observations:[]};
+    history.unshift(record);history=history.slice(0,500);api.saveHistory(history);renderResult(result,input,Number(result.observations??observations.length));renderHistory();
+  }
+  async function runEngineeringCalculation(evidenceOverride=null){
+    const button=$('engCalculateBtn');button.disabled=true;button.textContent='Считаем…';
+    try{await calculateAndSave(evidenceOverride);}catch(error){window.alert(error.message||'Не удалось выполнить расчёт.');}
+    finally{button.disabled=false;button.textContent='Рассчитать и сохранить';}
   }
   $('engParseDescriptionBtn').addEventListener('click', () => { try { parseWorkDescription(); } catch (error) { window.alert(error.message || 'Не удалось разобрать описание.'); } });
-  $('engWorkSelect').addEventListener('change', () => {
-    const item = selectedItem();
-    if (item) $('engBaselineRate').value = item.productivity;
-    renderMetrics(item, item ? getLocalObservations(item) : []);
+  $('engWorkSelect').addEventListener('change',()=>{
+    rateEvidenceAlreadyAdjusted=false;preAdjustedObservationCount=0;preAdjustedRateSource='';currentTransferMetadata=null;currentSourceEconomics=null;
+    const item=selectedItem();if(item)$('engBaselineRate').value=item.productivity;renderMetrics(item,item?getLocalObservations(item):[]);
   });
+  $('engBaselineRate').addEventListener('input',()=>{rateEvidenceAlreadyAdjusted=false;preAdjustedObservationCount=0;preAdjustedRateSource='';});
   ['engThickness','engReinforced','engFloor','engElevator','engCarryDistance','engMethod','engDifficulty'].forEach(id => $(id).addEventListener('input', () => deriveConditionFactor(selectedItem())));
   ['engReinforced','engElevator','engMethod'].forEach(id => $(id).addEventListener('change', () => deriveConditionFactor(selectedItem())));
-  $('engCalculateBtn').addEventListener('click', async () => {
-    const button = $('engCalculateBtn'); button.disabled = true; button.textContent = 'Считаем…';
-    try { await calculateAndSave(); } catch (error) { window.alert(error.message || 'Не удалось выполнить расчёт.'); }
-    finally { button.disabled = false; button.textContent = 'Рассчитать и сохранить'; }
-  });
+  $('engCalculateBtn').addEventListener('click',()=>runEngineeringCalculation());
   $('engResetBtn').addEventListener('click', () => {
     $('engProjectName').value = ''; $('engWorkDescription').value = ''; $('engQuantity').value = '100'; $('engCrew').value = '5'; $('engHours').value = '8';
     $('engWage').value = '4000'; $('engPrice').value = '0'; $('engExtraCost').value = '0'; $('engFixedCosts').value = '0';
     $('engOverhead').value = '10'; $('engTax').value = '6'; $('engMargin').value = '25'; $('engReserve').value = '15'; $('engTargetShifts').value = '5'; $('engDifficulty').value = '1';
-    $('engThickness').value = '50'; $('engReinforced').value = 'no'; $('engFloor').value = '1'; $('engElevator').value = 'yes'; $('engCarryDistance').value = '10'; $('engMethod').value = 'mechanized';
-    const item = selectedItem(); if (item) $('engBaselineRate').value = item.productivity;
+    $('engThickness').value='50';$('engReinforced').value='no';$('engFloor').value='1';$('engElevator').value='yes';$('engCarryDistance').value='10';$('engMethod').value='mechanized';
+    rateEvidenceAlreadyAdjusted=false;preAdjustedObservationCount=0;preAdjustedRateSource='';currentTransferMetadata=null;currentSourceEconomics=null;
+    const item=selectedItem();if(item)$('engBaselineRate').value=item.productivity;
   });
   $('engRefreshHistoryBtn').addEventListener('click', () => { history = api.loadHistory(); renderHistory(); });
   $('engHistoryList').addEventListener('click', event => {
@@ -259,6 +266,26 @@
       window.alert('Импортировано записей: ' + incoming.length + '. Совпадающие ID обновлены.');
     } catch (error) { window.alert('Не удалось импортировать историю: ' + error.message); }
     finally { event.target.value = ''; }
+  });
+  window.addEventListener('skol:engineering-transfer',event=>{
+    const payload=event.detail;if(!payload||payload.mode!=='standard'||!payload.input)return;
+    try{
+      const value=payload.input,item=catalog.find(entry=>entry.id===String(value.catalogId))||catalog.find(entry=>String(entry.name).toLocaleLowerCase('ru-RU')===String(value.workName||'').toLocaleLowerCase('ru-RU'));
+      if(!item)throw new Error('В каталоге ПИ не найдена работа «'+String(value.workName||value.catalogId||'')+'». Проверь прайс и повтори перенос.');
+      $('engProjectName').value=value.title||payload.title||'Расчёт объекта';$('engWorkDescription').value=value.description||payload.description||'';
+      $('engWorkSelect').value=item.id;$('engQuantity').value=String(value.quantity);$('engBaselineRate').value=String(value.baselineProductivity);
+      $('engCrew').value=String(value.crewSize);$('engHours').value=String(value.hoursPerShift);$('engWage').value=String(value.wagePerWorkerShift);
+      $('engPrice').value=String(value.pricePerUnit);$('engExtraCost').value=String(value.extraCostPerUnit);$('engFixedCosts').value=String(value.fixedCosts);
+      $('engOverhead').value=String(value.overheadPercent);$('engTax').value=String(value.taxPercent);$('engMargin').value=String(value.targetMarginPercent);
+      $('engReserve').value=String(value.reservePercent);$('engTargetShifts').value=String(value.targetShifts);$('engDifficulty').value=String(value.difficultyFactor);
+      $('engThickness').value='0';$('engReinforced').value='no';$('engFloor').value='1';$('engElevator').value='yes';$('engCarryDistance').value='10';$('engMethod').value='mechanized';
+      rateEvidenceAlreadyAdjusted=true;preAdjustedObservationCount=Number(value.observationCount||0);
+      preAdjustedRateSource='Норма перенесена из калькулятора сметы'+(preAdjustedObservationCount?' · '+preAdjustedObservationCount+' наблюдений уже учтены':'');
+      currentTransferMetadata=payload.metadata&&typeof payload.metadata==='object'?{...payload.metadata}:null;
+      currentSourceEconomics=payload.sourceEconomics&&typeof payload.sourceEconomics==='object'?{...payload.sourceEconomics}:null;
+      deriveConditionFactor(item);runEngineeringCalculation({preAdjusted:true,observationCount:preAdjustedObservationCount,source:preAdjustedRateSource});
+      $('engCalculateBtn').scrollIntoView({behavior:'smooth',block:'center'});
+    }catch(error){window.alert(error.message||'Не удалось перенести данные в стандартный расчёт ПИ.');}
   });
   populateCatalog(); deriveConditionFactor(selectedItem()); renderHistory();
 })();

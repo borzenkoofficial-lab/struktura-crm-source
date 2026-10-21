@@ -1139,6 +1139,53 @@ $('estimateCreateProjectBtn').addEventListener('click', () => {
 const actualInputIds = ['actualContractRevenue','actualReceived','actualWagesPaid','actualMaterialsPaid','actualDisposalPaid','actualTransportPaid','actualEquipmentPaid','actualOtherPaid'];
 actualInputIds.forEach(id => $(id).addEventListener('input', () => { const r = refreshEstimate(); if (r) estimateRefreshActuals(r.totalCost); estimateSaveDraft(); }));
 $('actualUseEstimatePriceBtn').addEventListener('click', () => { const r = refreshEstimate(); if (!r) return; $('actualContractRevenue').value = Math.round(r.revenue); estimateRefreshActuals(r.totalCost); estimateSaveDraft(); toast('Цена сметы подставлена в план/факт.'); });
+
+function buildEstimateEngineeringTransfer(mode,selectedLineId){
+ const result=refreshEstimate();
+ if(!result||!Array.isArray(result.lineItems)||!result.lineItems.length)throw new Error('Сначала добавь в смету хотя бы одну работу с объёмом больше нуля.');
+ if(!window.SkolEngineeringTransfer?.buildEngineeringTransfer)throw new Error('Модуль переноса в ПИ не загрузился. Перезапусти СКОЛ и повтори.');
+ const inputs=estimateReadInputs(),duration=estimateGetDurationForecast();
+ return window.SkolEngineeringTransfer.buildEngineeringTransfer({
+  mode,selectedLineId,startDate:dateToday(),weekdaysOnly:true,
+  metadata:{title:$('estimateTitle').value,customer:$('estimateCustomer').value,address:$('estimateAddress').value,contact:$('estimateContact').value,
+   validity:$('estimateValidity').value,service:$('estimateService').value,workArea:$('estimateWorkArea').value},
+  settings:{...inputs,crew:inputs.crew,reservePercent:$('estimateScheduleReserve').value},
+  totals:{listRevenue:result.listRevenue,discount:result.discount,revenue:result.revenue,payroll:result.payroll,lineCosts:result.lineCosts,
+   overhead:result.overhead,taxReserve:result.taxReserve,totalCost:result.totalCost,profit:result.profit,actualMargin:result.actualMargin},
+  lines:result.lineItems,durationLines:duration.lines
+ });
+}
+function updateEstimateEngineeringTransferMode(){
+ const mode=$('estimateEngineeringTransferForm').querySelector('input[name="transferMode"]:checked')?.value||'standard';
+ $('estimatePiStandardLineWrap').hidden=mode!=='standard';$('estimatePiStandardLine').disabled=mode!=='standard';
+}
+function openEstimateEngineeringTransfer(){
+ try{
+  const result=refreshEstimate();
+  if(!result||!Array.isArray(result.lineItems)||!result.lineItems.length)throw new Error('Сначала добавь в смету хотя бы одну работу с объёмом больше нуля.');
+  const select=$('estimatePiStandardLine'),previous=select.value;
+  select.innerHTML=result.lineItems.map(line=>'<option value="'+esc(line.lineId)+'">'+esc(line.name)+' · '+esc(line.quantity)+' '+esc(line.unit)+' · '+money(line.revenue)+'</option>').join('');
+  select.value=result.lineItems.some(line=>String(line.lineId)===previous)?previous:String(result.lineItems[0].lineId);
+  $('estimatePiTransferSummary').textContent='Строк работ: '+result.lineItems.length+' · Цена после скидки: '+money(result.revenue)+' · Себестоимость: '+money(result.totalCost)+' · Прибыль: '+money(result.profit)+'. Исходная смета останется без изменений.';
+  const preferred=result.lineItems.length>1?'complex':'standard';
+  $('estimateEngineeringTransferForm').querySelectorAll('input[name="transferMode"]').forEach(input=>input.checked=input.value===preferred);
+  updateEstimateEngineeringTransferMode();openDialog('estimateEngineeringTransferDialog');
+ }catch(error){toast(error.message||'Не удалось подготовить перенос в ПИ.',true);}
+}
+$('estimatePiTransferBtn')?.addEventListener('click',openEstimateEngineeringTransfer);
+$('estimateEngineeringTransferForm')?.querySelectorAll('input[name="transferMode"]').forEach(input=>input.addEventListener('change',updateEstimateEngineeringTransferMode));
+$('estimateEngineeringTransferForm')?.addEventListener('submit',event=>{
+ event.preventDefault();
+ try{
+  const form=event.currentTarget,mode=form.querySelector('input[name="transferMode"]:checked')?.value||'standard';
+  const payload=buildEstimateEngineeringTransfer(mode,$('estimatePiStandardLine').value);
+  closeDialog('estimateEngineeringTransferDialog');showView('engineering');
+  window.dispatchEvent(new CustomEvent('skol:engineering-transfer',{detail:payload}));
+  toast('Данные «'+(payload.title||'Смета')+'» перенесены. ПИ запускает '+(mode==='complex'?'комплексный расчёт всех '+payload.operations.length+' работ.':'стандартный расчёт выбранной работы.'));
+  (payload.warnings||[]).forEach(warning=>toast(warning,true));
+ }catch(error){toast(error.message||'Не удалось перенести смету в ПИ.',true);}
+});
+
 estimateLoadDraft();
 refreshEstimateLearningRates().catch(error => { $('estimateLearningStatus').textContent = `Не удалось загрузить фактические нормы: ${error.message}`; });
 $('addPaymentBtn').addEventListener('click', async () => { await refreshProjects(); if (!(await window.crm.listProjects()).length) { toast('Сначала создай объект, к которому привязать платёж.', true); showView('projects'); return; } $('paymentForm').reset(); $('paymentForm').elements.payment_date.value = dateToday(); $('paymentDialogTitle').textContent = 'Записать платёж'; openDialog('paymentDialog'); });

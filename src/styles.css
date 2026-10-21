@@ -941,3 +941,19 @@ dialog.modal>form{background:#fff;border-radius:inherit}
 .plans-hero-mark .plans-hero-monogram{position:relative;z-index:1;display:block;width:86px;height:86px;object-fit:contain}
 .mockup-window-brand img{display:block;width:112px;height:auto;max-height:28px;object-fit:contain}
 @media(max-width:700px){.brand-wordmark{width:145px}.plans-hero-mark .plans-hero-monogram{width:70px;height:70px}}
+
+/* Transfer estimate data into PI without retyping. */
+.engineering-transfer-dialog{width:min(680px,calc(100vw - 28px));max-width:680px}
+.engineering-transfer-dialog .modal-head p{max-width:56ch;line-height:1.55}
+.engineering-transfer-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0}
+.engineering-transfer-option{display:flex;align-items:flex-start;gap:10px;padding:14px;border:1px solid var(--border,#dce4e9);border-radius:12px;background:var(--surface-muted,#f7f9fa);cursor:pointer;min-width:0}
+.engineering-transfer-option:has(input:checked){border-color:var(--accent,#7e3448);box-shadow:inset 0 0 0 1px var(--accent,#7e3448);background:var(--surface,#fff)}
+.engineering-transfer-option input{margin-top:3px;flex-shrink:0}
+.engineering-transfer-option span{display:grid;gap:5px}
+.engineering-transfer-option strong{font-size:13px;line-height:1.35}
+.engineering-transfer-option small{font-size:12px;line-height:1.5;color:var(--muted,#6f7780);font-weight:400}
+.engineering-transfer-standard-line{display:grid;gap:8px;margin:14px 0}
+.engineering-transfer-standard-line[hidden]{display:none}
+.engineering-transfer-note{margin:0;color:var(--muted,#6f7780);font-size:12px;line-height:1.55}
+.engineering-transfer-summary{padding:12px 14px;margin:12px 0 4px;border:1px solid var(--border,#dce4e9);border-radius:10px;background:var(--surface-muted,#f7f9fa);font-size:12px;line-height:1.6;color:var(--text,#263445)}
+@media(max-width:560px){.engineering-transfer-options{grid-template-columns:1fr}.engineering-transfer-dialog .modal-actions{flex-direction:column-reverse;align-items:stretch}.engineering-transfer-dialog .modal-actions .button{width:100%}}
