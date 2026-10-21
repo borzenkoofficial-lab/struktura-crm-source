@@ -152,6 +152,14 @@
     const totalCost = preTaxCost + tax;
     const revenue = quantity * pricePerUnit;
     const profit = revenue - totalCost;
+    const calculationValues = [
+      effectiveRate, personShifts, crewShifts, plannedShifts, requiredCrewForTarget, dailyOutput,
+      laborCost, directCost, overhead, preTaxCost, taxBase, tax, totalCost, revenue, profit
+    ];
+    if (!calculationValues.every(Number.isFinite) ||
+        effectiveRate <= 0 || personShifts <= 0 || crewShifts <= 0 || plannedShifts <= 0) {
+      throw new Error('Результат расчёта выходит за допустимый числовой диапазон. Проверь объём, производительность, расходы и срок.');
+    }
     const minimumPrice = quantity > 0 && taxPercent < 100 ? (preTaxCost / (1 - taxPercent / 100)) / quantity : null;
     const targetPrice = quantity > 0 ? (preTaxCost / (1 - targetMarginPercent / 100 - taxPercent / 100)) / quantity : 0;
     const warnings = [];
