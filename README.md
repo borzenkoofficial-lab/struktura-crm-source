@@ -10,9 +10,18 @@
 ## Установка
 ```powershell
 npm install
-npm run
+npm start
 ```
-Команда `npm run` покажет доступные сценарии запуска и тестирования из `package.json`.
+
+Запуск автоматических тестов:
+```powershell
+npm test
+```
+
+Сборка установщика Windows x64:
+```powershell
+npm run dist:win
+```
 
 ## Безопасность
 Не добавляйте в Git секреты `.env`, локальные базы данных и логи.
