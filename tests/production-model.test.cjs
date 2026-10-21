@@ -43,10 +43,12 @@ test('remaining-time forecast accounts for completed work, crew size, and items 
   assert.equal(result.completedLines, 1);
 });
 
-test('rate model rejects invalid baseline or difficulty rather than generating a fake forecast', () => {
+test('rate model rejects invalid baseline, difficulty, and non-integer crews', () => {
   assert.throws(() => buildRateModel({ baselineProductivity: 0 }), /больше нуля/);
   assert.throws(() => buildRateModel({ baselineProductivity: 5, targetDifficulty: 0 }), /больше нуля/);
-  assert.throws(() => buildRateModel({ baselineProductivity: 5, targetCrewSize: 0 }), /от 1 до 200/);
+  assert.throws(() => buildRateModel({ baselineProductivity: 5, targetCrewSize: 0 }), /целым числом от 1 до 200/);
+  assert.throws(() => buildRateModel({ baselineProductivity: 5, targetCrewSize: 2.5 }), /целым числом от 1 до 200/);
+  assert.throws(() => forecastRemainingWork({ planItems: [], crewSize: 2.5 }), /целым числом от 1 до 200/);
 });
 
 
@@ -94,4 +96,24 @@ test('production plan retains missing-norm work without fabricating a duration',
   assert.equal(result.lines[1].missingRate, true);
   assert.equal(result.lines[1].laborShiftsRemaining, null);
   assert.equal(result.estimated, false);
+});
+
+
+test('production model ignores malformed observations instead of crashing', () => {
+  const result = buildRateModel({
+    baselineProductivity: 10,
+    observations: [null, undefined, 'bad-record', {}, { quantity_done: 50, workers_count: 5, hours: 8 }]
+  });
+  assert.equal(result.observations, 1);
+  assert.equal(result.effectiveProductivity, 10);
+});
+
+test('forecast handles malformed observation lists as no evidence', () => {
+  const result = forecastRemainingWork({
+    planItems: [{ catalog_id: 'demo', name: 'Демонтаж', quantity: 100, productivity: 10 }],
+    observationsByCatalog: { demo: [null, {}] },
+    crewSize: 5
+  });
+  assert.equal(result.lines[0].observations, 0);
+  assert.equal(result.lines[0].effectiveProductivity, 10);
 });

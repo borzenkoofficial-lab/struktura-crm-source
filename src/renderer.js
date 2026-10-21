@@ -88,8 +88,8 @@ function dateToday() { const now = new Date(); return `${now.getFullYear()}-${St
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте STRUKTURA' };
-  $('pageTitle').textContent = titles[name] || 'STRUKTURA CRM';
+  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', engineering: 'ПИ · Расчёт объекта', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте СКОЛ' };
+  $('pageTitle').textContent = titles[name] || 'СКОЛ CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
   if (name === 'settings') refreshPinSettings().catch(() => toast('Не удалось загрузить настройки безопасности. Попробуй открыть раздел ещё раз.', true));
   const view = $(`view-${name}`);
@@ -117,7 +117,7 @@ document.addEventListener('click', event => {
   showView(button.dataset.view);
 }, true);
 window.addEventListener('error', event => {
-  console.error('Struktura CRM renderer error:', event.error || event.message);
+  console.error('СКОЛ renderer error:', event.error || event.message);
   piRecordError(event.message || event.error?.message || 'Необработанная ошибка интерфейса', 'Необработанная ошибка интерфейса', event.error);
   const toastNode = $('toast');
   if (toastNode) toast('Ошибка интерфейса. ПИ сохранила её в истории ошибок.', true);
@@ -126,7 +126,7 @@ window.addEventListener('unhandledrejection', event => {
   const reason = event.reason;
   const message = reason?.message || String(reason || 'Необработанная ошибка асинхронной операции');
   piRecordError(message, 'Необработанная асинхронная операция', reason);
-  console.error('Struktura CRM unhandled rejection:', reason);
+  console.error('СКОЛ unhandled rejection:', reason);
 });
 
 function renderSectionLoadError(name) {
@@ -415,7 +415,7 @@ function piCoachAnswerVoice(rawQuery) {
     return;
   }
   if (/привет|здравств|что ты умеешь|помоги|чем можешь/u.test(query)) {
-    piCoachSpeak('Я ПИ, производственный интеллект STRUKTURA. Я сопоставляю сохранённые объекты, договоры, коммерческие предложения, платежи, расходы, заявки, задачи и отчёты смен. Могу подсветить риск и объяснить, на каких данных основан совет. Я не придумываю отсутствующие цифры.');
+    piCoachSpeak('Я ПИ, производственный интеллект СКОЛ. Я сопоставляю сохранённые объекты, договоры, коммерческие предложения, платежи, расходы, заявки, задачи и отчёты смен. Могу подсветить риск и объяснить, на каких данных основан совет. Я не придумываю отсутствующие цифры.');
     return;
   }
   const sections = [
@@ -836,7 +836,7 @@ function estimateDownloadCsv() {
   const actual = estimateRefreshActuals(result.totalCost);
   if (actual) rows.push([],['ФАКТ ПО ОБЪЕКТУ','Сумма'],['Цена договора',actual.actualRevenue],['Получено от клиента',actual.received],['Выплачено рабочим',actual.wagesPaid],['Фактические расходы',actual.actualCosts],['Фактическая прибыль',actual.actualProfit],['Осталось получить',actual.receivable],['Денежный остаток',actual.cashBalance],['Отклонение от плана',actual.overrun]);
   const csv = '\uFEFF' + rows.map(row => row.map(value => `"${String(value ?? '').replace(/"/g,'""')}"`).join(';')).join('\r\n');
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })); const a = document.createElement('a'); a.href = url; a.download = `${($('estimateTitle').value || 'smeta').replace(/[^a-zа-яё0-9_-]+/gi,'_')}.csv`; a.click(); URL.revokeObjectURL(url); toast('Смета экспортирована в CSV.');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })); const a = document.createElement('a'); a.href = url; a.download = `СКОЛ-${($('estimateTitle').value || 'smeta').replace(/[^a-zа-яё0-9_-]+/gi,'_')}.csv`; a.click(); URL.revokeObjectURL(url); toast('Смета экспортирована в CSV.');
 }
 async function estimateCopySummary() {
   const r = refreshEstimate(); if (!r) return;
@@ -1114,7 +1114,7 @@ $('estimateCopyBtn').addEventListener('click', estimateCopySummary);
 $('estimateCsvBtn').addEventListener('click', estimateDownloadCsv);
 $('estimatePdfBtn').addEventListener('click', async () => {
   const r = refreshEstimate(); if (!r) return;
-  try { const saved = await window.crm.exportQuotePdf({ title: $('estimateTitle').value, customer: $('estimateCustomer').value, address: $('estimateAddress').value, contact: $('estimateContact').value, validity: $('estimateValidity').value, lines: r.lineItems.map(x => ({name:x.name,unit:x.unit,quantity:x.quantity,price:x.price})), revenue: r.revenue, discount: r.discount, estimatedCostRub: r.totalCost, estimatedProfitRub: r.profit, marginPct: r.actualMargin }); if (saved?.canceled) return; toast('КП в PDF сохранено и добавлено в историю ПИ.'); await refreshPiCoach({ force: true }).catch(() => {}); } catch (error) { toast(`Не удалось сформировать PDF: ${error.message}`, true); }
+  try { const saved = await window.crm.exportQuotePdf({ title: $('estimateTitle').value, customer: $('estimateCustomer').value, address: $('estimateAddress').value, contact: $('estimateContact').value, validity: $('estimateValidity').value, lines: r.lineItems.map(x => ({name:x.name,unit:x.unit,quantity:x.quantity,price:x.price,cost:x.cost})), discount: r.discount, costInputs: { payroll: r.payroll, materials: r.materials, disposal: r.disposal, transport: r.transport, equipment: r.equipment, other: r.other, overheadPercent: Number($('estimateOverheadPercent').value || 0), taxPercent: Number($('estimateTaxPercent').value || 0) } }); if (saved?.canceled) return; toast('КП в PDF сохранено и добавлено в историю ПИ.'); await refreshPiCoach({ force: true }).catch(() => {}); } catch (error) { toast(`Не удалось сформировать PDF: ${error.message}`, true); }
 });
 $('estimateCreateProjectBtn').addEventListener('click', () => {
   const result = refreshEstimate(); if (!result) return;
@@ -1139,6 +1139,53 @@ $('estimateCreateProjectBtn').addEventListener('click', () => {
 const actualInputIds = ['actualContractRevenue','actualReceived','actualWagesPaid','actualMaterialsPaid','actualDisposalPaid','actualTransportPaid','actualEquipmentPaid','actualOtherPaid'];
 actualInputIds.forEach(id => $(id).addEventListener('input', () => { const r = refreshEstimate(); if (r) estimateRefreshActuals(r.totalCost); estimateSaveDraft(); }));
 $('actualUseEstimatePriceBtn').addEventListener('click', () => { const r = refreshEstimate(); if (!r) return; $('actualContractRevenue').value = Math.round(r.revenue); estimateRefreshActuals(r.totalCost); estimateSaveDraft(); toast('Цена сметы подставлена в план/факт.'); });
+
+function buildEstimateEngineeringTransfer(mode,selectedLineId){
+ const result=refreshEstimate();
+ if(!result||!Array.isArray(result.lineItems)||!result.lineItems.length)throw new Error('Сначала добавь в смету хотя бы одну работу с объёмом больше нуля.');
+ if(!window.SkolEngineeringTransfer?.buildEngineeringTransfer)throw new Error('Модуль переноса в ПИ не загрузился. Перезапусти СКОЛ и повтори.');
+ const inputs=estimateReadInputs(),duration=estimateGetDurationForecast();
+ return window.SkolEngineeringTransfer.buildEngineeringTransfer({
+  mode,selectedLineId,startDate:dateToday(),weekdaysOnly:true,
+  metadata:{title:$('estimateTitle').value,customer:$('estimateCustomer').value,address:$('estimateAddress').value,contact:$('estimateContact').value,
+   validity:$('estimateValidity').value,service:$('estimateService').value,workArea:$('estimateWorkArea').value},
+  settings:{...inputs,crew:inputs.crew,reservePercent:$('estimateScheduleReserve').value},
+  totals:{listRevenue:result.listRevenue,discount:result.discount,revenue:result.revenue,payroll:result.payroll,lineCosts:result.lineCosts,
+   overhead:result.overhead,taxReserve:result.taxReserve,totalCost:result.totalCost,profit:result.profit,actualMargin:result.actualMargin},
+  lines:result.lineItems,durationLines:duration.lines
+ });
+}
+function updateEstimateEngineeringTransferMode(){
+ const mode=$('estimateEngineeringTransferForm').querySelector('input[name="transferMode"]:checked')?.value||'standard';
+ $('estimatePiStandardLineWrap').hidden=mode!=='standard';$('estimatePiStandardLine').disabled=mode!=='standard';
+}
+function openEstimateEngineeringTransfer(){
+ try{
+  const result=refreshEstimate();
+  if(!result||!Array.isArray(result.lineItems)||!result.lineItems.length)throw new Error('Сначала добавь в смету хотя бы одну работу с объёмом больше нуля.');
+  const select=$('estimatePiStandardLine'),previous=select.value;
+  select.innerHTML=result.lineItems.map(line=>'<option value="'+esc(line.lineId)+'">'+esc(line.name)+' · '+esc(line.quantity)+' '+esc(line.unit)+' · '+money(line.revenue)+'</option>').join('');
+  select.value=result.lineItems.some(line=>String(line.lineId)===previous)?previous:String(result.lineItems[0].lineId);
+  $('estimatePiTransferSummary').textContent='Строк работ: '+result.lineItems.length+' · Цена после скидки: '+money(result.revenue)+' · Себестоимость: '+money(result.totalCost)+' · Прибыль: '+money(result.profit)+'. Исходная смета останется без изменений.';
+  const preferred=result.lineItems.length>1?'complex':'standard';
+  $('estimateEngineeringTransferForm').querySelectorAll('input[name="transferMode"]').forEach(input=>input.checked=input.value===preferred);
+  updateEstimateEngineeringTransferMode();openDialog('estimateEngineeringTransferDialog');
+ }catch(error){toast(error.message||'Не удалось подготовить перенос в ПИ.',true);}
+}
+$('estimatePiTransferBtn')?.addEventListener('click',openEstimateEngineeringTransfer);
+$('estimateEngineeringTransferForm')?.querySelectorAll('input[name="transferMode"]').forEach(input=>input.addEventListener('change',updateEstimateEngineeringTransferMode));
+$('estimateEngineeringTransferForm')?.addEventListener('submit',event=>{
+ event.preventDefault();
+ try{
+  const form=event.currentTarget,mode=form.querySelector('input[name="transferMode"]:checked')?.value||'standard';
+  const payload=buildEstimateEngineeringTransfer(mode,$('estimatePiStandardLine').value);
+  closeDialog('estimateEngineeringTransferDialog');showView('engineering');
+  window.dispatchEvent(new CustomEvent('skol:engineering-transfer',{detail:payload}));
+  toast('Данные «'+(payload.title||'Смета')+'» перенесены. ПИ запускает '+(mode==='complex'?'комплексный расчёт всех '+payload.operations.length+' работ.':'стандартный расчёт выбранной работы.'));
+  (payload.warnings||[]).forEach(warning=>toast(warning,true));
+ }catch(error){toast(error.message||'Не удалось перенести смету в ПИ.',true);}
+});
+
 estimateLoadDraft();
 refreshEstimateLearningRates().catch(error => { $('estimateLearningStatus').textContent = `Не удалось загрузить фактические нормы: ${error.message}`; });
 $('addPaymentBtn').addEventListener('click', async () => { await refreshProjects(); if (!(await window.crm.listProjects()).length) { toast('Сначала создай объект, к которому привязать платёж.', true); showView('projects'); return; } $('paymentForm').reset(); $('paymentForm').elements.payment_date.value = dateToday(); $('paymentDialogTitle').textContent = 'Записать платёж'; openDialog('paymentDialog'); });

@@ -1,6 +1,6 @@
 'use strict';
 
-const { buildRateModel } = require('./production-model.cjs');
+const { buildRateModel } = require('./production-model.js');
 
 function nonNegative(value, label) {
   const number = Number(value ?? 0);

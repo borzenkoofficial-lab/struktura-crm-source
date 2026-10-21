@@ -911,3 +911,49 @@ dialog.modal>form{background:#fff;border-radius:inherit}
 @media(max-width:1120px){.about-hero-scene{transform:scale(.72);transform-origin:center center;margin:0 -25px}}
 @media(max-width:850px){.about-hero-scene{width:100%;transform:scale(.82);transform-origin:top center;margin:0 0 -25px;min-height:330px}}
 @media(max-width:560px){.settings-view{padding-top:14px}.settings-page-heading h2{font-size:26px}.settings-card-body{padding:17px}.settings-card .form-row{grid-template-columns:1fr}.about-hero-scene{width:140%;margin-left:-20%;transform:scale(.72);transform-origin:top center;min-height:265px;margin-bottom:-65px}.about-hero-scene .about-float-card{transform:scale(.88);transform-origin:center}.about-hero-scene .float-card-top{right:5%}.about-hero-scene .float-card-bottom{left:5%}}
+
+/* PI project calendar */
+.eng-calendar-controls{display:grid;grid-template-columns:minmax(220px,280px) minmax(220px,1fr);gap:14px;align-items:end;margin:18px 0 10px;padding:16px;border:1px solid #e1e7ee;border-radius:14px;background:#f8fafc}
+.eng-calendar-controls .checkbox-line{display:flex;align-items:center;gap:9px;min-height:42px;font-size:12px;color:#425168}
+.eng-calendar-controls .checkbox-line input{width:auto;margin:0}
+.eng-calendar-controls .eng-note{grid-column:1/-1;margin:0}
+.eng-project-calendar{margin-top:18px;padding:18px;border:1px solid #dfe7ef;border-radius:14px;background:#fff}
+.eng-project-calendar h4{margin:0 0 14px;font-size:15px;color:#26364a}
+.eng-calendar-table-wrap{max-width:100%;overflow-x:auto}
+.eng-calendar-table{width:100%;border-collapse:collapse;font-size:12px}
+.eng-calendar-table th,.eng-calendar-table td{padding:11px 12px;text-align:left;border-bottom:1px solid #e8edf2;white-space:nowrap}
+.eng-calendar-table th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#728197;background:#f7f9fb}
+.eng-calendar-table td:first-child{white-space:normal;min-width:180px;font-weight:650;color:#2d3c50}
+.eng-project-calendar .eng-note{margin:12px 0 0}
+@media(max-width:640px){.eng-calendar-controls{grid-template-columns:1fr;padding:12px}.eng-calendar-controls .eng-note{grid-column:auto}.eng-project-calendar{padding:12px}}
+
+/* СКОЛ brand assets: typographic wordmark and custom СК monogram */
+.brand-mark{display:grid;place-items:center;overflow:hidden;flex:0 0 40px;background:transparent!important;border:0!important;box-shadow:none!important;padding:0}
+.brand-mark img{display:block;width:100%;height:100%;object-fit:contain}
+.brand-copy{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0}
+.brand-wordmark{display:block;width:154px;max-width:100%;height:auto}
+.brand-copy small{white-space:nowrap}
+.startup-mark>img{position:relative;z-index:2;display:block;width:74%;height:74%;object-fit:contain}
+.startup-brand img{display:block;width:210px;max-width:66vw;height:auto;margin:0 auto}
+.hero-mini-symbol{background:#25282B;color:#F5F3EF;box-shadow:0 5px 12px rgba(37,40,43,.22)}
+.hero-mini-symbol img{display:block;width:25px;height:25px}
+.browser-welcome-mark img{display:block;width:46px;height:46px;object-fit:contain}
+.plans-hero-mark .plans-hero-monogram{position:relative;z-index:1;display:block;width:86px;height:86px;object-fit:contain}
+.mockup-window-brand img{display:block;width:112px;height:auto;max-height:28px;object-fit:contain}
+@media(max-width:700px){.brand-wordmark{width:145px}.plans-hero-mark .plans-hero-monogram{width:70px;height:70px}}
+
+/* Transfer estimate data into PI without retyping. */
+.engineering-transfer-dialog{width:min(680px,calc(100vw - 28px));max-width:680px}
+.engineering-transfer-dialog .modal-head p{max-width:56ch;line-height:1.55}
+.engineering-transfer-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:16px 0}
+.engineering-transfer-option{display:flex;align-items:flex-start;gap:10px;padding:14px;border:1px solid var(--border,#dce4e9);border-radius:12px;background:var(--surface-muted,#f7f9fa);cursor:pointer;min-width:0}
+.engineering-transfer-option:has(input:checked){border-color:var(--accent,#7e3448);box-shadow:inset 0 0 0 1px var(--accent,#7e3448);background:var(--surface,#fff)}
+.engineering-transfer-option input{margin-top:3px;flex-shrink:0}
+.engineering-transfer-option span{display:grid;gap:5px}
+.engineering-transfer-option strong{font-size:13px;line-height:1.35}
+.engineering-transfer-option small{font-size:12px;line-height:1.5;color:var(--muted,#6f7780);font-weight:400}
+.engineering-transfer-standard-line{display:grid;gap:8px;margin:14px 0}
+.engineering-transfer-standard-line[hidden]{display:none}
+.engineering-transfer-note{margin:0;color:var(--muted,#6f7780);font-size:12px;line-height:1.55}
+.engineering-transfer-summary{padding:12px 14px;margin:12px 0 4px;border:1px solid var(--border,#dce4e9);border-radius:10px;background:var(--surface-muted,#f7f9fa);font-size:12px;line-height:1.6;color:var(--text,#263445)}
+@media(max-width:560px){.engineering-transfer-options{grid-template-columns:1fr}.engineering-transfer-dialog .modal-actions{flex-direction:column-reverse;align-items:stretch}.engineering-transfer-dialog .modal-actions .button{width:100%}}
