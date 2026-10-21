@@ -49,6 +49,15 @@ test('invalid references, duplicate ids, cycles and missing operations are rejec
   ]), /цикл технологических зависимостей/);
 });
 
+
+test('project plan rejects out-of-range shift hours and economic percentages', () => {
+  assert.throws(() => calculateProjectPlan([base('short-shift', 'Короткая смена', { hoursPerShift: 0.5 })]), /длительность смены должна быть от 1 до 24 часов/);
+  assert.throws(() => calculateProjectPlan([base('long-shift', 'Слишком длинная смена', { hoursPerShift: 25 })]), /длительность смены должна быть от 1 до 24 часов/);
+  assert.throws(() => calculateProjectPlan([base('overhead', 'Накладные расходы', { overheadPercent: 101 })]), /накладные расходы: значение не должно превышать 100/);
+  assert.throws(() => calculateProjectPlan([base('tax', 'Налог', { taxPercent: 101 })]), /налог: значение не должно превышать 100/);
+  assert.throws(() => calculateProjectPlan([base('reserve', 'Резерв срока', { reservePercent: 101 })]), /резерв срока: значение не должно превышать 100/);
+});
+
 test('project plans reject fractional crew sizes', () => {
   assert.throws(() => calculateProjectPlan([base('fractional', 'Дробная бригада', { crewSize: 2.5 })]), /численность бригады должна быть целым числом/);
 });
