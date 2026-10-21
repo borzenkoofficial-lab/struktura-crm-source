@@ -43,6 +43,23 @@ test('backup validation rejects a SQLite file with expected table names but inco
   }
 });
 
+
+test('backup validation rejects broken foreign-key relationships', () => {
+  const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'skol-backup-fk-'));
+  let db;
+  try {
+    db = openDatabase(userDataPath);
+    db.pragma('foreign_keys = OFF');
+    db.prepare('INSERT INTO payments(project_id,amount_rub,payment_date) VALUES (?,?,?)')
+      .run(999999, 1000, '2026-10-21');
+    db.pragma('foreign_keys = ON');
+    assert.throws(() => validateBackupDatabase(db), /Нарушены связи между таблицами .*payments/i);
+  } finally {
+    if (db && db.open) db.close();
+    fs.rmSync(userDataPath, { recursive: true, force: true });
+  }
+});
+
 test('backup validation rejects a non-CRM SQLite database before restore', () => {
   const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'skol-backup-wrong-db-'));
   const dbPath = path.join(userDataPath, 'other.sqlite');

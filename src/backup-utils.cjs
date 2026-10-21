@@ -44,7 +44,20 @@ function validateBackupDatabase(database) {
     throw new Error('В таблицах копии отсутствуют обязательные поля: ' + missingColumns.join(', ') + '.');
   }
 
-  return { tableCount: tables.size, validatedTables: Object.keys(REQUIRED_BACKUP_COLUMNS).length };
+  let foreignKeyViolations;
+  try {
+    foreignKeyViolations = database.pragma('foreign_key_check');
+  } catch (error) {
+    throw new Error('Не удалось проверить связи между таблицами: ' + String(error?.message || error));
+  }
+  if (foreignKeyViolations.length) {
+    const examples = foreignKeyViolations.slice(0, 3).map(row =>
+      String(row.table) + ' → ' + String(row.parent) + (row.rowid == null ? '' : ' (запись ' + row.rowid + ')')
+    );
+    throw new Error('Нарушены связи между таблицами (' + foreignKeyViolations.length + '): ' + examples.join('; ') + '.');
+  }
+
+  return { tableCount: tables.size, validatedTables: Object.keys(REQUIRED_BACKUP_COLUMNS).length, foreignKeyViolations: 0 };
 }
 
 module.exports = { REQUIRED_BACKUP_COLUMNS, validateBackupDatabase };

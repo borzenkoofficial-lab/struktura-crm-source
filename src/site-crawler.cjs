@@ -93,7 +93,7 @@ async function fetchSafe(url, fetchImpl) {
   for (let redirects = 0; redirects <= 3; redirects++) {
     const response = await fetchImpl(current.toString(), {
       redirect: 'manual', signal: AbortSignal.timeout(9000),
-      headers: { 'User-Agent': 'SKOL/1.16.10 (+public business contact discovery; respects robots.txt)', Accept: 'text/html,application/xhtml+xml,text/plain;q=0.8' }
+      headers: { 'User-Agent': 'SKOL/1.16.11 (+public business contact discovery; respects robots.txt)', Accept: 'text/html,application/xhtml+xml,text/plain;q=0.8' }
     });
     if ([301,302,303,307,308].includes(response.status)) {
       const location = response.headers.get('location');
