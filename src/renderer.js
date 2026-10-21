@@ -88,8 +88,8 @@ function dateToday() { const now = new Date(); return `${now.getFullYear()}-${St
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', engineering: 'ПИ · Расчёт объекта', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте STRUKTURA' };
-  $('pageTitle').textContent = titles[name] || 'STRUKTURA CRM';
+  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', engineering: 'ПИ · Расчёт объекта', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте СКОЛ' };
+  $('pageTitle').textContent = titles[name] || 'СКОЛ CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
   if (name === 'settings') refreshPinSettings().catch(() => toast('Не удалось загрузить настройки безопасности. Попробуй открыть раздел ещё раз.', true));
   const view = $(`view-${name}`);
@@ -117,7 +117,7 @@ document.addEventListener('click', event => {
   showView(button.dataset.view);
 }, true);
 window.addEventListener('error', event => {
-  console.error('Struktura CRM renderer error:', event.error || event.message);
+  console.error('СКОЛ renderer error:', event.error || event.message);
   piRecordError(event.message || event.error?.message || 'Необработанная ошибка интерфейса', 'Необработанная ошибка интерфейса', event.error);
   const toastNode = $('toast');
   if (toastNode) toast('Ошибка интерфейса. ПИ сохранила её в истории ошибок.', true);
@@ -126,7 +126,7 @@ window.addEventListener('unhandledrejection', event => {
   const reason = event.reason;
   const message = reason?.message || String(reason || 'Необработанная ошибка асинхронной операции');
   piRecordError(message, 'Необработанная асинхронная операция', reason);
-  console.error('Struktura CRM unhandled rejection:', reason);
+  console.error('СКОЛ unhandled rejection:', reason);
 });
 
 function renderSectionLoadError(name) {
@@ -415,7 +415,7 @@ function piCoachAnswerVoice(rawQuery) {
     return;
   }
   if (/привет|здравств|что ты умеешь|помоги|чем можешь/u.test(query)) {
-    piCoachSpeak('Я ПИ, производственный интеллект STRUKTURA. Я сопоставляю сохранённые объекты, договоры, коммерческие предложения, платежи, расходы, заявки, задачи и отчёты смен. Могу подсветить риск и объяснить, на каких данных основан совет. Я не придумываю отсутствующие цифры.');
+    piCoachSpeak('Я ПИ, производственный интеллект СКОЛ. Я сопоставляю сохранённые объекты, договоры, коммерческие предложения, платежи, расходы, заявки, задачи и отчёты смен. Могу подсветить риск и объяснить, на каких данных основан совет. Я не придумываю отсутствующие цифры.');
     return;
   }
   const sections = [

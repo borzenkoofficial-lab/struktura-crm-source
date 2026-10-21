@@ -926,3 +926,18 @@ dialog.modal>form{background:#fff;border-radius:inherit}
 .eng-calendar-table td:first-child{white-space:normal;min-width:180px;font-weight:650;color:#2d3c50}
 .eng-project-calendar .eng-note{margin:12px 0 0}
 @media(max-width:640px){.eng-calendar-controls{grid-template-columns:1fr;padding:12px}.eng-calendar-controls .eng-note{grid-column:auto}.eng-project-calendar{padding:12px}}
+
+/* СКОЛ brand assets: typographic wordmark and custom СК monogram */
+.brand-mark{display:grid;place-items:center;overflow:hidden;flex:0 0 40px;background:transparent!important;border:0!important;box-shadow:none!important;padding:0}
+.brand-mark img{display:block;width:100%;height:100%;object-fit:contain}
+.brand-copy{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0}
+.brand-wordmark{display:block;width:154px;max-width:100%;height:auto}
+.brand-copy small{white-space:nowrap}
+.startup-mark>img{position:relative;z-index:2;display:block;width:74%;height:74%;object-fit:contain}
+.startup-brand img{display:block;width:210px;max-width:66vw;height:auto;margin:0 auto}
+.hero-mini-symbol{background:#25282B;color:#F5F3EF;box-shadow:0 5px 12px rgba(37,40,43,.22)}
+.hero-mini-symbol img{display:block;width:25px;height:25px}
+.browser-welcome-mark img{display:block;width:46px;height:46px;object-fit:contain}
+.plans-hero-mark .plans-hero-monogram{position:relative;z-index:1;display:block;width:86px;height:86px;object-fit:contain}
+.mockup-window-brand img{display:block;width:112px;height:auto;max-height:28px;object-fit:contain}
+@media(max-width:700px){.brand-wordmark{width:145px}.plans-hero-mark .plans-hero-monogram{width:70px;height:70px}}
