@@ -24,6 +24,7 @@ const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, norm
 const { parseCommercialOrdersCsv } = require('./order-import.cjs');
 const { assessCommercialOrder } = require('./order-pi.cjs');
 const { calculateOrderEconomics } = require('./order-economics.cjs');
+const { calculateQuoteTotals } = require('./quote-economics.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
 const { normalizeTaskInput } = require('./task-utils.cjs');
 const { normalizeContactEmail, normalizePhone } = require('./contact-utils.cjs');
@@ -1242,14 +1243,30 @@ ipcMain.handle('engineeringPlans:delete', (_event, id) => {
 });
 
 ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
-  const lines = Array.isArray(input.lines) ? input.lines.slice(0, 500) : [];
-  if (!lines.length) throw new Error('Добавь в смету хотя бы одну работу перед созданием КП.');
+  const sourceLines = Array.isArray(input.lines) ? input.lines.slice(0, 500) : [];
+  if (!sourceLines.length) throw new Error('Добавь в смету хотя бы одну работу перед созданием КП.');
+  const lines = sourceLines.map((line, index) => {
+    if (!line || typeof line !== 'object') throw new Error('Строка КП №' + (index + 1) + ' имеет неверный формат.');
+    const quantity = Number(line.quantity ?? 0);
+    const price = Number(line.price ?? 0);
+    if (!Number.isFinite(quantity) || quantity < 0) throw new Error('Проверь количество в строке КП №' + (index + 1) + '.');
+    if (!Number.isFinite(price) || price < 0) throw new Error('Проверь цену в строке КП №' + (index + 1) + '.');
+    const lineTotal = Math.round(quantity * price);
+    if (!Number.isSafeInteger(lineTotal) || lineTotal < 0) throw new Error('Сумма строки КП №' + (index + 1) + ' выходит за допустимый диапазон рублей.');
+    return { name: clean(line.name, 180), note: clean(line.note, 300), unit: clean(line.unit, 24), quantity, price, lineTotal };
+  });
   const title = clean(input.title || 'Коммерческое предложение', 180);
   const customer = clean(input.customer, 180); const address = clean(input.address, 240);
   const contact = clean(input.contact, 120); const validity = clean(input.validity || '7 календарных дней', 80);
-  const total = Math.max(0, Number(input.revenue) || 0);
-  const rows = lines.map((line, i) => `<tr><td class="num">${i + 1}</td><td><strong>${quoteEscape(clean(line.name,180))}</strong>${line.note ? `<small>${quoteEscape(clean(line.note,300))}</small>` : ''}</td><td>${quoteEscape(clean(line.unit,24))}</td><td class="num">${Number(line.quantity || 0).toLocaleString('ru-RU')}</td><td class="num">${quoteMoney(line.price)}</td><td class="num">${quoteMoney(Number(line.quantity || 0) * Number(line.price || 0))}</td></tr>`).join('');
-  const discount = Math.max(0, Number(input.discount) || 0);
+  const totals = calculateQuoteTotals(lines, input.discount);
+  const total = totals.revenueRub;
+  const discount = totals.discountRub;
+  const rawCostRub = Number(input.estimatedCostRub ?? 0);
+  if (!Number.isFinite(rawCostRub) || rawCostRub < 0 || !Number.isSafeInteger(Math.round(rawCostRub))) throw new Error('Расчётная себестоимость должна быть конечной неотрицательной суммой.');
+  const costRub = Math.round(rawCostRub);
+  const profitRub = total - costRub;
+  const marginPct = total > 0 ? profitRub / total * 100 : 0;
+  const rows = lines.map((line, i) => `<tr><td class="num">${i + 1}</td><td><strong>${quoteEscape(line.name)}</strong>${line.note ? `<small>${quoteEscape(line.note)}</small>` : ''}</td><td>${quoteEscape(line.unit)}</td><td class="num">${line.quantity.toLocaleString('ru-RU')}</td><td class="num">${quoteMoney(line.price)}</td><td class="num">${quoteMoney(line.lineTotal)}</td></tr>`).join('');
   const preparedDate = new Date().toLocaleDateString('ru-RU');
   const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${quoteEscape(title)}</title><style>
   @page{size:A4;margin:13mm 13mm 15mm}*{box-sizing:border-box}body{font-family:Arial,'DejaVu Sans',sans-serif;color:#202a35;font-size:9pt;line-height:1.48;margin:0;background:#fff}header{position:relative;overflow:hidden;background:#25282B;color:#fff;padding:21px 23px 20px;border-radius:2px;margin-bottom:18px;min-height:168px}header:after{content:"";position:absolute;right:-26px;top:-42px;width:205px;height:205px;border:1px solid rgba(255,255,255,.18);border-radius:50%;box-shadow:0 0 0 22px rgba(255,255,255,.035),0 0 0 45px rgba(255,255,255,.025)}.brand{display:flex;align-items:center;position:relative;z-index:1}.quote-brand-mark{display:block;width:220px;height:auto;max-height:54px}.tag{font-size:7.2pt;letter-spacing:1.5px;color:#B66B4B;font-weight:bold;margin-top:4px;position:relative;z-index:1}.doctype{font-size:8pt;color:#c8d5dc;letter-spacing:1.4px;margin-top:22px;position:relative;z-index:1}.title{font-size:19pt;line-height:1.2;margin:5px 0 0;color:#fff;max-width:82%;position:relative;z-index:1}.hero-mark{position:absolute;right:19px;bottom:18px;width:95px;height:76px;border:1px solid rgba(255,255,255,.26);z-index:1;transform:skewY(-8deg)}.hero-mark:before,.hero-mark:after{content:"";position:absolute;border:1px solid rgba(241,163,110,.8)}.hero-mark:before{inset:12px -10px -10px 12px}.hero-mark:after{left:30px;top:-1px;bottom:-1px;border-width:0 0 0 1px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:7px 17px;margin:0 0 17px}.meta div{padding:7px 9px;background:#F5F3EF;border-left:2px solid #B66B4B;min-height:43px}.label{display:block;font-size:7pt;letter-spacing:.65px;color:#687985;margin-bottom:2px;font-weight:700;text-transform:uppercase}.meta-value{overflow-wrap:anywhere}.section{font-size:10pt;font-weight:800;margin:17px 0 8px;color:#25282B;display:flex;align-items:center;gap:8px}.section:before{content:"";width:4px;height:15px;background:#B66B4B;display:inline-block}table{width:100%;border-collapse:collapse;font-size:8pt}thead{display:table-header-group}th{background:#25282B;color:white;text-align:left;padding:8px 6px;font-weight:700}th:first-child{border-radius:2px 0 0 0}td{padding:7px 6px;border-bottom:1px solid #e4e9ec;vertical-align:top}tbody tr:nth-child(even){background:#F5F3EF}.num{text-align:right;white-space:nowrap}small{display:block;color:#6e7d87;font-size:7.3pt;margin-top:3px}.totals{margin:17px 0 0 auto;width:53%;background:#F5F3EF;padding:12px 14px;border-top:3px solid #B66B4B}.total-label{color:#687985;font-size:7.5pt;font-weight:700;letter-spacing:.6px}.total{font-size:21pt;line-height:1.25;font-weight:800;color:#25282B;margin-top:3px}.discount{font-size:8pt;color:#637079;margin-top:5px}.terms{margin-top:18px;padding:11px 12px;background:#f7f8f8;border-left:2px solid #cbd6dc;color:#596974;font-size:7.8pt}.terms strong{color:#25282B}.signatures{display:grid;grid-template-columns:1.2fr .8fr;gap:15px;margin-top:19px;break-inside:avoid;page-break-inside:avoid}.sign-main{padding-top:8px}.sign-title{font-size:8pt;font-weight:800;color:#25282B;margin-bottom:8px}.executor{font-size:9pt;font-weight:700;margin-bottom:18px}.signature-line{display:flex;align-items:end;gap:8px;margin-top:10px}.line{border-bottom:1px solid #667782;flex:1;height:22px}.line-label{font-size:7pt;color:#687985;white-space:nowrap}.stamp-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center}.stamp{width:100px;height:100px;border:1.5px dashed #9aaab3;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#8b9ba4;font-size:7pt;line-height:1.4;padding:12px;position:relative}.stamp:before{content:"";position:absolute;inset:5px;border:1px dashed #c0cbd1;border-radius:50%}.stamp-label{font-size:7pt;color:#687985;margin-top:5px}.footer{margin-top:17px;color:#82909a;font-size:6.8pt;border-top:1px solid #e2e7ea;padding-top:8px;display:flex;justify-content:space-between;gap:10px}tr{break-inside:avoid;page-break-inside:avoid}.terms,.totals{break-inside:avoid;page-break-inside:avoid}@media print{header{print-color-adjust:exact;-webkit-print-color-adjust:exact}.meta div,.totals,.terms,th{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
@@ -1261,12 +1278,9 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
     await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
     const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
     fs.writeFileSync(filePath, data);
-    const costRub = Math.max(0, Number(input.estimatedCostRub) || 0);
-    const profitRub = Number.isFinite(Number(input.estimatedProfitRub)) ? Number(input.estimatedProfitRub) : total - costRub;
-    const marginPct = Number.isFinite(Number(input.marginPct)) ? Number(input.marginPct) : (total > 0 ? profitRub / total * 100 : 0);
     db.prepare(`INSERT INTO quote_history(title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json,file_path) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
       .run(title, customer, address, new Date().toISOString(), total, costRub, profitRub, marginPct, discount, lines.length,
-        JSON.stringify(lines.map(line => ({ name: clean(line.name,180), unit: clean(line.unit,24), quantity: Math.max(0, Number(line.quantity) || 0), price: Math.max(0, Number(line.price) || 0) }))), filePath);
+        JSON.stringify(lines.map(line => ({ name: line.name, unit: line.unit, quantity: line.quantity, price: line.price }))), filePath);
     return { canceled: false, filePath, historySaved: true };
   } finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
 });

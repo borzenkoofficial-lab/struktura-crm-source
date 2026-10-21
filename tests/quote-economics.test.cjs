@@ -19,3 +19,21 @@ test('quote totals do not trust renderer totals and cannot apply discount beyond
   assert.equal(result.profitRub, -150);
   assert.equal(result.marginPct, 0);
 });
+
+test('quote economics rounds each printed line before summing totals', () => {
+  const result = calculateQuoteTotals([
+    { quantity: 1.25, price: 100, cost: 20 },
+    { quantity: 1.25, price: 100, cost: 20 }
+  ], 1.6);
+  assert.equal(result.grossRevenueRub, 250);
+  assert.equal(result.discountRub, 2);
+  assert.equal(result.revenueRub, 248);
+  assert.equal(result.costRub, 50);
+});
+
+test('quote economics rejects negative, infinite and overflowing line values', () => {
+  assert.throws(() => calculateQuoteTotals([{ quantity: -1, price: 100 }]), /Количество в строке КП/);
+  assert.throws(() => calculateQuoteTotals([{ quantity: 1, price: Infinity }]), /Цена в строке КП/);
+  assert.throws(() => calculateQuoteTotals([{ quantity: Number.MAX_VALUE, price: Number.MAX_VALUE }]), /Сумма строки КП/);
+  assert.throws(() => calculateQuoteTotals([{ quantity: 1, price: 100 }], -1), /Скидка/);
+});
