@@ -698,6 +698,9 @@ test('PDF commercial quote recalculates the final total from submitted work line
   const quote = main.slice(quoteStart, quoteEnd);
   assert.match(quote, /calculateQuoteTotals\(lines, input\.discount, input\.costInputs \|\| \{\}\)/);
   assert.match(quote, /const total = totals\.revenueRub/);
+  assert.match(quote, /function quoteUnitPrice\(value\)/);
+  assert.match(quote, /quoteUnitPrice\(line\.price\)/);
+  assert.match(quote, /const price = Math\.round\(priceInput \* 100\) \/ 100/);
   assert.match(quote, /const discount = totals\.discountRub/);
   assert.doesNotMatch(quote, /Number\(input\.revenue\)/);
   assert.doesNotMatch(quote, /estimatedCostRub|estimatedProfitRub|input\.marginPct/);

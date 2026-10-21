@@ -61,3 +61,9 @@ test('quote economics validates each cost input before the PDF is created', () =
   assert.throws(() => calculateQuoteTotals([{quantity:1,price:100,cost:10}],0,{overheadPercent:101}), /Накладные расходы/);
   assert.throws(() => calculateQuoteTotals([{quantity:1,price:100,cost:10}],0,{taxPercent:51}), /Налоговый резерв/);
 });
+
+test('quote unit price is rounded to two decimals before calculating the printed line total', () => {
+  const result = calculateQuoteTotals([{ quantity: 1, price: 1000.499, cost: 100 }]);
+  assert.equal(result.grossRevenueRub, 1001);
+  assert.equal(result.costRub, 100);
+});

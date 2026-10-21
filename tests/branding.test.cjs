@@ -47,7 +47,7 @@ test('all downloaded estimates and planning archives carry the СКОЛ prefix',
   assert.match(renderer, /a\.download = `СКОЛ-/);
   assert.match(calculatorUi, /СКОЛ-инженерная-история-/);
   assert.match(planUi, /СКОЛ-планы-объекта-/);
-  assert.match(crawler, /User-Agent': 'SKOL\/1\.16\.14/);
+  assert.match(crawler, /User-Agent': 'SKOL\/1\.16\.15/);
   assert.doesNotMatch(calculatorUi, /struktura-engineering-history-/);
   assert.doesNotMatch(planUi, /struktura-project-plans-/);
 });

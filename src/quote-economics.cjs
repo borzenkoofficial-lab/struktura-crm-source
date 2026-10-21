@@ -28,7 +28,8 @@ function calculateQuoteTotals(lines, discountInput = 0, costInputs = {}) {
       throw new Error('Строка КП №' + (index + 1) + ' имеет неверный формат.');
     }
     const quantity = nonNegativeFinite(line.quantity, 'Количество в строке КП №' + (index + 1));
-    const price = nonNegativeFinite(line.price, 'Цена в строке КП №' + (index + 1));
+    const priceInput = nonNegativeFinite(line.price, 'Цена в строке КП №' + (index + 1));
+    const price = Math.round(priceInput * 100) / 100;
     const cost = nonNegativeFinite(line.cost, 'Себестоимость строки КП №' + (index + 1));
     return {
       revenueRub: safeRubles(quantity * price, 'Сумма строки КП №' + (index + 1)),
