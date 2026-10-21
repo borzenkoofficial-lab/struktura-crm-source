@@ -4,6 +4,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { normalizePin, createPinConfig, pinMatches, evaluatePinAttempt } = require('./pin-security.cjs');
 const { skolWordmarkSvg } = require('./branding.cjs');
+const { validateBackupDatabase } = require('./backup-utils.cjs');
 app.setName('СКОЛ');
 // Keep the existing local database when the visible product name changes.
 const legacyDataCandidates = ['Struktura CRM', 'struktura-crm', 'struktura-crm-source'];
@@ -1027,17 +1028,12 @@ ipcMain.handle('backup:restore', async () => {
   let candidate;
   try {
     candidate = new Database(sourcePath, { readonly: true, fileMustExist: true });
-    const integrity = candidate.pragma('integrity_check', { simple: true });
-    if (integrity !== 'ok') throw new Error(`Проверка целостности копии не пройдена: ${integrity}`);
-    const tables = new Set(candidate.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
-    const required = ['clients', 'leads', 'projects', 'payments', 'expenses', 'settings'];
-    const missing = required.filter(name => !tables.has(name));
-    if (missing.length) throw new Error(`Это не резервная копия СКОЛ: отсутствуют таблицы ${missing.join(', ')}.`);
+    validateBackupDatabase(candidate);
     await candidate.backup(restoreCandidatePath);
     candidate.close(); candidate = null;
     const normalized = new Database(restoreCandidatePath, { readonly: true, fileMustExist: true });
     try {
-      if (normalized.pragma('integrity_check', { simple: true }) !== 'ok') throw new Error('Нормализованная копия не прошла проверку целостности.');
+      validateBackupDatabase(normalized);
     } finally { normalized.close(); }
   } catch (error) {
     if (candidate) { try { candidate.close(); } catch {} }
