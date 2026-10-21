@@ -50,6 +50,14 @@ test('invalid references, duplicate ids, cycles and missing operations are rejec
 });
 
 
+
+test('project plan rejects numeric underflow that would produce infinite shifts', () => {
+  assert.throws(
+    () => calculateProjectPlan([base('extreme', 'Нереалистичная норма', { quantity: 100, productivity: Number.MIN_VALUE })]),
+    /расчёт вышел за допустимый числовой диапазон/
+  );
+});
+
 test('project plan rejects out-of-range shift hours and economic percentages', () => {
   assert.throws(() => calculateProjectPlan([base('short-shift', 'Короткая смена', { hoursPerShift: 0.5 })]), /длительность смены должна быть от 1 до 24 часов/);
   assert.throws(() => calculateProjectPlan([base('long-shift', 'Слишком длинная смена', { hoursPerShift: 25 })]), /длительность смены должна быть от 1 до 24 часов/);
