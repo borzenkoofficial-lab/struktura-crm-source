@@ -39,11 +39,17 @@ async function validatePublicUrl(value) {
   return url;
 }
 
+function decodeCodePoint(value) {
+  const codePoint = Number(value);
+  // Malformed HTML must not abort contact extraction for an otherwise usable page.
+  if (!Number.isInteger(codePoint) || codePoint < 1 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)) return '\uFFFD';
+  return String.fromCodePoint(codePoint);
+}
 function decodeEntities(text) {
   return String(text).replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([\da-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
+    .replace(/&#(\d+);/g, (_, n) => decodeCodePoint(Number(n)))
+    .replace(/&#x([\da-f]+);/gi, (_, n) => decodeCodePoint(parseInt(n, 16)));
 }
 function plainText(html) {
   return decodeEntities(String(html).replace(/<!--[\s\S]*?-->/g, ' ').replace(/<(script|style|noscript|svg|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, ' ')
@@ -105,6 +111,8 @@ async function fetchSafe(url, fetchImpl) {
   throw new Error('Не удалось открыть страницу.');
 }
 async function crawlSites(seedUrls, options = {}) {
+  options = options && typeof options === 'object' ? options : {};
+  seedUrls = Array.isArray(seedUrls) ? seedUrls : [];
   const fetchImpl = options.fetchImpl || fetch;
   const maxPages = Math.max(1, Math.min(Number(options.maxPages) || 12, 15));
   const delayMs = Math.max(700, Math.min(Number(options.delayMs) || 900, 2000));
