@@ -193,9 +193,13 @@ test('backup restore is exposed in the UI and safe preload bridge', () => {
   assert.match(main, /ipcMain\.handle\('backup:restore'/);
 });
 
-test('backup restore validates SQLite integrity and preserves an automatic rollback copy', () => {
-  assert.match(main, /integrity_check/);
-  assert.match(main, /const required = \['clients', 'leads', 'projects', 'payments', 'expenses', 'settings'\]/);
+test('backup restore validates SQLite structure and preserves an automatic rollback copy', () => {
+  const backupUtils = fs.readFileSync(path.join(__dirname, '../src/backup-utils.cjs'), 'utf8');
+  assert.match(main, /validateBackupDatabase\(candidate\)/);
+  assert.match(main, /validateBackupDatabase\(normalized\)/);
+  assert.match(backupUtils, /integrity_check/);
+  assert.match(backupUtils, /REQUIRED_BACKUP_COLUMNS/);
+  assert.match(backupUtils, /clients: \['id', 'name', 'phone', 'email'/);
   assert.match(main, /await db\.backup\(safetyPath\)/);
   assert.match(main, /прежняя база возвращена/);
   assert.match(main, /Действующая база не изменена/);
