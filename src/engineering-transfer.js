@@ -62,7 +62,7 @@ function buildEngineeringTransfer(source={}){
  const warnings=[];
  if(targetMargin!==sourceMargin)warnings.push('Целевая маржа '+sourceMargin+'% ограничена '+targetMargin+'% в ПИ: исходная формула допускает маржу ниже 80% с учётом налога.');
  if(difficulty!==difficultyInput)warnings.push('Сложность '+difficultyInput+' ограничена '+difficulty+' в ПИ: это максимальное значение, поддерживаемое обоими калькуляторами.');
- if(targetShifts!==targetShiftsInput)warnings.push('Целевой срок '+targetShiftsInput+' смен ограничен '+targetShifts+' сменами в стандартном калькуляторе ПИ.');
+ if(mode==='standard'&&targetShifts!==targetShiftsInput)warnings.push('Целевой срок '+targetShiftsInput+' смен ограничен '+targetShifts+' сменами в стандартном калькуляторе ПИ.');
  if(mode==='standard'){
   const selected=String(source.selectedLineId||''),found=selected?lines.findIndex(l=>l.lineId===selected):0;
   if(selected&&found<0)throw new Error('Выбранная строка сметы больше не найдена. Обнови окно переноса и выбери работу заново.');

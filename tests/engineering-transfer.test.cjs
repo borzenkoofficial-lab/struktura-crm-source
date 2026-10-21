@@ -13,12 +13,14 @@ test('complex transfer rejects missing production rates',()=>{const s=sample('co
 test('transfer rejects stale selection and fractional crew size',()=>{assert.throws(()=>buildEngineeringTransfer(sample('standard','deleted-line')),/больше не найдена/i);const s=sample('complex');s.settings.crew.people='2.5';assert.throws(()=>buildEngineeringTransfer(s),/целым числом от 1 до 200/i);});
 test('transfer requires lines and permits zero-priced work with positive quantity',()=>{const s=sample('complex');s.lines=[];assert.throws(()=>buildEngineeringTransfer(s),/хотя бы одну работу/i);const free=sample('standard');free.lines[0].price=0;assert.equal(buildEngineeringTransfer(free).input.pricePerUnit,0);});
 
-test('transfer bounds PI difficulty and standard target shifts, with explicit warnings',()=>{
- const s=sample('complex');s.settings.difficulty='4.5';s.settings.targetDays='900';
- const result=buildEngineeringTransfer(s);
- assert.equal(result.operations[0].difficultyFactor,3);
- assert.ok(result.warnings.some(w=>w.includes('Сложность 4.5 ограничена 3')));
- assert.ok(result.warnings.some(w=>w.includes('Целевой срок 900 смен ограничен 365 сменами')));
- const standard=buildEngineeringTransfer(sample('standard'));
- assert.equal(standard.input.targetShifts,5);
+test('transfer respects PI difficulty and standard target-shift bounds, with explicit warnings',()=>{
+ const complex=sample('complex');complex.settings.difficulty='4.5';
+ const complexResult=buildEngineeringTransfer(complex);
+ assert.equal(complexResult.operations[0].difficultyFactor,3);
+ assert.ok(complexResult.warnings.some(w=>w.includes('Сложность 4.5 ограничена 3')));
+ assert.ok(!complexResult.warnings.some(w=>w.includes('Целевой срок 900 смен')));
+ const standard=sample('standard');standard.settings.targetDays='900';
+ const standardResult=buildEngineeringTransfer(standard);
+ assert.equal(standardResult.input.targetShifts,365);
+ assert.ok(standardResult.warnings.some(w=>w.includes('Целевой срок 900 смен ограничен 365 сменами')));
 });
