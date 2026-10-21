@@ -197,7 +197,7 @@
       const median=Number(evidence.externalModel.observedMedian),weight=Number(evidence.externalModel.observedWeight);
       result.observedMedian=Number.isFinite(median)&&median>0?median:null;result.learnedWeight=Number.isFinite(weight)?weight:0;
       result.warnings = (result.warnings || []).filter(w => !String(w).startsWith('Нет фактических наблюдений:'));
-      if(externalCount<3)result.warnings.push('Есть только 1–2 наблюдения: обученная норма предварительная.');
+      if (externalCount < 3) result.warnings.push('Есть только 1–2 наблюдения: обученная норма предварительная.');
     }
     const record={id:'eng-'+Date.now().toString(36)+Math.random().toString(36).slice(2,7),createdAt:new Date().toISOString(),...input,result,observations:[]};
     history.unshift(record);history=history.slice(0,500);api.saveHistory(history);renderResult(result, input, Number(result.observations ?? observations.length));renderHistory();
