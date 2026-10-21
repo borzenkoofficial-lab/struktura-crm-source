@@ -23,12 +23,12 @@ function buildEngineeringTransfer(source={}){
  const lines=normalizeLines(source.lines),duration=Array.isArray(source.durationLines)?source.durationLines:[],totals={...(source.totals||{})};
  const people=bounded(crew.people,'Количество работников',1,200);
  if(!Number.isInteger(people))throw new Error('Количество работников должно быть целым числом от 1 до 200.');
- const hours=bounded(crew.hoursPerDay,'Длительность смены',1,24),difficulty=bounded(settings.difficulty,'Сложность объекта',0.25,5);
+ const hours=bounded(crew.hoursPerDay,'Длительность смены',1,24),difficultyInput=bounded(settings.difficulty,'Сложность объекта',0.25,5),difficulty=clamp(difficultyInput,0.25,3);
  const efficiency=clamp(n(settings.efficiencyPercent,'Полезное время смены',85),25,100);
  const overhead=bounded(settings.overheadPercent,'Накладные расходы',0,100),tax=bounded(settings.taxPercent,'Резерв на налоги',0,50);
  const discount=bounded(settings.discountPercent,'Скидка',0,100),reserve=bounded(settings.reservePercent,'Резерв срока',0,100);
  const sourceMargin=bounded(settings.marginPercent,'Целевая маржа',0.01,99),targetMargin=clamp(sourceMargin,0.01,Math.min(79.99,99.99-tax));
- const targetShifts=bounded(settings.targetDays,'Целевой срок',0.1,3650);
+ const targetShiftsInput=bounded(settings.targetDays,'Целевой срок',0.1,3650),targetShifts=clamp(targetShiftsInput,1,365);
  const commonCost=['materialsCost','disposalCost','transportCost','equipmentCost','otherCost'].reduce((s,k)=>s+bounded(settings[k],k,0,1e12),0);
  const payroll=bounded(totals.payroll,'Оплата бригады',0,1e12),listRevenue=lines.reduce((s,l)=>s+l.quantity*l.price,0);
  const netPrices=lines.map(l=>money(l.price*(1-discount/100)));
@@ -59,7 +59,10 @@ function buildEngineeringTransfer(source={}){
  const note=['Перенесено из калькулятора сметы СКОЛ.',meta.customer?'Заказчик: '+meta.customer:'',meta.address?'Адрес: '+meta.address:'',meta.contact?'Контакт: '+meta.contact:'',
   'Исходная смета: '+Math.round(economics.revenue).toLocaleString('ru-RU')+' ₽ после скидки.','Позиции: '+lines.length+'.',
   'Нормы уже содержат поправки, учтённые калькулятором сметы.','Проверь технологические зависимости перед подтверждением.'].filter(Boolean).join('\n').slice(0,4500);
- const warnings=targetMargin!==sourceMargin?['Целевая маржа '+sourceMargin+'% ограничена '+targetMargin+'% в ПИ: исходная формула допускает маржу ниже 80% с учётом налога.']:[];
+ const warnings=[];
+ if(targetMargin!==sourceMargin)warnings.push('Целевая маржа '+sourceMargin+'% ограничена '+targetMargin+'% в ПИ: исходная формула допускает маржу ниже 80% с учётом налога.');
+ if(difficulty!==difficultyInput)warnings.push('Сложность '+difficultyInput+' ограничена '+difficulty+' в ПИ: это максимальное значение, поддерживаемое обоими калькуляторами.');
+ if(targetShifts!==targetShiftsInput)warnings.push('Целевой срок '+targetShiftsInput+' смен ограничен '+targetShifts+' сменами в стандартном калькуляторе ПИ.');
  if(mode==='standard'){
   const selected=String(source.selectedLineId||''),found=selected?lines.findIndex(l=>l.lineId===selected):0;
   if(selected&&found<0)throw new Error('Выбранная строка сметы больше не найдена. Обнови окно переноса и выбери работу заново.');
