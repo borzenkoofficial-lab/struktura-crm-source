@@ -4,9 +4,10 @@
     const p = 10 ** digits;
     return Math.round((n + Number.EPSILON) * p) / p;
   };
-  const positive = (value, label, allowZero = false) => {
+  const positive = (value, label, allowZero = false, max = 1e9) => {
     const n = Number(value);
     if (!Number.isFinite(n) || n < 0 || (!allowZero && n === 0)) throw new Error(label + ': требуется ' + (allowZero ? 'неотрицательное' : 'положительное') + ' число.');
+    if (n > max) throw new Error(label + ': значение не должно превышать ' + max + '.');
     return n;
   };
   function normalizeOperations(operations) {
@@ -24,7 +25,7 @@
       const crewSize = positive(op.crewSize ?? 5, name + ' · бригада');
       const hoursPerShift = positive(op.hoursPerShift ?? 8, name + ' · часы смены');
       if (!Number.isInteger(crewSize) || crewSize < 1 || crewSize > 200) throw new Error(name + ': численность бригады должна быть целым числом от 1 до 200.');
-      if (hoursPerShift > 24) throw new Error(name + ': смена не более 24 часов.');
+      if (hoursPerShift < 1 || hoursPerShift > 24) throw new Error(name + ': длительность смены должна быть от 1 до 24 часов.');
       const difficultyFactor = positive(op.difficultyFactor ?? 1, name + ' · коэффициент сложности');
       if (difficultyFactor < 0.1 || difficultyFactor > 3) throw new Error(name + ': коэффициент сложности должен быть от 0,1 до 3.');
       const observations = Array.isArray(op.observations) ? op.observations : [];
@@ -36,9 +37,9 @@
         pricePerUnit: positive(op.pricePerUnit ?? 0, name + ' · цена', true),
         extraCostPerUnit: positive(op.extraCostPerUnit ?? 0, name + ' · доп. расходы', true),
         fixedCosts: positive(op.fixedCosts ?? 0, name + ' · постоянные расходы', true),
-        overheadPercent: positive(op.overheadPercent ?? 0, name + ' · накладные расходы', true),
-        taxPercent: positive(op.taxPercent ?? 0, name + ' · налог', true),
-        reservePercent: positive(op.reservePercent ?? 15, name + ' · резерв срока', true)
+        overheadPercent: positive(op.overheadPercent ?? 0, name + ' · накладные расходы', true, 100),
+        taxPercent: positive(op.taxPercent ?? 0, name + ' · налог', true, 100),
+        reservePercent: positive(op.reservePercent ?? 15, name + ' · резерв срока', true, 100)
       };
     });
     for (const op of normalized) {
