@@ -122,7 +122,7 @@ function extractOrderEvidence(input = '') {
     addEvidence(evidence, 'procurement_number', result.procurement_number, procurement[0]);
   }
 
-  const address = text.match(/(?:адрес объекта|место выполнения работ|место поставки)\s*[:—-]\s*([^.;\n]{5,180})/iu);
+  const address = text.match(/(?:адрес объекта|место выполнения работ|место поставки)\s*[:—-]\s*([^;\n]{5,250})/iu);
   if (address) {
     result.work_address = address[1].trim().slice(0, 250);
     addEvidence(evidence, 'work_address', result.work_address, address[0]);
