@@ -38,6 +38,7 @@ ipcMain.handle('licenseManager:chooseKey', async () => {
     filters: [{ name: 'PEM key', extensions: ['pem', 'key'] }]
   });
   if (result.canceled || !result.filePaths[0]) return { canceled: true };
+  privateKeyPath = '';
   const selectedPath = result.filePaths[0];
   const pem = fs.readFileSync(selectedPath, 'utf8');
   if (!pem.includes('PRIVATE KEY')) throw new Error('Выбранный файл не содержит закрытый PEM-ключ.');
