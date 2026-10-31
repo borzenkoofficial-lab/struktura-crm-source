@@ -86,7 +86,7 @@ function generateLicense(args) {
   const seatIndex = parseInteger(args['seat-index'], 1, 'seat-index');
   const seatCount = parseInteger(args['seat-count'], 1, 'seat-count');
   if (seatIndex > seatCount) throw new Error('--seat-index не может быть больше --seat-count.');
-  const licenseId = String(args['license-id'] || `SKOL-${randomBytes(6).toString('hex').toUpperCase()}`);
+  const licenseId = String(args['license-id'] || `SKOL-${randomBytes(12).toString('hex').toUpperCase()}`).toUpperCase();
   const expiresAt = parseDateEnd(args['expires-at'], 'expires-at');
   const updatesUntil = parseDateOnly(args['updates-until'], 'updates-until');
   const payload = {
