@@ -531,8 +531,8 @@ async function refreshLeads() {
 }
 async function refreshClients() {
   const rows = await window.crm.listClients(); const q = ($('clientSearch')?.value || '').toLowerCase();
-  const filtered = rows.filter(c => `${c.name} ${c.phone} ${c.email}`.toLowerCase().includes(q));
-  $('clientsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Клиент</th><th>Телефон</th><th>Email</th><th>Тип</th><th>Добавлен</th><th>Действия</th></tr></thead><tbody>${filtered.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.phone || '—')}</td><td>${esc(c.email || '—')}</td><td>${c.client_type === 'company' ? 'Компания' : 'Частное лицо'}</td><td>${esc(String(c.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-client="${c.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Клиентов пока нет','Добавь первый контакт в свою базу.');
+  const filtered = rows.filter(c => `${c.name} ${c.contact_name||''} ${c.phone} ${c.email}`.toLowerCase().includes(q));
+  $('clientsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Клиент</th><th>Контактное лицо</th><th>Телефон</th><th>Email</th><th>Тип</th><th>Добавлен</th><th>Действия</th></tr></thead><tbody>${filtered.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.contact_name || '—')}</td><td>${esc(c.phone || '—')}</td><td>${esc(c.email || '—')}</td><td>${c.client_type === 'company' ? 'Компания' : 'Частное лицо'}</td><td>${esc(String(c.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-client="${c.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Клиентов пока нет','Добавь первый контакт в свою базу.');
 }
 async function refreshProjects() {
   const rows = await window.crm.listProjects(); const q = ($('projectSearch')?.value || '').toLowerCase();
@@ -1333,7 +1333,7 @@ $('clientsTable').addEventListener('click', async event => {
     const client = clients.find(item => item.id === Number(button.dataset.editClient));
     if (!client) throw new Error('Клиент не найден. Обнови список.');
     const form = $('clientForm');
-    for (const key of ['id','name','phone','email','client_type','notes']) form.elements[key].value = client[key] ?? '';
+    for (const key of ['id','name','phone','email','contact_name','client_type','notes']) form.elements[key].value = client[key] ?? '';
     $('clientDialogTitle').textContent = 'Изменить клиента'; openDialog('clientDialog');
   } catch (error) { toast(error.message, true); }
 });
