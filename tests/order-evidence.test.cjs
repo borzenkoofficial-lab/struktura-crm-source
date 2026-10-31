@@ -46,3 +46,14 @@ test('does not invent budget, volume, deadline or contacts from generic text', (
   assert.equal(result.email, '');
   assert.deepEqual(JSON.parse(result.fact_evidence_json), []);
 });
+
+test('stops the customer company name before subsequent labeled order facts', () => {
+  const result = extractOrderEvidence(
+    'Заказчик: ООО СтройИнвест Бюджет: 1 200 000 руб. ' +
+    'Объём работ: 800 м² Контактное лицо: Иван Петрович Сидоров'
+  );
+  assert.equal(result.customer_name, 'ООО СтройИнвест');
+  assert.equal(result.budget_rub, 1200000);
+  assert.equal(result.volume_value, 800);
+  assert.equal(result.contact_name, 'Иван Петрович Сидоров');
+});
