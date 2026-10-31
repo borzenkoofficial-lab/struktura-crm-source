@@ -655,7 +655,7 @@ test('startup PIN is configurable in settings, verified in main process, and has
   assert.match(html, /id="pinUnlockForm"/);
   assert.match(html, /id="pinSettingsForm"/);
   assert.match(html, /id="pinDisableBtn"/);
-  assert.match(renderer, /initializeStartupGate\(\)\.then\(\(\) => refreshDashboard\(\)\)/);
+  assert.match(renderer, /initializeStartupGate\(\)\s*\.then\(\(\) => Promise\.race\(\[\s*refreshDashboard\(\)/);
   assert.match(preload, /verifyPin: \(data\) => ipcRenderer\.invoke\('security:pinVerify', data\)/);
   assert.match(main, /require\('\.\/pin-security\.cjs'\)/);
   assert.match(pinSecurity, /crypto\.scryptSync\(pin, salt, 64\)/);
