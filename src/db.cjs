@@ -317,6 +317,7 @@ function openDatabase(userDataPath) {
   if (!documentColumns.has('document_type')) db.exec("ALTER TABLE commercial_order_documents ADD COLUMN document_type TEXT NOT NULL DEFAULT 'pdf' CHECK(document_type IN ('pdf','table'))");
   if (!documentColumns.has('sheet_count')) db.exec('ALTER TABLE commercial_order_documents ADD COLUMN sheet_count INTEGER NOT NULL DEFAULT 0 CHECK(sheet_count >= 0)');
   if (!documentColumns.has('row_count')) db.exec('ALTER TABLE commercial_order_documents ADD COLUMN row_count INTEGER NOT NULL DEFAULT 0 CHECK(row_count >= 0)');
+  if (!documentColumns.has('line_items_json')) db.exec("ALTER TABLE commercial_order_documents ADD COLUMN line_items_json TEXT NOT NULL DEFAULT '[]'");
 
   const projectColumns = new Set(db.prepare('PRAGMA table_info(projects)').all().map(column => column.name));
   if (!projectColumns.has('planned_people')) db.exec('ALTER TABLE projects ADD COLUMN planned_people INTEGER NOT NULL DEFAULT 5 CHECK(planned_people BETWEEN 1 AND 200)');
@@ -340,8 +341,8 @@ function openDatabase(userDataPath) {
       migratePlans();
     } finally { db.pragma('foreign_keys = ON'); }
   }
-  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','13')").run();
-  db.prepare("UPDATE settings SET value='13' WHERE key='schema_version'").run();
+  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','14')").run();
+  db.prepare("UPDATE settings SET value='14' WHERE key='schema_version'").run();
   return db;
 }
 

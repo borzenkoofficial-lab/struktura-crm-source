@@ -916,3 +916,12 @@ test('commercial order spreadsheet attachments can be parsed through scoped IPC'
   assert.match(tableFetcher, /MAX_ROWS=5000/);
   assert.match(tableFetcher, /MAX_TABLE_BYTES=12\*1024\*1024/);
 });
+
+test('tabular attachment parsing exposes normalized scope lines from a workbook', () => {
+  assert.match(renderer, /order-document-lines/);
+  assert.match(renderer, /line\.work_name/);
+  assert.match(renderer, /line\.quantity/);
+  assert.match(main, /line_items_json/);
+  assert.match(main, /JSON\.stringify\(table\.line_items\|\|\[\]\)/);
+  assert.match(renderer, /Позиции работ/);
+});

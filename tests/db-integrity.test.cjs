@@ -25,7 +25,7 @@ test('database core initializes, enforces constraints, and survives an idempoten
     db = openDatabase(userDataPath);
     assert.equal(db.pragma('integrity_check', { simple: true }), 'ok');
     assert.equal(db.prepare('SELECT title FROM projects WHERE id=?').get(project.lastInsertRowid).title, 'Тестовый объект');
-    assert.equal(db.prepare("SELECT value FROM settings WHERE key='schema_version'").get().value, '13');
+    assert.equal(db.prepare("SELECT value FROM settings WHERE key='schema_version'").get().value, '14');
     assert.equal(db.prepare('SELECT title FROM engineering_project_plans WHERE id=?').get('plan-test').title, 'Комплексный тест');
   } finally {
     if (db && db.open) db.close();
@@ -68,7 +68,7 @@ test('database upgrades a legacy schema without dropping existing project and le
     assert.ok(orderColumns.has('source_page_text'));
     assert.ok(orderColumns.has('source_fetched_at'));
     const documentColumns = new Set(db.prepare('PRAGMA table_info(commercial_order_documents)').all().map(row => row.name));
-    for (const column of ['order_id','source_url','extracted_text','fact_evidence_json','sha256','fetched_at','document_type','sheet_count','row_count']) assert.ok(documentColumns.has(column));
+    for (const column of ['order_id','source_url','extracted_text','fact_evidence_json','sha256','fetched_at','document_type','sheet_count','row_count','line_items_json']) assert.ok(documentColumns.has(column));
     assert.equal(db.prepare('SELECT status FROM leads WHERE id=7').get().status, 'new');
     assert.equal(db.prepare('SELECT title FROM projects WHERE id=11').get().title, 'Старый объект');
     assert.equal(db.prepare('SELECT region FROM prospects WHERE id=13').get().region, 'Москва');

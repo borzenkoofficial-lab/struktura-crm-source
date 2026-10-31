@@ -8,13 +8,14 @@ function response(body,status=200,headers={}){return new Response(body,{status,h
 function allowRobots(){return response('User-agent: *\nAllow: /',200,{'content-type':'text/plain'})}
 function makeWorkbook(){
  const workbook=XLSX.utils.book_new();
- const sheet=XLSX.utils.aoa_to_sheet([
-  ['Заказчик: ООО СтройИнвест'],
-  ['Бюджет: 1 200 000 руб.'],
-  ['Объём работ: 800 м²'],
-  ['Контактное лицо: Иван Петрович Сидоров']
+ const sheet=XLSX.utils.aoa_to_sheet([['Заказчик: ООО СтройИнвест'],['Бюджет: 1 200 000 руб.'],['Объём работ: 800 м²'],['Контактное лицо: Иван Петрович Сидоров']]);
+ XLSX.utils.book_append_sheet(workbook,sheet,'Сведения');
+ const volumeSheet=XLSX.utils.aoa_to_sheet([
+  ['№','Наименование работ','Ед. изм.','Количество','Цена за ед.','Сумма'],
+  [1,'Демонтаж кирпичных перегородок','м²','150','1 200','180 000'],
+  [2,'Снятие цементной стяжки','м²','40','800','32 000']
  ]);
- XLSX.utils.book_append_sheet(workbook,sheet,'Ведомость объёмов');
+ XLSX.utils.book_append_sheet(workbook,volumeSheet,'Ведомость объёмов');
  return Buffer.from(XLSX.write(workbook,{type:'buffer',bookType:'xlsx'}));
 }
 test('downloads an XLSX tender attachment and extracts facts from worksheet rows',async()=>{
@@ -28,8 +29,14 @@ test('downloads an XLSX tender attachment and extracts facts from worksheet rows
  });
  assert.equal(result.file_name,'volumes.xlsx');
  assert.equal(result.document_type,'table');
- assert.equal(result.sheet_count,1);
- assert.equal(result.row_count,4);
+ assert.equal(result.sheet_count,2);
+ assert.equal(result.row_count,7);
+ assert.equal(result.line_items.length,2);
+ assert.equal(result.line_items[0].work_name,'Демонтаж кирпичных перегородок');
+ assert.equal(result.line_items[0].quantity,150);
+ assert.equal(result.line_items[0].unit,'м²');
+ assert.equal(result.line_items[0].unit_price_rub,1200);
+ assert.equal(result.line_items[0].amount_rub,180000);
  assert.match(result.text,/Бюджет: 1 200 000 руб/);
  assert.equal(result.facts.customer_name,'ООО СтройИнвест');
  assert.equal(result.facts.budget_rub,1200000);

@@ -758,9 +758,10 @@ ipcMain.handle('orders:list', (_event,input={})=>{
  const rows=db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC`).all(...params);
  const analyses=new Map(db.prepare('SELECT * FROM commercial_order_analysis').all().map(item=>[Number(item.order_id),item]));
  const documentsByOrder=new Map();
- for(const document of db.prepare('SELECT id,order_id,source_url,title,file_name,mime_type,document_type,page_count,sheet_count,row_count,extracted_text,fact_evidence_json,sha256,fetched_at FROM commercial_order_documents ORDER BY id DESC').all()){
+ for(const document of db.prepare('SELECT id,order_id,source_url,title,file_name,mime_type,document_type,page_count,sheet_count,row_count,line_items_json,extracted_text,fact_evidence_json,sha256,fetched_at FROM commercial_order_documents ORDER BY id DESC').all()){
   let evidence=[];try{evidence=JSON.parse(document.fact_evidence_json||'[]');if(!Array.isArray(evidence))evidence=[];}catch{}
-  const item={...document,extracted_text:String(document.extracted_text||'').slice(0,80000),fact_evidence:evidence};
+  let lineItems=[];try{lineItems=JSON.parse(document.line_items_json||'[]');if(!Array.isArray(lineItems))lineItems=[];}catch{}
+  const item={...document,extracted_text:String(document.extracted_text||'').slice(0,80000),fact_evidence:evidence,line_items:lineItems};
   if(!documentsByOrder.has(Number(document.order_id)))documentsByOrder.set(Number(document.order_id),[]);
   documentsByOrder.get(Number(document.order_id)).push(item);
  }
@@ -890,8 +891,8 @@ ipcMain.handle('orders:fetchTable', async (_event, input = {}) => {
  }
  const facts=table.facts;
  const persist=db.transaction(()=>{
-  db.prepare('UPDATE commercial_order_documents SET file_name=?,mime_type=?,document_type=?,sheet_count=?,row_count=?,extracted_text=?,fact_evidence_json=?,sha256=?,fetched_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=? AND order_id=?')
-   .run(table.file_name,table.mime_type,'table',table.sheet_count,table.row_count,table.text,JSON.stringify(taggedEvidence),table.sha256,documentId,orderId);
+  db.prepare('UPDATE commercial_order_documents SET file_name=?,mime_type=?,document_type=?,sheet_count=?,row_count=?,line_items_json=?,extracted_text=?,fact_evidence_json=?,sha256=?,fetched_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=? AND order_id=?')
+   .run(table.file_name,table.mime_type,'table',table.sheet_count,table.row_count,JSON.stringify(table.line_items||[]),table.text,JSON.stringify(taggedEvidence),table.sha256,documentId,orderId);
   db.prepare(`UPDATE commercial_orders SET
    customer_name=CASE WHEN @customer_name<>'' THEN @customer_name ELSE customer_name END,
    contact_name=CASE WHEN @contact_name<>'' THEN @contact_name ELSE contact_name END,
