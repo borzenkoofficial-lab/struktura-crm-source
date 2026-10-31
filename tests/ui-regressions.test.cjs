@@ -394,6 +394,10 @@ test('converting a commercial order to a lead preserves its PI economics as prov
   assert.match(handler[0], /estimated_margin_pct/);
   assert.match(handler[0], /estimated_days/);
   assert.match(handler[0], /бюджет заказчика не подтверждён/);
+  assert.match(handler[0], /INSERT INTO tasks\(lead_id,title,due_at\)/);
+  assert.match(handler[0], /Проверить заказ и связаться с заказчиком/);
+  assert.match(handler[0], /due\.setDate\(due\.getDate\(\)\+1\)/);
+  assert.match(renderer, /if\(!result\.alreadyExists\) await refreshTasks\(\)/);
 });
 
 test('client and prospect create, update and CSV import validate contact email at the main-process boundary', () => {
