@@ -750,7 +750,8 @@ test('regression fixes preserve contract amounts, task links, budgets and financ
   assert.match(renderer, /Math\.max\(0,Number\(p\.contract_rub\)-Math\.max\(0,Number\(p\.received_rub\)\)\)/);
   assert.match(renderer, /estimateCrewDaysForCost/);
   assert.match(renderer, /Полный срок не рассчитан — проверь оплату бригады/);
-  assert.match(main, /leadBudget=Math\.max\(0,Math\.round\(Number\(analysis\?\.revenue_rub\)\|\|0\)\)/);
+  assert.match(main, /leadBudget=Math\.max\(0,Math\.round\(Number\(order\.budget_rub\)\|\|0\)\)/);
+  assert.doesNotMatch(main, /leadBudget=Math\.max\(0,Math\.round\(Number\(analysis\?\.revenue_rub\)/);
   assert.match(main, /Статус «Превращена в заявку» устанавливается только действием конвертации/);
   assert.match(main, /normalizePhone/);
   assert.match(main, /datetime\(t\.due_at\)<datetime\('now','localtime'\)/);
