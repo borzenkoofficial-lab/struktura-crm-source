@@ -239,7 +239,6 @@ ipcMain.handle('license:status', () => {
   licenseUnlocked = licenseState.activated;
   return licenseState;
 });
-ipcMain.handle('license:deviceId', () => licenseState.deviceId);
 ipcMain.handle('license:copyDeviceId', () => {
   clipboard.writeText(licenseState.deviceId);
   return { copied: true };
