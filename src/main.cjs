@@ -892,7 +892,7 @@ ipcMain.handle('orders:fetchTable', async (_event, input = {}) => {
  const persist=db.transaction(()=>{
   db.prepare('UPDATE commercial_order_documents SET file_name=?,mime_type=?,document_type=?,sheet_count=?,row_count=?,extracted_text=?,fact_evidence_json=?,sha256=?,fetched_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=? AND order_id=?')
    .run(table.file_name,table.mime_type,'table',table.sheet_count,table.row_count,table.text,JSON.stringify(taggedEvidence),table.sha256,documentId,orderId);
-  db.prepare(\`UPDATE commercial_orders SET
+  db.prepare(`UPDATE commercial_orders SET
    customer_name=CASE WHEN @customer_name<>'' THEN @customer_name ELSE customer_name END,
    contact_name=CASE WHEN @contact_name<>'' THEN @contact_name ELSE contact_name END,
    phone=CASE WHEN @phone<>'' THEN @phone ELSE phone END,
@@ -903,7 +903,7 @@ ipcMain.handle('orders:fetchTable', async (_event, input = {}) => {
    deadline_text=CASE WHEN @deadline_text<>'' THEN @deadline_text ELSE deadline_text END,
    procurement_number=CASE WHEN @procurement_number<>'' THEN @procurement_number ELSE procurement_number END,
    work_address=CASE WHEN @work_address<>'' THEN @work_address ELSE work_address END,
-   fact_evidence_json=@fact_evidence_json WHERE id=@id\`).run({...facts,id:orderId,fact_evidence_json:JSON.stringify([...merged.values()].slice(-120))});
+   fact_evidence_json=@fact_evidence_json WHERE id=@id`).run({...facts,id:orderId,fact_evidence_json:JSON.stringify([...merged.values()].slice(-120))});
  });
  persist();
  return {order_id:orderId,document_id:documentId,file_name:table.file_name,sheet_count:table.sheet_count,row_count:table.row_count,
