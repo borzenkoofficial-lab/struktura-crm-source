@@ -86,6 +86,12 @@ function toast(message, error = false) {
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function dateToday() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; }
 function showView(name) {
+  const requestedView = $(`view-${name}`);
+  const requiredFeature = requestedView?.dataset.feature;
+  if (requiredFeature && !licenseFeatures.has(requiredFeature)) {
+    toast('Этот раздел недоступен на текущем тарифе СКОЛ.', true);
+    return;
+  }
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', engineering: 'ПИ · Расчёт объекта', browser: 'Браузер и поиск заказчиков', prospects: 'Центр привлечения заказов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте СКОЛ' };
@@ -1926,8 +1932,50 @@ for (const id of ['paymentForm','expenseForm']) { const field = $(id).elements[i
 const startupSplash = $('startupSplash');
 const startupStartedAt = performance.now();
 let pinUnlockResolve = null;
+let licenseUnlockResolve = null;
+let licenseGatePromise = null;
+let licenseActivated = false;
+let licenseFeatures = new Set();
 let startupGatePromise = null;
 let startupUnlocked = false;
+function applyLicenseEntitlements(status) {
+  licenseActivated = Boolean(status?.activated);
+  licenseFeatures = new Set(status?.license?.features || []);
+  document.querySelectorAll('[data-feature]').forEach(element => {
+    element.hidden = !licenseActivated || !licenseFeatures.has(element.dataset.feature);
+  });
+  const edition = $('licenseCurrentEdition');
+  const details = $('licenseCurrentDetails');
+  if (edition) edition.textContent = licenseActivated ? status.license.edition : 'Не активирована';
+  if (details) {
+    details.textContent = licenseActivated
+      ? `Лицензия ${status.license.licenseId} · Место ${status.license.seatIndex}/${status.license.seatCount} · Обновления до ${status.license.updatesUntil || 'без ограничения'}`
+      : 'Лицензия ещё не активирована.';
+  }
+  const closeButton = $('closeLicenseActivationBtn');
+  if (closeButton) closeButton.hidden = !licenseActivated;
+}
+async function initializeLicenseGate() {
+  if (licenseGatePromise) return licenseGatePromise;
+  licenseGatePromise = (async () => {
+    const status = await window.crm.getLicenseStatus();
+    applyLicenseEntitlements(status);
+    $('licenseDeviceId').textContent = status.deviceId || 'Не удалось получить ID компьютера';
+    if (status.activated) return true;
+    const reasons = {
+      wrong_device: 'Этот ключ выпущен для другого компьютера. Передайте продавцу показанный Device ID.',
+      expired: 'Срок действия лицензии истёк. Введите новый ключ.',
+      invalid_signature: 'Сохранённый ключ недействителен. Введите действующий ключ.',
+      invalid_payload: 'Данные сохранённой лицензии повреждены. Введите новый ключ.'
+    };
+    $('licenseActivationStatus').textContent = reasons[status.reason] || '';
+    $('licenseActivationScreen').hidden = false;
+    $('licenseKeyInput').focus();
+    if (startupSplash) startupSplash.classList.add('is-hidden');
+    return new Promise(resolve => { licenseUnlockResolve = resolve; });
+  })();
+  return licenseGatePromise;
+}
 function refreshStartupSettings() {
   refreshSearchApiStatus();
   refreshNotificationSettings().catch(() => { $('notificationStatus').textContent = 'Настройки уведомлений недоступны'; });
@@ -1935,6 +1983,7 @@ function refreshStartupSettings() {
 async function initializeStartupGate() {
   if (startupGatePromise) return startupGatePromise;
   startupGatePromise = (async () => {
+    await initializeLicenseGate();
     const status = await window.crm.getPinStatus();
     if (!status.enabled) { startupUnlocked = true; refreshStartupSettings(); return true; }
     $('pinLockScreen').hidden = false;
@@ -1944,6 +1993,48 @@ async function initializeStartupGate() {
   })();
   return startupGatePromise;
 }
+$('licenseActivationForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = $('licenseActivateBtn');
+  const input = $('licenseKeyInput');
+  const status = $('licenseActivationStatus');
+  button.disabled = true;
+  status.textContent = 'Проверяем лицензию…';
+  try {
+    const result = await window.crm.activateLicense({ key: input.value });
+    applyLicenseEntitlements(result);
+    if (!result.activated) throw new Error('Не удалось активировать лицензию.');
+    $('licenseActivationScreen').hidden = true;
+    input.value = '';
+    status.textContent = '';
+    if (licenseUnlockResolve) { licenseUnlockResolve(true); licenseUnlockResolve = null; }
+  } catch (error) {
+    status.textContent = error.message || 'Не удалось активировать ключ.';
+    input.focus();
+  } finally { button.disabled = false; }
+});
+$('copyLicenseDeviceIdBtn').addEventListener('click', async () => {
+  const button = $('copyLicenseDeviceIdBtn');
+  try {
+    await window.crm.copyLicenseDeviceId();
+    button.textContent = 'Скопировано';
+  } catch {
+    button.textContent = 'Не удалось скопировать';
+  }
+});
+$('closeLicenseActivationBtn').addEventListener('click', () => {
+  if (licenseActivated) $('licenseActivationScreen').hidden = true;
+});
+$('manageLicenseBtn').addEventListener('click', async () => {
+  try {
+    const status = await window.crm.getLicenseStatus();
+    applyLicenseEntitlements(status);
+    $('licenseDeviceId').textContent = status.deviceId || '';
+    $('licenseActivationStatus').textContent = '';
+    $('licenseActivationScreen').hidden = false;
+    $('licenseKeyInput').focus();
+  } catch (error) { toast(error.message || 'Не удалось открыть управление лицензией.', true); }
+});
 $('pinUnlockForm').addEventListener('submit', async event => {
   event.preventDefault();
   const button = $('pinUnlockBtn'), input = $('pinUnlockInput'), status = $('pinUnlockStatus');
