@@ -935,5 +935,5 @@ test('commercial order scope lines can be reviewed and imported into the existin
   assert.match(planUi, /parseEstimateText\(text\)/);
   assert.match(planUi, /unitsCompatible\(sourceUnit, item\.unit\)/);
   assert.match(planUi, /Цены и нормы взяты из прайса СКОЛ/);
-  assert.match(indexHtml, /order-plan-handoff\.cjs/);
+  assert.match(html, /order-plan-handoff\.cjs/);
 });
