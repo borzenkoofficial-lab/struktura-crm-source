@@ -117,6 +117,17 @@ CREATE TABLE IF NOT EXISTS commercial_orders (
  signal_score INTEGER NOT NULL DEFAULT 0 CHECK(signal_score BETWEEN 0 AND 100),
  signal_labels TEXT NOT NULL DEFAULT '', relevance TEXT NOT NULL DEFAULT 'review' CHECK(relevance IN ('potential_order','review')),
  status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','opened','relevant','rejected')),
+ customer_name TEXT NOT NULL DEFAULT '',
+ contact_name TEXT NOT NULL DEFAULT '',
+ phone TEXT NOT NULL DEFAULT '',
+ email TEXT NOT NULL DEFAULT '',
+ budget_rub REAL NOT NULL DEFAULT 0 CHECK(budget_rub >= 0),
+ volume_value REAL NOT NULL DEFAULT 0 CHECK(volume_value >= 0),
+ volume_unit TEXT NOT NULL DEFAULT '',
+ deadline_text TEXT NOT NULL DEFAULT '',
+ procurement_number TEXT NOT NULL DEFAULT '',
+ work_address TEXT NOT NULL DEFAULT '',
+ fact_evidence_json TEXT NOT NULL DEFAULT '[]',
  first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 -- source_type index is created after additive migration for legacy databases.
@@ -261,6 +272,22 @@ function openDatabase(userDataPath) {
   db.exec('CREATE INDEX IF NOT EXISTS idx_leads_commercial_order ON leads(commercial_order_id)');
   const orderColumns = new Set(db.prepare('PRAGMA table_info(commercial_orders)').all().map(column => column.name));
   if (!orderColumns.has('source_type')) db.exec("ALTER TABLE commercial_orders ADD COLUMN source_type TEXT NOT NULL DEFAULT 'web' CHECK(source_type IN ('web','telegram','avito','tenders','files'))");
+  const orderEvidenceColumns = [
+    ['customer_name', "TEXT NOT NULL DEFAULT ''"],
+    ['contact_name', "TEXT NOT NULL DEFAULT ''"],
+    ['phone', "TEXT NOT NULL DEFAULT ''"],
+    ['email', "TEXT NOT NULL DEFAULT ''"],
+    ['budget_rub', 'REAL NOT NULL DEFAULT 0 CHECK(budget_rub >= 0)'],
+    ['volume_value', 'REAL NOT NULL DEFAULT 0 CHECK(volume_value >= 0)'],
+    ['volume_unit', "TEXT NOT NULL DEFAULT ''"],
+    ['deadline_text', "TEXT NOT NULL DEFAULT ''"],
+    ['procurement_number', "TEXT NOT NULL DEFAULT ''"],
+    ['work_address', "TEXT NOT NULL DEFAULT ''"],
+    ['fact_evidence_json', "TEXT NOT NULL DEFAULT '[]'"]
+  ];
+  for (const [column, definition] of orderEvidenceColumns) {
+    if (!orderColumns.has(column)) db.exec(`ALTER TABLE commercial_orders ADD COLUMN ${column} ${definition}`);
+  }
   db.exec('CREATE INDEX IF NOT EXISTS idx_commercial_orders_source_type ON commercial_orders(source_type)');
   const projectColumns = new Set(db.prepare('PRAGMA table_info(projects)').all().map(column => column.name));
   if (!projectColumns.has('planned_people')) db.exec('ALTER TABLE projects ADD COLUMN planned_people INTEGER NOT NULL DEFAULT 5 CHECK(planned_people BETWEEN 1 AND 200)');
@@ -284,8 +311,8 @@ function openDatabase(userDataPath) {
       migratePlans();
     } finally { db.pragma('foreign_keys = ON'); }
   }
-  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','8')").run();
-  db.prepare("UPDATE settings SET value='8' WHERE key='schema_version'").run();
+  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','9')").run();
+  db.prepare("UPDATE settings SET value='9' WHERE key='schema_version'").run();
   return db;
 }
 
