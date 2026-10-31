@@ -75,6 +75,7 @@ ipcMain.handle = (channel, listener) => originalIpcHandle(channel, async (event,
     licenseUnlocked,
     appUnlocked,
     features: licenseState.license?.features || [],
+    args,
     allowedWhileLocked
   };
   if (!appUnlocked && !allowedWhileLocked.has(channel)) assertIpcAccess(channel, accessState);
