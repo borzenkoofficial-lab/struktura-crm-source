@@ -24,6 +24,7 @@ const { openDatabase } = require('./db.cjs');
 const Database = require('better-sqlite3');
 const { parseCsv, prospectDuplicateKeys, safeCsvCell } = require('./csv.cjs');
 const { crawlSites } = require('./site-crawler.cjs');
+const { fetchOrderPage } = require('./order-page-fetch.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
 const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, leadSourceForOrderType } = require('./order-radar.cjs');
 const { parseCommercialOrdersCsv } = require('./order-import.cjs');
@@ -751,7 +752,7 @@ ipcMain.handle('orders:list', (_event,input={})=>{
  const sourceType=['web','telegram','avito','tenders','files'].includes(input.sourceType)?input.sourceType:'';
  const terms=clean(input.search,180).toLowerCase();const where=[],params=[];
  if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}if(sourceType){where.push('source_type=?');params.push(sourceType)}
- if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%')}
+ if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ? OR LOWER(source_page_title) LIKE ? OR LOWER(source_page_text) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%','%'+terms+'%','%'+terms+'%')}
  const rows=db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC`).all(...params);
  const analyses=new Map(db.prepare('SELECT * FROM commercial_order_analysis').all().map(item=>[Number(item.order_id),item]));
  return rows.map(r=>{
@@ -760,6 +761,47 @@ ipcMain.handle('orders:list', (_event,input={})=>{
   try { factEvidence=JSON.parse(r.fact_evidence_json||'[]'); if(!Array.isArray(factEvidence)) factEvidence=[]; } catch {}
   return {...r,fact_evidence:factEvidence,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean),pi_analysis:analysis,pi_assessment:assessCommercialOrder(r,analysis)};
  });
+});
+ipcMain.handle('orders:fetchSource', async (_event, orderId) => {
+ const id=Number(orderId);
+ if(!Number.isSafeInteger(id)||id<1)throw new Error('Некорректный номер коммерческого заказа.');
+ const order=db.prepare('SELECT id,source_url FROM commercial_orders WHERE id=?').get(id);
+ if(!order)throw new Error('Коммерческий заказ не найден.');
+ const page=await fetchOrderPage(order.source_url);
+ const extracted=extractOrderEvidence(page.title+'\n'+page.text);
+ let priorEvidence=[];
+ try { priorEvidence=JSON.parse(db.prepare('SELECT fact_evidence_json FROM commercial_orders WHERE id=?').get(id)?.fact_evidence_json||'[]'); if(!Array.isArray(priorEvidence))priorEvidence=[]; } catch {}
+ let pageEvidence=[];
+ try { pageEvidence=JSON.parse(extracted.fact_evidence_json||'[]'); if(!Array.isArray(pageEvidence))pageEvidence=[]; } catch {}
+ const mergedEvidence=new Map();
+ for(const item of [...priorEvidence,...pageEvidence]){
+  if(!item||typeof item!=='object')continue;
+  const key=String(item.field||'')+'|'+String(item.excerpt||'');
+  if(key!=='|')mergedEvidence.set(key,item);
+ }
+ const factEvidence=[...mergedEvidence.values()].slice(-40);
+ db.prepare(`UPDATE commercial_orders SET
+ source_page_title=@source_page_title,source_page_url=@source_page_url,source_page_text=@source_page_text,source_fetched_at=CURRENT_TIMESTAMP,
+ customer_name=CASE WHEN @customer_name<>'' THEN @customer_name ELSE customer_name END,
+ contact_name=CASE WHEN @contact_name<>'' THEN @contact_name ELSE contact_name END,
+ phone=CASE WHEN @phone<>'' THEN @phone ELSE phone END,
+ email=CASE WHEN @email<>'' THEN @email ELSE email END,
+ budget_rub=CASE WHEN @budget_rub>0 THEN @budget_rub ELSE budget_rub END,
+ volume_value=CASE WHEN @volume_value>0 THEN @volume_value ELSE volume_value END,
+ volume_unit=CASE WHEN @volume_unit<>'' THEN @volume_unit ELSE volume_unit END,
+ deadline_text=CASE WHEN @deadline_text<>'' THEN @deadline_text ELSE deadline_text END,
+ procurement_number=CASE WHEN @procurement_number<>'' THEN @procurement_number ELSE procurement_number END,
+ work_address=CASE WHEN @work_address<>'' THEN @work_address ELSE work_address END,
+ fact_evidence_json=@fact_evidence_json
+ WHERE id=@id`).run({
+  id,...extracted,
+  source_page_title:page.title,
+  source_page_url:page.page_url,
+  source_page_text:String(page.text||'').slice(0,18000),
+  fact_evidence_json:JSON.stringify(factEvidence)
+ });
+ return {id,title:page.title,source_page_url:page.page_url,extractedFacts:pageEvidence.length,
+  fieldsFound:['customer_name','contact_name','phone','email','budget_rub','volume_value','deadline_text','procurement_number','work_address'].filter(field=>extracted[field]!==''&&extracted[field]!==0)};
 });
 ipcMain.handle('orders:search',async(_event,input={})=>{
  const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');

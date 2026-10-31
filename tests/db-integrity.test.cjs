@@ -25,7 +25,7 @@ test('database core initializes, enforces constraints, and survives an idempoten
     db = openDatabase(userDataPath);
     assert.equal(db.pragma('integrity_check', { simple: true }), 'ok');
     assert.equal(db.prepare('SELECT title FROM projects WHERE id=?').get(project.lastInsertRowid).title, 'Тестовый объект');
-    assert.equal(db.prepare("SELECT value FROM settings WHERE key='schema_version'").get().value, '10');
+    assert.equal(db.prepare("SELECT value FROM settings WHERE key='schema_version'").get().value, '11');
     assert.equal(db.prepare('SELECT title FROM engineering_project_plans WHERE id=?').get('plan-test').title, 'Комплексный тест');
   } finally {
     if (db && db.open) db.close();
@@ -64,6 +64,9 @@ test('database upgrades a legacy schema without dropping existing project and le
     assert.ok(projectColumns.has('planned_people'));
     assert.ok(projectColumns.has('complexity_factor'));
     assert.ok(prospectColumns.has('service'));
+    const orderColumns = new Set(db.prepare('PRAGMA table_info(commercial_orders)').all().map(row => row.name));
+    assert.ok(orderColumns.has('source_page_text'));
+    assert.ok(orderColumns.has('source_fetched_at'));
     assert.equal(db.prepare('SELECT status FROM leads WHERE id=7').get().status, 'new');
     assert.equal(db.prepare('SELECT title FROM projects WHERE id=11').get().title, 'Старый объект');
     assert.equal(db.prepare('SELECT region FROM prospects WHERE id=13').get().region, 'Москва');

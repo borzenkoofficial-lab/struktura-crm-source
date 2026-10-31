@@ -60,7 +60,7 @@ function addEvidence(evidence, field, value, excerpt) {
 }
 
 function extractOrderEvidence(input = '') {
-  const text = String(input || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 12000);
+  const text = String(input || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 20000);
   const result = {
     customer_name: '',
     contact_name: '',

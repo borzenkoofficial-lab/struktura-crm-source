@@ -286,7 +286,11 @@ function openDatabase(userDataPath) {
     ['deadline_text', "TEXT NOT NULL DEFAULT ''"],
     ['procurement_number', "TEXT NOT NULL DEFAULT ''"],
     ['work_address', "TEXT NOT NULL DEFAULT ''"],
-    ['fact_evidence_json', "TEXT NOT NULL DEFAULT '[]'"]
+    ['fact_evidence_json', "TEXT NOT NULL DEFAULT '[]'"],
+    ['source_page_title', "TEXT NOT NULL DEFAULT ''"],
+    ['source_page_url', "TEXT NOT NULL DEFAULT ''"],
+    ['source_page_text', "TEXT NOT NULL DEFAULT ''"],
+    ['source_fetched_at', 'TEXT']
   ];
   for (const [column, definition] of orderEvidenceColumns) {
     if (!orderColumns.has(column)) db.exec(`ALTER TABLE commercial_orders ADD COLUMN ${column} ${definition}`);
@@ -314,8 +318,8 @@ function openDatabase(userDataPath) {
       migratePlans();
     } finally { db.pragma('foreign_keys = ON'); }
   }
-  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','10')").run();
-  db.prepare("UPDATE settings SET value='10' WHERE key='schema_version'").run();
+  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','11')").run();
+  db.prepare("UPDATE settings SET value='11' WHERE key='schema_version'").run();
   return db;
 }
 

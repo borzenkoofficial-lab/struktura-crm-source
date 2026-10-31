@@ -878,3 +878,17 @@ test('client records support a structured representative contact field', () => {
   assert.match(main, /INSERT INTO clients\(name,phone,email,contact_name,client_type,notes\)/);
   assert.match(main, /UPDATE clients SET name=\?, phone=\?, email=\?, contact_name=\?/);
 });
+
+test('commercial order cards can read a public source page through a validated preload IPC action', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  const pageFetcher = fs.readFileSync(path.join(__dirname, '../src/order-page-fetch.cjs'), 'utf8');
+  assert.match(renderer, /data-order-fetch=/);
+  assert.match(renderer, /window\.crm\.fetchCommercialOrderSource\(orderId\)/);
+  assert.match(renderer, /source_page_text/);
+  assert.match(preload, /fetchCommercialOrderSource: \(id\) => ipcRenderer\.invoke\('orders:fetchSource', id\)/);
+  assert.match(main, /ipcMain\.handle\('orders:fetchSource'/);
+  assert.match(main, /UPDATE commercial_orders SET[\s\S]*source_page_text=/);
+  assert.match(pageFetcher, /robotsAllows/);
+  assert.match(pageFetcher, /validatePublicUrl/);
+  assert.match(pageFetcher, /AbortSignal\.timeout/);
+});
