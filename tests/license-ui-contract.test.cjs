@@ -39,3 +39,9 @@ test('renderer gates startup on license before loading business data', () => {
   assert.match(renderer, /applyLicenseEntitlements\(/);
   assert.match(renderer, /licenseActivationForm/);
 });
+
+
+test('startup timeout begins only after the user completes license and PIN gates', () => {
+  const renderer = read('src/renderer.js');
+  assert.match(renderer, /initializeStartupGate\(\)\s*\.then\(\(\)\s*=>\s*Promise\.race\(\[\s*refreshDashboard\(\)/);
+});
