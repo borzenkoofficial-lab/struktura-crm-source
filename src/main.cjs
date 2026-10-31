@@ -890,17 +890,25 @@ ipcMain.handle('orders:convertLead', (_event, orderId) => {
   let clientId=null;
   if(order.customer_name){
    const existingClient=db.prepare('SELECT id FROM clients WHERE lower(name)=lower(?) ORDER BY id ASC LIMIT 1').get(order.customer_name);
-   if(existingClient) clientId=Number(existingClient.id);
-   else {
+   if(existingClient) {
+    clientId=Number(existingClient.id);
+    db.prepare("UPDATE clients SET phone=CASE WHEN trim(phone)='' THEN ? ELSE phone END,email=CASE WHEN trim(email)='' THEN ? ELSE email END,updated_at=CURRENT_TIMESTAMP WHERE id=?")
+      .run(order.phone||'',order.email||'',clientId);
+   } else {
     const client=db.prepare("INSERT INTO clients(name,phone,email,client_type,notes) VALUES (?,?,?,'company',?)")
-      .run(order.customer_name,order.phone||'',order.email||'','Создан из карточки коммерческого заказа. Контакты требуют проверки по первоисточнику.');
+      .run(order.customer_name,order.phone||'',order.email||'','Создано из карточки коммерческого заказа. Контакты и полномочия требуют проверки по первоисточнику.');
     clientId=Number(client.lastInsertRowid);
    }
   }
   const result=db.prepare('INSERT INTO leads(client_id,commercial_order_id,title,service,source,status,budget_rub,address,next_action,notes) VALUES (?,?,?,?,?,\'new\',?,?,?,?)')
    .run(clientId,id,(serviceLabel+' — '+order.title).slice(0,180),order.service,leadSourceForOrderType(order.source_type),leadBudget,order.work_address||'','Проверить первоисточник, актуальность срока и условия участия.',notes);
+  const leadId=Number(result.lastInsertRowid);
+  const due=new Date(); due.setDate(due.getDate()+1);
+  const dueAt=`${due.getFullYear()}-${String(due.getMonth()+1).padStart(2,'0')}-${String(due.getDate()).padStart(2,'0')}`;
+  db.prepare('INSERT INTO tasks(lead_id,title,due_at) VALUES (?,?,?)')
+   .run(leadId,('Проверить заказ и связаться с заказчиком: '+order.title).slice(0,180),dueAt);
   db.prepare("UPDATE commercial_orders SET status='relevant' WHERE id=?").run(id);
-  return Number(result.lastInsertRowid);
+  return leadId;
  });
  return {leadId:create(),alreadyExists:false};
 });
