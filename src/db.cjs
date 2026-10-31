@@ -296,6 +296,24 @@ function openDatabase(userDataPath) {
     if (!orderColumns.has(column)) db.exec(`ALTER TABLE commercial_orders ADD COLUMN ${column} ${definition}`);
   }
   db.exec('CREATE INDEX IF NOT EXISTS idx_commercial_orders_source_type ON commercial_orders(source_type)');
+  db.exec(`CREATE TABLE IF NOT EXISTS commercial_order_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL REFERENCES commercial_orders(id) ON DELETE CASCADE,
+    source_url TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    file_name TEXT NOT NULL DEFAULT '',
+    mime_type TEXT NOT NULL DEFAULT '',
+    page_count INTEGER NOT NULL DEFAULT 0 CHECK(page_count >= 0),
+    extracted_text TEXT NOT NULL DEFAULT '',
+    fact_evidence_json TEXT NOT NULL DEFAULT '[]',
+    sha256 TEXT NOT NULL DEFAULT '',
+    fetched_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(order_id,source_url)
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_commercial_order_documents_order ON commercial_order_documents(order_id)');
+
   const projectColumns = new Set(db.prepare('PRAGMA table_info(projects)').all().map(column => column.name));
   if (!projectColumns.has('planned_people')) db.exec('ALTER TABLE projects ADD COLUMN planned_people INTEGER NOT NULL DEFAULT 5 CHECK(planned_people BETWEEN 1 AND 200)');
   if (!projectColumns.has('complexity_factor')) db.exec('ALTER TABLE projects ADD COLUMN complexity_factor REAL NOT NULL DEFAULT 1 CHECK(complexity_factor > 0)');
@@ -318,8 +336,8 @@ function openDatabase(userDataPath) {
       migratePlans();
     } finally { db.pragma('foreign_keys = ON'); }
   }
-  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','11')").run();
-  db.prepare("UPDATE settings SET value='11' WHERE key='schema_version'").run();
+  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','12')").run();
+  db.prepare("UPDATE settings SET value='12' WHERE key='schema_version'").run();
   return db;
 }
 

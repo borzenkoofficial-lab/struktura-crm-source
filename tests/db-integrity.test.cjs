@@ -14,7 +14,7 @@ test('database core initializes, enforces constraints, and survives an idempoten
     assert.equal(db.pragma('foreign_keys', { simple: true }), 1);
     assert.equal(db.pragma('integrity_check', { simple: true }), 'ok');
     const tables = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
-    for (const table of ['clients','leads','projects','payments','expenses','income_records','production_plans','work_shifts','work_shift_items','settings','engineering_project_plans']) assert.ok(tables.has(table), 'missing core table: ' + table);
+    for (const table of ['clients','leads','projects','payments','expenses','income_records','production_plans','work_shifts','work_shift_items','settings','engineering_project_plans','commercial_order_documents']) assert.ok(tables.has(table), 'missing core table: ' + table);
     const client = db.prepare('INSERT INTO clients(name) VALUES (?)').run('Тестовый клиент');
     const project = db.prepare("INSERT INTO projects(client_id,title,service,status,contract_rub) VALUES (?,?,'demolition','planned',100000)").run(client.lastInsertRowid, 'Тестовый объект');
     assert.throws(() => db.prepare('INSERT INTO payments(project_id,amount_rub,payment_date) VALUES (?,?,?)').run(project.lastInsertRowid, -1, '2026-10-16'));
@@ -25,7 +25,7 @@ test('database core initializes, enforces constraints, and survives an idempoten
     db = openDatabase(userDataPath);
     assert.equal(db.pragma('integrity_check', { simple: true }), 'ok');
     assert.equal(db.prepare('SELECT title FROM projects WHERE id=?').get(project.lastInsertRowid).title, 'Тестовый объект');
-    assert.equal(db.prepare("SELECT value FROM settings WHERE key='schema_version'").get().value, '11');
+    assert.equal(db.prepare("SELECT value FROM settings WHERE key='schema_version'").get().value, '12');
     assert.equal(db.prepare('SELECT title FROM engineering_project_plans WHERE id=?').get('plan-test').title, 'Комплексный тест');
   } finally {
     if (db && db.open) db.close();
@@ -67,6 +67,8 @@ test('database upgrades a legacy schema without dropping existing project and le
     const orderColumns = new Set(db.prepare('PRAGMA table_info(commercial_orders)').all().map(row => row.name));
     assert.ok(orderColumns.has('source_page_text'));
     assert.ok(orderColumns.has('source_fetched_at'));
+    const documentColumns = new Set(db.prepare('PRAGMA table_info(commercial_order_documents)').all().map(row => row.name));
+    for (const column of ['order_id','source_url','extracted_text','fact_evidence_json','sha256','fetched_at']) assert.ok(documentColumns.has(column));
     assert.equal(db.prepare('SELECT status FROM leads WHERE id=7').get().status, 'new');
     assert.equal(db.prepare('SELECT title FROM projects WHERE id=11').get().title, 'Старый объект');
     assert.equal(db.prepare('SELECT region FROM prospects WHERE id=13').get().region, 'Москва');
@@ -150,6 +152,29 @@ test('SQLite backup API preserves committed rows held in a source WAL file', asy
     if (normalized && normalized.open) normalized.close();
     if (reader && reader.open) reader.close();
     if (writer && writer.open) writer.close();
+    fs.rmSync(userDataPath, { recursive: true, force: true });
+  }
+});
+
+
+test('commercial order PDF documents are isolated per order and cascade when the order is removed', () => {
+  const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'skol-order-documents-'));
+  let db;
+  try {
+    db = openDatabase(userDataPath);
+    const insertOrder = db.prepare("INSERT INTO commercial_orders(title,source_url) VALUES (?,?)");
+    const first = insertOrder.run('Первый заказ','https://example.ru/orders/1');
+    const second = insertOrder.run('Второй заказ','https://example.ru/orders/2');
+    db.prepare('INSERT INTO commercial_order_documents(order_id,source_url,title) VALUES (?,?,?)')
+      .run(first.lastInsertRowid,'https://example.ru/spec.pdf','ТЗ');
+    assert.throws(() => db.prepare('INSERT INTO commercial_order_documents(order_id,source_url,title) VALUES (?,?,?)')
+      .run(first.lastInsertRowid,'https://example.ru/spec.pdf','Дубль'));
+    db.prepare('DELETE FROM commercial_orders WHERE id=?').run(first.lastInsertRowid);
+    assert.equal(db.prepare('SELECT COUNT(*) count FROM commercial_order_documents WHERE order_id=?').get(first.lastInsertRowid).count,0);
+    assert.equal(db.prepare('SELECT title FROM commercial_orders WHERE id=?').get(second.lastInsertRowid).title,'Второй заказ');
+    assert.equal(db.pragma('integrity_check', { simple: true }), 'ok');
+  } finally {
+    if (db && db.open) db.close();
     fs.rmSync(userDataPath, { recursive: true, force: true });
   }
 });

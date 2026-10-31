@@ -892,3 +892,15 @@ test('commercial order cards can read a public source page through a validated p
   assert.match(pageFetcher, /validatePublicUrl/);
   assert.match(pageFetcher, /AbortSignal\.timeout/);
 });
+
+test('commercial order attachments can be parsed as public PDF documents via scoped IPC', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  const pdfFetcher = fs.readFileSync(path.join(__dirname, '../src/order-pdf-fetch.cjs'), 'utf8');
+  assert.match(renderer, /data-order-pdf=/);
+  assert.match(renderer, /window\.crm\.fetchCommercialOrderPdf\(\{order_id:orderId,document_id:documentId\}\)/);
+  assert.match(preload, /fetchCommercialOrderPdf: \(data\) => ipcRenderer\.invoke\('orders:fetchPdf', data\)/);
+  assert.match(main, /ipcMain\.handle\('orders:fetchPdf'/);
+  assert.match(main, /SELECT \* FROM commercial_order_documents WHERE id=\? AND order_id=\?/);
+  assert.match(pdfFetcher, /MAX_PDF_PAGES=40/);
+  assert.match(pdfFetcher, /нет текстового слоя/);
+});

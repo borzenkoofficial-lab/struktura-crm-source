@@ -20,6 +20,7 @@ test('reads server-rendered order conditions from the full public page',async()=
   '<p>Заказчик: ООО СтройИнвест</p><p>Бюджет: 1 200 000 руб.</p>'+
   '<p>Объём работ: 800 м²</p><p>Контактное лицо: Иван Петрович Сидоров</p>'+
   '<p>Срок подачи заявок до 25.11.2026</p><p>Email tender@example.ru</p></main>'+
+  '<a href="/files/technical-spec.pdf">Техническое задание PDF</a>'+
   '<footer>Сайт и политика конфиденциальности</footer>'+
   '<script>const privateValue = "не включать";</script></body></html>';
  const result=await fetchOrderPage('https://orders.example/tender/42',{
@@ -32,6 +33,7 @@ test('reads server-rendered order conditions from the full public page',async()=
  });
  assert.equal(requests.length,2);
  assert.equal(result.title,'Тендер на демонтаж офисного здания');
+ assert.deepEqual(result.attachments,[{title:'Техническое задание PDF',url:'https://orders.example/files/technical-spec.pdf',file_name:'technical-spec.pdf'}]);
  assert.match(result.text,/ООО СтройИнвест/);
  assert.match(result.text,/1 200 000 руб/);
  assert.doesNotMatch(result.text,/Навигация и рекламный блок/);
