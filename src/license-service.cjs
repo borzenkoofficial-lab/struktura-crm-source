@@ -35,6 +35,11 @@ function featureForOperation(channel, args = []) {
   return null;
 }
 
+function filterDashboardSummary(summary, features = []) {
+  if (new Set(features).has('finance')) return { ...summary };
+  return { ...summary, contract: 0, received: 0, expenses: 0, cash: 0 };
+}
+
 function publicLicenseSummary(license) {
   if (!license) return null;
   return {
@@ -103,4 +108,4 @@ function createLicenseService({ getSetting, setSetting, publicKeyPem, deviceId, 
   return { getStatus, activate };
 }
 
-module.exports = { createLicenseService, featureForChannel, featureForOperation, assertIpcAccess, publicLicenseSummary, INVALID_MESSAGES };
+module.exports = { createLicenseService, featureForChannel, featureForOperation, assertIpcAccess, filterDashboardSummary, publicLicenseSummary, INVALID_MESSAGES };
