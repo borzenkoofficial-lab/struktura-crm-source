@@ -911,7 +911,10 @@ let piEconomicsCatalogCache=[];
 const orderStatusLabels={new:'Новый',opened:'Открывали',relevant:'Подходит',rejected:'Не подходит'};
 async function refreshCommercialOrders(){
  const search=$('orderRadarSearch')?.value||'',status=$('orderRadarStatus')?.value||'';
- const rows=await window.crm.listCommercialOrders({search,status,service:$('orderRadarService')?.value||'demolition',sourceType:$('orderRadarSource')?.value||''});commercialOrderCache=rows;const target=$('commercialOrdersList');if(!target)return;
+ const rows=await window.crm.listCommercialOrders({search,status,service:$('orderRadarService')?.value||'demolition',sourceType:$('orderRadarSource')?.value||''});commercialOrderCache=rows;
+ const metricValues={orderMetricTotal:rows.length,orderMetricBudget:rows.filter(o=>Number(o.budget_rub)>0).length,orderMetricContacts:rows.filter(o=>o.phone||o.email).length,orderMetricConverted:rows.filter(o=>o.converted_to_lead).length};
+ for(const [id,value] of Object.entries(metricValues)){const node=$(id);if(node)node.textContent=String(value);}
+ const target=$('commercialOrdersList');if(!target)return;
  const summary=$('orderPiSummary');
  if(summary){
   const first=rows.filter(o=>o.pi_assessment).sort((a,b)=>b.pi_assessment.score-a.pi_assessment.score)[0];
