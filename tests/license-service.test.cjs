@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { generateKeyPairSync } = require('node:crypto');
 const { createLicenseToken, getFeaturesForEdition } = require('../src/license-core.cjs');
-const { createLicenseService, featureForChannel, assertIpcAccess } = require('../src/license-service.cjs');
+const { createLicenseService, featureForChannel, assertIpcAccess, filterDashboardSummary } = require('../src/license-service.cjs');
 
 const { privateKey, publicKey } = generateKeyPairSync('ed25519');
 const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
@@ -132,4 +132,13 @@ test('IPC guard applies BUSINESS entitlement to prospect CSV exports without blo
   assert.doesNotThrow(() => assertIpcAccess('data:exportCsv', { ...start, args: ['clients'] }));
   const business = { ...start, features: getFeaturesForEdition('BUSINESS') };
   assert.doesNotThrow(() => assertIpcAccess('data:exportCsv', business));
+});
+
+
+test('START dashboard summary does not expose finance totals while PRO keeps them', () => {
+  const summary = { leads: 3, projects: 4, clients: 5, contract: 100000, received: 50000, expenses: 20000, cash: 30000 };
+  assert.deepEqual(filterDashboardSummary(summary, []), {
+    leads: 3, projects: 4, clients: 5, contract: 0, received: 0, expenses: 0, cash: 0
+  });
+  assert.deepEqual(filterDashboardSummary(summary, getFeaturesForEdition('PRO')), summary);
 });
