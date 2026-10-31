@@ -71,12 +71,14 @@ ipcMain.handle = (channel, listener) => originalIpcHandle(channel, async (event,
     licenseState = licenseService.getStatus();
     licenseUnlocked = licenseState.activated;
   }
-  assertIpcAccess(channel, {
+  const accessState = {
     licenseUnlocked,
     appUnlocked,
     features: licenseState.license?.features || [],
     allowedWhileLocked
-  });
+  };
+  if (!appUnlocked && !allowedWhileLocked.has(channel)) assertIpcAccess(channel, accessState);
+  assertIpcAccess(channel, accessState);
   return listener(event, ...args);
 });
 let mainWindow;
