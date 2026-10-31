@@ -64,6 +64,7 @@ let appUnlocked = true;
 let licenseService = null;
 let licenseState = { activated: false, reason: 'not_activated', deviceId: '', license: null };
 let licenseUnlocked = false;
+const allowedWhileLocked = new Set(['security:pinStatus','security:pinVerify','security:pinSet','security:pinDisable']);
 const originalIpcHandle = ipcMain.handle.bind(ipcMain);
 ipcMain.handle = (channel, listener) => originalIpcHandle(channel, async (event, ...args) => {
   if (licenseService) {
@@ -73,7 +74,8 @@ ipcMain.handle = (channel, listener) => originalIpcHandle(channel, async (event,
   assertIpcAccess(channel, {
     licenseUnlocked,
     appUnlocked,
-    features: licenseState.license?.features || []
+    features: licenseState.license?.features || [],
+    allowedWhileLocked
   });
   return listener(event, ...args);
 });
