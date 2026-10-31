@@ -4,7 +4,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { normalizePin, createPinConfig, pinMatches, evaluatePinAttempt } = require('./pin-security.cjs');
 const { getDeviceId } = require('./license-device.cjs');
-const { createLicenseService, assertIpcAccess } = require('./license-service.cjs');
+const { createLicenseService, assertIpcAccess, filterDashboardSummary } = require('./license-service.cjs');
 const { skolWordmarkSvg } = require('./branding.cjs');
 const { validateBackupDatabase } = require('./backup-utils.cjs');
 const { findLegacyUserDataPath } = require('./user-data-path.cjs');
@@ -298,7 +298,7 @@ ipcMain.handle('dashboard:summary', () => {
   const totalReceived = received + otherIncome;
   const expenses = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=1').get().total;
   const clients = db.prepare('SELECT COUNT(*) count FROM clients').get().count;
-  return { leads, projects, contract, received: totalReceived, expenses, clients, cash: totalReceived - expenses };
+  return filterDashboardSummary({ leads, projects, contract, received: totalReceived, expenses, clients, cash: totalReceived - expenses }, licenseState.license?.features || []);
 });
 ipcMain.handle('clients:list', () => db.prepare('SELECT * FROM clients ORDER BY id DESC').all());
 function ensureClientPhoneUnique(phone, excludeId = null) {
