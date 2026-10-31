@@ -267,8 +267,8 @@ ipcMain.handle('clients:create', (_event, input = {}) => {
   if (!name) throw new Error('Укажи имя клиента или название компании.');
   const phone = normalizePhone(clean(input.phone, 40));
   ensureClientPhoneUnique(phone);
-  const result = db.prepare('INSERT INTO clients(name,phone,email,client_type,notes) VALUES (@name,@phone,@email,@client_type,@notes)').run({
-    name, phone, email: normalizeContactEmail(input.email),
+  const result = db.prepare('INSERT INTO clients(name,phone,email,contact_name,client_type,notes) VALUES (@name,@phone,@email,@contact_name,@client_type,@notes)').run({
+    name, phone, email: normalizeContactEmail(input.email), contact_name: clean(input.contact_name,120),
     client_type: input.client_type === 'company' ? 'company' : 'person', notes: clean(input.notes)
   });
   return db.prepare('SELECT * FROM clients WHERE id=?').get(result.lastInsertRowid);
@@ -280,8 +280,8 @@ ipcMain.handle('clients:update', (_event, input = {}) => {
   if (!db.prepare('SELECT id FROM clients WHERE id=?').get(id)) throw new Error('Клиент не найден. Обнови список и попробуй снова.');
   const phone = normalizePhone(clean(input.phone, 40));
   ensureClientPhoneUnique(phone, id);
-  db.prepare('UPDATE clients SET name=?, phone=?, email=?, client_type=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
-    .run(name, phone, normalizeContactEmail(input.email), input.client_type === 'company' ? 'company' : 'person', clean(input.notes), id);
+  db.prepare('UPDATE clients SET name=?, phone=?, email=?, contact_name=?, client_type=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
+    .run(name, phone, normalizeContactEmail(input.email), clean(input.contact_name,120), input.client_type === 'company' ? 'company' : 'person', clean(input.notes), id);
   return db.prepare('SELECT * FROM clients WHERE id=?').get(id);
 });
 ipcMain.handle('leads:list', () => db.prepare('SELECT l.*, c.name client_name FROM leads l LEFT JOIN clients c ON c.id=l.client_id ORDER BY l.id DESC').all());
@@ -892,11 +892,11 @@ ipcMain.handle('orders:convertLead', (_event, orderId) => {
    const existingClient=db.prepare('SELECT id FROM clients WHERE lower(name)=lower(?) ORDER BY id ASC LIMIT 1').get(order.customer_name);
    if(existingClient) {
     clientId=Number(existingClient.id);
-    db.prepare("UPDATE clients SET phone=CASE WHEN trim(phone)='' THEN ? ELSE phone END,email=CASE WHEN trim(email)='' THEN ? ELSE email END,updated_at=CURRENT_TIMESTAMP WHERE id=?")
-      .run(order.phone||'',order.email||'',clientId);
+    db.prepare("UPDATE clients SET phone=CASE WHEN trim(phone)='' THEN ? ELSE phone END,email=CASE WHEN trim(email)='' THEN ? ELSE email END,contact_name=CASE WHEN trim(contact_name)='' THEN ? ELSE contact_name END,updated_at=CURRENT_TIMESTAMP WHERE id=?")
+      .run(order.phone||'',order.email||'',order.contact_name||'',clientId);
    } else {
-    const client=db.prepare("INSERT INTO clients(name,phone,email,client_type,notes) VALUES (?,?,?,'company',?)")
-      .run(order.customer_name,order.phone||'',order.email||'','Создано из карточки коммерческого заказа. Контакты и полномочия требуют проверки по первоисточнику.');
+    const client=db.prepare("INSERT INTO clients(name,phone,email,contact_name,client_type,notes) VALUES (?,?,?,?, 'company',?)")
+      .run(order.customer_name,order.phone||'',order.email||'',order.contact_name||'','Создано из карточки коммерческого заказа. Контакты и полномочия требуют проверки по первоисточнику.');
     clientId=Number(client.lastInsertRowid);
    }
   }
