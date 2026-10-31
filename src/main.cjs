@@ -870,6 +870,7 @@ ipcMain.handle('orders:convertLead', (_event, orderId) => {
   'Источник: '+order.source_url,
   'Регион: '+order.region,
   order.customer_name?'Заказчик из первоисточника: '+order.customer_name:'',
+  order.contact_name?'Контактное лицо из первоисточника: '+order.contact_name:'',
   order.phone?'Телефон из первоисточника: '+order.phone:'',
   order.email?'Email из первоисточника: '+order.email:'',
   leadBudget>0?'Бюджет из текста источника: '+leadBudget.toLocaleString('ru-RU')+' ₽. Проверь на исходной странице.':'Бюджет заказчика не найден в исходном тексте; расчётная выручка не записывается как бюджет.',
