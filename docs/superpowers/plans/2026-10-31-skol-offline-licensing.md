@@ -52,6 +52,12 @@
 **Files:**
 - Create: `src/license-device.cjs`
 - Create: `tools/license-generator.cjs`
+- Create: `tools/license-manager/main.cjs`
+- Create: `tools/license-manager/preload.cjs`
+- Create: `tools/license-manager/index.html`
+- Create: `tools/license-manager/renderer.js`
+- Create: `tools/license-manager/styles.css`
+- Modify: `package.json`
 - Create: `tests/license-device.test.cjs`
 - Modify: `.gitignore`
 
