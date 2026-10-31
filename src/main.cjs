@@ -846,7 +846,7 @@ ipcMain.handle('orders:importCsv', async () => {
  const tx=db.transaction(items=>{for(const item of items){const values={...item,signal_labels:item.signal_labels.join('|')};const result=insert.run(values);if(result.changes)imported++;else duplicates++;}
   db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)').run('CSV заказов',path.basename(filePath),imported,parsed.skipped+duplicates,0,`В файле: ${parsed.orders.length+parsed.skipped}; импортировано: ${imported}; пропущено: ${parsed.skipped+duplicates}`);
  });
- tx(normalized);
+ tx(enrichedOrders);
  return {canceled:false,imported,skipped:parsed.skipped+duplicates+(parsed.orders.length-normalized.length),total:parsed.orders.length+parsed.skipped};
 });
 ipcMain.handle('orders:updateStatus',(_event,input={})=>{
