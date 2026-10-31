@@ -42,6 +42,35 @@ function publicLicenseSummary(license) {
   };
 }
 
+const ALLOWED_WHILE_PIN_LOCKED = new Set([
+  'security:pinStatus',
+  'security:pinVerify',
+  'security:pinSet',
+  'security:pinDisable'
+]);
+const ALLOWED_BEFORE_LICENSE = new Set([
+  ...ALLOWED_WHILE_PIN_LOCKED,
+  'license:status',
+  'license:activate',
+  'license:deviceId',
+  'license:copyDeviceId',
+  'app:version'
+]);
+
+function assertIpcAccess(channel, { licenseUnlocked, appUnlocked, features = [] } = {}) {
+  const name = String(channel || '');
+  if (!licenseUnlocked && !ALLOWED_BEFORE_LICENSE.has(name)) {
+    throw new Error('Для продолжения работы активируй лицензию СКОЛ.');
+  }
+  if (!appUnlocked && !ALLOWED_WHILE_PIN_LOCKED.has(name) && !ALLOWED_BEFORE_LICENSE.has(name)) {
+    throw new Error('CRM заблокирована PIN-кодом. Введи PIN, чтобы продолжить.');
+  }
+  const requiredFeature = featureForChannel(name);
+  if (licenseUnlocked && requiredFeature && !new Set(features).has(requiredFeature)) {
+    throw new Error('Этот модуль недоступен на текущем тарифе СКОЛ.');
+  }
+}
+
 function createLicenseService({ getSetting, setSetting, publicKeyPem, deviceId, now = () => Date.now() }) {
   if (typeof getSetting !== 'function' || typeof setSetting !== 'function') {
     throw new Error('Для службы лицензирования нужны функции чтения и записи настроек.');
@@ -68,4 +97,4 @@ function createLicenseService({ getSetting, setSetting, publicKeyPem, deviceId, 
   return { getStatus, activate };
 }
 
-module.exports = { createLicenseService, featureForChannel, publicLicenseSummary, INVALID_MESSAGES };
+module.exports = { createLicenseService, featureForChannel, assertIpcAccess, publicLicenseSummary, INVALID_MESSAGES };
