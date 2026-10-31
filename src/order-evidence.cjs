@@ -82,7 +82,7 @@ function extractOrderEvidence(input = '') {
     addEvidence(evidence, 'customer_name', result.customer_name, customer[0]);
   }
 
-  const contact = text.match(/(?:контактное лицо|контакт|ответственный за закупк\w*|представитель заказчика)\s*[:—-]\s*([А-ЯЁ][А-ЯЁа-яё-]{1,35}(?:\s+[А-ЯЁ][А-ЯЁа-яё-]{1,35}){1,2}/iu);
+  const contact = text.match(/(?:контактное лицо|контакт|ответственный за закупк\w*|представитель заказчика)\s*[:—-]\s*([А-ЯЁ][А-ЯЁа-яё-]{1,35}(?:\s+[А-ЯЁ][А-ЯЁа-яё-]{1,35}){1,2})/iu);
   if (contact) {
     result.contact_name = contact[1].trim().slice(0, 120);
     addEvidence(evidence, 'contact_name', result.contact_name, contact[0]);
