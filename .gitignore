@@ -10,3 +10,4 @@ release/
 license-keys/
 *.license-private.pem
 *.private.pem
+*license-private.pem
