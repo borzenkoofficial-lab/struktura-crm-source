@@ -52,7 +52,6 @@ const ALLOWED_BEFORE_LICENSE = new Set([
   ...ALLOWED_WHILE_PIN_LOCKED,
   'license:status',
   'license:activate',
-  'license:deviceId',
   'license:copyDeviceId',
   'app:version'
 ]);
