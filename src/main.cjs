@@ -1,8 +1,10 @@
-const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, safeStorage, session, Notification, Menu } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell, safeStorage, session, Notification, Menu, clipboard } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('node:path');
 const fs = require('node:fs');
 const { normalizePin, createPinConfig, pinMatches, evaluatePinAttempt } = require('./pin-security.cjs');
+const { getDeviceId } = require('./license-device.cjs');
+const { createLicenseService, assertIpcAccess } = require('./license-service.cjs');
 const { skolWordmarkSvg } = require('./branding.cjs');
 const { validateBackupDatabase } = require('./backup-utils.cjs');
 const { findLegacyUserDataPath } = require('./user-data-path.cjs');
@@ -59,10 +61,20 @@ const { buildProductionReportHtml } = require('./production-report.cjs');
 
 let db;
 let appUnlocked = true;
-const allowedWhileLocked = new Set(['security:pinStatus','security:pinVerify','security:pinSet','security:pinDisable']);
+let licenseService = null;
+let licenseState = { activated: false, reason: 'not_activated', deviceId: '', license: null };
+let licenseUnlocked = false;
 const originalIpcHandle = ipcMain.handle.bind(ipcMain);
 ipcMain.handle = (channel, listener) => originalIpcHandle(channel, async (event, ...args) => {
-  if (!appUnlocked && !allowedWhileLocked.has(channel)) throw new Error('CRM заблокирована PIN-кодом. Введи PIN, чтобы продолжить.');
+  if (licenseService) {
+    licenseState = licenseService.getStatus();
+    licenseUnlocked = licenseState.activated;
+  }
+  assertIpcAccess(channel, {
+    licenseUnlocked,
+    appUnlocked,
+    features: licenseState.license?.features || []
+  });
   return listener(event, ...args);
 });
 let mainWindow;
@@ -199,6 +211,16 @@ app.whenReady().then(() => {
   // Remove Electron's legacy File/Edit/View/Window/Help menu; keep native Windows controls.
   Menu.setApplicationMenu(null);
   db = openDatabase(app.getPath('userData'));
+  const licensePublicKey = fs.readFileSync(path.join(__dirname, 'license-public-key.pem'), 'utf8');
+  const licenseDeviceId = getDeviceId();
+  licenseService = createLicenseService({
+    getSetting,
+    setSetting,
+    publicKeyPem: licensePublicKey,
+    deviceId: licenseDeviceId
+  });
+  licenseState = licenseService.getStatus();
+  licenseUnlocked = licenseState.activated;
   if (!getSetting('reminder_settings', null)) setSetting('reminder_settings', DEFAULT_REMINDER_SETTINGS);
   createWindow();
   checkAndSendReminders();
@@ -211,6 +233,22 @@ app.whenReady().then(() => {
 });
 app.on('before-quit', () => { if (reminderInterval) clearInterval(reminderInterval); if (db) db.close(); });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+
+ipcMain.handle('license:status', () => {
+  licenseState = licenseService.getStatus();
+  licenseUnlocked = licenseState.activated;
+  return licenseState;
+});
+ipcMain.handle('license:deviceId', () => licenseState.deviceId);
+ipcMain.handle('license:copyDeviceId', () => {
+  clipboard.writeText(licenseState.deviceId);
+  return { copied: true };
+});
+ipcMain.handle('license:activate', (_event, input = {}) => {
+  licenseState = licenseService.activate(input.key);
+  licenseUnlocked = licenseState.activated;
+  return licenseState;
+});
 
 ipcMain.handle('security:pinStatus', () => ({ enabled: Boolean(getSetting('app_pin_config', null)?.hash) }));
 ipcMain.handle('security:pinVerify', (_event, input = {}) => {
