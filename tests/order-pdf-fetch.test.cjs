@@ -25,7 +25,7 @@ test('downloads a public PDF and extracts text facts with page and hash metadata
   parsePdf:async(buffer,options)=>{
    assert.equal(buffer.toString('ascii',0,5),'%PDF-');
    parserOptions=options;
-   return {numpages:3,info:{Title:'Техническое задание'},text:'Заказчик: ООО СтройИнвест\\nБюджет: 1 200 000 руб.\\nОбъём работ: 800 м²\\nКонтактное лицо: Иван Петрович Сидоров'};
+   return {numpages:3,info:{Title:'Техническое задание'},text:'Заказчик: ООО СтройИнвест\nБюджет: 1 200 000 руб.\nОбъём работ: 800 м²\nКонтактное лицо: Иван Петрович Сидоров'};
   }
  });
  assert.equal(requests.length,2);
@@ -51,9 +51,9 @@ test('respects robots.txt before downloading the attachment',async()=>{
  const requests=[];
  await assert.rejects(fetchAndParseOrderPdf('https://orders.example/private/tender.pdf',{
   validateUrl:async value=>new URL(value),
-  fetchImpl:async url=>{requests.push(url);return response('User-agent: *\\nDisallow: /private/',200,{'content-type':'text/plain'})},
+  fetchImpl:async url=>{requests.push(url);return response('User-agent: *\nDisallow: /private/',200,{'content-type':'text/plain'})},
   parsePdf:async()=>({text:'unexpected'})
- }),/robots\\.txt запрещает/);
+ }),/robots\.txt запрещает/);
  assert.deepEqual(requests,['https://orders.example/robots.txt']);
 });
 

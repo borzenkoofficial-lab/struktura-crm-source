@@ -39,7 +39,7 @@ async function fetchAndParseOrderPdf(sourceUrl,options={}){
  const storedText=text.slice(0,MAX_STORED_TEXT);
  const extracted=extractOrderEvidence(storedText);
  const pageCount=Math.max(0,Math.min(Number(parsed?.numpages)||0,MAX_PDF_PAGES));
- const fileName=fileNameFromResponse(options.contentDisposition||'',resource.url);
+ const fileName=fileNameFromResponse(resource.contentDisposition||'',resource.url);
  return {
   source_url:resource.url,
   file_name:fileName,

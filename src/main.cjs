@@ -844,14 +844,14 @@ ipcMain.handle('orders:fetchPdf', async (_event, input = {}) => {
  }
  const facts=pdf.facts;
  const persist=db.transaction(()=>{
-  db.prepare(\`UPDATE commercial_order_documents SET
+  db.prepare(`UPDATE commercial_order_documents SET
    file_name=@file_name,mime_type=@mime_type,page_count=@page_count,extracted_text=@extracted_text,
    fact_evidence_json=@fact_evidence_json,sha256=@sha256,fetched_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP
-   WHERE id=@id AND order_id=@order_id\`).run({
+   WHERE id=@id AND order_id=@order_id`).run({
     id:documentId,order_id:orderId,file_name:pdf.file_name,mime_type:pdf.mime_type,page_count:pdf.page_count,
     extracted_text:pdf.text,fact_evidence_json:JSON.stringify(taggedEvidence),sha256:pdf.sha256
    });
-  db.prepare(\`UPDATE commercial_orders SET
+  db.prepare(`UPDATE commercial_orders SET
    customer_name=CASE WHEN @customer_name<>'' THEN @customer_name ELSE customer_name END,
    contact_name=CASE WHEN @contact_name<>'' THEN @contact_name ELSE contact_name END,
    phone=CASE WHEN @phone<>'' THEN @phone ELSE phone END,
@@ -863,7 +863,7 @@ ipcMain.handle('orders:fetchPdf', async (_event, input = {}) => {
    procurement_number=CASE WHEN @procurement_number<>'' THEN @procurement_number ELSE procurement_number END,
    work_address=CASE WHEN @work_address<>'' THEN @work_address ELSE work_address END,
    fact_evidence_json=@fact_evidence_json
-   WHERE id=@id\`).run({...facts,id:orderId,fact_evidence_json:JSON.stringify([...merged.values()].slice(-120))});
+   WHERE id=@id`).run({...facts,id:orderId,fact_evidence_json:JSON.stringify([...merged.values()].slice(-120))});
  });
  persist();
  return {order_id:orderId,document_id:documentId,file_name:pdf.file_name,page_count:pdf.page_count,

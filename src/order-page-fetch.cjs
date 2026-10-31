@@ -127,16 +127,17 @@ async function fetchPublicResource(sourceUrl,options={}){
  const {response,url}=await requestValidated(sourceUrl,'page');
  if(!response.ok)throw new Error('Источник вернул HTTP '+response.status+'.');
  const contentType=String(response.headers?.get?.('content-type')||'').split(';')[0].trim().toLowerCase();
- if(!allowedTypes.includes(contentType))throw new Error('Источник вернул неподдерживаемый формат: '+(contentType||'неизвестно')+'.');
+ if(!allowedTypes.includes(contentType))throw new Error(options.unsupportedMessage||('Источник вернул неподдерживаемый формат: '+(contentType||'неизвестно')+'.'));
  const buffer=await readLimitedBuffer(response,maxBytes);
- return {buffer,url:url.toString(),contentType,bytes:buffer.length};
+ return {buffer,url:url.toString(),contentType,contentDisposition:response.headers?.get?.('content-disposition')||'',bytes:buffer.length};
 }
 async function fetchOrderPage(sourceUrl,options={}){
  const resource=await fetchPublicResource(sourceUrl,{
   ...options,
   maxBytes:options.maxBytes||DEFAULT_MAX_BYTES,
   maxAllowedBytes:DEFAULT_MAX_BYTES,
-  contentTypes:['text/html','application/xhtml+xml','text/plain']
+  contentTypes:['text/html','application/xhtml+xml','text/plain'],
+  unsupportedMessage:'Источник не является доступной HTML/TXT-страницей. PDF и файлы будут подключены отдельным обработчиком.'
  });
  const result=extractOrderPageContent(resource.buffer.toString('utf8'),resource.url);
  return {title:result.title,text:result.text,page_url:result.page_url,bytes:resource.bytes,attachments:result.attachments};
