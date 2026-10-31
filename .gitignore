@@ -11,3 +11,4 @@ license-keys/
 *.license-private.pem
 *.private.pem
 *license-private.pem
+dist-license-manager/
