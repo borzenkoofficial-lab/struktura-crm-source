@@ -7,6 +7,7 @@ files:
   - tools/license-manager/**/*
   - tools/license-generator.cjs
   - src/license-core.cjs
+  - src/license-public-key.pem
   - package.json
 extraMetadata:
   main: tools/license-manager/main.cjs
