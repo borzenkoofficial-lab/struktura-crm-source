@@ -73,3 +73,14 @@ jobs:
           path: dist/*.exe
           if-no-files-found: error
           retention-days: 14
+
+      - name: Build standalone License Manager
+        run: npm run dist:license-manager
+
+      - name: Upload License Manager
+        uses: actions/upload-artifact@v4
+        with:
+          name: SKOL-License-Manager
+          path: dist-license-manager/*.exe
+          if-no-files-found: error
+          retention-days: 14
