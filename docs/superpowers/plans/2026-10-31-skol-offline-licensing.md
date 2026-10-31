@@ -52,7 +52,6 @@
 **Files:**
 - Create: `src/license-device.cjs`
 - Create: `tools/license-generator.cjs`
-- Create: `tools/create-license-keypair.cjs`
 - Create: `tests/license-device.test.cjs`
 - Modify: `.gitignore`
 
@@ -60,7 +59,7 @@
 - `createDeviceId(machineGuid) -> 64-char lowercase hex`
 - `readWindowsMachineGuid(execFileSyncImpl?) -> string`
 - CLI: `node tools/license-generator.cjs --edition PRO --device-id <id> --private-key <path>`
-- Keypair helper creates a private PEM under ignored `license-keys/` and a public PEM at `src/license-public-key.pem`.
+- The production public key is embedded at `src/license-public-key.pem`; the matching private PEM is delivered separately and never committed.
 
 - [ ] Write tests for deterministic device hashing, invalid MachineGuid, and registry output parsing.
 - [ ] Verify the tests fail before implementation.
