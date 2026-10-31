@@ -966,3 +966,8 @@ dialog.modal>form{background:#fff;border-radius:inherit}
 .order-evidence-details ul{margin:6px 0;padding-left:18px}
 .order-evidence-details li{margin:4px 0;line-height:1.5}
 .order-evidence-details small{color:#7b8797}
+
+.order-radar-metrics{margin:14px 0 6px}
+.order-radar-metrics .stat-card{min-width:0}
+.order-radar-metrics .stat-card strong{font-variant-numeric:tabular-nums}
+@media(max-width:560px){.order-radar-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.order-radar-metrics .stat-card{padding:12px}}
