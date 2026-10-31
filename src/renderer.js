@@ -2073,10 +2073,11 @@ function hideStartupSplash() {
 }
 // Never leave the launch screen covering the app if initial data loading stalls.
 window.setTimeout(hideStartupSplash, 8000);
-Promise.race([
-  initializeStartupGate().then(() => refreshDashboard()),
-  new Promise((_, reject) => window.setTimeout(() => reject(new Error('Превышено время ожидания загрузки обзора (10 секунд). Проверьте локальную базу и перезапустите программу.')), 10000))
-])
+initializeStartupGate()
+  .then(() => Promise.race([
+    refreshDashboard(),
+    new Promise((_, reject) => window.setTimeout(() => reject(new Error('Превышено время ожидания загрузки обзора (10 секунд). Проверьте локальную базу и перезапустите программу.')), 10000))
+  ]))
   .catch(e => {
     toast(`Не удалось загрузить обзор: ${e.message}`, true);
     const target = $('recentLeads');
