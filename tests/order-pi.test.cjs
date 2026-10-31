@@ -150,3 +150,41 @@ test('accepts explicit procurement labels from normalized search results', () =>
   });
   assert.equal(result.components.find(item => item.key === 'winLikelihood').value, 90);
 });
+
+test('uses structured extracted source facts when the search snippet omits the values', () => {
+  const result = assessCommercialOrder({
+    title: 'Тендер на демонтаж коммерческого помещения',
+    snippet: 'Заказчик ищет подрядчика для демонтажа офисного здания в Москве.',
+    source_url: 'https://example.ru/tender/structured',
+    service: 'demolition',
+    budget_rub: 1200000,
+    volume_value: 800,
+    volume_unit: 'м²',
+    deadline_text: 'Срок подачи заявок до 25.11.2026',
+    contact_name: 'Иван Петрович Сидоров'
+  });
+  assert.equal(result.economicsStatus, 'needs_verification');
+  assert.equal(result.deadlineStatus, 'mentioned_unverified');
+  assert.ok(!result.nextQuestions.includes('Уточнить бюджет или цену договора'));
+  assert.ok(!result.nextQuestions.includes('Уточнить объём и единицы измерения'));
+  assert.ok(!result.nextQuestions.includes('Найти телефон, email или контактное лицо заказчика'));
+  assert.ok(result.reasons.some(reason => reason.includes('исходном тексте указан бюджет')));
+});
+
+test('keeps PI revenue separate from a source budget that was not found', () => {
+  const result = assessCommercialOrder({
+    title: 'Заказ на демонтаж коммерческого помещения',
+    snippet: 'Найм подрядчика для демонтажа помещения.',
+    source_url: 'https://example.ru/tender/no-budget',
+    service: 'demolition'
+  }, {
+    revenue_rub: 900000,
+    budget_rub: 0,
+    quantity: 600,
+    estimated_margin_pct: 24,
+    estimated_days: 5
+  });
+  assert.ok(result.nextQuestions.includes('Уточнить бюджет или цену договора'));
+  assert.ok(!result.reasons.some(reason => reason.includes('исходном тексте указан бюджет')));
+  assert.ok(result.reasons.some(reason => reason.includes('не подтверждённая сумма из источника')));
+});
