@@ -34,3 +34,19 @@ test('package exposes a local command to open License Manager', () => {
   const pkg = JSON.parse(read('package.json'));
   assert.equal(pkg.scripts['license-manager'], 'electron tools/license-manager/main.cjs');
 });
+
+
+test('standalone License Manager build contains only its UI, generator and public license core', () => {
+  const config = read('tools/license-manager/electron-builder.yml');
+  assert.match(config, /main:\s*tools\/license-manager\/main\.cjs/);
+  assert.match(config, /tools\/license-manager\/\*\*\/*/);
+  assert.match(config, /tools\/license-generator\.cjs/);
+  assert.match(config, /src\/license-core\.cjs/);
+  assert.doesNotMatch(config, /license-private|license-keys/);
+});
+
+test('Windows CI builds and uploads the separate License Manager executable', () => {
+  const workflow = read('.github/workflows/build-windows.yml');
+  assert.match(workflow, /npm run dist:license-manager/);
+  assert.match(workflow, /dist-license-manager\/\*\.exe/);
+});
