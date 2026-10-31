@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS clients (
   name TEXT NOT NULL,
   phone TEXT NOT NULL DEFAULT '',
   email TEXT NOT NULL DEFAULT '',
+  contact_name TEXT NOT NULL DEFAULT '',
   client_type TEXT NOT NULL DEFAULT 'person' CHECK(client_type IN ('person','company')),
   notes TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -267,6 +268,8 @@ function openDatabase(userDataPath) {
   db.pragma('foreign_keys = ON');
   db.exec(SCHEMA);
   // Additive migrations keep existing local databases intact after app updates.
+  const clientColumns = new Set(db.prepare('PRAGMA table_info(clients)').all().map(column => column.name));
+  if (!clientColumns.has('contact_name')) db.exec("ALTER TABLE clients ADD COLUMN contact_name TEXT NOT NULL DEFAULT ''");
   const leadColumns = new Set(db.prepare('PRAGMA table_info(leads)').all().map(column => column.name));
   if (!leadColumns.has('commercial_order_id')) db.exec('ALTER TABLE leads ADD COLUMN commercial_order_id INTEGER REFERENCES commercial_orders(id) ON DELETE SET NULL');
   db.exec('CREATE INDEX IF NOT EXISTS idx_leads_commercial_order ON leads(commercial_order_id)');
@@ -311,8 +314,8 @@ function openDatabase(userDataPath) {
       migratePlans();
     } finally { db.pragma('foreign_keys = ON'); }
   }
-  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','9')").run();
-  db.prepare("UPDATE settings SET value='9' WHERE key='schema_version'").run();
+  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','10')").run();
+  db.prepare("UPDATE settings SET value='10' WHERE key='schema_version'").run();
   return db;
 }
 
