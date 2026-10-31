@@ -27,6 +27,7 @@ const { crawlSites } = require('./site-crawler.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
 const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, leadSourceForOrderType } = require('./order-radar.cjs');
 const { parseCommercialOrdersCsv } = require('./order-import.cjs');
+const { extractOrderEvidence } = require('./order-evidence.cjs');
 const { assessCommercialOrder } = require('./order-pi.cjs');
 const { calculateOrderEconomics } = require('./order-economics.cjs');
 const { calculateQuoteTotals } = require('./quote-economics.cjs');
@@ -753,15 +754,33 @@ ipcMain.handle('orders:list', (_event,input={})=>{
  if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%')}
  const rows=db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC`).all(...params);
  const analyses=new Map(db.prepare('SELECT * FROM commercial_order_analysis').all().map(item=>[Number(item.order_id),item]));
- return rows.map(r=>{const analysis=analyses.get(Number(r.id))||null;return {...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean),pi_analysis:analysis,pi_assessment:assessCommercialOrder(r,analysis)};});
+ return rows.map(r=>{
+  const analysis=analyses.get(Number(r.id))||null;
+  let factEvidence=[];
+  try { factEvidence=JSON.parse(r.fact_evidence_json||'[]'); if(!Array.isArray(factEvidence)) factEvidence=[]; } catch {}
+  return {...r,fact_evidence:factEvidence,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean),pi_analysis:analysis,pi_assessment:assessCommercialOrder(r,analysis)};
+ });
 });
 ipcMain.handle('orders:search',async(_event,input={})=>{
  const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');
  const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const sourceType=['all','web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';const queries=buildOrderQueries(service,region,sourceType);const found=[],errors=[];
  for(const query of queries){try{const results=await searchBrave(query,apiKey,{count:10});found.push(...results.map(x=>normalizeBraveOrderResult(x,query,service,region)).filter(Boolean))}catch(e){errors.push({query,error:clean(e.message,240)})}}
- const unique=deduplicateOrders(found);
- const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`);
- const update=db.prepare(`UPDATE commercial_orders SET title=@title,source_name=@source_name,source_type=@source_type,snippet=@snippet,search_query=@search_query,service=@service,region=@region,signal_score=@signal_score,signal_labels=@signal_labels,relevance=@relevance,last_seen_at=CURRENT_TIMESTAMP WHERE source_url=@source_url AND status NOT IN ('relevant','rejected')`);
+ const unique=deduplicateOrders(found).map(item=>({...item,...extractOrderEvidence(item.title+'\n'+item.snippet)}));
+ const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status,customer_name,contact_name,phone,email,budget_rub,volume_value,volume_unit,deadline_text,procurement_number,work_address,fact_evidence_json)
+ VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new',@customer_name,@contact_name,@phone,@email,@budget_rub,@volume_value,@volume_unit,@deadline_text,@procurement_number,@work_address,@fact_evidence_json)`);
+ const update=db.prepare(`UPDATE commercial_orders SET title=@title,source_name=@source_name,source_type=@source_type,snippet=@snippet,search_query=@search_query,service=@service,region=@region,signal_score=@signal_score,signal_labels=@signal_labels,relevance=@relevance,
+ customer_name=CASE WHEN @customer_name<>'' THEN @customer_name ELSE customer_name END,
+ contact_name=CASE WHEN @contact_name<>'' THEN @contact_name ELSE contact_name END,
+ phone=CASE WHEN @phone<>'' THEN @phone ELSE phone END,
+ email=CASE WHEN @email<>'' THEN @email ELSE email END,
+ budget_rub=CASE WHEN @budget_rub>0 THEN @budget_rub ELSE budget_rub END,
+ volume_value=CASE WHEN @volume_value>0 THEN @volume_value ELSE volume_value END,
+ volume_unit=CASE WHEN @volume_unit<>'' THEN @volume_unit ELSE volume_unit END,
+ deadline_text=CASE WHEN @deadline_text<>'' THEN @deadline_text ELSE deadline_text END,
+ procurement_number=CASE WHEN @procurement_number<>'' THEN @procurement_number ELSE procurement_number END,
+ work_address=CASE WHEN @work_address<>'' THEN @work_address ELSE work_address END,
+ fact_evidence_json=CASE WHEN @fact_evidence_json<>'[]' THEN @fact_evidence_json ELSE fact_evidence_json END,
+ last_seen_at=CURRENT_TIMESTAMP WHERE source_url=@source_url AND status NOT IN ('relevant','rejected')`);
  const touch=db.prepare('UPDATE commercial_orders SET last_seen_at=CURRENT_TIMESTAMP WHERE source_url=?');
  let added=0,refreshed=0,protectedCount=0;
  const tx=db.transaction(items=>{
@@ -803,9 +822,11 @@ ipcMain.handle('orders:createManual', (_event,input={}) => {
  if(!title)throw new Error('Укажи название заказа.');
  const order=normalizeOrderResult({title,url,description:snippet},'Добавлено вручную',service,region);
  if(!order)throw new Error('Не удалось проверить ссылку. Укажи действительный HTTP(S)-адрес первоисточника.');
+ const evidence=extractOrderEvidence(order.title+'\n'+order.snippet);
  const existing=db.prepare('SELECT id FROM commercial_orders WHERE source_url=?').get(order.source_url);
  if(existing)return {id:existing.id,duplicate:true};
- const result=db.prepare(`INSERT INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`).run({...order,search_query:'Добавлено вручную',signal_labels:order.signal_labels.join('|')});
+ const result=db.prepare(`INSERT INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status,customer_name,contact_name,phone,email,budget_rub,volume_value,volume_unit,deadline_text,procurement_number,work_address,fact_evidence_json)
+ VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new',@customer_name,@contact_name,@phone,@email,@budget_rub,@volume_value,@volume_unit,@deadline_text,@procurement_number,@work_address,@fact_evidence_json)`).run({...order,...evidence,search_query:'Добавлено вручную',signal_labels:order.signal_labels.join('|')});
  return {id:Number(result.lastInsertRowid),duplicate:false};
 });
 ipcMain.handle('orders:importCsv', async () => {
@@ -818,7 +839,9 @@ ipcMain.handle('orders:importCsv', async () => {
   if(!order)return null;
   return {...order,source_name:item.source_name||order.source_name,source_type:'files',search_query:'Импорт из файла'};
  }).filter(Boolean);
- const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`);
+ const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status,customer_name,contact_name,phone,email,budget_rub,volume_value,volume_unit,deadline_text,procurement_number,work_address,fact_evidence_json)
+ VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new',@customer_name,@contact_name,@phone,@email,@budget_rub,@volume_value,@volume_unit,@deadline_text,@procurement_number,@work_address,@fact_evidence_json)`);
+ const enrichedOrders=normalized.map(item=>({...item,...extractOrderEvidence(item.title+'\n'+item.snippet)}));
  let imported=0,duplicates=0;
  const tx=db.transaction(items=>{for(const item of items){const values={...item,signal_labels:item.signal_labels.join('|')};const result=insert.run(values);if(result.changes)imported++;else duplicates++;}
   db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)').run('CSV заказов',path.basename(filePath),imported,parsed.skipped+duplicates,0,`В файле: ${parsed.orders.length+parsed.skipped}; импортировано: ${imported}; пропущено: ${parsed.skipped+duplicates}`);
@@ -840,12 +863,20 @@ ipcMain.handle('orders:convertLead', (_event, orderId) => {
  const existing=db.prepare('SELECT id FROM leads WHERE commercial_order_id=?').get(id);
  if(existing)return {leadId:existing.id,alreadyExists:true};
  const analysis=db.prepare('SELECT * FROM commercial_order_analysis WHERE order_id=?').get(id)||null;
- const leadBudget=Math.max(0,Math.round(Number(analysis?.revenue_rub)||0));
+ const leadBudget=Math.max(0,Math.round(Number(order.budget_rub)||0));
  const serviceLabel={demolition:'Демонтаж',finishing:'Отделочные работы',raised_floor:'Фальшполы'}[order.service]||'Демонтаж';
  const notes=[
   'Создано из радара коммерческих заказов. Данные и актуальность необходимо проверить на исходном сайте.',
   'Источник: '+order.source_url,
   'Регион: '+order.region,
+  order.customer_name?'Заказчик из первоисточника: '+order.customer_name:'',
+  order.phone?'Телефон из первоисточника: '+order.phone:'',
+  order.email?'Email из первоисточника: '+order.email:'',
+  leadBudget>0?'Бюджет из текста источника: '+leadBudget.toLocaleString('ru-RU')+' ₽. Проверь на исходной странице.':'Бюджет заказчика не найден в исходном тексте; расчётная выручка не записывается как бюджет.',
+  order.volume_value>0?'Объём из текста источника: '+Number(order.volume_value).toLocaleString('ru-RU')+' '+order.volume_unit+'. Проверь единицы и контекст.':'',
+  order.deadline_text?'Срок из текста источника: '+order.deadline_text+'. Проверь актуальность.':'',
+  order.procurement_number?'Номер закупки: '+order.procurement_number:'',
+  order.work_address?'Место выполнения: '+order.work_address:'',
   'Оценка сигнала: '+order.signal_score+'/100',
   order.signal_labels?'Сигналы: '+String(order.signal_labels).split('|').filter(Boolean).join(', '):'',
   order.snippet?'Фрагмент выдачи: '+order.snippet:'',
@@ -855,7 +886,18 @@ ipcMain.handle('orders:convertLead', (_event, orderId) => {
   analysis?(Number(analysis.budget_rub)>0?'Основа выручки: введённый бюджет, требуется проверка на первоисточнике.':'Основа выручки: ставка прайса; бюджет заказчика не подтверждён.'):'',
  ].filter(Boolean).join('\n').slice(0,4000);
  const create=db.transaction(()=>{
-  const result=db.prepare('INSERT INTO leads(commercial_order_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,?,?,\'new\',?,\'\',?)').run(id,(serviceLabel+' — '+order.title).slice(0,180),order.service,leadSourceForOrderType(order.source_type),leadBudget,notes);
+  let clientId=null;
+  if(order.customer_name){
+   const existingClient=db.prepare('SELECT id FROM clients WHERE lower(name)=lower(?) ORDER BY id ASC LIMIT 1').get(order.customer_name);
+   if(existingClient) clientId=Number(existingClient.id);
+   else {
+    const client=db.prepare("INSERT INTO clients(name,phone,email,client_type,notes) VALUES (?,?,?,'company',?)")
+      .run(order.customer_name,order.phone||'',order.email||'','Создан из карточки коммерческого заказа. Контакты требуют проверки по первоисточнику.');
+    clientId=Number(client.lastInsertRowid);
+   }
+  }
+  const result=db.prepare('INSERT INTO leads(client_id,commercial_order_id,title,service,source,status,budget_rub,address,next_action,notes) VALUES (?,?,?,?,?,\'new\',?,?,?,?)')
+   .run(clientId,id,(serviceLabel+' — '+order.title).slice(0,180),order.service,leadSourceForOrderType(order.source_type),leadBudget,order.work_address||'','Проверить первоисточник, актуальность срока и условия участия.',notes);
   db.prepare("UPDATE commercial_orders SET status='relevant' WHERE id=?").run(id);
   return Number(result.lastInsertRowid);
  });
