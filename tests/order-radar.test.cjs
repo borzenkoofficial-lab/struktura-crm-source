@@ -188,3 +188,24 @@ test('manual Yandex search removes actual CR/LF characters from region', () => {
   assert.ok(query.includes('Москва область'));
   assert.doesNotMatch(query, /[\r\n]/);
 });
+
+
+test('builds a dedicated EIS search adapter for 44-FZ and 223-FZ notices', () => {
+  const queries = buildOrderQueries('demolition', 'Москва и МО', 'eis');
+  assert.equal(queries.length, 3);
+  assert.ok(queries.every(query => /site:zakupki\\.gov\\.ru\\/epz\\/order/i.test(query)));
+  assert.ok(queries.some(query => /44-ФЗ OR 223-ФЗ/.test(query)));
+  assert.ok(queries.every(query => query.includes('Москва и МО')));
+});
+
+test('manual EIS search is restricted to the official EIS procurement pages', () => {
+  const url = buildManualOrderSearchUrl('finishing', 'Москва', 'eis');
+  const query = decodeURIComponent(url);
+  assert.match(query, /site:zakupki\\.gov\\.ru\\/epz\\/order/);
+  assert.doesNotMatch(query, /site:avito\\.ru|site:t\\.me|b2b-center\\.ru/);
+});
+
+test('classifies official EIS notice URLs as tender sources and keeps non-EIS URLs distinct', () => {
+  assert.equal(classifyOrderSource('https://zakupki.gov.ru/epz/order/notice/ea20/view/common-info.html'), 'tenders');
+  assert.equal(classifyOrderSource('https://example.ru/epz/order/notice'), 'web');
+});
