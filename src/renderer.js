@@ -1559,7 +1559,8 @@ $('commercialOrdersList').addEventListener('click',async e=>{
   const result=await window.crm.convertCommercialOrderToLead(orderId);
   await refreshCommercialOrders();
   await refreshLeads();
-  toast(result.alreadyExists?'Этот заказ уже был передан в заявки.':'Заказ передан в раздел «Заявки».');
+  if(!result.alreadyExists) await refreshTasks();
+  toast(result.alreadyExists?'Этот заказ уже был передан в заявки.':'Заказ передан в раздел «Заявки»; задача на проверку добавлена в план действий.');
  }catch(error){toast('Не удалось создать заявку: '+error.message,true);}
  finally{button.disabled=false;}
 });
