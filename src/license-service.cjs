@@ -28,6 +28,13 @@ function featureForChannel(channel) {
   return null;
 }
 
+function featureForOperation(channel, args = []) {
+  const directFeature = featureForChannel(channel);
+  if (directFeature) return directFeature;
+  if (channel === 'data:exportCsv' && args[0] === 'prospects') return 'order_radar';
+  return null;
+}
+
 function publicLicenseSummary(license) {
   if (!license) return null;
   return {
@@ -56,7 +63,7 @@ const ALLOWED_BEFORE_LICENSE = new Set([
   'app:version'
 ]);
 
-function assertIpcAccess(channel, { licenseUnlocked, appUnlocked, features = [], allowedWhileLocked = ALLOWED_WHILE_PIN_LOCKED } = {}) {
+function assertIpcAccess(channel, { licenseUnlocked, appUnlocked, features = [], args = [], allowedWhileLocked = ALLOWED_WHILE_PIN_LOCKED } = {}) {
   const name = String(channel || '');
   if (!licenseUnlocked && !ALLOWED_BEFORE_LICENSE.has(name)) {
     throw new Error('Для продолжения работы активируй лицензию СКОЛ.');
@@ -64,7 +71,7 @@ function assertIpcAccess(channel, { licenseUnlocked, appUnlocked, features = [],
   if (!appUnlocked && !allowedWhileLocked.has(name) && !ALLOWED_BEFORE_LICENSE.has(name)) {
     throw new Error('CRM заблокирована PIN-кодом. Введи PIN, чтобы продолжить.');
   }
-  const requiredFeature = featureForChannel(name);
+  const requiredFeature = featureForOperation(name, args);
   if (licenseUnlocked && requiredFeature && !new Set(features).has(requiredFeature)) {
     throw new Error('Этот модуль недоступен на текущем тарифе СКОЛ.');
   }
@@ -96,4 +103,4 @@ function createLicenseService({ getSetting, setSetting, publicKeyPem, deviceId, 
   return { getStatus, activate };
 }
 
-module.exports = { createLicenseService, featureForChannel, assertIpcAccess, publicLicenseSummary, INVALID_MESSAGES };
+module.exports = { createLicenseService, featureForChannel, featureForOperation, assertIpcAccess, publicLicenseSummary, INVALID_MESSAGES };
