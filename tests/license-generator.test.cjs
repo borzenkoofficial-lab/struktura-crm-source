@@ -82,3 +82,22 @@ test('generator rejects invalid device IDs, missing private keys and malformed d
   assert.notEqual(runGenerator(['--edition', 'PRO', '--device-id', deviceId, '--private-key', path.join(key.directory, 'missing.pem')]).status, 0);
   assert.notEqual(runGenerator(['--edition', 'PRO', '--device-id', deviceId, '--private-key', key.privateKeyPath, '--updates-until', 'not-a-date']).status, 0);
 });
+
+
+test('generator normalizes purchase IDs and uses a collision-resistant generated ID', () => {
+  const key = createTempKey();
+  const custom = runGenerator([
+    '--edition', 'START',
+    '--device-id', deviceId,
+    '--private-key', key.privateKeyPath,
+    '--license-id', 'skol-order-0002'
+  ]);
+  assert.equal(custom.status, 0, custom.stderr);
+  const customLicense = verifyLicenseToken(tokenFrom(custom.stdout), key.publicKeyPem, deviceId);
+  assert.equal(customLicense.license.licenseId, 'SKOL-ORDER-0002');
+
+  const generated = runGenerator(['--edition', 'START', '--device-id', deviceId, '--private-key', key.privateKeyPath]);
+  assert.equal(generated.status, 0, generated.stderr);
+  const generatedLicense = verifyLicenseToken(tokenFrom(generated.stdout), key.publicKeyPem, deviceId);
+  assert.match(generatedLicense.license.licenseId, /^SKOL-[A-F0-9]{24}$/);
+});
