@@ -13,6 +13,8 @@ $('choosePrivateKeyBtn').addEventListener('click', async () => {
     $('keyStatus').textContent = privateKeyLoaded ? `Загружен закрытый ключ: ${result.fileName}` : 'Ключ не выбран.';
     $('generateLicenseBtn').disabled = !privateKeyLoaded;
   } catch (error) {
+    privateKeyLoaded = false;
+    $('generateLicenseBtn').disabled = true;
     $('keyStatus').textContent = error.message || 'Не удалось прочитать PEM-файл.';
   } finally { button.disabled = false; }
 });
