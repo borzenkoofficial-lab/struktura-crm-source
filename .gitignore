@@ -5,3 +5,8 @@ release/
 *.sqlite-shm
 *.sqlite-wal
 .DS_Store
+
+# Private SKOL license signing material — never commit
+license-keys/
+*.license-private.pem
+*.private.pem
