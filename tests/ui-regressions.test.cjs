@@ -292,7 +292,7 @@ test('client cards can be edited through validated main-process IPC', () => {
   assert.match(preload, /updateClient: \(data\) => ipcRenderer\.invoke\('clients:update', data\)/);
   const handler = main.match(/ipcMain\.handle\('clients:update',[\s\S]*?\n\}\);/);
   assert.ok(handler); assert.match(handler[0], /Number\.isSafeInteger\(id\)/);
-  assert.match(handler[0], /UPDATE clients SET name=\?, phone=\?, email=\?, client_type=\?, notes=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
+  assert.match(handler[0], /UPDATE clients SET name=\?, phone=\?, email=\?, contact_name=\?, client_type=\?, notes=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
 });
 
 test('project status can be changed safely from the objects list', () => {
@@ -743,7 +743,7 @@ test('all prominent brand marks use the СКОЛ monogram and client section doe
   assert.match(html, /plans-hero-monogram" src="assets\/skol-monogram-mark\.svg"/);
   assert.doesNotMatch(html, /hero-mini-symbol"[^>]*>G</);
   assert.doesNotMatch(html, /browser-welcome-mark"[^>]*>G</);
-  assert.match(html, /Контакты заказчиков и заметки/);
+  assert.match(html, /Компании, представители заказчиков и контактные данные/);
   assert.doesNotMatch(html, /Контакты заказчиков и история отношений/);
 });
 
