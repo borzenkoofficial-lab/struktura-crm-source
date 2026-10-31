@@ -937,3 +937,15 @@ test('commercial order scope lines can be reviewed and imported into the existin
   assert.match(planUi, /Цены и нормы взяты из прайса СКОЛ/);
   assert.match(html, /order-plan-handoff\.cjs/);
 });
+
+test('engineering handoff requires catalog review before replacing plan operations', () => {
+  const planUi = fs.readFileSync(path.join(__dirname, '../src/engineering-project-plan-ui.js'), 'utf8');
+  assert.match(html, /id="engOrderPlanReview"/);
+  assert.match(planUi, /skol:import-order-lines/);
+  assert.match(planUi, /data-order-lines-accept/);
+  assert.match(planUi, /data-order-lines-cancel/);
+  assert.match(planUi, /unitsCompatible\(source\.unit, item\.unit\)/);
+  assert.match(planUi, /window\.confirm\('Сопоставлено позиций:/);
+  assert.match(planUi, /Цены и нормы взяты из прайса СКОЛ/);
+  assert.match(planUi, /mappedLines/);
+});

@@ -203,37 +203,122 @@
 
   window.addEventListener('skol:import-order-lines', event => {
     const payload = event.detail && typeof event.detail === 'object' ? event.detail : {};
+    const review = $('engOrderPlanReview');
     try {
       if (!window.SkolOrderPlanHandoff?.toEstimateImportText) throw new Error('Модуль передачи позиций не загружен.');
-      const text = window.SkolOrderPlanHandoff.toEstimateImportText(payload.lineItems);
+      const lines = Array.isArray(payload.lineItems) ? payload.lineItems : [];
+      const text = window.SkolOrderPlanHandoff.toEstimateImportText(lines);
       $('engEstimateImportText').value = text;
-      const result = importEstimateText(text);
-      if (!result) {
-        $('engEstimateImportStatus').textContent = 'Передача отменена. Текущий инженерный план не изменён.';
-        return;
+      window.__skolOrderPlanReviewLines = lines;
+      const rowsMarkup = lines.map((line, index) => {
+        const name = String(line.work_name || '').slice(0, 240);
+        const sourceUnit = String(line.unit || '').slice(0, 40);
+        const quantity = Number(line.quantity);
+        const suggestion = guessCatalogItem(name);
+        const compatibleItems = sourceUnit
+          ? catalog.filter(item => window.SkolOrderPlanHandoff.unitsCompatible(sourceUnit, item.unit))
+          : catalog;
+        const suggestedId = suggestion && compatibleItems.some(item => item.id === suggestion.id) ? suggestion.id : '';
+        const options = '<option value="">Не сопоставлено</option>' + compatibleItems.map(item =>
+          '<option value="' + safe(item.id) + '"' + (String(item.id) === String(suggestedId) ? ' selected' : '') + '>' +
+          safe(item.name) + ' · ' + safe(item.unit || 'ед.') + '</option>'
+        ).join('');
+        return '<tr data-order-line-review-row="' + index + '">' +
+          '<td><strong>' + safe(name) + '</strong><small>' + safe(line.sheet_name || 'Лист') + ' · строка ' + Number(line.row_number || 0) + '</small></td>' +
+          '<td><input type="number" min="0.001" step="0.001" data-order-line-quantity value="' + (Number.isFinite(quantity) && quantity > 0 ? String(quantity) : '') + '"></td>' +
+          '<td><span class="eng-order-source-unit">' + safe(sourceUnit || 'не указана') + '</span></td>' +
+          '<td><select data-order-line-map>' + options + '</select><small>' + (compatibleItems.length ? 'Выбери работу из каталога СКОЛ' : 'Нет работ каталога с совместимой единицей') + '</small></td>' +
+        '</tr>';
+      }).join('');
+      review.innerHTML = '<div class="eng-order-plan-review-head"><div><strong>Проверка позиций из документа</strong><p>' +
+        safe(payload.documentName || 'Ведомость закупки') + ' · ' + lines.length + ' строк. Сверь работу, объём и единицу с каталогом.</p></div></div>' +
+        '<div class="eng-order-plan-review-table"><table><thead><tr><th>Позиция источника</th><th>Количество</th><th>Ед. в документе</th><th>Работа в каталоге СКОЛ</th></tr></thead><tbody>' + rowsMarkup + '</tbody></table></div>' +
+        '<div class="eng-order-plan-review-actions"><button type="button" class="button primary" data-order-lines-accept>Добавить сопоставленные позиции</button><button type="button" class="button subtle" data-order-lines-cancel>Отмена</button></div>' +
+        '<p class="eng-note">Цены, себестоимость и производительность будут взяты из прайса СКОЛ. Цена из тендерного документа не переносится как цена продажи.</p>';
+      review.hidden = false;
+      review.dataset.orderTitle = String(payload.orderTitle || 'Коммерческий заказ');
+      review.dataset.orderId = String(Number(payload.orderId) || '');
+      review.dataset.sourceUrl = String(payload.sourceUrl || '');
+      review.dataset.documentName = String(payload.documentName || 'Ведомость объёмов');
+      $('engEstimateSheetSelect').hidden = true;
+      $('engEstimateImportStatus').textContent = 'Проверь каждую позицию. Не сопоставленные строки не попадут в инженерный план.';
+      review.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (error) {
+      if (review) { review.hidden = true; review.innerHTML = ''; }
+      $('engEstimateImportStatus').textContent = 'Не удалось подготовить позиции к сопоставлению: ' + (error.message || 'ошибка импорта.');
+    }
+  });
+
+  $('engOrderPlanReview').addEventListener('click', event => {
+    const cancel = event.target.closest('[data-order-lines-cancel]');
+    if (cancel) {
+      $('engOrderPlanReview').hidden = true;
+      $('engOrderPlanReview').innerHTML = '';
+      $('engEstimateImportStatus').textContent = 'Передача отменена. Текущий инженерный план не изменён.';
+      return;
+    }
+    const accept = event.target.closest('[data-order-lines-accept]');
+    if (!accept) return;
+    const review = $('engOrderPlanReview');
+    try {
+      const staged = [], rejected = [];
+      for (const row of review.querySelectorAll('[data-order-line-review-row]')) {
+        const select = row.querySelector('[data-order-line-map]');
+        const quantityInput = row.querySelector('[data-order-line-quantity]');
+        const sourceIndex = Number(row.dataset.orderLineReviewRow);
+        const source = Array.isArray(window.__skolOrderPlanReviewLines) ? window.__skolOrderPlanReviewLines[sourceIndex] : null;
+        const item = catalog.find(candidate => String(candidate.id) === String(select?.value || ''));
+        const quantity = Number(quantityInput?.value);
+        if (!item || !Number.isFinite(quantity) || quantity <= 0) {
+          rejected.push(source?.work_name || 'Строка ' + (sourceIndex + 1));
+          continue;
+        }
+        if (source?.unit && item.unit && !window.SkolOrderPlanHandoff.unitsCompatible(source.unit, item.unit)) {
+          rejected.push(source.work_name + ' — несовместимая единица');
+          continue;
+        }
+        staged.push({
+          id: makeId(), catalogId: item.id, name: item.name, quantity,
+          productivity: Number(item.productivity), crewSize: 5, hoursPerShift: 8,
+          wagePerWorkerShift: 4000, pricePerUnit: Number(item.price || 0),
+          extraCostPerUnit: Number(item.cost || 0), fixedCosts: 0,
+          overheadPercent: 10, taxPercent: 6, reservePercent: 15,
+          difficultyFactor: 1, predecessors: []
+        });
       }
+      if (!staged.length) throw new Error('Нет сопоставленных строк с корректным количеством. Выбери работу из каталога для каждой позиции.');
+      if (!window.confirm('Сопоставлено позиций: ' + staged.length + '. Пропущено: ' + rejected.length + '. Заменить текущий список операций?')) return;
+      operations = staged;
       activeSavedPlanId = null;
       activeSavedPlanCreatedAt = null;
       activeSourceMetadata = {
         sourceLabel: 'центр привлечения заказов',
-        orderTitle: String(payload.orderTitle || 'Коммерческий заказ').slice(0, 180),
-        sourceUrl: String(payload.sourceUrl || '').slice(0, 700),
-        documentName: String(payload.documentName || 'Ведомость объёмов').slice(0, 180)
+        orderTitle: String(review.dataset.orderTitle || 'Коммерческий заказ').slice(0, 180),
+        orderId: Number(review.dataset.orderId) || null,
+        sourceUrl: String(review.dataset.sourceUrl || '').slice(0, 700),
+        documentName: String(review.dataset.documentName || 'Ведомость объёмов').slice(0, 180),
+        mappedLines: staged.length,
+        skippedLines: rejected.length
       };
       activeSourceEconomics = null;
       $('engProjectPlanTitle').value = 'План работ · ' + activeSourceMetadata.orderTitle.slice(0, 145);
       $('engEstimateSheetSelect').hidden = true;
-      const skipped = Number(result.skipped || 0);
+      renderRows();
+      review.hidden = true;
+      review.innerHTML = '';
       $('engEstimateImportStatus').textContent =
-        'Из документа «' + activeSourceMetadata.documentName + '» передано в план ' + result.imported +
-        ' позиций. Не сопоставлено с каталогом: ' + skipped + '. Цены и нормы взяты из прайса СКОЛ, а не из тендерной ведомости; проверь их и единицы перед расчётом.';
+        'Добавлено в план: ' + staged.length + ' позиций. Не сопоставлено/пропущено: ' + rejected.length +
+        (rejected.length ? ' — ' + rejected.slice(0, 5).join(' | ') : '') +
+        '. Цены и нормы взяты из прайса СКОЛ. Проверь их перед расчётом.';
       $('engProjectPlanSaveNote').textContent =
-        'Черновик сформирован из документа закупки. Проверь сопоставление работ, объёмы, единицы, нормы и технологические зависимости перед расчётом и сохранением.';
+        'Позиции сопоставлены вручную/по подсказке каталога. Источник: ' + activeSourceMetadata.documentName +
+        '. Сверь объёмы, единицы, нормы и технологические зависимости перед расчётом и сохранением.';
       $('engProjectPlanRows').scrollIntoView({ behavior: 'smooth', block: 'center' });
     } catch (error) {
-      $('engEstimateImportStatus').textContent = 'Не удалось передать ведомость в инженерный план: ' + (error.message || 'ошибка импорта.');
+      $('engEstimateImportStatus').textContent = error.message || 'Не удалось применить сопоставление.';
     }
   });
+
   let importedEstimateSheets = [];
   function estimateRowsToText(rows) {
     return (rows || []).map(row => (row || []).map(value => String(value ?? '').replace(/[\t\r\n]+/g, ' ').trim()).join('\t')).join('\n');
@@ -314,6 +399,8 @@
     if(metadata?.customer)parts.push('заказчик '+metadata.customer);
     if(metadata?.address)parts.push('адрес '+metadata.address);
     if(metadata?.sourceUrl)parts.push('ссылка на источник сохранена');
+    if(Number.isFinite(Number(metadata?.mappedLines)))parts.push('сопоставлено позиций '+Number(metadata.mappedLines));
+    if(Number.isFinite(Number(metadata?.skippedLines))&&Number(metadata.skippedLines)>0)parts.push('пропущено '+Number(metadata.skippedLines));
     if(Number.isFinite(Number(economics?.revenue)))parts.push('цена после скидки '+rub(economics.revenue));
     return ' · '+parts.join(' · ')+'.';
   }

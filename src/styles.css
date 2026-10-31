@@ -989,3 +989,17 @@ dialog.modal>form{background:#fff;border-radius:inherit}
 .order-document-lines th,.order-document-lines td{padding:7px 8px;border-bottom:1px solid #eef1f4;text-align:left;vertical-align:top}
 .order-document-lines th{background:#f7f9fb;color:#627086;font-size:10px}
 .order-document-lines td{color:#39485b;line-height:1.4}
+
+.eng-order-plan-review{margin:14px 0;padding:14px;border:1px solid #d7e2ec;border-radius:12px;background:#f8fafc}
+.eng-order-plan-review[hidden]{display:none}
+.eng-order-plan-review-head strong{display:block;font-size:13px;color:#24354a}
+.eng-order-plan-review-head p{margin:5px 0 10px;color:#68778b;font-size:12px}
+.eng-order-plan-review-table{max-width:100%;overflow:auto;border:1px solid #e3e9ef;border-radius:9px;background:#fff}
+.eng-order-plan-review-table table{width:100%;min-width:720px;border-collapse:collapse}
+.eng-order-plan-review-table th,.eng-order-plan-review-table td{padding:8px;border-bottom:1px solid #edf0f4;text-align:left;vertical-align:middle}
+.eng-order-plan-review-table th{font-size:10px;color:#66758a;background:#f3f6f9}
+.eng-order-plan-review-table td strong{display:block;font-size:11px;color:#34445a}
+.eng-order-plan-review-table td small{display:block;margin-top:4px;color:#8591a0;font-size:10px}
+.eng-order-plan-review-table select,.eng-order-plan-review-table input{width:100%;min-width:90px;padding:7px;border:1px solid #dfe5ec;border-radius:7px;background:#fff;color:#334155;font:inherit;font-size:11px}
+.eng-order-source-unit{font-size:11px;color:#526175}
+.eng-order-plan-review-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
