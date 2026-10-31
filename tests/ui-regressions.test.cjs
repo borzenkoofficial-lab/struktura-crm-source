@@ -869,3 +869,12 @@ test('lead acquisition workspace shows source-backed order metrics and clear wor
   assert.ok(html.includes('id="orderMetricConverted"'));
   assert.ok(renderer.includes('orderMetricBudget:rows.filter(o=>Number(o.budget_rub)>0).length'));
 });
+
+test('client records support a structured representative contact field', () => {
+  assert.match(html, /<label>Контактное лицо<input name="contact_name"/);
+  assert.match(renderer, /c\.contact_name\|\|''/);
+  assert.match(renderer, /<th>Контактное лицо<\/th>/);
+  assert.match(renderer, /'contact_name','client_type'/);
+  assert.match(main, /INSERT INTO clients\(name,phone,email,contact_name,client_type,notes\)/);
+  assert.match(main, /UPDATE clients SET name=\?, phone=\?, email=\?, contact_name=\?/);
+});
