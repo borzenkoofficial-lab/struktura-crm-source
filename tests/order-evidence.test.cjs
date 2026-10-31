@@ -15,7 +15,7 @@ test('extracts volume and a deadline only when explicitly labelled', () => {
     value: 1250.5, unit: 'м²', excerpt: '1 250,5 м2'
   });
   assert.equal(parseDeadline('Срок подачи заявок до 25.11.2026').value, 'Срок подачи заявок до 25.11.2026');
-  assert.equal(parseDeadline('Работы занимают 25.11.2026').value, undefined);
+  assert.equal(parseDeadline('Работы занимают 25.11.2026'), null);
 });
 
 test('extracts contacts, customer, procurement number and exact evidence excerpts', () => {
@@ -31,7 +31,7 @@ test('extracts contacts, customer, procurement number and exact evidence excerpt
   assert.equal(result.volume_value, 800);
   assert.equal(result.volume_unit, 'м²');
   assert.equal(result.procurement_number, '0373100000126000001');
-  assert.equal(result.work_address, 'Москва, ул');
+  assert.equal(result.work_address, 'Москва, ул. Примерная, 10');
   const evidence = JSON.parse(result.fact_evidence_json);
   assert.ok(evidence.some(item => item.field === 'budget_rub' && /1 200 000/.test(item.excerpt)));
 });
