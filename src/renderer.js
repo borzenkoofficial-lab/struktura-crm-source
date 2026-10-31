@@ -948,7 +948,8 @@ async function refreshCommercialOrders(){
    const lineItems=Array.isArray(d.line_items)?d.line_items:[];
    const linesMarkup=lineItems.length?'<details class="order-document-lines"><summary>Позиции работ ('+lineItems.length+')</summary><div class="order-document-lines-wrap"><table><thead><tr><th>Работа</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>'+lineItems.map(line=>'<tr><td>'+esc(line.work_name)+'</td><td>'+Number(line.quantity||0).toLocaleString('ru-RU')+'</td><td>'+esc(line.unit||'—')+'</td><td>'+ (line.unit_price_rub?fmt(line.unit_price_rub):'—')+'</td><td>'+ (line.amount_rub?fmt(line.amount_rub):'—')+'</td></tr>').join('')+'</tbody></table></div></details>':'';
    const action=isTable?'<button class="button small-button" data-order-table="'+Number(d.id)+'" data-order-id="'+Number(o.id)+'">'+(d.fetched_at?'Обновить таблицу':'Прочитать таблицу')+'</button>':'<button class="button small-button" data-order-pdf="'+Number(d.id)+'" data-order-id="'+Number(o.id)+'">'+(d.fetched_at?'Обновить PDF':'Прочитать PDF')+'</button>';
-   return '<li><div class="order-document-heading"><span>'+label+'</span><small>'+esc(stats+fetched)+'</small></div>'+action+linesMarkup+(preview?'<details><summary>Текст документа ('+preview.length+' символов)</summary><p>'+esc(preview.slice(0,3200))+(preview.length>3200?'…':'')+'</p></details>':'')+'</li>';
+   const planButton=isTable&&lineItems.length?'<button class="button small-button primary" data-order-plan="'+Number(d.id)+'" data-order-id="'+Number(o.id)+'">В инженерный план</button>':'';
+   return '<li><div class="order-document-heading"><span>'+label+'</span><small>'+esc(stats+fetched)+'</small></div>'+action+linesMarkup+planButton+(preview?'<details><summary>Текст документа ('+preview.length+' символов)</summary><p>'+esc(preview.slice(0,3200))+(preview.length>3200?'…':'')+'</p></details>':'')+'</li>';
   }).join('')+'</ul></section>':'';
   const evidenceRows=Array.isArray(o.fact_evidence)?o.fact_evidence:[];
   const evidenceMarkup=evidenceRows.length?`<details class="order-evidence-details"><summary>Фрагменты, из которых извлечены сведения (${evidenceRows.length})</summary><ul>${evidenceRows.map(x=>`<li><strong>${esc(x.field)}:</strong> ${esc(x.excerpt)}</li>`).join('')}</ul><small>Автоматическое извлечение. Каждый факт нужно сверить на исходной странице.</small></details>`:'';
@@ -1600,6 +1601,26 @@ $('commercialOrdersList').addEventListener('click',async e=>{
   toast('Таблица прочитана: '+result.sheet_count+' лист., '+result.row_count+' строк. Извлечено фактов: '+result.extractedFacts+'.');
  }catch(error){toast('Не удалось прочитать таблицу: '+error.message,true);}
  finally{button.disabled=false;}
+});
+$('commercialOrdersList').addEventListener('click',e=>{
+ const button=e.target.closest('[data-order-plan]');if(!button)return;
+ const orderId=Number(button.dataset.orderId),documentId=Number(button.dataset.orderPlan);
+ if(!Number.isSafeInteger(orderId)||orderId<1||!Number.isSafeInteger(documentId)||documentId<1){toast('Некорректный документ для передачи в ПИ.',true);return;}
+ try{
+  const order=commercialOrderCache.find(item=>Number(item.id)===orderId);
+  const document=order?.documents?.find(item=>Number(item.id)===documentId);
+  if(!order||!document||document.document_type!=='table'||!Array.isArray(document.line_items)||!document.line_items.length)throw new Error('Распознанные позиции документа не найдены. Обнови список заказов.');
+  if(!window.SkolOrderPlanHandoff?.toEstimateImportText)throw new Error('Модуль передачи позиций в инженерный план не загружен.');
+  window.SkolOrderPlanHandoff.toEstimateImportText(document.line_items);
+  showView('engineering');
+  window.dispatchEvent(new CustomEvent('skol:import-order-lines',{detail:{
+   orderTitle:order.title||'Коммерческий заказ',
+   orderId,
+   sourceUrl:document.source_url||order.source_url||'',
+   documentName:document.file_name||document.title||'Ведомость объёмов',
+   lineItems:document.line_items
+  }}));
+ }catch(error){toast('Не удалось передать позиции в ПИ: '+error.message,true);}
 });
 $('commercialOrdersList').addEventListener('click',async e=>{
  const button=e.target.closest('[data-order-convert]');if(!button)return;

@@ -925,3 +925,15 @@ test('tabular attachment parsing exposes normalized scope lines from a workbook'
   assert.match(main, /JSON\.stringify\(table\.line_items\|\|\[\]\)/);
   assert.match(renderer, /Позиции работ/);
 });
+
+test('commercial order scope lines can be reviewed and imported into the existing engineering plan', () => {
+  const planUi = fs.readFileSync(path.join(__dirname, '../src/engineering-project-plan-ui.js'), 'utf8');
+  assert.match(renderer, /data-order-plan=/);
+  assert.match(renderer, /skol:import-order-lines/);
+  assert.match(renderer, /showView\('engineering'\)/);
+  assert.match(planUi, /window\.addEventListener\('skol:import-order-lines'/);
+  assert.match(planUi, /parseEstimateText\(text\)/);
+  assert.match(planUi, /unitsCompatible\(sourceUnit, item\.unit\)/);
+  assert.match(planUi, /Цены и нормы взяты из прайса СКОЛ/);
+  assert.match(indexHtml, /order-plan-handoff\.cjs/);
+});

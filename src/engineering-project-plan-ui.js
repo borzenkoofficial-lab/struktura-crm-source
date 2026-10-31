@@ -84,6 +84,8 @@
       const numericCell = cells.slice(1).map(x => x.replace(/\s/g, '').replace(',', '.')).find(x => /^\d+(?:\.\d+)?$/.test(x));
       const withUnit = line.match(/(\d+(?:[.,]\d+)?)\s*(м²|м2|кв\.?\s*м|м³|м3|п\.?\s*м|пог\.?\s*м|шт\.?|т\b|усл\.?)/i);
       const quantity = withUnit ? Number(withUnit[1].replace(',', '.')) : numericCell == null ? NaN : Number(numericCell);
+      const sourceUnit = withUnit?.[2] || cells.slice(1).map(x => x.trim()).find(x => /^(м²|м2|кв\.?\s*м|м³|м3|п\.?\s*м|пог\.?\s*м|шт\.?|т\b|усл\.?)$/i.test(x)) || '';
+      if (item && sourceUnit && item.unit && !window.SkolOrderPlanHandoff.unitsCompatible(sourceUnit, item.unit)) { skipped.push(line + ' (единица "' + sourceUnit + '" не совпадает с каталогом "' + item.unit + '")'); continue; }
       if (!item || !Number.isFinite(quantity) || quantity <= 0) {
         skipped.push(line);
         continue;
@@ -96,7 +98,7 @@
   }
   function importEstimateText(text) {
     const { parsed, skipped } = parseEstimateText(text);
-    if (!window.confirm('Распознано строк работ: ' + parsed.length + '. Заменить текущий список операций?')) return;
+    if (!window.confirm('Распознано строк работ: ' + parsed.length + '. Заменить текущий список операций?')) return null;
     operations = [];
     for (const entry of parsed) {
       const id = makeId();
@@ -112,6 +114,7 @@
     }
     renderRows();
     $('engEstimateImportStatus').textContent = 'Загружено операций: ' + parsed.length + '. Пропущено строк: ' + skipped.length + (skipped.length ? ' — ' + skipped.slice(0, 3).join(' | ') : '') + '. Проверь объёмы, единицы, нормы, состав бригад и зависимости: по умолчанию работы не связаны технологически.';
+    return { imported: parsed.length, skipped: skipped.length, skippedLines: skipped.slice(0, 10) };
   }
   function renderRows() {
     const host = $('engProjectPlanRows');
@@ -197,6 +200,40 @@
     try { importEstimateText($('engEstimateImportText').value); }
     catch (error) { $('engEstimateImportStatus').textContent = error.message || 'Не удалось разобрать смету.'; }
   });
+
+  window.addEventListener('skol:import-order-lines', event => {
+    const payload = event.detail && typeof event.detail === 'object' ? event.detail : {};
+    try {
+      if (!window.SkolOrderPlanHandoff?.toEstimateImportText) throw new Error('Модуль передачи позиций не загружен.');
+      const text = window.SkolOrderPlanHandoff.toEstimateImportText(payload.lineItems);
+      $('engEstimateImportText').value = text;
+      const result = importEstimateText(text);
+      if (!result) {
+        $('engEstimateImportStatus').textContent = 'Передача отменена. Текущий инженерный план не изменён.';
+        return;
+      }
+      activeSavedPlanId = null;
+      activeSavedPlanCreatedAt = null;
+      activeSourceMetadata = {
+        sourceLabel: 'центр привлечения заказов',
+        orderTitle: String(payload.orderTitle || 'Коммерческий заказ').slice(0, 180),
+        sourceUrl: String(payload.sourceUrl || '').slice(0, 700),
+        documentName: String(payload.documentName || 'Ведомость объёмов').slice(0, 180)
+      };
+      activeSourceEconomics = null;
+      $('engProjectPlanTitle').value = 'План работ · ' + activeSourceMetadata.orderTitle.slice(0, 145);
+      $('engEstimateSheetSelect').hidden = true;
+      const skipped = Number(result.skipped || 0);
+      $('engEstimateImportStatus').textContent =
+        'Из документа «' + activeSourceMetadata.documentName + '» передано в план ' + result.imported +
+        ' позиций. Не сопоставлено с каталогом: ' + skipped + '. Цены и нормы взяты из прайса СКОЛ, а не из тендерной ведомости; проверь их и единицы перед расчётом.';
+      $('engProjectPlanSaveNote').textContent =
+        'Черновик сформирован из документа закупки. Проверь сопоставление работ, объёмы, единицы, нормы и технологические зависимости перед расчётом и сохранением.';
+      $('engProjectPlanRows').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (error) {
+      $('engEstimateImportStatus').textContent = 'Не удалось передать ведомость в инженерный план: ' + (error.message || 'ошибка импорта.');
+    }
+  });
   let importedEstimateSheets = [];
   function estimateRowsToText(rows) {
     return (rows || []).map(row => (row || []).map(value => String(value ?? '').replace(/[\t\r\n]+/g, ' ').trim()).join('\t')).join('\n');
@@ -271,8 +308,13 @@
   });
   function transferSourceSummary(metadata,economics){
     if(!metadata&&!economics)return '';
-    const parts=['Источник: калькулятор сметы'];if(metadata?.customer)parts.push('заказчик '+metadata.customer);
-    if(metadata?.address)parts.push('адрес '+metadata.address);if(Number.isFinite(Number(economics?.revenue)))parts.push('цена после скидки '+rub(economics.revenue));
+    const parts=['Источник: '+String(metadata?.sourceLabel||'калькулятор сметы')];
+    if(metadata?.documentName)parts.push('документ '+String(metadata.documentName).slice(0,120));
+    if(metadata?.orderTitle)parts.push('заказ '+String(metadata.orderTitle).slice(0,140));
+    if(metadata?.customer)parts.push('заказчик '+metadata.customer);
+    if(metadata?.address)parts.push('адрес '+metadata.address);
+    if(metadata?.sourceUrl)parts.push('ссылка на источник сохранена');
+    if(Number.isFinite(Number(economics?.revenue)))parts.push('цена после скидки '+rub(economics.revenue));
     return ' · '+parts.join(' · ')+'.';
   }
   function renderSavedPlans(history) {
