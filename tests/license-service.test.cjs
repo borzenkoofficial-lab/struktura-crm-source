@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { generateKeyPairSync } = require('node:crypto');
 const { createLicenseToken, getFeaturesForEdition } = require('../src/license-core.cjs');
-const { createLicenseService, featureForChannel } = require('../src/license-service.cjs');
+const { createLicenseService, featureForChannel, assertIpcAccess } = require('../src/license-service.cjs');
 
 const { privateKey, publicKey } = generateKeyPairSync('ed25519');
 const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
@@ -98,4 +98,29 @@ test('expired saved license is inactive but local data remains available for rea
   assert.equal(service.getStatus().activated, false);
   assert.equal(service.getStatus().reason, 'expired');
   assert.equal(settings.get('license_token_v1'), token);
+});
+
+
+test('IPC guard allows activation before licensing but blocks business operations', () => {
+  assert.doesNotThrow(() => assertIpcAccess('license:status', { licenseUnlocked: false, appUnlocked: true, features: [] }));
+  assert.throws(() => assertIpcAccess('clients:list', { licenseUnlocked: false, appUnlocked: true, features: [] }), /активируй лицензию/i);
+});
+
+test('IPC guard allows START base channels and blocks PRO and BUSINESS channels', () => {
+  const base = { licenseUnlocked: true, appUnlocked: true, features: [] };
+  assert.doesNotThrow(() => assertIpcAccess('clients:list', base));
+  assert.throws(() => assertIpcAccess('finance:insights', base), /тариф/i);
+  const pro = { ...base, features: getFeaturesForEdition('PRO') };
+  assert.doesNotThrow(() => assertIpcAccess('finance:insights', pro));
+  assert.throws(() => assertIpcAccess('orders:search', pro), /тариф/i);
+  const business = { ...base, features: getFeaturesForEdition('BUSINESS') };
+  assert.doesNotThrow(() => assertIpcAccess('orders:search', business));
+  assert.doesNotThrow(() => assertIpcAccess('browser:navigate', business));
+});
+
+test('IPC guard keeps PIN lock active even when a valid license is installed', () => {
+  const state = { licenseUnlocked: true, appUnlocked: false, features: getFeaturesForEdition('BUSINESS') };
+  assert.doesNotThrow(() => assertIpcAccess('security:pinVerify', state));
+  assert.doesNotThrow(() => assertIpcAccess('license:status', state));
+  assert.throws(() => assertIpcAccess('clients:list', state), /PIN-код/i);
 });
