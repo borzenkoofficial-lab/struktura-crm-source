@@ -22,9 +22,10 @@ test('extracts contacts, customer, procurement number and exact evidence excerpt
   const result = extractOrderEvidence(
     'Заказчик: ООО СтройИнвест; Номер закупки 0373100000126000001. ' +
     'Бюджет: 1 200 000 руб.; Объём: 800 м²; срок подачи до 20.11.2026. ' +
-    'Телефон +7 (999) 123-45-67, email tender@example.ru. Адрес объекта: Москва, ул. Примерная, 10'
+    'Контактное лицо: Иван Петрович Сидоров; Телефон +7 (999) 123-45-67, email tender@example.ru. Адрес объекта: Москва, ул. Примерная, 10'
   );
   assert.equal(result.customer_name, 'ООО СтройИнвест');
+  assert.equal(result.contact_name, 'Иван Петрович Сидоров');
   assert.equal(result.phone, '+7 (999) 123-45-67');
   assert.equal(result.email, 'tender@example.ru');
   assert.equal(result.budget_rub, 1200000);
