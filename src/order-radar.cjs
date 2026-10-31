@@ -53,7 +53,12 @@ function buildOrderQueries(service = 'demolition', region = 'Москва и М�
     web: base,
     telegram: [`site:t.me (${terms}) (заказ OR подрядчик OR тендер OR закупка)`, `site:telegram.me (${terms}) (ищем подрядчика OR заказ)`],
     avito: [`site:avito.ru (${terms}) (заказ OR подрядчик OR услуги)`, `site:avito.ru Москва Московская область (${terms})`],
-    tenders: [`site:zakupki.gov.ru (${terms})`, `(site:roseltorg.ru OR site:b2b-center.ru OR site:rts-tender.ru) (${terms})`, `тендер закупка (${terms}) подрядчик`]
+    tenders: [`site:zakupki.gov.ru (${terms})`, `(site:roseltorg.ru OR site:b2b-center.ru OR site:rts-tender.ru) (${terms})`, `тендер закупка (${terms}) подрядчик`],
+    eis: [
+      `site:zakupki.gov.ru/epz/order (${terms}) (44-ФЗ OR 223-ФЗ)`,
+      `site:zakupki.gov.ru/epz/order (${terms}) (извещение OR закупка OR контракт)`,
+      `site:zakupki.gov.ru (${terms}) Москва (44-ФЗ OR 223-ФЗ)`
+    ]
   };
   const queries = sourceQueries[source] || base;
   const safeRegion = String(region || 'Москва и Московская область')
@@ -70,7 +75,8 @@ function buildManualOrderSearchUrl(service = 'demolition', region = 'Москв�
     web: '',
     telegram: 'site:t.me OR site:telegram.me',
     avito: 'site:avito.ru',
-    tenders: 'site:zakupki.gov.ru OR site:roseltorg.ru OR site:b2b-center.ru OR site:rts-tender.ru'
+    tenders: 'site:zakupki.gov.ru OR site:roseltorg.ru OR site:b2b-center.ru OR site:rts-tender.ru',
+    eis: 'site:zakupki.gov.ru/epz/order'
   };
   const safeRegion = String(region || 'Москва и Московская область').replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
   const query = [terms, safeRegion, '(тендер OR закупка OR заказ OR подрядчик)', domains[source] || ''].filter(Boolean).join(' ');
