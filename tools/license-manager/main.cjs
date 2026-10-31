@@ -1,7 +1,7 @@
 'use strict';
 
 const { app, BrowserWindow, ipcMain, dialog, clipboard } = require('electron');
-const { createPrivateKey } = require('node:crypto');
+const { createPrivateKey, createPublicKey } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { generateLicense } = require('../license-generator.cjs');
@@ -43,6 +43,12 @@ ipcMain.handle('licenseManager:chooseKey', async () => {
   if (!pem.includes('PRIVATE KEY')) throw new Error('Выбранный файл не содержит закрытый PEM-ключ.');
   const key = createPrivateKey(pem);
   if (key.asymmetricKeyType !== 'ed25519') throw new Error('Для лицензий СКОЛ требуется закрытый ключ Ed25519.');
+  const expectedPublicPem = fs.readFileSync(path.join(__dirname, '../../src/license-public-key.pem'), 'utf8');
+  const expectedPublicDer = createPublicKey(expectedPublicPem).export({ type: 'spki', format: 'der' });
+  const selectedPublicDer = createPublicKey(key).export({ type: 'spki', format: 'der' });
+  if (!Buffer.from(expectedPublicDer).equals(Buffer.from(selectedPublicDer))) {
+    throw new Error('Этот закрытый ключ не соответствует открытому ключу в текущей сборке СКОЛ CRM.');
+  }
   privateKeyPath = selectedPath;
   return { loaded: true, fileName: path.basename(selectedPath) };
 });
