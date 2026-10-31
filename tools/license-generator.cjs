@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { randomBytes } = require('node:crypto');
+const { randomBytes, createPrivateKey, createPublicKey } = require('node:crypto');
 const { createLicenseToken, getFeaturesForEdition } = require('../src/license-core.cjs');
 
 const ALLOWED_ARGUMENTS = new Set([
@@ -75,7 +75,7 @@ function parseInteger(value, fallback, name) {
   return result;
 }
 
-function generateLicense(args) {
+function generateLicense(args, expectedPublicKeyPem = null) {
   const edition = String(args.edition || '').toUpperCase();
   const features = getFeaturesForEdition(edition);
   const deviceId = String(args['device-id'] || '').toLowerCase();
@@ -83,6 +83,14 @@ function generateLicense(args) {
   const privateKeyPath = args['private-key'] ? path.resolve(args['private-key']) : '';
   if (!privateKeyPath || !fs.existsSync(privateKeyPath)) throw new Error('Не найден закрытый PEM-ключ. Укажи путь через --private-key.');
   const privateKeyPem = fs.readFileSync(privateKeyPath, 'utf8');
+  const privateKey = createPrivateKey(privateKeyPem);
+  if (privateKey.asymmetricKeyType !== 'ed25519') throw new Error('Для лицензий СКОЛ требуется закрытый ключ Ed25519.');
+  const trustedPublicPem = expectedPublicKeyPem || fs.readFileSync(path.resolve(__dirname, '../src/license-public-key.pem'), 'utf8');
+  const trustedPublicDer = createPublicKey(trustedPublicPem).export({ type: 'spki', format: 'der' });
+  const selectedPublicDer = createPublicKey(privateKey).export({ type: 'spki', format: 'der' });
+  if (!Buffer.from(trustedPublicDer).equals(Buffer.from(selectedPublicDer))) {
+    throw new Error('Закрытый ключ не соответствует открытому ключу СКОЛ CRM.');
+  }
   const seatIndex = parseInteger(args['seat-index'], 1, 'seat-index');
   const seatCount = parseInteger(args['seat-count'], 1, 'seat-count');
   if (seatIndex > seatCount) throw new Error('--seat-index не может быть больше --seat-count.');
