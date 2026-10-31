@@ -925,6 +925,7 @@ async function refreshCommercialOrders(){
   const reasons=Array.isArray(pi?.reasons)?pi.reasons:[];
   const factChips=[];
   if(o.customer_name) factChips.push('Заказчик: '+o.customer_name);
+  if(o.contact_name) factChips.push('Контакт: '+o.contact_name);
   if(Number(o.budget_rub)>0) factChips.push('Бюджет из источника: '+fmt(o.budget_rub));
   if(Number(o.volume_value)>0) factChips.push('Объём: '+Number(o.volume_value).toLocaleString('ru-RU')+' '+(o.volume_unit||'ед.'));
   if(o.deadline_text) factChips.push('Срок: '+o.deadline_text);
