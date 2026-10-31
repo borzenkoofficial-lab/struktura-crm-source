@@ -124,3 +124,12 @@ test('IPC guard keeps PIN lock active even when a valid license is installed', (
   assert.doesNotThrow(() => assertIpcAccess('license:status', state));
   assert.throws(() => assertIpcAccess('clients:list', state), /PIN-код/i);
 });
+
+
+test('IPC guard applies BUSINESS entitlement to prospect CSV exports without blocking base exports', () => {
+  const start = { licenseUnlocked: true, appUnlocked: true, features: [], args: ['prospects'] };
+  assert.throws(() => assertIpcAccess('data:exportCsv', start), /тариф/i);
+  assert.doesNotThrow(() => assertIpcAccess('data:exportCsv', { ...start, args: ['clients'] }));
+  const business = { ...start, features: getFeaturesForEdition('BUSINESS') };
+  assert.doesNotThrow(() => assertIpcAccess('data:exportCsv', business));
+});
