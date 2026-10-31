@@ -855,3 +855,13 @@ test('estimate data transfers into standard or complex PI and triggers the chose
  assert.match(plannerUI,/window\.addEventListener\('skol:engineering-transfer'/);assert.match(plannerUI,/sourceMetadata:activeSourceMetadata/);
  assert.match(plannerUI,/\$\('engProjectPlanCalculateBtn'\)\.click\(\)/);
 });
+
+test('lead acquisition workspace shows source-backed order metrics and clear workspace naming', () => {
+  assert.ok(html.includes('Центр заказов'));
+  assert.ok(html.includes('Центр привлечения заказов'));
+  assert.ok(html.includes('id="orderMetricTotal"'));
+  assert.ok(html.includes('id="orderMetricBudget"'));
+  assert.ok(html.includes('id="orderMetricContacts"'));
+  assert.ok(html.includes('id="orderMetricConverted"'));
+  assert.ok(renderer.includes('orderMetricBudget:rows.filter(o=>Number(o.budget_rub)>0).length'));
+});
