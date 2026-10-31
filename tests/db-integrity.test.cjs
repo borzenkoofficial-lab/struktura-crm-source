@@ -43,6 +43,7 @@ test('database upgrades a legacy schema without dropping existing project and le
     db = new Database(dbPath);
     db.exec(`
       CREATE TABLE clients (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+    INSERT INTO clients(id,name) VALUES (5,'Существующий заказчик');
       CREATE TABLE leads (id INTEGER PRIMARY KEY, status TEXT NOT NULL, created_at TEXT NOT NULL);
       CREATE TABLE projects (id INTEGER PRIMARY KEY, status TEXT NOT NULL, title TEXT NOT NULL);
       CREATE TABLE prospects (id INTEGER PRIMARY KEY, status TEXT NOT NULL, region TEXT NOT NULL);
@@ -55,6 +56,9 @@ test('database upgrades a legacy schema without dropping existing project and le
     db = openDatabase(userDataPath);
     const leadColumns = new Set(db.prepare('PRAGMA table_info(leads)').all().map(row => row.name));
     const projectColumns = new Set(db.prepare('PRAGMA table_info(projects)').all().map(row => row.name));
+    const clientColumns = new Set(db.prepare('PRAGMA table_info(clients)').all().map(row => row.name));
+    assert.ok(clientColumns.has('contact_name'));
+    assert.equal(db.prepare('SELECT name,contact_name FROM clients WHERE id=5').get().name,'Существующий заказчик');
     const prospectColumns = new Set(db.prepare('PRAGMA table_info(prospects)').all().map(row => row.name));
     assert.ok(leadColumns.has('commercial_order_id'));
     assert.ok(projectColumns.has('planned_people'));
