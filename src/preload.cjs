@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('crm', {
   listCommercialOrders: (filter) => ipcRenderer.invoke('orders:list', filter),
   fetchCommercialOrderSource: (id) => ipcRenderer.invoke('orders:fetchSource', id),
   fetchCommercialOrderPdf: (data) => ipcRenderer.invoke('orders:fetchPdf', data),
+  fetchCommercialOrderTable: (data) => ipcRenderer.invoke('orders:fetchTable', data),
   searchCommercialOrders: (data) => ipcRenderer.invoke('orders:search', data),
   manualCommercialOrderSearchUrl: (data) => ipcRenderer.invoke('orders:manualSearchUrl', data),
   createCommercialOrder: (data) => ipcRenderer.invoke('orders:createManual', data),

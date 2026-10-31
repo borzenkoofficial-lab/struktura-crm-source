@@ -941,10 +941,12 @@ async function refreshCommercialOrders(){
   const pdfDocs=Array.isArray(o.documents)?o.documents:[];
   const documentsMarkup=pdfDocs.length?'<section class="order-source-documents"><strong>Документы закупки · '+pdfDocs.length+'</strong><ul>'+pdfDocs.map(d=>{
    const label=esc(d.title||d.file_name||'PDF-документ');
-   const pages=Number(d.page_count)>0?Number(d.page_count)+' стр.':'не прочитан';
+   const isTable=d.document_type==='table';
+   const stats=isTable?(Number(d.sheet_count)>0?Number(d.sheet_count)+' лист. · '+Number(d.row_count||0)+' строк':'таблица'): (Number(d.page_count)>0?Number(d.page_count)+' стр.':'PDF');
    const fetched=d.fetched_at?' · прочитан '+esc(d.fetched_at):'';
    const preview=String(d.extracted_text||'');
-   return '<li><div class="order-document-heading"><span>'+label+'</span><small>'+esc(pages+fetched)+'</small></div><button class="button small-button" data-order-pdf="'+Number(d.id)+'" data-order-id="'+Number(o.id)+'">'+(d.fetched_at?'Обновить PDF':'Прочитать PDF')+'</button>'+(preview?'<details><summary>Текст документа ('+preview.length+' символов)</summary><p>'+esc(preview.slice(0,3200))+(preview.length>3200?'…':'')+'</p></details>':'')+'</li>';
+   const action=isTable?'<button class="button small-button" data-order-table="'+Number(d.id)+'" data-order-id="'+Number(o.id)+'">'+(d.fetched_at?'Обновить таблицу':'Прочитать таблицу')+'</button>':'<button class="button small-button" data-order-pdf="'+Number(d.id)+'" data-order-id="'+Number(o.id)+'">'+(d.fetched_at?'Обновить PDF':'Прочитать PDF')+'</button>';
+   return '<li><div class="order-document-heading"><span>'+label+'</span><small>'+esc(stats+fetched)+'</small></div>'+action+(preview?'<details><summary>Текст документа ('+preview.length+' символов)</summary><p>'+esc(preview.slice(0,3200))+(preview.length>3200?'…':'')+'</p></details>':'')+'</li>';
   }).join('')+'</ul></section>':'';
   const evidenceRows=Array.isArray(o.fact_evidence)?o.fact_evidence:[];
   const evidenceMarkup=evidenceRows.length?`<details class="order-evidence-details"><summary>Фрагменты, из которых извлечены сведения (${evidenceRows.length})</summary><ul>${evidenceRows.map(x=>`<li><strong>${esc(x.field)}:</strong> ${esc(x.excerpt)}</li>`).join('')}</ul><small>Автоматическое извлечение. Каждый факт нужно сверить на исходной странице.</small></details>`:'';
@@ -1583,6 +1585,18 @@ $('commercialOrdersList').addEventListener('click',async e=>{
   await refreshCommercialOrders();
   toast('PDF прочитан: '+result.page_count+' стр. Извлечено фактов: '+result.extractedFacts+'.');
  }catch(error){toast('Не удалось прочитать PDF: '+error.message,true);}
+ finally{button.disabled=false;}
+});
+$('commercialOrdersList').addEventListener('click',async e=>{
+ const button=e.target.closest('[data-order-table]');if(!button)return;
+ const orderId=Number(button.dataset.orderId),documentId=Number(button.dataset.orderTable);
+ if(!Number.isSafeInteger(orderId)||orderId<1||!Number.isSafeInteger(documentId)||documentId<1){toast('Некорректный табличный документ.',true);return;}
+ button.disabled=true;button.textContent='Читаем таблицу…';
+ try{
+  const result=await window.crm.fetchCommercialOrderTable({order_id:orderId,document_id:documentId});
+  await refreshCommercialOrders();
+  toast('Таблица прочитана: '+result.sheet_count+' лист., '+result.row_count+' строк. Извлечено фактов: '+result.extractedFacts+'.');
+ }catch(error){toast('Не удалось прочитать таблицу: '+error.message,true);}
  finally{button.disabled=false;}
 });
 $('commercialOrdersList').addEventListener('click',async e=>{

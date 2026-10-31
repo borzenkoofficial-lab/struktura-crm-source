@@ -26,6 +26,7 @@ const { parseCsv, prospectDuplicateKeys, safeCsvCell } = require('./csv.cjs');
 const { crawlSites } = require('./site-crawler.cjs');
 const { fetchOrderPage } = require('./order-page-fetch.cjs');
 const { fetchAndParseOrderPdf } = require('./order-pdf-fetch.cjs');
+const { fetchAndParseOrderTable } = require('./order-table-fetch.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
 const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, leadSourceForOrderType } = require('./order-radar.cjs');
 const { parseCommercialOrdersCsv } = require('./order-import.cjs');
@@ -757,7 +758,7 @@ ipcMain.handle('orders:list', (_event,input={})=>{
  const rows=db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC`).all(...params);
  const analyses=new Map(db.prepare('SELECT * FROM commercial_order_analysis').all().map(item=>[Number(item.order_id),item]));
  const documentsByOrder=new Map();
- for(const document of db.prepare('SELECT id,order_id,source_url,title,file_name,mime_type,page_count,extracted_text,fact_evidence_json,sha256,fetched_at FROM commercial_order_documents ORDER BY id DESC').all()){
+ for(const document of db.prepare('SELECT id,order_id,source_url,title,file_name,mime_type,document_type,page_count,sheet_count,row_count,extracted_text,fact_evidence_json,sha256,fetched_at FROM commercial_order_documents ORDER BY id DESC').all()){
   let evidence=[];try{evidence=JSON.parse(document.fact_evidence_json||'[]');if(!Array.isArray(evidence))evidence=[];}catch{}
   const item={...document,extracted_text:String(document.extracted_text||'').slice(0,80000),fact_evidence:evidence};
   if(!documentsByOrder.has(Number(document.order_id)))documentsByOrder.set(Number(document.order_id),[]);
@@ -808,16 +809,17 @@ ipcMain.handle('orders:fetchSource', async (_event, orderId) => {
   source_page_text:String(page.text||'').slice(0,18000),
   fact_evidence_json:JSON.stringify(factEvidence)
  });
- const saveDocument=db.prepare(`INSERT INTO commercial_order_documents(order_id,source_url,title,file_name)
-  VALUES (@order_id,@source_url,@title,@file_name)
+ const saveDocument=db.prepare(`INSERT INTO commercial_order_documents(order_id,source_url,title,file_name,document_type)
+  VALUES (@order_id,@source_url,@title,@file_name,@document_type)
   ON CONFLICT(order_id,source_url) DO UPDATE SET
    title=CASE WHEN excluded.title<>'' THEN excluded.title ELSE commercial_order_documents.title END,
    file_name=CASE WHEN excluded.file_name<>'' THEN excluded.file_name ELSE commercial_order_documents.file_name END,
+   document_type=excluded.document_type,
    updated_at=CURRENT_TIMESTAMP`);
  let documentsFound=0;
  const saveAttachments=db.transaction(items=>{
   for(const attachment of items){
-   saveDocument.run({order_id:id,source_url:attachment.url,title:attachment.title||'',file_name:attachment.file_name||''});
+   saveDocument.run({order_id:id,source_url:attachment.url,title:attachment.title||'',file_name:attachment.file_name||'',document_type:attachment.document_type||'table'});
    documentsFound++;
   }
  });
@@ -845,7 +847,7 @@ ipcMain.handle('orders:fetchPdf', async (_event, input = {}) => {
  const facts=pdf.facts;
  const persist=db.transaction(()=>{
   db.prepare(`UPDATE commercial_order_documents SET
-   file_name=@file_name,mime_type=@mime_type,page_count=@page_count,extracted_text=@extracted_text,
+   file_name=@file_name,mime_type=@mime_type,document_type='pdf',page_count=@page_count,extracted_text=@extracted_text,
    fact_evidence_json=@fact_evidence_json,sha256=@sha256,fetched_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP
    WHERE id=@id AND order_id=@order_id`).run({
     id:documentId,order_id:orderId,file_name:pdf.file_name,mime_type:pdf.mime_type,page_count:pdf.page_count,
@@ -868,6 +870,44 @@ ipcMain.handle('orders:fetchPdf', async (_event, input = {}) => {
  persist();
  return {order_id:orderId,document_id:documentId,file_name:pdf.file_name,page_count:pdf.page_count,
   extractedFacts:taggedEvidence.length,bytes:pdf.bytes,sha256:pdf.sha256};
+});
+ipcMain.handle('orders:fetchTable', async (_event, input = {}) => {
+ const orderId=Number(input.order_id),documentId=Number(input.document_id);
+ if(!Number.isSafeInteger(orderId)||orderId<1||!Number.isSafeInteger(documentId)||documentId<1)throw new Error('Некорректный заказ или табличный документ.');
+ const document=db.prepare('SELECT * FROM commercial_order_documents WHERE id=? AND order_id=?').get(documentId,orderId);
+ if(!document)throw new Error('Табличный документ не найден в этой карточке заказа.');
+ const table=await fetchAndParseOrderTable(document.source_url);
+ let evidence=[];
+ try{evidence=JSON.parse(table.facts.fact_evidence_json||'[]');if(!Array.isArray(evidence))evidence=[];}catch{}
+ const taggedEvidence=evidence.map(item=>({...item,source_kind:'table',source_url:table.source_url,document_id:documentId,sheet_count:table.sheet_count}));
+ let existingEvidence=[];
+ try{existingEvidence=JSON.parse(db.prepare('SELECT fact_evidence_json FROM commercial_orders WHERE id=?').get(orderId)?.fact_evidence_json||'[]');if(!Array.isArray(existingEvidence))existingEvidence=[];}catch{}
+ const merged=new Map();
+ for(const item of [...existingEvidence,...taggedEvidence]){
+  if(!item||typeof item!=='object')continue;
+  const key=String(item.field||'')+'|'+String(item.excerpt||'')+'|'+String(item.source_url||'');
+  if(key!=='||')merged.set(key,item);
+ }
+ const facts=table.facts;
+ const persist=db.transaction(()=>{
+  db.prepare('UPDATE commercial_order_documents SET file_name=?,mime_type=?,document_type=?,sheet_count=?,row_count=?,extracted_text=?,fact_evidence_json=?,sha256=?,fetched_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=? AND order_id=?')
+   .run(table.file_name,table.mime_type,'table',table.sheet_count,table.row_count,table.text,JSON.stringify(taggedEvidence),table.sha256,documentId,orderId);
+  db.prepare(\`UPDATE commercial_orders SET
+   customer_name=CASE WHEN @customer_name<>'' THEN @customer_name ELSE customer_name END,
+   contact_name=CASE WHEN @contact_name<>'' THEN @contact_name ELSE contact_name END,
+   phone=CASE WHEN @phone<>'' THEN @phone ELSE phone END,
+   email=CASE WHEN @email<>'' THEN @email ELSE email END,
+   budget_rub=CASE WHEN @budget_rub>0 THEN @budget_rub ELSE budget_rub END,
+   volume_value=CASE WHEN @volume_value>0 THEN @volume_value ELSE volume_value END,
+   volume_unit=CASE WHEN @volume_unit<>'' THEN @volume_unit ELSE volume_unit END,
+   deadline_text=CASE WHEN @deadline_text<>'' THEN @deadline_text ELSE deadline_text END,
+   procurement_number=CASE WHEN @procurement_number<>'' THEN @procurement_number ELSE procurement_number END,
+   work_address=CASE WHEN @work_address<>'' THEN @work_address ELSE work_address END,
+   fact_evidence_json=@fact_evidence_json WHERE id=@id\`).run({...facts,id:orderId,fact_evidence_json:JSON.stringify([...merged.values()].slice(-120))});
+ });
+ persist();
+ return {order_id:orderId,document_id:documentId,file_name:table.file_name,sheet_count:table.sheet_count,row_count:table.row_count,
+  extractedFacts:taggedEvidence.length,bytes:table.bytes,sha256:table.sha256};
 });
 ipcMain.handle('orders:search',async(_event,input={})=>{
  const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');

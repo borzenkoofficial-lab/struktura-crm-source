@@ -904,3 +904,15 @@ test('commercial order attachments can be parsed as public PDF documents via sco
   assert.match(pdfFetcher, /MAX_PDF_PAGES=40/);
   assert.match(pdfFetcher, /нет текстового слоя/);
 });
+
+test('commercial order spreadsheet attachments can be parsed through scoped IPC', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  const tableFetcher = fs.readFileSync(path.join(__dirname, '../src/order-table-fetch.cjs'), 'utf8');
+  assert.match(renderer, /data-order-table=/);
+  assert.match(renderer, /window\.crm\.fetchCommercialOrderTable\(\{order_id:orderId,document_id:documentId\}\)/);
+  assert.match(preload, /fetchCommercialOrderTable: \(data\) => ipcRenderer\.invoke\('orders:fetchTable', data\)/);
+  assert.match(main, /ipcMain\.handle\('orders:fetchTable'/);
+  assert.match(main, /SELECT \* FROM commercial_order_documents WHERE id=\? AND order_id=\?/);
+  assert.match(tableFetcher, /MAX_ROWS=5000/);
+  assert.match(tableFetcher, /MAX_TABLE_BYTES=12\*1024\*1024/);
+});

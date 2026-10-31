@@ -20,7 +20,7 @@ function metaContent(html,key,attribute='name'){
  }
  return '';
 }
-function extractPdfAttachments(html,pageUrl){
+function extractOrderAttachments(html,pageUrl){
  const attachments=[],seen=new Set();
  for(const match of String(html||'').matchAll(/<a\b[^>]*>([\s\S]*?)<\/a\s*>/gi)){
   const tag=match[0].slice(0,match[0].indexOf('>')+1);
@@ -31,21 +31,28 @@ function extractPdfAttachments(html,pageUrl){
   if(!['http:','https:'].includes(url.protocol)||url.username||url.password)continue;
   url.hash='';
   const label=plainText(match[1]).replace(/\s+/g,' ').trim().slice(0,180);
-  const pathLooksPdf=/\.pdf$/i.test(url.pathname)||/^(pdf)$/i.test(url.searchParams.get('format')||'')||/^(pdf)$/i.test(url.searchParams.get('type')||'');
-  const downloadHint=Boolean(getAttribute(tag,'download'))&&/(?:pdf|документ|приложен|техническ|смет|ведомост)/iu.test(label);
-  const labelHint=/(?:\.pdf\b|\bpdf\b|скачать\s+(?:документ|файл|техническ|смет)|техническ\w*\s+задан|ведомост\w*\s+(?:об[ъы]?[её]м|работ)|смет\w*)/iu.test(label)&&/(?:download|file|document|attachment|\.pdf)/iu.test(url.pathname+' '+url.search);
-  if(!pathLooksPdf&&!downloadHint&&!labelHint)continue;
+  const extension=(url.pathname.match(/\.([a-z0-9]{2,5})$/i)||[])[1]?.toLowerCase()||'';
+  const supported=new Set(['pdf','xlsx','xls','csv','tsv','txt']);
+  const queryFormat=String(url.searchParams.get('format')||url.searchParams.get('type')||'').toLowerCase();
+  const explicitType=supported.has(queryFormat)?queryFormat:'';
+  const hint=/(?:pdf|xlsx?|csv|tsv|техническ\w*\s+задан|ведомост\w*\s+(?:об[ъы]?[её]м|работ)|смет\w*|таблиц\w*|приложен\w*)/iu.test(label);
+  const download=Boolean(getAttribute(tag,'download'));
+  const filePathHint=/(?:download|file|document|attachment|export|\/get\/)/iu.test(url.pathname+' '+url.search);
+  if(!supported.has(extension)&&!explicitType&&!(download&&hint)&&!(hint&&filePathHint))continue;
+  const kind=extension||explicitType||'unknown';
+  const documentType=kind==='pdf'?'pdf':'table';
   const key=url.toString();
   if(seen.has(key))continue;
   seen.add(key);
   const rawName=url.pathname.split('/').pop()||'';
   let fileName=rawName;
   try{fileName=decodeURIComponent(rawName)}catch{}
-  attachments.push({title:label||fileName||'PDF-документ',url:key,file_name:fileName.slice(0,240)});
-  if(attachments.length>=20)break;
+  attachments.push({title:label||fileName||'Документ закупки',url:key,file_name:fileName.slice(0,240),document_type:documentType,extension:kind});
+  if(attachments.length>=30)break;
  }
  return attachments;
 }
+
 function extractOrderPageContent(html,pageUrl){
  const source=String(html||'');
  const h1=(source.match(/<h1\b[^>]*>([\s\S]*?)<\/h1\s*>/i)||[,''])[1];
@@ -62,7 +69,7 @@ function extractOrderPageContent(html,pageUrl){
  const fallbackText=plainText(fallbackHtml).replace(/\n{3,}/g,'\n\n').trim();
  const content=mainText.length>=120?mainText:fallbackText;
  const text=[description,content].filter(Boolean).join('\n\n').slice(0,MAX_PAGE_TEXT);
- return {title,text,page_url:String(pageUrl).slice(0,700),attachments:extractPdfAttachments(source,pageUrl)};
+ return {title,text,page_url:String(pageUrl).slice(0,700),attachments:extractOrderAttachments(source,pageUrl)};
 }
 async function readLimitedBuffer(response,maxBytes){
  const declaredLength=Number(response.headers?.get?.('content-length')||0);
@@ -142,4 +149,4 @@ async function fetchOrderPage(sourceUrl,options={}){
  const result=extractOrderPageContent(resource.buffer.toString('utf8'),resource.url);
  return {title:result.title,text:result.text,page_url:result.page_url,bytes:resource.bytes,attachments:result.attachments};
 }
-module.exports={fetchPublicResource,fetchOrderPage,extractOrderPageContent,extractPdfAttachments,readLimitedBuffer,readLimitedText};
+module.exports={fetchPublicResource,fetchOrderPage,extractOrderPageContent,extractOrderAttachments,extractPdfAttachments:extractOrderAttachments,readLimitedBuffer,readLimitedText};
