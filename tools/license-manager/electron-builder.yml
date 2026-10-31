@@ -1,0 +1,18 @@
+appId: ru.skol.license-manager
+productName: SKOL License Manager
+asar: true
+directories:
+  output: dist-license-manager
+files:
+  - tools/license-manager/**/*
+  - tools/license-generator.cjs
+  - src/license-core.cjs
+  - package.json
+extraMetadata:
+  main: tools/license-manager/main.cjs
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+  artifactName: SKOL-License-Manager-${version}.${ext}
