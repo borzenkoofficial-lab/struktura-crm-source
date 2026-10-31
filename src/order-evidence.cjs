@@ -63,6 +63,7 @@ function extractOrderEvidence(input = '') {
   const text = String(input || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 12000);
   const result = {
     customer_name: '',
+    contact_name: '',
     phone: '',
     email: '',
     budget_rub: 0,
@@ -79,6 +80,12 @@ function extractOrderEvidence(input = '') {
   if (customer) {
     result.customer_name = customer[1].trim().replace(/[.)]+$/, '').slice(0, 180);
     addEvidence(evidence, 'customer_name', result.customer_name, customer[0]);
+  }
+
+  const contact = text.match(/(?:контактное лицо|контакт|ответственный за закупк\w*|представитель заказчика)\s*[:—-]\s*([А-ЯЁ][А-ЯЁа-яё-]{1,35}(?:\s+[А-ЯЁ][А-ЯЁа-яё-]{1,35}){1,2})/u);
+  if (contact) {
+    result.contact_name = contact[1].trim().slice(0, 120);
+    addEvidence(evidence, 'contact_name', result.contact_name, contact[0]);
   }
 
   const email = text.match(/[a-z0-9.!#$%&'*+/=?^_\x60{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+/iu);
