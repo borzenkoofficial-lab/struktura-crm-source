@@ -63,7 +63,7 @@ test('tampered payload and signature are rejected', () => {
   const parts = token.split('.');
   const tamperedPayload = Buffer.from(JSON.stringify(payload({ edition: 'BUSINESS' }))).toString('base64url');
   assert.equal(verifyLicenseToken(`SKOL1.${tamperedPayload}.${parts[2]}`, publicKeyPem, deviceId).reason, 'invalid_signature');
-  const alteredSignature = parts[2].slice(0, -1) + (parts[2].endsWith('A') ? 'B' : 'A');
+  const alteredSignature = (parts[2].startsWith('A') ? 'B' : 'A') + parts[2].slice(1);
   assert.equal(verifyLicenseToken(`SKOL1.${parts[1]}.${alteredSignature}`, publicKeyPem, deviceId).valid, false);
 });
 
