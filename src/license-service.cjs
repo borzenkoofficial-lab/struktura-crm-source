@@ -56,12 +56,12 @@ const ALLOWED_BEFORE_LICENSE = new Set([
   'app:version'
 ]);
 
-function assertIpcAccess(channel, { licenseUnlocked, appUnlocked, features = [] } = {}) {
+function assertIpcAccess(channel, { licenseUnlocked, appUnlocked, features = [], allowedWhileLocked = ALLOWED_WHILE_PIN_LOCKED } = {}) {
   const name = String(channel || '');
   if (!licenseUnlocked && !ALLOWED_BEFORE_LICENSE.has(name)) {
     throw new Error('Для продолжения работы активируй лицензию СКОЛ.');
   }
-  if (!appUnlocked && !ALLOWED_WHILE_PIN_LOCKED.has(name) && !ALLOWED_BEFORE_LICENSE.has(name)) {
+  if (!appUnlocked && !allowedWhileLocked.has(name) && !ALLOWED_BEFORE_LICENSE.has(name)) {
     throw new Error('CRM заблокирована PIN-кодом. Введи PIN, чтобы продолжить.');
   }
   const requiredFeature = featureForChannel(name);
