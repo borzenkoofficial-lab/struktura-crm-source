@@ -8,6 +8,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { generateKeyPairSync } = require('node:crypto');
 const { verifyLicenseToken } = require('../src/license-core.cjs');
+const { generateLicense } = require('../tools/license-generator.cjs');
 
 const generatorPath = path.resolve(__dirname, '../tools/license-generator.cjs');
 const deviceId = 'e'.repeat(64);
@@ -42,15 +43,12 @@ test('license generator help describes required offline generation parameters', 
 
 test('license generator creates a perpetual PRO key for the supplied device', () => {
   const key = createTempKey();
-  const result = runGenerator([
-    '--edition', 'PRO',
-    '--device-id', deviceId,
-    '--private-key', key.privateKeyPath,
-    '--updates-until', '2027-10-31'
-  ]);
-  assert.equal(result.status, 0, result.stderr);
-  const token = tokenFrom(result.stdout);
-  assert.ok(token, 'generator must print a copyable SKOL1 token');
+  const { token } = generateLicense({
+    edition: 'PRO',
+    'device-id': deviceId,
+    'private-key': key.privateKeyPath,
+    'updates-until': '2027-10-31'
+  }, key.publicKeyPem);
   const verified = verifyLicenseToken(token, key.publicKeyPem, deviceId, Date.parse('2026-11-01T00:00:00.000Z'));
   assert.equal(verified.valid, true);
   assert.equal(verified.license.edition, 'PRO');
@@ -60,16 +58,15 @@ test('license generator creates a perpetual PRO key for the supplied device', ()
 
 test('generator preserves shared purchase ID and seat allocation for multi-computer licenses', () => {
   const key = createTempKey();
-  const result = runGenerator([
-    '--edition', 'BUSINESS',
-    '--device-id', deviceId,
-    '--private-key', key.privateKeyPath,
-    '--license-id', 'SKOL-MULTI-0001',
-    '--seat-index', '2',
-    '--seat-count', '5'
-  ]);
-  assert.equal(result.status, 0, result.stderr);
-  const verified = verifyLicenseToken(tokenFrom(result.stdout), key.publicKeyPem, deviceId);
+  const { token } = generateLicense({
+    edition: 'BUSINESS',
+    'device-id': deviceId,
+    'private-key': key.privateKeyPath,
+    'license-id': 'SKOL-MULTI-0001',
+    'seat-index': '2',
+    'seat-count': '5'
+  }, key.publicKeyPem);
+  const verified = verifyLicenseToken(token, key.publicKeyPem, deviceId);
   assert.equal(verified.valid, true);
   assert.equal(verified.license.licenseId, 'SKOL-MULTI-0001');
   assert.equal(verified.license.seatIndex, 2);
@@ -86,18 +83,31 @@ test('generator rejects invalid device IDs, missing private keys and malformed d
 
 test('generator normalizes purchase IDs and uses a collision-resistant generated ID', () => {
   const key = createTempKey();
-  const custom = runGenerator([
-    '--edition', 'START',
-    '--device-id', deviceId,
-    '--private-key', key.privateKeyPath,
-    '--license-id', 'skol-order-0002'
-  ]);
-  assert.equal(custom.status, 0, custom.stderr);
-  const customLicense = verifyLicenseToken(tokenFrom(custom.stdout), key.publicKeyPem, deviceId);
+  const custom = generateLicense({
+    edition: 'START',
+    'device-id': deviceId,
+    'private-key': key.privateKeyPath,
+    'license-id': 'skol-order-0002'
+  }, key.publicKeyPem);
+  const customLicense = verifyLicenseToken(custom.token, key.publicKeyPem, deviceId);
   assert.equal(customLicense.license.licenseId, 'SKOL-ORDER-0002');
 
-  const generated = runGenerator(['--edition', 'START', '--device-id', deviceId, '--private-key', key.privateKeyPath]);
-  assert.equal(generated.status, 0, generated.stderr);
-  const generatedLicense = verifyLicenseToken(tokenFrom(generated.stdout), key.publicKeyPem, deviceId);
+  const generated = generateLicense({
+    edition: 'START',
+    'device-id': deviceId,
+    'private-key': key.privateKeyPath
+  }, key.publicKeyPem);
+  const generatedLicense = verifyLicenseToken(generated.token, key.publicKeyPem, deviceId);
   assert.match(generatedLicense.license.licenseId, /^SKOL-[A-F0-9]{24}$/);
+});
+
+test('CLI refuses a valid Ed25519 key that does not match the CRM public key', () => {
+  const key = createTempKey();
+  const result = runGenerator([
+    '--edition', 'PRO',
+    '--device-id', deviceId,
+    '--private-key', key.privateKeyPath
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /не соответствует открытому ключу/i);
 });
