@@ -31,7 +31,7 @@ test('License Manager main process reads private key locally and reuses the sign
   assert.match(main, /normalizeLicenseRequest/);
   assert.match(main, /licenseManager:config:load/);
   assert.match(main, /licenseManager:config:save/);
-  assert.match(main, /licenseManager:request:import/);
+  assert.match(main, /licenseManager:request:import/);\n  assert.match(main, /loadTariffConfigFile/);\n  assert.match(main, /persistTariffConfig/);
   assert.match(main, /clipboard\.writeText/);
   assert.doesNotMatch(main, /fetch\(|https?:\/\//);
 });
