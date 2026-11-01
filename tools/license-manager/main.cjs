@@ -4,11 +4,15 @@ const { app, BrowserWindow, ipcMain, dialog, clipboard } = require('electron');
 const { createPrivateKey, createPublicKey } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { generateLicense } = require('../license-generator.cjs');
+const { generateConfiguredLicense } = require('../license-generator.cjs');
+const { FEATURE_CATALOG } = require('../../src/license-catalog.cjs');
+const { createDefaultTariffConfig, normalizeTariffConfig, normalizeLicenseRequest } = require('../../src/license-config.cjs');
 
 app.setName('СКОЛ License Manager');
 let mainWindow = null;
 let privateKeyPath = '';
+let tariffConfig = createDefaultTariffConfig();
+let pendingRequest = null;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -54,24 +58,90 @@ ipcMain.handle('licenseManager:chooseKey', async () => {
   return { loaded: true, fileName: path.basename(selectedPath) };
 });
 
+ipcMain.handle('licenseManager:config:get', () => ({
+  config: tariffConfig,
+  features: Object.values(FEATURE_CATALOG)
+}));
+
+ipcMain.handle('licenseManager:config:update', (_event, input) => {
+  tariffConfig = normalizeTariffConfig(input);
+  return { config: tariffConfig };
+});
+
+ipcMain.handle('licenseManager:config:load', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Импорт конфигурации тарифов СКОЛ',
+    properties: ['openFile'],
+    filters: [{ name: 'СКОЛ tariff config', extensions: ['json'] }]
+  });
+  if (result.canceled || !result.filePaths[0]) return { canceled: true };
+  const selectedPath = result.filePaths[0];
+  const parsed = JSON.parse(fs.readFileSync(selectedPath, 'utf8'));
+  tariffConfig = normalizeTariffConfig(parsed);
+  return { config: tariffConfig, fileName: path.basename(selectedPath) };
+});
+
+ipcMain.handle('licenseManager:config:save', async (_event, input) => {
+  const config = normalizeTariffConfig(input);
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Сохранить конфигурацию тарифов СКОЛ',
+    defaultPath: 'skol-tariff-config.json',
+    filters: [{ name: 'JSON', extensions: ['json'] }]
+  });
+  if (result.canceled || !result.filePath) return { canceled: true };
+  fs.writeFileSync(result.filePath, JSON.stringify(config, null, 2), { encoding: 'utf8', flag: 'w' });
+  tariffConfig = config;
+  return { saved: true, fileName: path.basename(result.filePath) };
+});
+
+ipcMain.handle('licenseManager:request:import', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Загрузить заявку-конфигурацию с сайта СКОЛ',
+    properties: ['openFile'],
+    filters: [{ name: 'СКОЛ license request', extensions: ['json'] }]
+  });
+  if (result.canceled || !result.filePaths[0]) return { canceled: true };
+  const selectedPath = result.filePaths[0];
+  pendingRequest = normalizeLicenseRequest(JSON.parse(fs.readFileSync(selectedPath, 'utf8')));
+  return { request: pendingRequest, fileName: path.basename(selectedPath) };
+});
+
 ipcMain.handle('licenseManager:generate', (_event, input = {}) => {
   if (!privateKeyPath) throw new Error('Сначала выбери закрытый ключ подписи.');
-  const args = {
-    edition: input.edition,
-    'device-id': input.deviceId,
-    'private-key': privateKeyPath,
-    'license-id': input.licenseId || undefined,
-    'seat-index': String(input.seatIndex || 1),
-    'seat-count': String(input.seatCount || 1),
-    'updates-until': input.updatesUntil || undefined,
-    'expires-at': input.expiresAt || undefined
-  };
-  const { token, payload } = generateLicense(args);
+  const planId = String(input.planId || input.edition || '').trim().toUpperCase();
+  let plan;
+  if (planId === 'CUSTOM') {
+    if (!pendingRequest) throw new Error('Сначала загрузи JSON-заявку с сайта СКОЛ.');
+    plan = { id: pendingRequest.planId, name: pendingRequest.planName, features: pendingRequest.features, maxDevices: 50 };
+  } else {
+    plan = tariffConfig.plans.find(item => item.id === planId && item.enabled);
+    if (!plan) throw new Error('Выбранный тариф не найден или отключён в конфигурации.');
+  }
+  const seatIndex = Number(input.seatIndex || 1);
+  const seatCount = Number(input.seatCount || (pendingRequest?.seatCount ?? 1));
+  if (!Number.isSafeInteger(seatCount) || seatCount > plan.maxDevices) {
+    throw new Error(`Для тарифа ${plan.name} разрешено не более ${plan.maxDevices} компьютеров в одной заявке.`);
+  }
+  const { token, payload } = generateConfiguredLicense({
+    planId: plan.id,
+    planName: plan.name,
+    features: plan.features,
+    deviceId: input.deviceId,
+    privateKeyPath,
+    licenseId: input.licenseId,
+    seatIndex,
+    seatCount,
+    updatesUntil: input.updatesUntil,
+    expiresAt: input.expiresAt
+  });
   return {
     token,
     summary: {
-      edition: payload.edition,
+      planId: payload.planId,
+      planName: payload.planName,
+      edition: payload.planId,
       licenseId: payload.licenseId,
+      features: payload.features,
       seatIndex: payload.seatIndex,
       seatCount: payload.seatCount,
       deviceId: payload.deviceId,
