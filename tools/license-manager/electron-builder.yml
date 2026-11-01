@@ -9,6 +9,7 @@ files:
   - src/license-core.cjs
   - src/license-catalog.cjs
   - src/license-config.cjs
+  - src/license-config-storage.cjs
   - src/license-public-key.pem
   - package.json
 extraMetadata:
