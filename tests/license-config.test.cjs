@@ -80,6 +80,7 @@ test('tariff config rejects unknown modules, duplicate plan keys and invalid pri
   const base = createDefaultTariffConfig();
   assert.throws(() => normalizeTariffConfig({ ...base, plans: [...base.plans, { ...base.plans[0], features: ['advanced_analytics'] }] }), /неизвестн|разреш/i);
   assert.throws(() => normalizeTariffConfig({ ...base, plans: [...base.plans, { ...base.plans[0] }] }), /уникальн|повтор/i);
+  assert.throws(() => normalizeTariffConfig({ ...base, plans: [...base.plans, { ...base.plans[0], id: 'CUSTOM' }] }), /зарезерв/i);
   assert.throws(() => normalizeTariffConfig({ ...base, plans: [{ ...base.plans[0], price: -1 }, ...base.plans.slice(1)] }), /стоимост|цен/i);
   assert.throws(() => normalizeTariffConfig({ ...base, plans: [{ ...base.plans[0], maxDevices: 51 }, ...base.plans.slice(1)] }), /устройств|компьютер/i);
 });
