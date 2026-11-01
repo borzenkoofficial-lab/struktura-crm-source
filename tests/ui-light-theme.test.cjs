@@ -31,6 +31,8 @@ function cssToken(name) {
 
 test('SKOL 1.24.0 light theme is attached after every existing module stylesheet', () => {
   assert.equal(packageJson.version, '1.24.0', 'theme branch must preserve the requested application version');
+  assert.equal(packageJson.build.productName, 'СКОЛ');
+  assert.equal(packageJson.build.win.artifactName, 'SKOL-Setup-${version}.${ext}');
   const cssLinks = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\.css)">/g)].map((match) => match[1]);
   assert.deepEqual(cssLinks.slice(-4), [
     'styles.css',
