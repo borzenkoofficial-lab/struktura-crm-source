@@ -36,7 +36,7 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Run automated tests
         run: npm test
@@ -57,17 +57,17 @@ jobs:
           node-version: 22
 
       - name: Install project dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
-      - name: Build branded Windows installer
+      - name: Build СКОЛ Windows installer
         run: npm run dist:win -- --publish never
 
       - name: Verify installer artifact
         shell: pwsh
         run: |
-          $installer = Get-ChildItem -Path "dist" -Filter "Struktura-CRM-Setup-*.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          $installer = Get-ChildItem -Path "dist" -Filter "SKOL-Setup-*.exe" -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
           if (-not $installer) {
-            throw "No Struktura CRM installer was created in dist."
+            throw "No SKOL installer was created in dist."
           }
           if ($installer.Length -lt 10MB) {
             throw "Installer is unexpectedly small ($($installer.Length) bytes)."
@@ -78,7 +78,7 @@ jobs:
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
-          name: Struktura-CRM-Windows-Installer
-          path: dist/Struktura-CRM-Setup-*.exe
+          name: SKOL-Windows-Installer
+          path: dist/SKOL-Setup-*.exe
           if-no-files-found: error
           retention-days: 14

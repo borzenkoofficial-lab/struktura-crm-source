@@ -25,13 +25,18 @@ function assessCommercialOrder(order = {}, analysis = null) {
     : String(order.signal_labels || '').split('|').filter(Boolean);
   const intentEvidence = INTENT_TERMS.test(text)
     || signalLabels.some(label => /закупка\s*\/\s*тендер|поиск подрядчика/i.test(label));
-  const hasDeadline = DEADLINE_TERMS.test(text);
+  const sourceBudget = Number(order.budget_rub) > 0 || BUDGET_TERMS.test(text);
+  const sourceVolume = Number(order.volume_value) > 0 || VOLUME_TERMS.test(text);
+  const hasDeadline = Boolean(String(order.deadline_text || '').trim()) || DEADLINE_TERMS.test(text);
+  const hasContact = Boolean(String(order.contact_name || order.phone || order.email || '').trim());
   const analysisRevenue = Number(analysis?.revenue_rub);
   const analysisMargin = Number(analysis?.estimated_margin_pct);
   const analysisDays = Number(analysis?.estimated_days);
   const hasAnalysis = Boolean(analysis && Number.isFinite(analysisRevenue) && analysisRevenue > 0 && Number.isFinite(analysisMargin) && Number.isFinite(analysisDays) && analysisDays > 0);
-  const hasBudget = BUDGET_TERMS.test(text) || Boolean(hasAnalysis && Number(analysis?.budget_rub) > 0);
-  const hasVolume = VOLUME_TERMS.test(text) || Boolean(hasAnalysis && Number(analysis?.quantity) > 0);
+  const analysisBudget = Boolean(hasAnalysis && Number(analysis?.budget_rub) > 0);
+  const analysisVolume = Boolean(hasAnalysis && Number(analysis?.quantity) > 0);
+  const hasBudget = sourceBudget || analysisBudget;
+  const hasVolume = sourceVolume || analysisVolume;
   const hasOriginalSource = /^https?:\/\//i.test(String(order.source_url || ''));
   const hasDescription = snippet.length >= 80;
 
@@ -41,7 +46,7 @@ function assessCommercialOrder(order = {}, analysis = null) {
     ? analysisMargin <= 0 ? 0 : analysisMargin < 10 ? 25 : analysisMargin < 20 ? 50 : analysisMargin < 30 ? 75 : 90
     : hasBudget && hasVolume ? 80 : hasBudget || hasVolume ? 45 : null;
   const timing = hasDeadline ? 85 : hasAnalysis ? (analysisDays <= 3 ? 80 : analysisDays <= 7 ? 65 : analysisDays <= 14 ? 50 : 35) : null;
-  const sourceQuality = hasOriginalSource && hasDescription ? 90 : hasOriginalSource || title ? 55 : 10;
+  const sourceQuality = hasOriginalSource && hasDescription ? (hasContact ? 100 : 90) : hasOriginalSource || title ? (hasContact ? 70 : 55) : 10;
 
   const components = [
     { key: 'fit', label: 'Соответствие работ', weight: 25, value: fit },
@@ -65,12 +70,17 @@ function assessCommercialOrder(order = {}, analysis = null) {
   if (!hasDeadline) missing.push('Уточнить сроки подачи предложения и выполнения работ');
   if (!hasOriginalSource) missing.push('Добавить ссылку на первоисточник');
   if (!hasDescription) missing.push('Проверить условия на первоисточнике');
+  if (!hasContact) missing.push('Найти телефон, email или контактное лицо заказчика');
 
   const reasons = [];
   if (fitEvidence) reasons.push('Найден сигнал нужного вида работ');
   if (intentEvidence) reasons.push('Есть сигналы закупки или поиска подрядчика');
-  if (hasBudget) reasons.push('Бюджет/выручка указаны в источнике или расчёте — проверь подтверждение');
-  if (hasVolume) reasons.push('В тексте найден объём работ — требуется проверка');
+  if (sourceBudget) reasons.push('В исходном тексте указан бюджет заказчика — сверь сумму и состав цены на первоисточнике');
+  else if (analysisBudget) reasons.push('Бюджет введён для предварительного расчёта ПИ; это не подтверждённая сумма из источника');
+  else if (hasAnalysis) reasons.push('Расчётная выручка ПИ получена по ставке прайса; бюджет заказчика в источнике не подтверждён. Это не подтверждённая сумма из источника');
+  if (sourceVolume) reasons.push('В исходном тексте указан объём работ — проверь значение и единицы измерения');
+  else if (analysisVolume) reasons.push('Объём введён в предварительный расчёт ПИ; сверь его с первоисточником');
+  if (hasContact) reasons.push('В источнике есть контактные данные или имя представителя — проверь актуальность и роль контакта');
   if (hasDeadline) reasons.push('В тексте найден сигнал срока — требуется проверка');
   if (hasAnalysis) reasons.push('Расчётная маржа: ' + Math.round(analysisMargin * 10) / 10 + '%; ориентировочно ' + Math.round(analysisDays * 10) / 10 + ' смен — результат зависит от введённых ставок и условий.');
   if (hasAnalysis && analysisMargin <= 0) reasons.push('Финансовый стоп-сигнал: расчётная маржа не положительная. Не ставить заказ в приоритет до пересмотра цены, затрат и условий.');

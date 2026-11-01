@@ -88,8 +88,8 @@ function dateToday() { const now = new Date(); return `${now.getFullYear()}-${St
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', browser: 'Браузер и поиск заказчиков', prospects: 'Поиск клиентов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте STRUKTURA' };
-  $('pageTitle').textContent = titles[name] || 'STRUKTURA CRM';
+  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', engineering: 'ПИ · Расчёт объекта', browser: 'Браузер и поиск заказчиков', prospects: 'Центр привлечения заказов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте СКОЛ' };
+  $('pageTitle').textContent = titles[name] || 'СКОЛ CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
   if (name === 'settings') refreshPinSettings().catch(() => toast('Не удалось загрузить настройки безопасности. Попробуй открыть раздел ещё раз.', true));
   const view = $(`view-${name}`);
@@ -117,7 +117,7 @@ document.addEventListener('click', event => {
   showView(button.dataset.view);
 }, true);
 window.addEventListener('error', event => {
-  console.error('Struktura CRM renderer error:', event.error || event.message);
+  console.error('СКОЛ renderer error:', event.error || event.message);
   piRecordError(event.message || event.error?.message || 'Необработанная ошибка интерфейса', 'Необработанная ошибка интерфейса', event.error);
   const toastNode = $('toast');
   if (toastNode) toast('Ошибка интерфейса. ПИ сохранила её в истории ошибок.', true);
@@ -126,7 +126,7 @@ window.addEventListener('unhandledrejection', event => {
   const reason = event.reason;
   const message = reason?.message || String(reason || 'Необработанная ошибка асинхронной операции');
   piRecordError(message, 'Необработанная асинхронная операция', reason);
-  console.error('Struktura CRM unhandled rejection:', reason);
+  console.error('СКОЛ unhandled rejection:', reason);
 });
 
 function renderSectionLoadError(name) {
@@ -415,7 +415,7 @@ function piCoachAnswerVoice(rawQuery) {
     return;
   }
   if (/привет|здравств|что ты умеешь|помоги|чем можешь/u.test(query)) {
-    piCoachSpeak('Я ПИ, производственный интеллект STRUKTURA. Я сопоставляю сохранённые объекты, договоры, коммерческие предложения, платежи, расходы, заявки, задачи и отчёты смен. Могу подсветить риск и объяснить, на каких данных основан совет. Я не придумываю отсутствующие цифры.');
+    piCoachSpeak('Я ПИ, производственный интеллект СКОЛ. Я сопоставляю сохранённые объекты, договоры, коммерческие предложения, платежи, расходы, заявки, задачи и отчёты смен. Могу подсветить риск и объяснить, на каких данных основан совет. Я не придумываю отсутствующие цифры.');
     return;
   }
   const sections = [
@@ -531,8 +531,8 @@ async function refreshLeads() {
 }
 async function refreshClients() {
   const rows = await window.crm.listClients(); const q = ($('clientSearch')?.value || '').toLowerCase();
-  const filtered = rows.filter(c => `${c.name} ${c.phone} ${c.email}`.toLowerCase().includes(q));
-  $('clientsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Клиент</th><th>Телефон</th><th>Email</th><th>Тип</th><th>Добавлен</th><th>Действия</th></tr></thead><tbody>${filtered.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.phone || '—')}</td><td>${esc(c.email || '—')}</td><td>${c.client_type === 'company' ? 'Компания' : 'Частное лицо'}</td><td>${esc(String(c.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-client="${c.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Клиентов пока нет','Добавь первый контакт в свою базу.');
+  const filtered = rows.filter(c => `${c.name} ${c.contact_name||''} ${c.phone} ${c.email}`.toLowerCase().includes(q));
+  $('clientsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Клиент</th><th>Контактное лицо</th><th>Телефон</th><th>Email</th><th>Тип</th><th>Добавлен</th><th>Действия</th></tr></thead><tbody>${filtered.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.contact_name || '—')}</td><td>${esc(c.phone || '—')}</td><td>${esc(c.email || '—')}</td><td>${c.client_type === 'company' ? 'Компания' : 'Частное лицо'}</td><td>${esc(String(c.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-client="${c.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Клиентов пока нет','Добавь первый контакт в свою базу.');
 }
 async function refreshProjects() {
   const rows = await window.crm.listProjects(); const q = ($('projectSearch')?.value || '').toLowerCase();
@@ -836,7 +836,7 @@ function estimateDownloadCsv() {
   const actual = estimateRefreshActuals(result.totalCost);
   if (actual) rows.push([],['ФАКТ ПО ОБЪЕКТУ','Сумма'],['Цена договора',actual.actualRevenue],['Получено от клиента',actual.received],['Выплачено рабочим',actual.wagesPaid],['Фактические расходы',actual.actualCosts],['Фактическая прибыль',actual.actualProfit],['Осталось получить',actual.receivable],['Денежный остаток',actual.cashBalance],['Отклонение от плана',actual.overrun]);
   const csv = '\uFEFF' + rows.map(row => row.map(value => `"${String(value ?? '').replace(/"/g,'""')}"`).join(';')).join('\r\n');
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })); const a = document.createElement('a'); a.href = url; a.download = `${($('estimateTitle').value || 'smeta').replace(/[^a-zа-яё0-9_-]+/gi,'_')}.csv`; a.click(); URL.revokeObjectURL(url); toast('Смета экспортирована в CSV.');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })); const a = document.createElement('a'); a.href = url; a.download = `СКОЛ-${($('estimateTitle').value || 'smeta').replace(/[^a-zа-яё0-9_-]+/gi,'_')}.csv`; a.click(); URL.revokeObjectURL(url); toast('Смета экспортирована в CSV.');
 }
 async function estimateCopySummary() {
   const r = refreshEstimate(); if (!r) return;
@@ -911,7 +911,10 @@ let piEconomicsCatalogCache=[];
 const orderStatusLabels={new:'Новый',opened:'Открывали',relevant:'Подходит',rejected:'Не подходит'};
 async function refreshCommercialOrders(){
  const search=$('orderRadarSearch')?.value||'',status=$('orderRadarStatus')?.value||'';
- const rows=await window.crm.listCommercialOrders({search,status,service:$('orderRadarService')?.value||'demolition',sourceType:$('orderRadarSource')?.value||''});commercialOrderCache=rows;const target=$('commercialOrdersList');if(!target)return;
+ const rows=await window.crm.listCommercialOrders({search,status,service:$('orderRadarService')?.value||'demolition',sourceType:$('orderRadarSource')?.value||''});commercialOrderCache=rows;
+ const metricValues={orderMetricTotal:rows.length,orderMetricBudget:rows.filter(o=>Number(o.budget_rub)>0).length,orderMetricContacts:rows.filter(o=>o.phone||o.email).length,orderMetricConverted:rows.filter(o=>o.converted_to_lead).length,orderMetricFetched:rows.filter(o=>Boolean(o.source_fetched_at)).length};
+ for(const [id,value] of Object.entries(metricValues)){const node=$(id);if(node)node.textContent=String(value);}
+ const target=$('commercialOrdersList');if(!target)return;
  const summary=$('orderPiSummary');
  if(summary){
   const first=rows.filter(o=>o.pi_assessment).sort((a,b)=>b.pi_assessment.score-a.pi_assessment.score)[0];
@@ -923,7 +926,34 @@ async function refreshCommercialOrders(){
   const score=Number(pi?.score||0);
   const questions=Array.isArray(pi?.nextQuestions)?pi.nextQuestions:[];
   const reasons=Array.isArray(pi?.reasons)?pi.reasons:[];
-  return `<article class="commercial-order-card"><div class="commercial-order-main"><div class="commercial-order-title-line"><strong>${esc(o.title)}</strong><span class="radar-score ${o.signal_score>=50?'hot':o.signal_score>=25?'warm':''}">Сигналы ${o.signal_score}/100</span><span class="pi-order-score ${score>=65?'high':score>=40?'medium':'low'}">ПИ ${score}/100</span><span class="pill ${o.status==='relevant'?'won':o.status==='rejected'?'lost':o.status==='opened'?'contacted':'new'}">${esc(orderStatusLabels[o.status]||o.status)}</span></div><p>${esc(o.snippet||'Описание в поисковой выдаче отсутствует — открой оригинал.')}</p><div class="radar-tags">${labels.map(x=>`<span class="radar-tag">${esc(x)}</span>`).join('')||'<span class="radar-tag muted-tag">Сигналы не подтверждены</span>'}</div><div class="pi-order-brief"><strong>${esc(pi?.label||'Нужна проверка')}</strong><span>Уверенность: ${esc(pi?.confidence||'низкая')} · Факторов оценено: ${Number(pi?.knownFactors||0)}/${Number(pi?.totalFactors||5)}</span></div>${o.pi_analysis ? '<div class="pi-order-economics ' + (Number(o.pi_analysis.estimated_profit_rub)<0?'negative':'') + '"><strong>Предварительная экономика · ' + esc(o.pi_analysis.work_name) + '</strong><span>Выручка: ' + fmt(o.pi_analysis.revenue_rub) + ' · Расходы: ' + fmt(o.pi_analysis.estimated_cost_rub) + '</span><span>' + (Number(o.pi_analysis.budget_rub)>0?'Основа выручки: введённый бюджет':'Основа выручки: ставка прайса; бюджет заказчика не подтверждён') + '</span><span>Прибыль: ' + fmt(o.pi_analysis.estimated_profit_rub) + ' · Маржа: ' + Number(o.pi_analysis.estimated_margin_pct).toLocaleString('ru-RU',{maximumFractionDigits:1}) + '%</span><span>Срок: ' + Number(o.pi_analysis.estimated_days).toLocaleString('ru-RU',{maximumFractionDigits:1}) + ' смен · Бригада: ' + Number(o.pi_analysis.crew_size) + ' · История смен: ' + Number(o.pi_analysis.observations_count) + ' наблюдений</span><small>' + (Number(o.pi_analysis.cost_per_unit)===0?'Внимание: себестоимость за единицу не задана; расчёт зависит от зарплаты и прочих расходов.':'Расчёт ориентировочный; проверь условия, ставки и дополнительные затраты.') + '</small></div>' : ''}<details class="pi-order-details"><summary>Почему такой приоритет и что уточнить</summary><div class="pi-order-details-body"><strong>Основания</strong><ul>${reasons.map(x=>`<li>${esc(x)}</li>`).join('')||'<li>Недостаточно сведений для объяснения оценки.</li>'}</ul><strong>Следующие вопросы</strong><ul>${questions.map(x=>`<li>${esc(x)}</li>`).join('')||'<li>Проверь бюджет, объём и сроки в первоисточнике.</li>'}</ul><small>${esc(pi?.disclaimer||'Предварительная сортировка; требуется проверка первоисточника.')}</small></div></details><small>${esc(o.source_name)} · ${esc(o.region)} · Обнаружено: ${esc(o.last_seen_at||o.first_seen_at||'—')}</small></div><div class="commercial-order-actions"><button class="button small-button" data-order-economics="${o.id}">${o.pi_analysis?'Изменить экономику':'Оценить экономику'}</button><button class="button small-button primary" data-order-open="${o.id}" data-order-url="${esc(o.source_url)}">Открыть источник ↗</button>${o.converted_to_lead?'<span class="pill won">Уже в заявках</span>':`<button class="button small-button" data-order-convert="${o.id}">В заявку</button>`}<select aria-label="Статус заказа" data-order-status="${o.id}"><option value="new" ${o.status==='new'?'selected':''}>Новый</option><option value="opened" ${o.status==='opened'?'selected':''}>Открывали</option><option value="relevant" ${o.status==='relevant'?'selected':''}>Подходит</option><option value="rejected" ${o.status==='rejected'?'selected':''}>Не подходит</option></select></div></article>`;
+  const factChips=[];
+  if(o.customer_name) factChips.push('Заказчик: '+o.customer_name);
+  if(o.contact_name) factChips.push('Контакт: '+o.contact_name);
+  if(Number(o.budget_rub)>0) factChips.push('Бюджет из источника: '+fmt(o.budget_rub));
+  if(Number(o.volume_value)>0) factChips.push('Объём: '+Number(o.volume_value).toLocaleString('ru-RU')+' '+(o.volume_unit||'ед.'));
+  if(o.deadline_text) factChips.push('Срок: '+o.deadline_text);
+  if(o.phone) factChips.push('Телефон: '+o.phone);
+  if(o.email) factChips.push('Email: '+o.email);
+  if(o.procurement_number) factChips.push('Закупка № '+o.procurement_number);
+  const factMarkup=factChips.length?`<div class="order-evidence-facts">${factChips.map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:'';
+  const pageText=String(o.source_page_text||'');
+  const sourcePageMarkup=pageText?'<details class="order-source-page"><summary>Текст первоисточника · '+esc(o.source_fetched_at||'загружен')+'</summary><div class="order-source-page-body"><strong>'+esc(o.source_page_title||'Прочитанная страница')+'</strong><p>'+esc(pageText.slice(0,4200))+(pageText.length>4200?'…':'')+'</p><small>Открытая страница: '+esc(o.source_page_url||o.source_url)+'</small></div></details>':'';
+  const pdfDocs=Array.isArray(o.documents)?o.documents:[];
+  const documentsMarkup=pdfDocs.length?'<section class="order-source-documents"><strong>Документы закупки · '+pdfDocs.length+'</strong><ul>'+pdfDocs.map(d=>{
+   const label=esc(d.title||d.file_name||'PDF-документ');
+   const isTable=d.document_type==='table';
+   const stats=isTable?(Number(d.sheet_count)>0?Number(d.sheet_count)+' лист. · '+Number(d.row_count||0)+' строк':'таблица'): (Number(d.page_count)>0?Number(d.page_count)+' стр.':'PDF');
+   const fetched=d.fetched_at?' · прочитан '+esc(d.fetched_at):'';
+   const preview=String(d.extracted_text||'');
+   const lineItems=Array.isArray(d.line_items)?d.line_items:[];
+   const linesMarkup=lineItems.length?'<details class="order-document-lines"><summary>Позиции работ ('+lineItems.length+')</summary><div class="order-document-lines-wrap"><table><thead><tr><th>Работа</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>'+lineItems.map(line=>'<tr><td>'+esc(line.work_name)+'</td><td>'+Number(line.quantity||0).toLocaleString('ru-RU')+'</td><td>'+esc(line.unit||'—')+'</td><td>'+ (line.unit_price_rub?fmt(line.unit_price_rub):'—')+'</td><td>'+ (line.amount_rub?fmt(line.amount_rub):'—')+'</td></tr>').join('')+'</tbody></table></div></details>':'';
+   const action=isTable?'<button class="button small-button" data-order-table="'+Number(d.id)+'" data-order-id="'+Number(o.id)+'">'+(d.fetched_at?'Обновить таблицу':'Прочитать таблицу')+'</button>':'<button class="button small-button" data-order-pdf="'+Number(d.id)+'" data-order-id="'+Number(o.id)+'">'+(d.fetched_at?'Обновить PDF':'Прочитать PDF')+'</button>';
+   const planButton=isTable&&lineItems.length?'<button class="button small-button primary" data-order-plan="'+Number(d.id)+'" data-order-id="'+Number(o.id)+'">В инженерный план</button>':'';
+   return '<li><div class="order-document-heading"><span>'+label+'</span><small>'+esc(stats+fetched)+'</small></div>'+action+linesMarkup+planButton+(preview?'<details><summary>Текст документа ('+preview.length+' символов)</summary><p>'+esc(preview.slice(0,3200))+(preview.length>3200?'…':'')+'</p></details>':'')+'</li>';
+  }).join('')+'</ul></section>':'';
+  const evidenceRows=Array.isArray(o.fact_evidence)?o.fact_evidence:[];
+  const evidenceMarkup=evidenceRows.length?`<details class="order-evidence-details"><summary>Фрагменты, из которых извлечены сведения (${evidenceRows.length})</summary><ul>${evidenceRows.map(x=>`<li><strong>${esc(x.field)}:</strong> ${esc(x.excerpt)}</li>`).join('')}</ul><small>Автоматическое извлечение. Каждый факт нужно сверить на исходной странице.</small></details>`:'';
+  return `<article class="commercial-order-card"><div class="commercial-order-main"><div class="commercial-order-title-line"><strong>${esc(o.title)}</strong><span class="radar-score ${o.signal_score>=50?'hot':o.signal_score>=25?'warm':''}">Сигналы ${o.signal_score}/100</span><span class="pi-order-score ${score>=65?'high':score>=40?'medium':'low'}">ПИ ${score}/100</span><span class="pill ${o.status==='relevant'?'won':o.status==='rejected'?'lost':o.status==='opened'?'contacted':'new'}">${esc(orderStatusLabels[o.status]||o.status)}</span></div><p>${esc(o.snippet||'Описание в поисковой выдаче отсутствует — открой оригинал.')}</p>${factMarkup}${evidenceMarkup}${sourcePageMarkup}${documentsMarkup}<div class="radar-tags">${labels.map(x=>`<span class="radar-tag">${esc(x)}</span>`).join('')||'<span class="radar-tag muted-tag">Сигналы не подтверждены</span>'}</div><div class="pi-order-brief"><strong>${esc(pi?.label||'Нужна проверка')}</strong><span>Уверенность: ${esc(pi?.confidence||'низкая')} · Факторов оценено: ${Number(pi?.knownFactors||0)}/${Number(pi?.totalFactors||5)}</span></div>${o.pi_analysis ? '<div class="pi-order-economics ' + (Number(o.pi_analysis.estimated_profit_rub)<0?'negative':'') + '"><strong>Предварительная экономика · ' + esc(o.pi_analysis.work_name) + '</strong><span>Выручка: ' + fmt(o.pi_analysis.revenue_rub) + ' · Расходы: ' + fmt(o.pi_analysis.estimated_cost_rub) + '</span><span>' + (Number(o.pi_analysis.budget_rub)>0?'Основа выручки: введённый бюджет':'Основа выручки: ставка прайса; бюджет заказчика не подтверждён') + '</span><span>Прибыль: ' + fmt(o.pi_analysis.estimated_profit_rub) + ' · Маржа: ' + Number(o.pi_analysis.estimated_margin_pct).toLocaleString('ru-RU',{maximumFractionDigits:1}) + '%</span><span>Срок: ' + Number(o.pi_analysis.estimated_days).toLocaleString('ru-RU',{maximumFractionDigits:1}) + ' смен · Бригада: ' + Number(o.pi_analysis.crew_size) + ' · История смен: ' + Number(o.pi_analysis.observations_count) + ' наблюдений</span><small>' + (Number(o.pi_analysis.cost_per_unit)===0?'Внимание: себестоимость за единицу не задана; расчёт зависит от зарплаты и прочих расходов.':'Расчёт ориентировочный; проверь условия, ставки и дополнительные затраты.') + '</small></div>' : ''}<details class="pi-order-details"><summary>Почему такой приоритет и что уточнить</summary><div class="pi-order-details-body"><strong>Основания</strong><ul>${reasons.map(x=>`<li>${esc(x)}</li>`).join('')||'<li>Недостаточно сведений для объяснения оценки.</li>'}</ul><strong>Следующие вопросы</strong><ul>${questions.map(x=>`<li>${esc(x)}</li>`).join('')||'<li>Проверь бюджет, объём и сроки в первоисточнике.</li>'}</ul><small>${esc(pi?.disclaimer||'Предварительная сортировка; требуется проверка первоисточника.')}</small></div></details><small>${esc(o.source_name)} · ${esc(o.region)} · Обнаружено: ${esc(o.last_seen_at||o.first_seen_at||'—')}</small></div><div class="commercial-order-actions"><button class="button small-button" data-order-fetch="${o.id}">${o.source_fetched_at?'Обновить условия':'Прочитать источник'}</button><button class="button small-button" data-order-economics="${o.id}">${o.pi_analysis?'Изменить экономику':'Оценить экономику'}</button><button class="button small-button primary" data-order-open="${o.id}" data-order-url="${esc(o.source_url)}">Открыть источник ↗</button>${o.converted_to_lead?'<span class="pill won">Уже в заявках</span>':`<button class="button small-button" data-order-convert="${o.id}">В заявку</button>`}<select aria-label="Статус заказа" data-order-status="${o.id}"><option value="new" ${o.status==='new'?'selected':''}>Новый</option><option value="opened" ${o.status==='opened'?'selected':''}>Открывали</option><option value="relevant" ${o.status==='relevant'?'selected':''}>Подходит</option><option value="rejected" ${o.status==='rejected'?'selected':''}>Не подходит</option></select></div></article>`;
  }).join(''):empty('Заказы пока не найдены','Нажми «Найти заказы» после сохранения ключа Brave Search или измени фильтры.');
 }
 async function refreshProspects() {
@@ -1114,7 +1144,7 @@ $('estimateCopyBtn').addEventListener('click', estimateCopySummary);
 $('estimateCsvBtn').addEventListener('click', estimateDownloadCsv);
 $('estimatePdfBtn').addEventListener('click', async () => {
   const r = refreshEstimate(); if (!r) return;
-  try { const saved = await window.crm.exportQuotePdf({ title: $('estimateTitle').value, customer: $('estimateCustomer').value, address: $('estimateAddress').value, contact: $('estimateContact').value, validity: $('estimateValidity').value, lines: r.lineItems.map(x => ({name:x.name,unit:x.unit,quantity:x.quantity,price:x.price})), revenue: r.revenue, discount: r.discount, estimatedCostRub: r.totalCost, estimatedProfitRub: r.profit, marginPct: r.actualMargin }); if (saved?.canceled) return; toast('КП в PDF сохранено и добавлено в историю ПИ.'); await refreshPiCoach({ force: true }).catch(() => {}); } catch (error) { toast(`Не удалось сформировать PDF: ${error.message}`, true); }
+  try { const saved = await window.crm.exportQuotePdf({ title: $('estimateTitle').value, customer: $('estimateCustomer').value, address: $('estimateAddress').value, contact: $('estimateContact').value, validity: $('estimateValidity').value, lines: r.lineItems.map(x => ({name:x.name,unit:x.unit,quantity:x.quantity,price:x.price,cost:x.cost})), discount: r.discount, costInputs: { payroll: r.payroll, materials: r.materials, disposal: r.disposal, transport: r.transport, equipment: r.equipment, other: r.other, overheadPercent: Number($('estimateOverheadPercent').value || 0), taxPercent: Number($('estimateTaxPercent').value || 0) } }); if (saved?.canceled) return; toast('КП в PDF сохранено и добавлено в историю ПИ.'); await refreshPiCoach({ force: true }).catch(() => {}); } catch (error) { toast(`Не удалось сформировать PDF: ${error.message}`, true); }
 });
 $('estimateCreateProjectBtn').addEventListener('click', () => {
   const result = refreshEstimate(); if (!result) return;
@@ -1139,6 +1169,53 @@ $('estimateCreateProjectBtn').addEventListener('click', () => {
 const actualInputIds = ['actualContractRevenue','actualReceived','actualWagesPaid','actualMaterialsPaid','actualDisposalPaid','actualTransportPaid','actualEquipmentPaid','actualOtherPaid'];
 actualInputIds.forEach(id => $(id).addEventListener('input', () => { const r = refreshEstimate(); if (r) estimateRefreshActuals(r.totalCost); estimateSaveDraft(); }));
 $('actualUseEstimatePriceBtn').addEventListener('click', () => { const r = refreshEstimate(); if (!r) return; $('actualContractRevenue').value = Math.round(r.revenue); estimateRefreshActuals(r.totalCost); estimateSaveDraft(); toast('Цена сметы подставлена в план/факт.'); });
+
+function buildEstimateEngineeringTransfer(mode,selectedLineId){
+ const result=refreshEstimate();
+ if(!result||!Array.isArray(result.lineItems)||!result.lineItems.length)throw new Error('Сначала добавь в смету хотя бы одну работу с объёмом больше нуля.');
+ if(!window.SkolEngineeringTransfer?.buildEngineeringTransfer)throw new Error('Модуль переноса в ПИ не загрузился. Перезапусти СКОЛ и повтори.');
+ const inputs=estimateReadInputs(),duration=estimateGetDurationForecast();
+ return window.SkolEngineeringTransfer.buildEngineeringTransfer({
+  mode,selectedLineId,startDate:dateToday(),weekdaysOnly:true,
+  metadata:{title:$('estimateTitle').value,customer:$('estimateCustomer').value,address:$('estimateAddress').value,contact:$('estimateContact').value,
+   validity:$('estimateValidity').value,service:$('estimateService').value,workArea:$('estimateWorkArea').value},
+  settings:{...inputs,crew:inputs.crew,reservePercent:$('estimateScheduleReserve').value},
+  totals:{listRevenue:result.listRevenue,discount:result.discount,revenue:result.revenue,payroll:result.payroll,lineCosts:result.lineCosts,
+   overhead:result.overhead,taxReserve:result.taxReserve,totalCost:result.totalCost,profit:result.profit,actualMargin:result.actualMargin},
+  lines:result.lineItems,durationLines:duration.lines
+ });
+}
+function updateEstimateEngineeringTransferMode(){
+ const mode=$('estimateEngineeringTransferForm').querySelector('input[name="transferMode"]:checked')?.value||'standard';
+ $('estimatePiStandardLineWrap').hidden=mode!=='standard';$('estimatePiStandardLine').disabled=mode!=='standard';
+}
+function openEstimateEngineeringTransfer(){
+ try{
+  const result=refreshEstimate();
+  if(!result||!Array.isArray(result.lineItems)||!result.lineItems.length)throw new Error('Сначала добавь в смету хотя бы одну работу с объёмом больше нуля.');
+  const select=$('estimatePiStandardLine'),previous=select.value;
+  select.innerHTML=result.lineItems.map(line=>'<option value="'+esc(line.lineId)+'">'+esc(line.name)+' · '+esc(line.quantity)+' '+esc(line.unit)+' · '+money(line.revenue)+'</option>').join('');
+  select.value=result.lineItems.some(line=>String(line.lineId)===previous)?previous:String(result.lineItems[0].lineId);
+  $('estimatePiTransferSummary').textContent='Строк работ: '+result.lineItems.length+' · Цена после скидки: '+money(result.revenue)+' · Себестоимость: '+money(result.totalCost)+' · Прибыль: '+money(result.profit)+'. Исходная смета останется без изменений.';
+  const preferred=result.lineItems.length>1?'complex':'standard';
+  $('estimateEngineeringTransferForm').querySelectorAll('input[name="transferMode"]').forEach(input=>input.checked=input.value===preferred);
+  updateEstimateEngineeringTransferMode();openDialog('estimateEngineeringTransferDialog');
+ }catch(error){toast(error.message||'Не удалось подготовить перенос в ПИ.',true);}
+}
+$('estimatePiTransferBtn')?.addEventListener('click',openEstimateEngineeringTransfer);
+$('estimateEngineeringTransferForm')?.querySelectorAll('input[name="transferMode"]').forEach(input=>input.addEventListener('change',updateEstimateEngineeringTransferMode));
+$('estimateEngineeringTransferForm')?.addEventListener('submit',event=>{
+ event.preventDefault();
+ try{
+  const form=event.currentTarget,mode=form.querySelector('input[name="transferMode"]:checked')?.value||'standard';
+  const payload=buildEstimateEngineeringTransfer(mode,$('estimatePiStandardLine').value);
+  closeDialog('estimateEngineeringTransferDialog');showView('engineering');
+  window.dispatchEvent(new CustomEvent('skol:engineering-transfer',{detail:payload}));
+  toast('Данные «'+(payload.title||'Смета')+'» перенесены. ПИ запускает '+(mode==='complex'?'комплексный расчёт всех '+payload.operations.length+' работ.':'стандартный расчёт выбранной работы.'));
+  (payload.warnings||[]).forEach(warning=>toast(warning,true));
+ }catch(error){toast(error.message||'Не удалось перенести смету в ПИ.',true);}
+});
+
 estimateLoadDraft();
 refreshEstimateLearningRates().catch(error => { $('estimateLearningStatus').textContent = `Не удалось загрузить фактические нормы: ${error.message}`; });
 $('addPaymentBtn').addEventListener('click', async () => { await refreshProjects(); if (!(await window.crm.listProjects()).length) { toast('Сначала создай объект, к которому привязать платёж.', true); showView('projects'); return; } $('paymentForm').reset(); $('paymentForm').elements.payment_date.value = dateToday(); $('paymentDialogTitle').textContent = 'Записать платёж'; openDialog('paymentDialog'); });
@@ -1271,7 +1348,7 @@ $('clientsTable').addEventListener('click', async event => {
     const client = clients.find(item => item.id === Number(button.dataset.editClient));
     if (!client) throw new Error('Клиент не найден. Обнови список.');
     const form = $('clientForm');
-    for (const key of ['id','name','phone','email','client_type','notes']) form.elements[key].value = client[key] ?? '';
+    for (const key of ['id','name','phone','email','contact_name','client_type','notes']) form.elements[key].value = client[key] ?? '';
     $('clientDialogTitle').textContent = 'Изменить клиента'; openDialog('clientDialog');
   } catch (error) { toast(error.message, true); }
 });
@@ -1490,6 +1567,62 @@ $('orderRadarStatus').addEventListener('change',()=>refreshCommercialOrders().ca
 $('orderRadarService').addEventListener('change',()=>refreshCommercialOrders().catch(e=>toast(e.message,true)));
 $('orderRadarSource').addEventListener('change',()=>{refreshCommercialOrders().catch(e=>toast(e.message,true));const b=$('runOrderRadarBtn');if(b)b.textContent=$('orderRadarSource').value==='files'?'Выбран импорт CSV':'⌕ Найти через API';});
 $('commercialOrdersList').addEventListener('click',async e=>{
+ const button=e.target.closest('[data-order-fetch]');if(!button)return;
+ const orderId=Number(button.dataset.orderFetch);
+ if(!Number.isSafeInteger(orderId)||orderId<1){toast('Некорректный номер заказа.',true);return;}
+ button.disabled=true;button.textContent='Читаем источник…';
+ try{
+  const result=await window.crm.fetchCommercialOrderSource(orderId);
+  await refreshCommercialOrders();
+  toast('Страница прочитана. Извлечено фактов: '+result.extractedFacts+'. Сверь их с первоисточником.');
+ }catch(error){toast('Не удалось прочитать источник: '+error.message,true);}
+ finally{button.disabled=false;}
+});
+$('commercialOrdersList').addEventListener('click',async e=>{
+ const button=e.target.closest('[data-order-pdf]');if(!button)return;
+ const orderId=Number(button.dataset.orderId),documentId=Number(button.dataset.orderPdf);
+ if(!Number.isSafeInteger(orderId)||orderId<1||!Number.isSafeInteger(documentId)||documentId<1){toast('Некорректный PDF-документ.',true);return;}
+ button.disabled=true;button.textContent='Читаем PDF…';
+ try{
+  const result=await window.crm.fetchCommercialOrderPdf({order_id:orderId,document_id:documentId});
+  await refreshCommercialOrders();
+  toast('PDF прочитан: '+result.page_count+' стр. Извлечено фактов: '+result.extractedFacts+'.');
+ }catch(error){toast('Не удалось прочитать PDF: '+error.message,true);}
+ finally{button.disabled=false;}
+});
+$('commercialOrdersList').addEventListener('click',async e=>{
+ const button=e.target.closest('[data-order-table]');if(!button)return;
+ const orderId=Number(button.dataset.orderId),documentId=Number(button.dataset.orderTable);
+ if(!Number.isSafeInteger(orderId)||orderId<1||!Number.isSafeInteger(documentId)||documentId<1){toast('Некорректный табличный документ.',true);return;}
+ button.disabled=true;button.textContent='Читаем таблицу…';
+ try{
+  const result=await window.crm.fetchCommercialOrderTable({order_id:orderId,document_id:documentId});
+  await refreshCommercialOrders();
+  toast('Таблица прочитана: '+result.sheet_count+' лист., '+result.row_count+' строк. Извлечено фактов: '+result.extractedFacts+'.');
+ }catch(error){toast('Не удалось прочитать таблицу: '+error.message,true);}
+ finally{button.disabled=false;}
+});
+$('commercialOrdersList').addEventListener('click',e=>{
+ const button=e.target.closest('[data-order-plan]');if(!button)return;
+ const orderId=Number(button.dataset.orderId),documentId=Number(button.dataset.orderPlan);
+ if(!Number.isSafeInteger(orderId)||orderId<1||!Number.isSafeInteger(documentId)||documentId<1){toast('Некорректный документ для передачи в ПИ.',true);return;}
+ try{
+  const order=commercialOrderCache.find(item=>Number(item.id)===orderId);
+  const document=order?.documents?.find(item=>Number(item.id)===documentId);
+  if(!order||!document||document.document_type!=='table'||!Array.isArray(document.line_items)||!document.line_items.length)throw new Error('Распознанные позиции документа не найдены. Обнови список заказов.');
+  if(!window.SkolOrderPlanHandoff?.toEstimateImportText)throw new Error('Модуль передачи позиций в инженерный план не загружен.');
+  window.SkolOrderPlanHandoff.toEstimateImportText(document.line_items);
+  showView('engineering');
+  window.dispatchEvent(new CustomEvent('skol:import-order-lines',{detail:{
+   orderTitle:order.title||'Коммерческий заказ',
+   orderId,
+   sourceUrl:document.source_url||order.source_url||'',
+   documentName:document.file_name||document.title||'Ведомость объёмов',
+   lineItems:document.line_items
+  }}));
+ }catch(error){toast('Не удалось передать позиции в ПИ: '+error.message,true);}
+});
+$('commercialOrdersList').addEventListener('click',async e=>{
  const button=e.target.closest('[data-order-convert]');if(!button)return;
  const orderId=Number(button.dataset.orderConvert);if(!Number.isSafeInteger(orderId)||orderId<1){toast('Некорректный номер заказа.',true);return;}
  button.disabled=true;button.textContent='Создаём заявку…';
@@ -1497,7 +1630,8 @@ $('commercialOrdersList').addEventListener('click',async e=>{
   const result=await window.crm.convertCommercialOrderToLead(orderId);
   await refreshCommercialOrders();
   await refreshLeads();
-  toast(result.alreadyExists?'Этот заказ уже был передан в заявки.':'Заказ передан в раздел «Заявки».');
+  if(!result.alreadyExists) await refreshTasks();
+  toast(result.alreadyExists?'Этот заказ уже был передан в заявки.':'Заказ передан в раздел «Заявки»; задача на проверку добавлена в план действий.');
  }catch(error){toast('Не удалось создать заявку: '+error.message,true);}
  finally{button.disabled=false;}
 });

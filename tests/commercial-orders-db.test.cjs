@@ -114,3 +114,41 @@ test('stores preliminary economics per order and cascades it on order deletion',
   db.prepare('DELETE FROM commercial_orders WHERE id=?').run(orderId);
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM commercial_order_analysis WHERE order_id=?').get(orderId).count,0);
 });
+
+test('adds extracted evidence fields to an existing commercial_orders table without losing rows', t => {
+  const directory = temporaryDirectory();
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const legacy = new Database(path.join(directory, 'struktura-crm.sqlite'));
+  legacy.exec(`
+    CREATE TABLE commercial_orders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      source_url TEXT NOT NULL UNIQUE,
+      source_name TEXT NOT NULL DEFAULT '',
+      source_type TEXT NOT NULL DEFAULT 'web',
+      snippet TEXT NOT NULL DEFAULT '',
+      search_query TEXT NOT NULL DEFAULT '',
+      service TEXT NOT NULL DEFAULT 'demolition',
+      region TEXT NOT NULL DEFAULT 'Москва и Московская область',
+      signal_score INTEGER NOT NULL DEFAULT 0,
+      signal_labels TEXT NOT NULL DEFAULT '',
+      relevance TEXT NOT NULL DEFAULT 'review',
+      status TEXT NOT NULL DEFAULT 'new',
+      first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    INSERT INTO commercial_orders(title,source_url) VALUES ('Существующий заказ','https://example.ru/existing');
+  `);
+  legacy.close();
+
+  const db = openDatabase(directory);
+  t.after(() => db.close());
+  const columns = new Set(db.prepare('PRAGMA table_info(commercial_orders)').all().map(column => column.name));
+  for (const column of ['customer_name','contact_name','phone','email','budget_rub','volume_value','volume_unit','deadline_text','procurement_number','work_address','fact_evidence_json']) {
+    assert.ok(columns.has(column), `missing column: ${column}`);
+  }
+  const row = db.prepare('SELECT title,budget_rub,fact_evidence_json FROM commercial_orders WHERE id=1').get();
+  assert.equal(row.title, 'Существующий заказ');
+  assert.equal(row.budget_rub, 0);
+  assert.equal(row.fact_evidence_json, '[]');
+});

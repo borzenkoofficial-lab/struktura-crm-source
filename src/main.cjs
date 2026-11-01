@@ -3,12 +3,20 @@ const { autoUpdater } = require('electron-updater');
 const path = require('node:path');
 const fs = require('node:fs');
 const { normalizePin, createPinConfig, pinMatches, evaluatePinAttempt } = require('./pin-security.cjs');
-// Keep the existing local database when the visible product name changes.
+const { skolWordmarkSvg } = require('./branding.cjs');
+const { validateBackupDatabase } = require('./backup-utils.cjs');
+const { findLegacyUserDataPath } = require('./user-data-path.cjs');
+app.setName('СКОЛ');
+// Keep an existing current profile; fall back to legacy data only if the current profile has no database.
 const legacyDataCandidates = ['Struktura CRM', 'struktura-crm', 'struktura-crm-source'];
 const currentUserDataPath = app.getPath('userData');
-const legacyDataPath = legacyDataCandidates
-  .map(name => path.join(app.getPath('appData'), name))
-  .find(candidate => fs.existsSync(path.join(candidate, 'struktura-crm.sqlite')));
+const legacyDataPath = findLegacyUserDataPath({
+  appDataPath: app.getPath('appData'),
+  currentUserDataPath,
+  legacyDataCandidates,
+  databaseFilename: 'struktura-crm.sqlite',
+  existsSync: fs.existsSync
+});
 if (legacyDataPath && path.resolve(legacyDataPath) !== path.resolve(currentUserDataPath)) {
   app.setPath('userData', legacyDataPath);
 }
@@ -16,11 +24,16 @@ const { openDatabase } = require('./db.cjs');
 const Database = require('better-sqlite3');
 const { parseCsv, prospectDuplicateKeys, safeCsvCell } = require('./csv.cjs');
 const { crawlSites } = require('./site-crawler.cjs');
+const { fetchOrderPage } = require('./order-page-fetch.cjs');
+const { fetchAndParseOrderPdf } = require('./order-pdf-fetch.cjs');
+const { fetchAndParseOrderTable } = require('./order-table-fetch.cjs');
 const { buildQueries, searchBrave } = require('./web-search.cjs');
 const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, leadSourceForOrderType } = require('./order-radar.cjs');
 const { parseCommercialOrdersCsv } = require('./order-import.cjs');
+const { extractOrderEvidence } = require('./order-evidence.cjs');
 const { assessCommercialOrder } = require('./order-pi.cjs');
 const { calculateOrderEconomics } = require('./order-economics.cjs');
+const { calculateQuoteTotals } = require('./quote-economics.cjs');
 const { resolveBrowserInput, validateBrowserNavigation, companyNameFromPage } = require('./browser-utils.cjs');
 const { normalizeTaskInput } = require('./task-utils.cjs');
 const { normalizeContactEmail, normalizePhone } = require('./contact-utils.cjs');
@@ -137,7 +150,7 @@ function createWindow() {
   appUnlocked = !Boolean(getSetting('app_pin_config', null)?.hash);
   const win = new BrowserWindow({
     width: 1440, height: 920, minWidth: 1020, minHeight: 680,
-    title: 'Struktura CRM', backgroundColor: '#f5f7fa', autoHideMenuBar: true,
+    title: 'СКОЛ', backgroundColor: '#f5f7fa', autoHideMenuBar: true,
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true }
   });
   win.setMenuBarVisibility(false);
@@ -147,7 +160,7 @@ function createWindow() {
   win.on('closed', () => { mainWindow = null; browserView = null; browserIsVisible = false; });
   win.loadFile(path.join(__dirname, 'index.html')).catch(error => {
     console.error('Failed to load CRM interface:', error);
-    dialog.showErrorBox('Не удалось открыть Struktura CRM', `Не удалось загрузить интерфейс приложения.\n\n${error.message || error}`);
+    dialog.showErrorBox('Не удалось открыть СКОЛ', `Не удалось загрузить интерфейс приложения.\n\n${error.message || error}`);
   });
 }
 function getSetting(key, fallback) {
@@ -171,7 +184,7 @@ function checkAndSendReminders() {
     const now = new Date();
     const reminders = buildReminders({ tasks, projects, now, settings, lastSent });
     for (const item of reminders) {
-      const notice = new Notification({ title: `STRUKTURA CRM · ${item.title}`, body: item.body, silent: false });
+      const notice = new Notification({ title: `СКОЛ · ${item.title}`, body: item.body, silent: false });
       notice.on('click', () => { if (mainWindow && !mainWindow.isDestroyed()) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); } });
       notice.show();
       lastSent[item.key] = now.toISOString();
@@ -192,8 +205,8 @@ app.whenReady().then(() => {
   reminderInterval = setInterval(checkAndSendReminders, 15 * 60 * 1000);
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 }).catch(error => {
-  console.error('Struktura CRM startup failed:', error);
-  dialog.showErrorBox('Ошибка запуска Struktura CRM', `Приложение не смогло подготовить локальную базу данных.\n\n${error.message || error}`);
+  console.error('СКОЛ startup failed:', error);
+  dialog.showErrorBox('Ошибка запуска СКОЛ', `Приложение не смогло подготовить локальную базу данных.\n\n${error.message || error}`);
   app.quit();
 });
 app.on('before-quit', () => { if (reminderInterval) clearInterval(reminderInterval); if (db) db.close(); });
@@ -257,8 +270,8 @@ ipcMain.handle('clients:create', (_event, input = {}) => {
   if (!name) throw new Error('Укажи имя клиента или название компании.');
   const phone = normalizePhone(clean(input.phone, 40));
   ensureClientPhoneUnique(phone);
-  const result = db.prepare('INSERT INTO clients(name,phone,email,client_type,notes) VALUES (@name,@phone,@email,@client_type,@notes)').run({
-    name, phone, email: normalizeContactEmail(input.email),
+  const result = db.prepare('INSERT INTO clients(name,phone,email,contact_name,client_type,notes) VALUES (@name,@phone,@email,@contact_name,@client_type,@notes)').run({
+    name, phone, email: normalizeContactEmail(input.email), contact_name: clean(input.contact_name,120),
     client_type: input.client_type === 'company' ? 'company' : 'person', notes: clean(input.notes)
   });
   return db.prepare('SELECT * FROM clients WHERE id=?').get(result.lastInsertRowid);
@@ -270,8 +283,8 @@ ipcMain.handle('clients:update', (_event, input = {}) => {
   if (!db.prepare('SELECT id FROM clients WHERE id=?').get(id)) throw new Error('Клиент не найден. Обнови список и попробуй снова.');
   const phone = normalizePhone(clean(input.phone, 40));
   ensureClientPhoneUnique(phone, id);
-  db.prepare('UPDATE clients SET name=?, phone=?, email=?, client_type=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
-    .run(name, phone, normalizeContactEmail(input.email), input.client_type === 'company' ? 'company' : 'person', clean(input.notes), id);
+  db.prepare('UPDATE clients SET name=?, phone=?, email=?, contact_name=?, client_type=?, notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
+    .run(name, phone, normalizeContactEmail(input.email), clean(input.contact_name,120), input.client_type === 'company' ? 'company' : 'person', clean(input.notes), id);
   return db.prepare('SELECT * FROM clients WHERE id=?').get(id);
 });
 ipcMain.handle('leads:list', () => db.prepare('SELECT l.*, c.name client_name FROM leads l LEFT JOIN clients c ON c.id=l.client_id ORDER BY l.id DESC').all());
@@ -439,7 +452,7 @@ ipcMain.handle('production:exportReportPdf', async (_event, input = {}) => {
   const payments = input.internal === true && documentType === 'report' ? db.prepare('SELECT payment_date, payment_type, amount_rub, note FROM payments WHERE project_id=? AND payment_date BETWEEN ? AND ? ORDER BY payment_date, id').all(projectId, startDate, endDate) : [];
   const expenses = input.internal === true && documentType === 'report' ? db.prepare('SELECT expense_date, description, category, amount_rub, is_paid FROM expenses WHERE project_id=? AND expense_date BETWEEN ? AND ? ORDER BY expense_date, id').all(projectId, startDate, endDate) : [];
   const html = buildProductionReportHtml({ project, startDate, endDate, documentType, internal: input.internal === true, plan, shifts, actualByPeriod, payments, expenses });
-  const defaultName = `STRUKTURA-${documentType === 'act' ? 'Акт-работ' : 'Отчёт'}-${project.title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,50)}-${startDate}-${endDate}.pdf`;
+  const defaultName = `СКОЛ-${documentType === 'act' ? 'Акт-работ' : 'Отчёт'}-${project.title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,50)}-${startDate}-${endDate}.pdf`;
   const { canceled, filePath } = await dialog.showSaveDialog({ title: documentType === 'act' ? 'Сохранить акт фиксации работ в PDF' : 'Сохранить производственный отчёт в PDF', defaultPath: defaultName, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (canceled || !filePath) return { canceled: true };
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
@@ -465,7 +478,7 @@ ipcMain.handle('production:rateModels', (_event, input = {}) => {
   for (const row of observations) (observationsByCatalog[row.catalog_id] ||= []).push(row);
   return ids.map(catalogId => {
     const model = buildRateModel({ baselineProductivity: 1, observations: observationsByCatalog[catalogId] || [], targetCrewSize });
-    return { catalog_id: catalogId, observations: model.observations, observedMedian: model.observedMedian, confidence: model.confidence, crewScalingApplied: model.crewScalingApplied, referenceCrewSize: model.referenceCrewSize, targetCrewSize };
+    return { catalog_id: catalogId, observations: model.observations, observedMedian: model.observedMedian, observedWeight: model.observedWeight, confidence: model.confidence, crewScalingApplied: model.crewScalingApplied, referenceCrewSize: model.referenceCrewSize, targetCrewSize };
   });
 });
 
@@ -741,18 +754,182 @@ ipcMain.handle('orders:list', (_event,input={})=>{
  const sourceType=['web','telegram','avito','tenders','files'].includes(input.sourceType)?input.sourceType:'';
  const terms=clean(input.search,180).toLowerCase();const where=[],params=[];
  if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}if(sourceType){where.push('source_type=?');params.push(sourceType)}
- if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%')}
+ if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ? OR LOWER(source_page_title) LIKE ? OR LOWER(source_page_text) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%','%'+terms+'%','%'+terms+'%')}
  const rows=db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC`).all(...params);
  const analyses=new Map(db.prepare('SELECT * FROM commercial_order_analysis').all().map(item=>[Number(item.order_id),item]));
- return rows.map(r=>{const analysis=analyses.get(Number(r.id))||null;return {...r,signal_labels:String(r.signal_labels||'').split('|').filter(Boolean),pi_analysis:analysis,pi_assessment:assessCommercialOrder(r,analysis)};});
+ const documentsByOrder=new Map();
+ for(const document of db.prepare('SELECT id,order_id,source_url,title,file_name,mime_type,document_type,page_count,sheet_count,row_count,line_items_json,extracted_text,fact_evidence_json,sha256,fetched_at FROM commercial_order_documents ORDER BY id DESC').all()){
+  let evidence=[];try{evidence=JSON.parse(document.fact_evidence_json||'[]');if(!Array.isArray(evidence))evidence=[];}catch{}
+  let lineItems=[];try{lineItems=JSON.parse(document.line_items_json||'[]');if(!Array.isArray(lineItems))lineItems=[];}catch{}
+  const item={...document,extracted_text:String(document.extracted_text||'').slice(0,80000),fact_evidence:evidence,line_items:lineItems};
+  if(!documentsByOrder.has(Number(document.order_id)))documentsByOrder.set(Number(document.order_id),[]);
+  documentsByOrder.get(Number(document.order_id)).push(item);
+ }
+ return rows.map(r=>{
+  const analysis=analyses.get(Number(r.id))||null;
+  let factEvidence=[];
+  try { factEvidence=JSON.parse(r.fact_evidence_json||'[]'); if(!Array.isArray(factEvidence)) factEvidence=[]; } catch {}
+  return {...r,fact_evidence:factEvidence,documents:documentsByOrder.get(Number(r.id))||[],signal_labels:String(r.signal_labels||'').split('|').filter(Boolean),pi_analysis:analysis,pi_assessment:assessCommercialOrder(r,analysis)};
+ });
+});
+ipcMain.handle('orders:fetchSource', async (_event, orderId) => {
+ const id=Number(orderId);
+ if(!Number.isSafeInteger(id)||id<1)throw new Error('Некорректный номер коммерческого заказа.');
+ const order=db.prepare('SELECT id,source_url FROM commercial_orders WHERE id=?').get(id);
+ if(!order)throw new Error('Коммерческий заказ не найден.');
+ const page=await fetchOrderPage(order.source_url);
+ const extracted=extractOrderEvidence(page.title+'\n'+page.text);
+ let priorEvidence=[];
+ try { priorEvidence=JSON.parse(db.prepare('SELECT fact_evidence_json FROM commercial_orders WHERE id=?').get(id)?.fact_evidence_json||'[]'); if(!Array.isArray(priorEvidence))priorEvidence=[]; } catch {}
+ let pageEvidence=[];
+ try { pageEvidence=JSON.parse(extracted.fact_evidence_json||'[]'); if(!Array.isArray(pageEvidence))pageEvidence=[]; } catch {}
+ const mergedEvidence=new Map();
+ for(const item of [...priorEvidence,...pageEvidence]){
+  if(!item||typeof item!=='object')continue;
+  const key=String(item.field||'')+'|'+String(item.excerpt||'');
+  if(key!=='|')mergedEvidence.set(key,item);
+ }
+ const factEvidence=[...mergedEvidence.values()].slice(-40);
+ db.prepare(`UPDATE commercial_orders SET
+ source_page_title=@source_page_title,source_page_url=@source_page_url,source_page_text=@source_page_text,source_fetched_at=CURRENT_TIMESTAMP,
+ customer_name=CASE WHEN @customer_name<>'' THEN @customer_name ELSE customer_name END,
+ contact_name=CASE WHEN @contact_name<>'' THEN @contact_name ELSE contact_name END,
+ phone=CASE WHEN @phone<>'' THEN @phone ELSE phone END,
+ email=CASE WHEN @email<>'' THEN @email ELSE email END,
+ budget_rub=CASE WHEN @budget_rub>0 THEN @budget_rub ELSE budget_rub END,
+ volume_value=CASE WHEN @volume_value>0 THEN @volume_value ELSE volume_value END,
+ volume_unit=CASE WHEN @volume_unit<>'' THEN @volume_unit ELSE volume_unit END,
+ deadline_text=CASE WHEN @deadline_text<>'' THEN @deadline_text ELSE deadline_text END,
+ procurement_number=CASE WHEN @procurement_number<>'' THEN @procurement_number ELSE procurement_number END,
+ work_address=CASE WHEN @work_address<>'' THEN @work_address ELSE work_address END,
+ fact_evidence_json=@fact_evidence_json
+ WHERE id=@id`).run({
+  id,...extracted,
+  source_page_title:page.title,
+  source_page_url:page.page_url,
+  source_page_text:String(page.text||'').slice(0,18000),
+  fact_evidence_json:JSON.stringify(factEvidence)
+ });
+ const saveDocument=db.prepare(`INSERT INTO commercial_order_documents(order_id,source_url,title,file_name,document_type)
+  VALUES (@order_id,@source_url,@title,@file_name,@document_type)
+  ON CONFLICT(order_id,source_url) DO UPDATE SET
+   title=CASE WHEN excluded.title<>'' THEN excluded.title ELSE commercial_order_documents.title END,
+   file_name=CASE WHEN excluded.file_name<>'' THEN excluded.file_name ELSE commercial_order_documents.file_name END,
+   document_type=excluded.document_type,
+   updated_at=CURRENT_TIMESTAMP`);
+ let documentsFound=0;
+ const saveAttachments=db.transaction(items=>{
+  for(const attachment of items){
+   saveDocument.run({order_id:id,source_url:attachment.url,title:attachment.title||'',file_name:attachment.file_name||'',document_type:attachment.document_type||'table'});
+   documentsFound++;
+  }
+ });
+ saveAttachments(Array.isArray(page.attachments)?page.attachments:[]);
+ return {id,title:page.title,source_page_url:page.page_url,extractedFacts:pageEvidence.length,documentsFound,
+  fieldsFound:['customer_name','contact_name','phone','email','budget_rub','volume_value','deadline_text','procurement_number','work_address'].filter(field=>extracted[field]!==''&&extracted[field]!==0)};
+});
+ipcMain.handle('orders:fetchPdf', async (_event, input = {}) => {
+ const orderId=Number(input.order_id),documentId=Number(input.document_id);
+ if(!Number.isSafeInteger(orderId)||orderId<1||!Number.isSafeInteger(documentId)||documentId<1)throw new Error('Некорректный заказ или PDF-документ.');
+ const document=db.prepare('SELECT * FROM commercial_order_documents WHERE id=? AND order_id=?').get(documentId,orderId);
+ if(!document)throw new Error('PDF-документ не найден в этой карточке заказа.');
+ const pdf=await fetchAndParseOrderPdf(document.source_url);
+ let evidence=[];
+ try{evidence=JSON.parse(pdf.facts.fact_evidence_json||'[]');if(!Array.isArray(evidence))evidence=[];}catch{}
+ const taggedEvidence=evidence.map(item=>({...item,source_kind:'pdf',source_url:pdf.source_url,document_id:documentId,page_count:pdf.page_count}));
+ let existingEvidence=[];
+ try{existingEvidence=JSON.parse(db.prepare('SELECT fact_evidence_json FROM commercial_orders WHERE id=?').get(orderId)?.fact_evidence_json||'[]');if(!Array.isArray(existingEvidence))existingEvidence=[];}catch{}
+ const merged=new Map();
+ for(const item of [...existingEvidence,...taggedEvidence]){
+  if(!item||typeof item!=='object')continue;
+  const key=String(item.field||'')+'|'+String(item.excerpt||'')+'|'+String(item.source_url||'');
+  if(key!=='||')merged.set(key,item);
+ }
+ const facts=pdf.facts;
+ const persist=db.transaction(()=>{
+  db.prepare(`UPDATE commercial_order_documents SET
+   file_name=@file_name,mime_type=@mime_type,document_type='pdf',page_count=@page_count,extracted_text=@extracted_text,
+   fact_evidence_json=@fact_evidence_json,sha256=@sha256,fetched_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP
+   WHERE id=@id AND order_id=@order_id`).run({
+    id:documentId,order_id:orderId,file_name:pdf.file_name,mime_type:pdf.mime_type,page_count:pdf.page_count,
+    extracted_text:pdf.text,fact_evidence_json:JSON.stringify(taggedEvidence),sha256:pdf.sha256
+   });
+  db.prepare(`UPDATE commercial_orders SET
+   customer_name=CASE WHEN @customer_name<>'' THEN @customer_name ELSE customer_name END,
+   contact_name=CASE WHEN @contact_name<>'' THEN @contact_name ELSE contact_name END,
+   phone=CASE WHEN @phone<>'' THEN @phone ELSE phone END,
+   email=CASE WHEN @email<>'' THEN @email ELSE email END,
+   budget_rub=CASE WHEN @budget_rub>0 THEN @budget_rub ELSE budget_rub END,
+   volume_value=CASE WHEN @volume_value>0 THEN @volume_value ELSE volume_value END,
+   volume_unit=CASE WHEN @volume_unit<>'' THEN @volume_unit ELSE volume_unit END,
+   deadline_text=CASE WHEN @deadline_text<>'' THEN @deadline_text ELSE deadline_text END,
+   procurement_number=CASE WHEN @procurement_number<>'' THEN @procurement_number ELSE procurement_number END,
+   work_address=CASE WHEN @work_address<>'' THEN @work_address ELSE work_address END,
+   fact_evidence_json=@fact_evidence_json
+   WHERE id=@id`).run({...facts,id:orderId,fact_evidence_json:JSON.stringify([...merged.values()].slice(-120))});
+ });
+ persist();
+ return {order_id:orderId,document_id:documentId,file_name:pdf.file_name,page_count:pdf.page_count,
+  extractedFacts:taggedEvidence.length,bytes:pdf.bytes,sha256:pdf.sha256};
+});
+ipcMain.handle('orders:fetchTable', async (_event, input = {}) => {
+ const orderId=Number(input.order_id),documentId=Number(input.document_id);
+ if(!Number.isSafeInteger(orderId)||orderId<1||!Number.isSafeInteger(documentId)||documentId<1)throw new Error('Некорректный заказ или табличный документ.');
+ const document=db.prepare('SELECT * FROM commercial_order_documents WHERE id=? AND order_id=?').get(documentId,orderId);
+ if(!document)throw new Error('Табличный документ не найден в этой карточке заказа.');
+ const table=await fetchAndParseOrderTable(document.source_url);
+ let evidence=[];
+ try{evidence=JSON.parse(table.facts.fact_evidence_json||'[]');if(!Array.isArray(evidence))evidence=[];}catch{}
+ const taggedEvidence=evidence.map(item=>({...item,source_kind:'table',source_url:table.source_url,document_id:documentId,sheet_count:table.sheet_count}));
+ let existingEvidence=[];
+ try{existingEvidence=JSON.parse(db.prepare('SELECT fact_evidence_json FROM commercial_orders WHERE id=?').get(orderId)?.fact_evidence_json||'[]');if(!Array.isArray(existingEvidence))existingEvidence=[];}catch{}
+ const merged=new Map();
+ for(const item of [...existingEvidence,...taggedEvidence]){
+  if(!item||typeof item!=='object')continue;
+  const key=String(item.field||'')+'|'+String(item.excerpt||'')+'|'+String(item.source_url||'');
+  if(key!=='||')merged.set(key,item);
+ }
+ const facts=table.facts;
+ const persist=db.transaction(()=>{
+  db.prepare('UPDATE commercial_order_documents SET file_name=?,mime_type=?,document_type=?,sheet_count=?,row_count=?,line_items_json=?,extracted_text=?,fact_evidence_json=?,sha256=?,fetched_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=? AND order_id=?')
+   .run(table.file_name,table.mime_type,'table',table.sheet_count,table.row_count,JSON.stringify(table.line_items||[]),table.text,JSON.stringify(taggedEvidence),table.sha256,documentId,orderId);
+  db.prepare(`UPDATE commercial_orders SET
+   customer_name=CASE WHEN @customer_name<>'' THEN @customer_name ELSE customer_name END,
+   contact_name=CASE WHEN @contact_name<>'' THEN @contact_name ELSE contact_name END,
+   phone=CASE WHEN @phone<>'' THEN @phone ELSE phone END,
+   email=CASE WHEN @email<>'' THEN @email ELSE email END,
+   budget_rub=CASE WHEN @budget_rub>0 THEN @budget_rub ELSE budget_rub END,
+   volume_value=CASE WHEN @volume_value>0 THEN @volume_value ELSE volume_value END,
+   volume_unit=CASE WHEN @volume_unit<>'' THEN @volume_unit ELSE volume_unit END,
+   deadline_text=CASE WHEN @deadline_text<>'' THEN @deadline_text ELSE deadline_text END,
+   procurement_number=CASE WHEN @procurement_number<>'' THEN @procurement_number ELSE procurement_number END,
+   work_address=CASE WHEN @work_address<>'' THEN @work_address ELSE work_address END,
+   fact_evidence_json=@fact_evidence_json WHERE id=@id`).run({...facts,id:orderId,fact_evidence_json:JSON.stringify([...merged.values()].slice(-120))});
+ });
+ persist();
+ return {order_id:orderId,document_id:documentId,file_name:table.file_name,sheet_count:table.sheet_count,row_count:table.row_count,
+  extractedFacts:taggedEvidence.length,bytes:table.bytes,sha256:table.sha256};
 });
 ipcMain.handle('orders:search',async(_event,input={})=>{
  const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');
  const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const sourceType=['all','web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';const queries=buildOrderQueries(service,region,sourceType);const found=[],errors=[];
  for(const query of queries){try{const results=await searchBrave(query,apiKey,{count:10});found.push(...results.map(x=>normalizeBraveOrderResult(x,query,service,region)).filter(Boolean))}catch(e){errors.push({query,error:clean(e.message,240)})}}
- const unique=deduplicateOrders(found);
- const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`);
- const update=db.prepare(`UPDATE commercial_orders SET title=@title,source_name=@source_name,source_type=@source_type,snippet=@snippet,search_query=@search_query,service=@service,region=@region,signal_score=@signal_score,signal_labels=@signal_labels,relevance=@relevance,last_seen_at=CURRENT_TIMESTAMP WHERE source_url=@source_url AND status NOT IN ('relevant','rejected')`);
+ const unique=deduplicateOrders(found).map(item=>({...item,...extractOrderEvidence(item.title+'\n'+item.snippet)}));
+ const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status,customer_name,contact_name,phone,email,budget_rub,volume_value,volume_unit,deadline_text,procurement_number,work_address,fact_evidence_json)
+ VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new',@customer_name,@contact_name,@phone,@email,@budget_rub,@volume_value,@volume_unit,@deadline_text,@procurement_number,@work_address,@fact_evidence_json)`);
+ const update=db.prepare(`UPDATE commercial_orders SET title=@title,source_name=@source_name,source_type=@source_type,snippet=@snippet,search_query=@search_query,service=@service,region=@region,signal_score=@signal_score,signal_labels=@signal_labels,relevance=@relevance,
+ customer_name=CASE WHEN @customer_name<>'' THEN @customer_name ELSE customer_name END,
+ contact_name=CASE WHEN @contact_name<>'' THEN @contact_name ELSE contact_name END,
+ phone=CASE WHEN @phone<>'' THEN @phone ELSE phone END,
+ email=CASE WHEN @email<>'' THEN @email ELSE email END,
+ budget_rub=CASE WHEN @budget_rub>0 THEN @budget_rub ELSE budget_rub END,
+ volume_value=CASE WHEN @volume_value>0 THEN @volume_value ELSE volume_value END,
+ volume_unit=CASE WHEN @volume_unit<>'' THEN @volume_unit ELSE volume_unit END,
+ deadline_text=CASE WHEN @deadline_text<>'' THEN @deadline_text ELSE deadline_text END,
+ procurement_number=CASE WHEN @procurement_number<>'' THEN @procurement_number ELSE procurement_number END,
+ work_address=CASE WHEN @work_address<>'' THEN @work_address ELSE work_address END,
+ fact_evidence_json=CASE WHEN @fact_evidence_json<>'[]' THEN @fact_evidence_json ELSE fact_evidence_json END,
+ last_seen_at=CURRENT_TIMESTAMP WHERE source_url=@source_url AND status NOT IN ('relevant','rejected')`);
  const touch=db.prepare('UPDATE commercial_orders SET last_seen_at=CURRENT_TIMESTAMP WHERE source_url=?');
  let added=0,refreshed=0,protectedCount=0;
  const tx=db.transaction(items=>{
@@ -794,9 +971,11 @@ ipcMain.handle('orders:createManual', (_event,input={}) => {
  if(!title)throw new Error('Укажи название заказа.');
  const order=normalizeOrderResult({title,url,description:snippet},'Добавлено вручную',service,region);
  if(!order)throw new Error('Не удалось проверить ссылку. Укажи действительный HTTP(S)-адрес первоисточника.');
+ const evidence=extractOrderEvidence(order.title+'\n'+order.snippet);
  const existing=db.prepare('SELECT id FROM commercial_orders WHERE source_url=?').get(order.source_url);
  if(existing)return {id:existing.id,duplicate:true};
- const result=db.prepare(`INSERT INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`).run({...order,search_query:'Добавлено вручную',signal_labels:order.signal_labels.join('|')});
+ const result=db.prepare(`INSERT INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status,customer_name,contact_name,phone,email,budget_rub,volume_value,volume_unit,deadline_text,procurement_number,work_address,fact_evidence_json)
+ VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new',@customer_name,@contact_name,@phone,@email,@budget_rub,@volume_value,@volume_unit,@deadline_text,@procurement_number,@work_address,@fact_evidence_json)`).run({...order,...evidence,search_query:'Добавлено вручную',signal_labels:order.signal_labels.join('|')});
  return {id:Number(result.lastInsertRowid),duplicate:false};
 });
 ipcMain.handle('orders:importCsv', async () => {
@@ -809,12 +988,14 @@ ipcMain.handle('orders:importCsv', async () => {
   if(!order)return null;
   return {...order,source_name:item.source_name||order.source_name,source_type:'files',search_query:'Импорт из файла'};
  }).filter(Boolean);
- const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status) VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new')`);
+ const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status,customer_name,contact_name,phone,email,budget_rub,volume_value,volume_unit,deadline_text,procurement_number,work_address,fact_evidence_json)
+ VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new',@customer_name,@contact_name,@phone,@email,@budget_rub,@volume_value,@volume_unit,@deadline_text,@procurement_number,@work_address,@fact_evidence_json)`);
+ const enrichedOrders=normalized.map(item=>({...item,...extractOrderEvidence(item.title+'\n'+item.snippet)}));
  let imported=0,duplicates=0;
  const tx=db.transaction(items=>{for(const item of items){const values={...item,signal_labels:item.signal_labels.join('|')};const result=insert.run(values);if(result.changes)imported++;else duplicates++;}
   db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)').run('CSV заказов',path.basename(filePath),imported,parsed.skipped+duplicates,0,`В файле: ${parsed.orders.length+parsed.skipped}; импортировано: ${imported}; пропущено: ${parsed.skipped+duplicates}`);
  });
- tx(normalized);
+ tx(enrichedOrders);
  return {canceled:false,imported,skipped:parsed.skipped+duplicates+(parsed.orders.length-normalized.length),total:parsed.orders.length+parsed.skipped};
 });
 ipcMain.handle('orders:updateStatus',(_event,input={})=>{
@@ -831,12 +1012,21 @@ ipcMain.handle('orders:convertLead', (_event, orderId) => {
  const existing=db.prepare('SELECT id FROM leads WHERE commercial_order_id=?').get(id);
  if(existing)return {leadId:existing.id,alreadyExists:true};
  const analysis=db.prepare('SELECT * FROM commercial_order_analysis WHERE order_id=?').get(id)||null;
- const leadBudget=Math.max(0,Math.round(Number(analysis?.revenue_rub)||0));
+ const leadBudget=Math.max(0,Math.round(Number(order.budget_rub)||0));
  const serviceLabel={demolition:'Демонтаж',finishing:'Отделочные работы',raised_floor:'Фальшполы'}[order.service]||'Демонтаж';
  const notes=[
   'Создано из радара коммерческих заказов. Данные и актуальность необходимо проверить на исходном сайте.',
   'Источник: '+order.source_url,
   'Регион: '+order.region,
+  order.customer_name?'Заказчик из первоисточника: '+order.customer_name:'',
+  order.contact_name?'Контактное лицо из первоисточника: '+order.contact_name:'',
+  order.phone?'Телефон из первоисточника: '+order.phone:'',
+  order.email?'Email из первоисточника: '+order.email:'',
+  leadBudget>0?'Бюджет из текста источника: '+leadBudget.toLocaleString('ru-RU')+' ₽. Проверь на исходной странице.':'Бюджет заказчика не найден в исходном тексте; расчётная выручка не записывается как бюджет.',
+  order.volume_value>0?'Объём из текста источника: '+Number(order.volume_value).toLocaleString('ru-RU')+' '+order.volume_unit+'. Проверь единицы и контекст.':'',
+  order.deadline_text?'Срок из текста источника: '+order.deadline_text+'. Проверь актуальность.':'',
+  order.procurement_number?'Номер закупки: '+order.procurement_number:'',
+  order.work_address?'Место выполнения: '+order.work_address:'',
   'Оценка сигнала: '+order.signal_score+'/100',
   order.signal_labels?'Сигналы: '+String(order.signal_labels).split('|').filter(Boolean).join(', '):'',
   order.snippet?'Фрагмент выдачи: '+order.snippet:'',
@@ -846,9 +1036,28 @@ ipcMain.handle('orders:convertLead', (_event, orderId) => {
   analysis?(Number(analysis.budget_rub)>0?'Основа выручки: введённый бюджет, требуется проверка на первоисточнике.':'Основа выручки: ставка прайса; бюджет заказчика не подтверждён.'):'',
  ].filter(Boolean).join('\n').slice(0,4000);
  const create=db.transaction(()=>{
-  const result=db.prepare('INSERT INTO leads(commercial_order_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,?,?,\'new\',?,\'\',?)').run(id,(serviceLabel+' — '+order.title).slice(0,180),order.service,leadSourceForOrderType(order.source_type),leadBudget,notes);
+  let clientId=null;
+  if(order.customer_name){
+   const existingClient=db.prepare('SELECT id FROM clients WHERE lower(name)=lower(?) ORDER BY id ASC LIMIT 1').get(order.customer_name);
+   if(existingClient) {
+    clientId=Number(existingClient.id);
+    db.prepare("UPDATE clients SET phone=CASE WHEN trim(phone)='' THEN ? ELSE phone END,email=CASE WHEN trim(email)='' THEN ? ELSE email END,contact_name=CASE WHEN trim(contact_name)='' THEN ? ELSE contact_name END,updated_at=CURRENT_TIMESTAMP WHERE id=?")
+      .run(order.phone||'',order.email||'',order.contact_name||'',clientId);
+   } else {
+    const client=db.prepare("INSERT INTO clients(name,phone,email,contact_name,client_type,notes) VALUES (?,?,?,?, 'company',?)")
+      .run(order.customer_name,order.phone||'',order.email||'',order.contact_name||'','Создано из карточки коммерческого заказа. Контакты и полномочия требуют проверки по первоисточнику.');
+    clientId=Number(client.lastInsertRowid);
+   }
+  }
+  const result=db.prepare('INSERT INTO leads(client_id,commercial_order_id,title,service,source,status,budget_rub,address,next_action,notes) VALUES (?,?,?,?,?,\'new\',?,?,?,?)')
+   .run(clientId,id,(serviceLabel+' — '+order.title).slice(0,180),order.service,leadSourceForOrderType(order.source_type),leadBudget,order.work_address||'','Проверить первоисточник, актуальность срока и условия участия.',notes);
+  const leadId=Number(result.lastInsertRowid);
+  const due=new Date(); due.setDate(due.getDate()+1);
+  const dueAt=`${due.getFullYear()}-${String(due.getMonth()+1).padStart(2,'0')}-${String(due.getDate()).padStart(2,'0')}`;
+  db.prepare('INSERT INTO tasks(lead_id,title,due_at) VALUES (?,?,?)')
+   .run(leadId,('Проверить заказ и связаться с заказчиком: '+order.title).slice(0,180),dueAt);
   db.prepare("UPDATE commercial_orders SET status='relevant' WHERE id=?").run(id);
-  return Number(result.lastInsertRowid);
+  return leadId;
  });
  return {leadId:create(),alreadyExists:false};
 });
@@ -991,7 +1200,7 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   };
   if (!allowed[kind]) throw new Error('Неизвестный тип экспорта.');
   const [label, sql, file] = allowed[kind];
-  const { canceled, filePath } = await dialog.showSaveDialog({ title: `STRUKTURA CRM · Экспорт: ${label}`, defaultPath: `STRUKTURA-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
+  const { canceled, filePath } = await dialog.showSaveDialog({ title: `СКОЛ · Экспорт: ${label}`, defaultPath: `СКОЛ-${file}-${new Date().toISOString().slice(0,10)}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
   if (canceled || !filePath) return { canceled: true };
   const rows = db.prepare(sql).all();
   const columns = rows.length ? Object.keys(rows[0]) : sql.match(/SELECT (.+?) FROM/)[1].split(',').map(s=>s.trim());
@@ -1000,38 +1209,41 @@ ipcMain.handle('data:exportCsv', async (_event, kind) => {
   return { canceled: false, filePath, count: rows.length };
 });
 ipcMain.handle('backup:create', async () => {
-  const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить резервную копию', defaultPath: `STRUKTURA-CRM-backup-${new Date().toISOString().slice(0,10)}.sqlite`, filters: [{ name: 'SQLite database', extensions: ['sqlite','db'] }] });
+  const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить резервную копию', defaultPath: `SKOL-backup-${new Date().toISOString().slice(0,10)}.sqlite`, filters: [{ name: 'SQLite database', extensions: ['sqlite','db'] }] });
   if (canceled || !filePath) return { canceled: true };
   db.pragma('wal_checkpoint(FULL)');
   await db.backup(filePath);
   return { canceled: false, filePath };
 });
 
-// Restore only validated SQLite backups. Before replacement, preserve the current database
-// as an automatic rollback copy and reopen the live connection after the file swap.
+// Restore only validated SQLite backups. Normalize the selected database through SQLite's
+// backup API so committed data in a source -wal file is included in the standalone restore file.
 ipcMain.handle('backup:restore', async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
-    title: 'Выберите резервную копию STRUKTURA CRM',
+    title: 'Выберите резервную копию СКОЛ',
     properties: ['openFile'],
     filters: [{ name: 'SQLite database', extensions: ['sqlite', 'db'] }]
   });
   if (canceled || !filePaths?.[0]) return { canceled: true };
   const sourcePath = path.resolve(filePaths[0]);
-  const livePath = path.join(app.getPath('userData'), 'struktura-crm.sqlite');
+  const userDataPath = app.getPath('userData');
+  const livePath = path.join(userDataPath, 'struktura-crm.sqlite');
   if (sourcePath === path.resolve(livePath)) throw new Error('Нельзя восстановить базу из файла, который CRM использует прямо сейчас. Выберите отдельную резервную копию.');
 
+  const restoreCandidatePath = path.join(userDataPath, `SKOL-restore-candidate-${Date.now()}.sqlite`);
   let candidate;
   try {
     candidate = new Database(sourcePath, { readonly: true, fileMustExist: true });
-    const integrity = candidate.pragma('integrity_check', { simple: true });
-    if (integrity !== 'ok') throw new Error(`Проверка целостности копии не пройдена: ${integrity}`);
-    const tables = new Set(candidate.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
-    const required = ['clients', 'leads', 'projects', 'payments', 'expenses', 'settings'];
-    const missing = required.filter(name => !tables.has(name));
-    if (missing.length) throw new Error(`Это не резервная копия STRUKTURA CRM: отсутствуют таблицы ${missing.join(', ')}.`);
+    validateBackupDatabase(candidate);
+    await candidate.backup(restoreCandidatePath);
     candidate.close(); candidate = null;
+    const normalized = new Database(restoreCandidatePath, { readonly: true, fileMustExist: true });
+    try {
+      validateBackupDatabase(normalized);
+    } finally { normalized.close(); }
   } catch (error) {
     if (candidate) { try { candidate.close(); } catch {} }
+    if (fs.existsSync(restoreCandidatePath)) { try { fs.rmSync(restoreCandidatePath, { force: true }); } catch {} }
     throw new Error(`Копия не прошла проверку. Действующая база не изменена. ${error.message}`);
   }
 
@@ -1041,31 +1253,46 @@ ipcMain.handle('backup:restore', async () => {
     message: 'Текущие данные будут заменены данными выбранной копии.',
     detail: 'Перед заменой CRM автоматически сохранит текущую базу в отдельный файл. После восстановления окно программы перезагрузится.'
   });
-  if (answer.response !== 1) return { canceled: true };
+  if (answer.response !== 1) {
+    try { fs.rmSync(restoreCandidatePath, { force: true }); } catch {}
+    return { canceled: true };
+  }
 
-  const userDataPath = app.getPath('userData');
-  const safetyPath = path.join(userDataPath, `STRUKTURA-CRM-before-restore-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`);
+  const safetyPath = path.join(userDataPath, `SKOL-before-restore-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`);
   const walPath = `${livePath}-wal`, shmPath = `${livePath}-shm`;
-  db.pragma('wal_checkpoint(FULL)');
-  await db.backup(safetyPath);
+  try {
+    db.pragma('wal_checkpoint(FULL)');
+    await db.backup(safetyPath);
+  } catch (error) {
+    // The live database is still open and untouched; remove incomplete temporary files.
+    try { fs.rmSync(safetyPath, { force: true }); } catch {}
+    try { fs.rmSync(restoreCandidatePath, { force: true }); } catch {}
+    throw new Error(`Не удалось создать страховочную копию. Действующая база не изменена. ${error.message}`);
+  }
   db.close();
   try {
     for (const sidecar of [walPath, shmPath]) if (fs.existsSync(sidecar)) fs.rmSync(sidecar, { force: true });
-    fs.copyFileSync(sourcePath, livePath);
+    fs.copyFileSync(restoreCandidatePath, livePath);
     db = openDatabase(userDataPath);
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload();
     return { canceled: false, safetyPath };
   } catch (error) {
     try { if (db && db.open) db.close(); } catch {}
     try {
+      for (const sidecar of [walPath, shmPath]) if (fs.existsSync(sidecar)) fs.rmSync(sidecar, { force: true });
       fs.copyFileSync(safetyPath, livePath);
       db = openDatabase(userDataPath);
     } catch (rollbackError) {
       throw new Error(`Восстановление не завершено: ${error.message}. Автоматический откат также не удался: ${rollbackError.message}. Сохранённая копия: ${safetyPath}`);
+    } finally {
+      try { fs.rmSync(restoreCandidatePath, { force: true }); } catch {}
     }
     throw new Error(`Восстановление не удалось; прежняя база возвращена. ${error.message}`);
+  } finally {
+    try { fs.rmSync(restoreCandidatePath, { force: true }); } catch {}
   }
 });
+
 ipcMain.handle('browser:state', () => browserState());
 ipcMain.handle('browser:visibility', (_event, input = {}) => {
   browserIsVisible = Boolean(input.visible);
@@ -1155,21 +1382,100 @@ ipcMain.handle('app:openExternal', async (_event, value) => {
 
 function quoteEscape(value) { return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
 function quoteMoney(value) { return `${Math.round(Number(value) || 0).toLocaleString('ru-RU')} ₽`; }
+function quoteUnitPrice(value) { const n = Number(value); const safe = Number.isFinite(n) ? n : 0; return `${safe.toLocaleString('ru-RU', { minimumFractionDigits: Number.isInteger(safe) ? 0 : 2, maximumFractionDigits: 2 })} ₽`; }
 ipcMain.handle('estimate:history', () => db.prepare(`SELECT id,title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json FROM quote_history ORDER BY prepared_at DESC,id DESC`).all().map(row => ({ ...row, lines: (() => { try { return JSON.parse(row.lines_json || '[]'); } catch { return []; } })() })));
 
+ipcMain.handle('engineering:importEstimateFile', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Загрузить смету для ПИ',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Сметы и таблицы', extensions: ['pdf', 'xlsx', 'xls', 'csv', 'txt', 'tsv'] },
+      { name: 'Все файлы', extensions: ['*'] }
+    ]
+  });
+  if (result.canceled || !result.filePaths?.[0]) return { canceled: true };
+  const filePath = result.filePaths[0];
+  const extension = path.extname(filePath).toLowerCase();
+  const stat = fs.statSync(filePath);
+  if (stat.size > 25 * 1024 * 1024) throw new Error('Файл больше 25 МБ. Раздели смету на несколько файлов.');
+  if (['.csv', '.txt', '.tsv'].includes(extension)) {
+    return { canceled: false, fileName: path.basename(filePath), text: fs.readFileSync(filePath, 'utf8'), format: extension.slice(1) };
+  }
+  if (['.xlsx', '.xls'].includes(extension)) {
+    const XLSX = require('xlsx');
+    const workbook = XLSX.readFile(filePath, { cellDates: false, dense: false });
+    const sheets = workbook.SheetNames.map(name => ({
+      name,
+      rows: XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, raw: false, defval: '' })
+    }));
+    return { canceled: false, fileName: path.basename(filePath), format: extension.slice(1), sheets };
+  }
+  if (extension === '.pdf') {
+    const pdfParse = require('pdf-parse');
+    const buffer = fs.readFileSync(filePath);
+    const parsed = await pdfParse(buffer, { max: 0 });
+    const text = String(parsed.text || '').trim();
+    if (!text) throw new Error('В PDF не найден текстовый слой. Если это скан, сначала распознай его OCR или сохрани таблицу в Excel/CSV.');
+    return { canceled: false, fileName: path.basename(filePath), format: 'pdf', text };
+  }
+  throw new Error('Поддерживаются PDF, XLSX, XLS, CSV, TXT и TSV.');
+});
+ipcMain.handle('engineeringPlans:list', () => db.prepare(`SELECT id,title,created_at,operations_json,result_json FROM engineering_project_plans ORDER BY created_at DESC,id DESC LIMIT 100`).all().map(row => ({
+  id: row.id, title: row.title, createdAt: row.created_at,
+  operations: (() => { try { return JSON.parse(row.operations_json || '[]'); } catch { return []; } })(),
+  result: (() => { try { return JSON.parse(row.result_json || '{}'); } catch { return {}; } })()
+})));
+ipcMain.handle('engineeringPlans:save', (_event, input = {}) => {
+  const id = clean(input.id, 120);
+  const title = clean(input.title || 'Комплексный объект', 180);
+  const createdAt = clean(input.createdAt || new Date().toISOString(), 40);
+  const operations = Array.isArray(input.operations) ? input.operations.slice(0, 100) : null;
+  const result = input.result && typeof input.result === 'object' && !Array.isArray(input.result) ? input.result : null;
+  if (!id || !operations || !operations.length || !result) throw new Error('Некорректный план комплексного объекта.');
+  const operationsJson = JSON.stringify(operations);
+  const resultJson = JSON.stringify(result);
+  if (operationsJson.length > 800000 || resultJson.length > 300000) throw new Error('Размер плана превышает допустимый предел.');
+  db.prepare(`INSERT INTO engineering_project_plans(id,title,created_at,operations_json,result_json,updated_at)
+    VALUES(?,?,?,?,?,CURRENT_TIMESTAMP)
+    ON CONFLICT(id) DO UPDATE SET title=excluded.title,operations_json=excluded.operations_json,result_json=excluded.result_json,updated_at=CURRENT_TIMESTAMP`)
+    .run(id,title,createdAt,operationsJson,resultJson);
+  return { id, title, createdAt };
+});
+ipcMain.handle('engineeringPlans:delete', (_event, id) => {
+  const key = clean(id, 120);
+  if (!key) throw new Error('Не указан ID плана.');
+  return { deleted: db.prepare('DELETE FROM engineering_project_plans WHERE id=?').run(key).changes > 0 };
+});
+
 ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
-  const lines = Array.isArray(input.lines) ? input.lines.slice(0, 500) : [];
-  if (!lines.length) throw new Error('Добавь в смету хотя бы одну работу перед созданием КП.');
+  const sourceLines = Array.isArray(input.lines) ? input.lines.slice(0, 500) : [];
+  if (!sourceLines.length) throw new Error('Добавь в смету хотя бы одну работу перед созданием КП.');
+  const lines = sourceLines.map((line, index) => {
+    if (!line || typeof line !== 'object') throw new Error('Строка КП №' + (index + 1) + ' имеет неверный формат.');
+    const quantity = Number(line.quantity ?? 0);
+    const priceInput = Number(line.price ?? 0);
+    if (!Number.isFinite(quantity) || quantity < 0) throw new Error('Проверь количество в строке КП №' + (index + 1) + '.');
+    if (!Number.isFinite(priceInput) || priceInput < 0) throw new Error('Проверь цену в строке КП №' + (index + 1) + '.');
+    const price = Math.round(priceInput * 100) / 100;
+    const lineTotal = Math.round(quantity * price);
+    if (!Number.isSafeInteger(lineTotal) || lineTotal < 0) throw new Error('Сумма строки КП №' + (index + 1) + ' выходит за допустимый диапазон рублей.');
+    return { name: clean(line.name, 180), note: clean(line.note, 300), unit: clean(line.unit, 24), quantity, price, lineTotal };
+  });
   const title = clean(input.title || 'Коммерческое предложение', 180);
   const customer = clean(input.customer, 180); const address = clean(input.address, 240);
   const contact = clean(input.contact, 120); const validity = clean(input.validity || '7 календарных дней', 80);
-  const total = Math.max(0, Number(input.revenue) || 0);
-  const rows = lines.map((line, i) => `<tr><td class="num">${i + 1}</td><td><strong>${quoteEscape(clean(line.name,180))}</strong>${line.note ? `<small>${quoteEscape(clean(line.note,300))}</small>` : ''}</td><td>${quoteEscape(clean(line.unit,24))}</td><td class="num">${Number(line.quantity || 0).toLocaleString('ru-RU')}</td><td class="num">${quoteMoney(line.price)}</td><td class="num">${quoteMoney(Number(line.quantity || 0) * Number(line.price || 0))}</td></tr>`).join('');
-  const discount = Math.max(0, Number(input.discount) || 0);
+  const totals = calculateQuoteTotals(lines, input.discount, input.costInputs || {});
+  const total = totals.revenueRub;
+  const discount = totals.discountRub;
+  const costRub = totals.costRub;
+  const profitRub = totals.profitRub;
+  const marginPct = totals.marginPct;
+  const rows = lines.map((line, i) => `<tr><td class="num">${i + 1}</td><td><strong>${quoteEscape(line.name)}</strong>${line.note ? `<small>${quoteEscape(line.note)}</small>` : ''}</td><td>${quoteEscape(line.unit)}</td><td class="num">${line.quantity.toLocaleString('ru-RU')}</td><td class="num">${quoteUnitPrice(line.price)}</td><td class="num">${quoteMoney(line.lineTotal)}</td></tr>`).join('');
   const preparedDate = new Date().toLocaleDateString('ru-RU');
   const html = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${quoteEscape(title)}</title><style>
-  @page{size:A4;margin:13mm 13mm 15mm}*{box-sizing:border-box}body{font-family:Arial,'DejaVu Sans',sans-serif;color:#202a35;font-size:9pt;line-height:1.48;margin:0;background:#fff}header{position:relative;overflow:hidden;background:#172b3a;color:#fff;padding:21px 23px 20px;border-radius:2px;margin-bottom:18px;min-height:168px}header:after{content:"";position:absolute;right:-26px;top:-42px;width:205px;height:205px;border:1px solid rgba(255,255,255,.18);border-radius:50%;box-shadow:0 0 0 22px rgba(255,255,255,.035),0 0 0 45px rgba(255,255,255,.025)}.brand{font-size:23pt;letter-spacing:2.5px;font-weight:800;color:#fff;position:relative;z-index:1}.tag{font-size:7.2pt;letter-spacing:1.5px;color:#f1a36e;font-weight:bold;margin-top:4px;position:relative;z-index:1}.doctype{font-size:8pt;color:#c8d5dc;letter-spacing:1.4px;margin-top:22px;position:relative;z-index:1}.title{font-size:19pt;line-height:1.2;margin:5px 0 0;color:#fff;max-width:82%;position:relative;z-index:1}.hero-mark{position:absolute;right:19px;bottom:18px;width:95px;height:76px;border:1px solid rgba(255,255,255,.26);z-index:1;transform:skewY(-8deg)}.hero-mark:before,.hero-mark:after{content:"";position:absolute;border:1px solid rgba(241,163,110,.8)}.hero-mark:before{inset:12px -10px -10px 12px}.hero-mark:after{left:30px;top:-1px;bottom:-1px;border-width:0 0 0 1px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:7px 17px;margin:0 0 17px}.meta div{padding:7px 9px;background:#f4f6f7;border-left:2px solid #e38b55;min-height:43px}.label{display:block;font-size:7pt;letter-spacing:.65px;color:#687985;margin-bottom:2px;font-weight:700;text-transform:uppercase}.meta-value{overflow-wrap:anywhere}.section{font-size:10pt;font-weight:800;margin:17px 0 8px;color:#203747;display:flex;align-items:center;gap:8px}.section:before{content:"";width:4px;height:15px;background:#e38b55;display:inline-block}table{width:100%;border-collapse:collapse;font-size:8pt}thead{display:table-header-group}th{background:#203747;color:white;text-align:left;padding:8px 6px;font-weight:700}th:first-child{border-radius:2px 0 0 0}td{padding:7px 6px;border-bottom:1px solid #e4e9ec;vertical-align:top}tbody tr:nth-child(even){background:#f6f8f9}.num{text-align:right;white-space:nowrap}small{display:block;color:#6e7d87;font-size:7.3pt;margin-top:3px}.totals{margin:17px 0 0 auto;width:53%;background:#f3f6f7;padding:12px 14px;border-top:3px solid #e38b55}.total-label{color:#687985;font-size:7.5pt;font-weight:700;letter-spacing:.6px}.total{font-size:21pt;line-height:1.25;font-weight:800;color:#203747;margin-top:3px}.discount{font-size:8pt;color:#637079;margin-top:5px}.terms{margin-top:18px;padding:11px 12px;background:#f7f8f8;border-left:2px solid #cbd6dc;color:#596974;font-size:7.8pt}.terms strong{color:#203747}.signatures{display:grid;grid-template-columns:1.2fr .8fr;gap:15px;margin-top:19px;break-inside:avoid;page-break-inside:avoid}.sign-main{padding-top:8px}.sign-title{font-size:8pt;font-weight:800;color:#203747;margin-bottom:8px}.executor{font-size:9pt;font-weight:700;margin-bottom:18px}.signature-line{display:flex;align-items:end;gap:8px;margin-top:10px}.line{border-bottom:1px solid #667782;flex:1;height:22px}.line-label{font-size:7pt;color:#687985;white-space:nowrap}.stamp-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center}.stamp{width:100px;height:100px;border:1.5px dashed #9aaab3;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#8b9ba4;font-size:7pt;line-height:1.4;padding:12px;position:relative}.stamp:before{content:"";position:absolute;inset:5px;border:1px dashed #c0cbd1;border-radius:50%}.stamp-label{font-size:7pt;color:#687985;margin-top:5px}.footer{margin-top:17px;color:#82909a;font-size:6.8pt;border-top:1px solid #e2e7ea;padding-top:8px;display:flex;justify-content:space-between;gap:10px}tr{break-inside:avoid;page-break-inside:avoid}.terms,.totals{break-inside:avoid;page-break-inside:avoid}@media print{header{print-color-adjust:exact;-webkit-print-color-adjust:exact}.meta div,.totals,.terms,th{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
-  </style></head><body><header><div class="brand">STRUKTURA</div><div class="tag">ДЕМОНТАЖ · ОТДЕЛКА · ФАЛЬШПОЛЫ</div><div class="doctype">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</div><div class="title">${quoteEscape(title)}</div><div class="hero-mark" aria-hidden="true"></div></header><div class="meta"><div><span class="label">Заказчик</span><span class="meta-value">${quoteEscape(customer || 'Не указан')}</span></div><div><span class="label">Контакт заказчика</span><span class="meta-value">${quoteEscape(contact || 'Не указан')}</span></div><div><span class="label">Адрес объекта</span><span class="meta-value">${quoteEscape(address || 'Будет уточнён')}</span></div><div><span class="label">Дата подготовки</span><span class="meta-value">${quoteEscape(preparedDate)}</span></div></div><div class="section">Состав и стоимость работ</div><table><thead><tr><th style="width:5%">№</th><th>Наименование работ</th><th>Ед.</th><th class="num">Кол-во</th><th class="num">Цена</th><th class="num">Сумма</th></tr></thead><tbody>${rows}</tbody></table><div class="totals"><div class="total-label">ИТОГО ПО ПРЕДЛОЖЕНИЮ</div><div class="total">${quoteMoney(total)}</div>${discount ? `<div class="discount">Скидка учтена в расчёте: ${quoteMoney(discount)}</div>` : ''}</div><div class="terms"><strong>Условия предложения</strong><br>Срок действия: ${quoteEscape(validity)}. Сроки выполнения, порядок оплаты и окончательный объём работ согласовываются сторонами до начала работ. Стоимость может быть уточнена после осмотра объекта и подтверждения объёмов. Дополнительные работы, не указанные в таблице, согласовываются отдельно. Настоящее коммерческое предложение не является договором подряда.</div><div class="signatures"><div class="sign-main"><div class="sign-title">ИСПОЛНИТЕЛЬ</div><div class="executor">ИП Борзенко Семен Сергеевич</div><div class="signature-line"><span class="line-label">Подпись</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Ф. И. О.</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Дата</span><span class="line"></span></div></div><div class="stamp-wrap"><div class="stamp">МЕСТО<br>ДЛЯ ПЕЧАТИ<br><span style="font-size:6pt">при наличии</span></div><div class="stamp-label">М. П.</div></div></div><div class="footer"><span>Сформировано в STRUKTURA CRM</span><span>Демонтаж · Отделка · Фальшполы</span></div></body></html>`;
+  @page{size:A4;margin:13mm 13mm 15mm}*{box-sizing:border-box}body{font-family:Arial,'DejaVu Sans',sans-serif;color:#202a35;font-size:9pt;line-height:1.48;margin:0;background:#fff}header{position:relative;overflow:hidden;background:#25282B;color:#fff;padding:21px 23px 20px;border-radius:2px;margin-bottom:18px;min-height:168px}header:after{content:"";position:absolute;right:-26px;top:-42px;width:205px;height:205px;border:1px solid rgba(255,255,255,.18);border-radius:50%;box-shadow:0 0 0 22px rgba(255,255,255,.035),0 0 0 45px rgba(255,255,255,.025)}.brand{display:flex;align-items:center;position:relative;z-index:1}.quote-brand-mark{display:block;width:220px;height:auto;max-height:54px}.tag{font-size:7.2pt;letter-spacing:1.5px;color:#B66B4B;font-weight:bold;margin-top:4px;position:relative;z-index:1}.doctype{font-size:8pt;color:#c8d5dc;letter-spacing:1.4px;margin-top:22px;position:relative;z-index:1}.title{font-size:19pt;line-height:1.2;margin:5px 0 0;color:#fff;max-width:82%;position:relative;z-index:1}.hero-mark{position:absolute;right:19px;bottom:18px;width:95px;height:76px;border:1px solid rgba(255,255,255,.26);z-index:1;transform:skewY(-8deg)}.hero-mark:before,.hero-mark:after{content:"";position:absolute;border:1px solid rgba(241,163,110,.8)}.hero-mark:before{inset:12px -10px -10px 12px}.hero-mark:after{left:30px;top:-1px;bottom:-1px;border-width:0 0 0 1px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:7px 17px;margin:0 0 17px}.meta div{padding:7px 9px;background:#F5F3EF;border-left:2px solid #B66B4B;min-height:43px}.label{display:block;font-size:7pt;letter-spacing:.65px;color:#687985;margin-bottom:2px;font-weight:700;text-transform:uppercase}.meta-value{overflow-wrap:anywhere}.section{font-size:10pt;font-weight:800;margin:17px 0 8px;color:#25282B;display:flex;align-items:center;gap:8px}.section:before{content:"";width:4px;height:15px;background:#B66B4B;display:inline-block}table{width:100%;border-collapse:collapse;font-size:8pt}thead{display:table-header-group}th{background:#25282B;color:white;text-align:left;padding:8px 6px;font-weight:700}th:first-child{border-radius:2px 0 0 0}td{padding:7px 6px;border-bottom:1px solid #e4e9ec;vertical-align:top}tbody tr:nth-child(even){background:#F5F3EF}.num{text-align:right;white-space:nowrap}small{display:block;color:#6e7d87;font-size:7.3pt;margin-top:3px}.totals{margin:17px 0 0 auto;width:53%;background:#F5F3EF;padding:12px 14px;border-top:3px solid #B66B4B}.total-label{color:#687985;font-size:7.5pt;font-weight:700;letter-spacing:.6px}.total{font-size:21pt;line-height:1.25;font-weight:800;color:#25282B;margin-top:3px}.discount{font-size:8pt;color:#637079;margin-top:5px}.terms{margin-top:18px;padding:11px 12px;background:#f7f8f8;border-left:2px solid #cbd6dc;color:#596974;font-size:7.8pt}.terms strong{color:#25282B}.signatures{display:grid;grid-template-columns:1.2fr .8fr;gap:15px;margin-top:19px;break-inside:avoid;page-break-inside:avoid}.sign-main{padding-top:8px}.sign-title{font-size:8pt;font-weight:800;color:#25282B;margin-bottom:8px}.executor{font-size:9pt;font-weight:700;margin-bottom:18px}.signature-line{display:flex;align-items:end;gap:8px;margin-top:10px}.line{border-bottom:1px solid #667782;flex:1;height:22px}.line-label{font-size:7pt;color:#687985;white-space:nowrap}.stamp-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center}.stamp{width:100px;height:100px;border:1.5px dashed #9aaab3;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;color:#8b9ba4;font-size:7pt;line-height:1.4;padding:12px;position:relative}.stamp:before{content:"";position:absolute;inset:5px;border:1px dashed #c0cbd1;border-radius:50%}.stamp-label{font-size:7pt;color:#687985;margin-top:5px}.footer{margin-top:17px;color:#82909a;font-size:6.8pt;border-top:1px solid #e2e7ea;padding-top:8px;display:flex;justify-content:space-between;gap:10px}tr{break-inside:avoid;page-break-inside:avoid}.terms,.totals{break-inside:avoid;page-break-inside:avoid}@media print{header{print-color-adjust:exact;-webkit-print-color-adjust:exact}.meta div,.totals,.terms,th{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+  </style></head><body><header><div class="brand">${skolWordmarkSvg({ fill: '#F5F3EF', className: 'quote-brand-mark' })}</div><div class="tag">ДЕМОНТАЖ · ОТДЕЛКА · ФАЛЬШПОЛЫ</div><div class="doctype">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</div><div class="title">${quoteEscape(title)}</div><div class="hero-mark" aria-hidden="true"></div></header><div class="meta"><div><span class="label">Заказчик</span><span class="meta-value">${quoteEscape(customer || 'Не указан')}</span></div><div><span class="label">Контакт заказчика</span><span class="meta-value">${quoteEscape(contact || 'Не указан')}</span></div><div><span class="label">Адрес объекта</span><span class="meta-value">${quoteEscape(address || 'Будет уточнён')}</span></div><div><span class="label">Дата подготовки</span><span class="meta-value">${quoteEscape(preparedDate)}</span></div></div><div class="section">Состав и стоимость работ</div><table><thead><tr><th style="width:5%">№</th><th>Наименование работ</th><th>Ед.</th><th class="num">Кол-во</th><th class="num">Цена</th><th class="num">Сумма</th></tr></thead><tbody>${rows}</tbody></table><div class="totals"><div class="total-label">ИТОГО ПО ПРЕДЛОЖЕНИЮ</div><div class="total">${quoteMoney(total)}</div>${discount ? `<div class="discount">Скидка учтена в расчёте: ${quoteMoney(discount)}</div>` : ''}</div><div class="terms"><strong>Условия предложения</strong><br>Срок действия: ${quoteEscape(validity)}. Сроки выполнения, порядок оплаты и окончательный объём работ согласовываются сторонами до начала работ. Стоимость может быть уточнена после осмотра объекта и подтверждения объёмов. Дополнительные работы, не указанные в таблице, согласовываются отдельно. Настоящее коммерческое предложение не является договором подряда.</div><div class="signatures"><div class="sign-main"><div class="sign-title">ИСПОЛНИТЕЛЬ</div><div class="executor">ИП Борзенко Семен Сергеевич</div><div class="signature-line"><span class="line-label">Подпись</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Ф. И. О.</span><span class="line"></span></div><div class="signature-line"><span class="line-label">Дата</span><span class="line"></span></div></div><div class="stamp-wrap"><div class="stamp">МЕСТО<br>ДЛЯ ПЕЧАТИ<br><span style="font-size:6pt">при наличии</span></div><div class="stamp-label">М. П.</div></div></div><div class="footer"><span>Сформировано в СКОЛ</span><span>Демонтаж · Отделка · Фальшполы</span></div></body></html>`;
   const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Сохранить коммерческое предложение в PDF', defaultPath: `${title.replace(/[^a-zа-яё0-9_-]+/gi,'_').slice(0,80)}.pdf`, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (canceled || !filePath) return { canceled: true };
   const pdfWindow = new BrowserWindow({ show: false, width: 900, height: 1200, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
@@ -1177,12 +1483,9 @@ ipcMain.handle('estimate:exportQuotePdf', async (_event, input = {}) => {
     await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
     const data = await pdfWindow.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
     fs.writeFileSync(filePath, data);
-    const costRub = Math.max(0, Number(input.estimatedCostRub) || 0);
-    const profitRub = Number.isFinite(Number(input.estimatedProfitRub)) ? Number(input.estimatedProfitRub) : total - costRub;
-    const marginPct = Number.isFinite(Number(input.marginPct)) ? Number(input.marginPct) : (total > 0 ? profitRub / total * 100 : 0);
     db.prepare(`INSERT INTO quote_history(title,customer,address,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count,lines_json,file_path) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
       .run(title, customer, address, new Date().toISOString(), total, costRub, profitRub, marginPct, discount, lines.length,
-        JSON.stringify(lines.map(line => ({ name: clean(line.name,180), unit: clean(line.unit,24), quantity: Math.max(0, Number(line.quantity) || 0), price: Math.max(0, Number(line.price) || 0) }))), filePath);
+        JSON.stringify(lines.map(line => ({ name: line.name, unit: line.unit, quantity: line.quantity, price: line.price }))), filePath);
     return { canceled: false, filePath, historySaved: true };
   } finally { if (!pdfWindow.isDestroyed()) pdfWindow.destroy(); }
 });

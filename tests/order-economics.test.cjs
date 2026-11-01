@@ -48,3 +48,25 @@ test('uses repeated production observations to refine productivity',()=>{
  assert.ok(result.effective_productivity>8);
  assert.ok(result.estimated_days<13.75);
 });
+
+
+test('order economics uses the canonical production model for the target crew size',()=>{
+ const {buildRateModel}=require('../src/production-model.js');
+ const observations=[
+  ...[20,21,19].map(rate=>({quantity_done:rate*5,workers_count:5,hours:8,complexity_factor:1})),
+  ...[10,11,9].map(rate=>({quantity_done:rate*15,workers_count:15,hours:8,complexity_factor:1}))
+ ];
+ const input={
+  quantity:1000,budget_rub:100000,price_per_unit:100,cost_per_unit:10,
+  baseline_productivity:12,crew_size:15,wage_per_worker_shift:1000,
+  other_costs_rub:1000,difficulty_factor:1,reserve_percent:10
+ };
+ const expected=buildRateModel({
+  baselineProductivity:input.baseline_productivity,
+  observations,targetDifficulty:input.difficulty_factor,targetCrewSize:input.crew_size
+ });
+ const result=calculateOrderEconomics(input,observations);
+ assert.equal(result.observations_count,6);
+ assert.equal(result.effective_productivity,expected.effectiveProductivity);
+ assert.ok(result.estimated_days>0);
+});

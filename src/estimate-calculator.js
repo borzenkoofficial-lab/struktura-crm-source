@@ -266,6 +266,8 @@
     const transportPaid = number(input.transportPaid, 'Фактический транспорт');
     const equipmentPaid = number(input.equipmentPaid, 'Фактическая техника');
     const otherPaid = number(input.otherPaid, 'Прочие фактические расходы');
+    const hasPlannedCost = input.plannedCost != null;
+    const plannedCost = hasPlannedCost ? number(input.plannedCost, 'Плановая себестоимость') : 0;
     const extraCosts = materialsPaid + disposalPaid + transportPaid + equipmentPaid + otherPaid;
     const actualCosts = wagesPaid + extraCosts;
     const actualProfit = actualRevenue - actualCosts;
@@ -275,13 +277,13 @@
       equipmentPaid, otherPaid, extraCosts, actualCosts, actualProfit, actualMargin,
       receivable: Math.max(0, actualRevenue - received),
       cashBalance: received - actualCosts,
-      overrun: Number.isFinite(Number(input.plannedCost)) ? actualCosts - Math.max(0, Number(input.plannedCost)) : 0,
-      overrunPercent: Number(input.plannedCost) > 0 ? (actualCosts - Number(input.plannedCost)) / Number(input.plannedCost) * 100 : 0,
+      overrun: hasPlannedCost ? actualCosts - plannedCost : 0,
+      overrunPercent: plannedCost > 0 ? (actualCosts - plannedCost) / plannedCost * 100 : 0,
       warnings: [
         ...(received > actualRevenue ? [{ level: 'warning', title: 'Поступления выше цены договора', message: 'Проверь аванс, дополнительные работы или сумму договора.' }] : []),
         ...(actualRevenue === 0 && actualCosts > 0 ? [{ level: 'danger', title: 'Расходы без выручки', message: 'Укажи сумму договора, иначе прибыль и задолженность не отражают экономику объекта.' }] : []),
         ...(actualProfit < 0 ? [{ level: 'danger', title: 'Фактический убыток', message: `Расходы превышают цену договора на ${Math.round(Math.abs(actualProfit)).toLocaleString('ru-RU')} ₽.` }] : []),
-        ...(Number(input.plannedCost) > 0 && actualCosts > Number(input.plannedCost) ? [{ level: 'warning', title: 'Перерасход бюджета', message: `Фактические расходы выше плановой себестоимости на ${Math.round(actualCosts - Number(input.plannedCost)).toLocaleString('ru-RU')} ₽.` }] : [])
+        ...(plannedCost > 0 && actualCosts > plannedCost ? [{ level: 'warning', title: 'Перерасход бюджета', message: `Фактические расходы выше плановой себестоимости на ${Math.round(actualCosts - plannedCost).toLocaleString('ru-RU')} ₽.` }] : [])
       ]
     };
   }

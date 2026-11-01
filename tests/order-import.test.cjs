@@ -11,6 +11,7 @@ test('imports semicolon-separated commercial orders with Russian headers',()=>{
  assert.equal(result.orders[0].service,'demolition');
  assert.ok(result.orders[0].snippet.includes('Бюджет/цена: 1500000'));
  assert.match(result.orders[0].snippet,/Объём: 1000 м2/);
+ assert.match(result.orders[0].snippet,/Срок: до 25\.10\.2026/);
 });
 
 test('skips rows without a title or valid original source URL',()=>{

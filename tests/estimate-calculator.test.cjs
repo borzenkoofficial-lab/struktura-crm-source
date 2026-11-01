@@ -128,6 +128,11 @@ test('plan/fact calculator rejects negative actual expense values', () => {
   assert.throws(() => calculateActuals({ contractRevenue: 100, otherPaid: -1 }), /Некорректное/);
 });
 
+test('plan/fact calculator rejects a negative planned cost instead of silently clamping it', () => {
+  assert.throws(() => calculateActuals({ contractRevenue: 100, wagesPaid: 10, plannedCost: -50 }), /Плановая себестоимость/);
+  assert.equal(calculateActuals({ contractRevenue: 100, wagesPaid: 10 }).overrun, 0, 'without a planned cost, do not report a budget overrun');
+});
+
 
 test('duration estimator estimates 1000 square metres of screed removal for a ten-person crew', () => {
   const catalog = getCatalog();

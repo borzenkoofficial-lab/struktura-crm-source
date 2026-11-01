@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS clients (
   name TEXT NOT NULL,
   phone TEXT NOT NULL DEFAULT '',
   email TEXT NOT NULL DEFAULT '',
+  contact_name TEXT NOT NULL DEFAULT '',
   client_type TEXT NOT NULL DEFAULT 'person' CHECK(client_type IN ('person','company')),
   notes TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -117,6 +118,17 @@ CREATE TABLE IF NOT EXISTS commercial_orders (
  signal_score INTEGER NOT NULL DEFAULT 0 CHECK(signal_score BETWEEN 0 AND 100),
  signal_labels TEXT NOT NULL DEFAULT '', relevance TEXT NOT NULL DEFAULT 'review' CHECK(relevance IN ('potential_order','review')),
  status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new','opened','relevant','rejected')),
+ customer_name TEXT NOT NULL DEFAULT '',
+ contact_name TEXT NOT NULL DEFAULT '',
+ phone TEXT NOT NULL DEFAULT '',
+ email TEXT NOT NULL DEFAULT '',
+ budget_rub REAL NOT NULL DEFAULT 0 CHECK(budget_rub >= 0),
+ volume_value REAL NOT NULL DEFAULT 0 CHECK(volume_value >= 0),
+ volume_unit TEXT NOT NULL DEFAULT '',
+ deadline_text TEXT NOT NULL DEFAULT '',
+ procurement_number TEXT NOT NULL DEFAULT '',
+ work_address TEXT NOT NULL DEFAULT '',
+ fact_evidence_json TEXT NOT NULL DEFAULT '[]',
  first_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 -- source_type index is created after additive migration for legacy databases.
@@ -186,6 +198,15 @@ CREATE TABLE IF NOT EXISTS quote_history (
   file_path TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_quote_history_prepared_at ON quote_history(prepared_at DESC);
+CREATE TABLE IF NOT EXISTS engineering_project_plans (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  operations_json TEXT NOT NULL DEFAULT '[]',
+  result_json TEXT NOT NULL DEFAULT '{}',
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_engineering_project_plans_created ON engineering_project_plans(created_at DESC);
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -247,12 +268,57 @@ function openDatabase(userDataPath) {
   db.pragma('foreign_keys = ON');
   db.exec(SCHEMA);
   // Additive migrations keep existing local databases intact after app updates.
+  const clientColumns = new Set(db.prepare('PRAGMA table_info(clients)').all().map(column => column.name));
+  if (!clientColumns.has('contact_name')) db.exec("ALTER TABLE clients ADD COLUMN contact_name TEXT NOT NULL DEFAULT ''");
   const leadColumns = new Set(db.prepare('PRAGMA table_info(leads)').all().map(column => column.name));
   if (!leadColumns.has('commercial_order_id')) db.exec('ALTER TABLE leads ADD COLUMN commercial_order_id INTEGER REFERENCES commercial_orders(id) ON DELETE SET NULL');
   db.exec('CREATE INDEX IF NOT EXISTS idx_leads_commercial_order ON leads(commercial_order_id)');
   const orderColumns = new Set(db.prepare('PRAGMA table_info(commercial_orders)').all().map(column => column.name));
   if (!orderColumns.has('source_type')) db.exec("ALTER TABLE commercial_orders ADD COLUMN source_type TEXT NOT NULL DEFAULT 'web' CHECK(source_type IN ('web','telegram','avito','tenders','files'))");
+  const orderEvidenceColumns = [
+    ['customer_name', "TEXT NOT NULL DEFAULT ''"],
+    ['contact_name', "TEXT NOT NULL DEFAULT ''"],
+    ['phone', "TEXT NOT NULL DEFAULT ''"],
+    ['email', "TEXT NOT NULL DEFAULT ''"],
+    ['budget_rub', 'REAL NOT NULL DEFAULT 0 CHECK(budget_rub >= 0)'],
+    ['volume_value', 'REAL NOT NULL DEFAULT 0 CHECK(volume_value >= 0)'],
+    ['volume_unit', "TEXT NOT NULL DEFAULT ''"],
+    ['deadline_text', "TEXT NOT NULL DEFAULT ''"],
+    ['procurement_number', "TEXT NOT NULL DEFAULT ''"],
+    ['work_address', "TEXT NOT NULL DEFAULT ''"],
+    ['fact_evidence_json', "TEXT NOT NULL DEFAULT '[]'"],
+    ['source_page_title', "TEXT NOT NULL DEFAULT ''"],
+    ['source_page_url', "TEXT NOT NULL DEFAULT ''"],
+    ['source_page_text', "TEXT NOT NULL DEFAULT ''"],
+    ['source_fetched_at', 'TEXT']
+  ];
+  for (const [column, definition] of orderEvidenceColumns) {
+    if (!orderColumns.has(column)) db.exec(`ALTER TABLE commercial_orders ADD COLUMN ${column} ${definition}`);
+  }
   db.exec('CREATE INDEX IF NOT EXISTS idx_commercial_orders_source_type ON commercial_orders(source_type)');
+  db.exec(`CREATE TABLE IF NOT EXISTS commercial_order_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL REFERENCES commercial_orders(id) ON DELETE CASCADE,
+    source_url TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    file_name TEXT NOT NULL DEFAULT '',
+    mime_type TEXT NOT NULL DEFAULT '',
+    page_count INTEGER NOT NULL DEFAULT 0 CHECK(page_count >= 0),
+    extracted_text TEXT NOT NULL DEFAULT '',
+    fact_evidence_json TEXT NOT NULL DEFAULT '[]',
+    sha256 TEXT NOT NULL DEFAULT '',
+    fetched_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(order_id,source_url)
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_commercial_order_documents_order ON commercial_order_documents(order_id)');
+  const documentColumns = new Set(db.prepare('PRAGMA table_info(commercial_order_documents)').all().map(column => column.name));
+  if (!documentColumns.has('document_type')) db.exec("ALTER TABLE commercial_order_documents ADD COLUMN document_type TEXT NOT NULL DEFAULT 'pdf' CHECK(document_type IN ('pdf','table'))");
+  if (!documentColumns.has('sheet_count')) db.exec('ALTER TABLE commercial_order_documents ADD COLUMN sheet_count INTEGER NOT NULL DEFAULT 0 CHECK(sheet_count >= 0)');
+  if (!documentColumns.has('row_count')) db.exec('ALTER TABLE commercial_order_documents ADD COLUMN row_count INTEGER NOT NULL DEFAULT 0 CHECK(row_count >= 0)');
+  if (!documentColumns.has('line_items_json')) db.exec("ALTER TABLE commercial_order_documents ADD COLUMN line_items_json TEXT NOT NULL DEFAULT '[]'");
+
   const projectColumns = new Set(db.prepare('PRAGMA table_info(projects)').all().map(column => column.name));
   if (!projectColumns.has('planned_people')) db.exec('ALTER TABLE projects ADD COLUMN planned_people INTEGER NOT NULL DEFAULT 5 CHECK(planned_people BETWEEN 1 AND 200)');
   if (!projectColumns.has('complexity_factor')) db.exec('ALTER TABLE projects ADD COLUMN complexity_factor REAL NOT NULL DEFAULT 1 CHECK(complexity_factor > 0)');
@@ -275,8 +341,8 @@ function openDatabase(userDataPath) {
       migratePlans();
     } finally { db.pragma('foreign_keys = ON'); }
   }
-  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','7')").run();
-  db.prepare("UPDATE settings SET value='7' WHERE key='schema_version'").run();
+  db.prepare("INSERT OR IGNORE INTO settings(key,value) VALUES ('schema_version','14')").run();
+  db.prepare("UPDATE settings SET value='14' WHERE key='schema_version'").run();
   return db;
 }
 

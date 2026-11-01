@@ -193,12 +193,41 @@ test('backup restore is exposed in the UI and safe preload bridge', () => {
   assert.match(main, /ipcMain\.handle\('backup:restore'/);
 });
 
-test('backup restore validates SQLite integrity and preserves an automatic rollback copy', () => {
-  assert.match(main, /integrity_check/);
-  assert.match(main, /const required = \['clients', 'leads', 'projects', 'payments', 'expenses', 'settings'\]/);
+test('backup restore validates SQLite structure and preserves an automatic rollback copy', () => {
+  const backupUtils = fs.readFileSync(path.join(__dirname, '../src/backup-utils.cjs'), 'utf8');
+  assert.match(main, /validateBackupDatabase\(candidate\)/);
+  assert.match(main, /validateBackupDatabase\(normalized\)/);
+  assert.match(backupUtils, /integrity_check/);
+  assert.match(backupUtils, /REQUIRED_BACKUP_COLUMNS/);
+  assert.match(backupUtils, /clients: \['id', 'name', 'phone', 'email'/);
   assert.match(main, /await db\.backup\(safetyPath\)/);
   assert.match(main, /прежняя база возвращена/);
   assert.match(main, /Действующая база не изменена/);
+});
+
+test('backup restore normalizes SQLite files so source WAL data is included and rollback sidecars are cleared', () => {
+  const restoreStart = main.indexOf("ipcMain.handle('backup:restore'");
+  const restoreEnd = main.indexOf("ipcMain.handle('browser:state'", restoreStart);
+  const restore = main.slice(restoreStart, restoreEnd);
+  assert.ok(restoreStart >= 0 && restoreEnd > restoreStart, 'restore handler exists');
+  assert.match(restore, /await candidate\.backup\(restoreCandidatePath\)/);
+  assert.match(restore, /new Database\(restoreCandidatePath, \{ readonly: true, fileMustExist: true \}\)/);
+  assert.match(restore, /fs\.copyFileSync\(restoreCandidatePath, livePath\)/);
+  assert.doesNotMatch(restore, /fs\.copyFileSync\(sourcePath, livePath\)/);
+  assert.match(restore, /for \(const sidecar of \[walPath, shmPath\]\).*fs\.rmSync\(sidecar/);
+  assert.match(restore, /fs\.rmSync\(restoreCandidatePath, \{ force: true \}\)/);
+});
+
+test('backup restore cleans candidate and incomplete safety backup if safety backup creation fails', () => {
+  const restoreStart = main.indexOf("ipcMain.handle('backup:restore'");
+  const restoreEnd = main.indexOf("ipcMain.handle('browser:state'", restoreStart);
+  const restore = main.slice(restoreStart, restoreEnd);
+  const safetyBlock = restore.slice(restore.indexOf('const safetyPath'), restore.indexOf('  db.close();', restore.indexOf('const safetyPath')));
+  assert.match(safetyBlock, /try\s*\{[\s\S]*db\.pragma\('wal_checkpoint\(FULL\)'\)[\s\S]*await db\.backup\(safetyPath\)[\s\S]*\}\s*catch\s*\(error\)/);
+  assert.match(safetyBlock, /fs\.rmSync\(safetyPath, \{ force: true \}\)/);
+  assert.match(safetyBlock, /fs\.rmSync\(restoreCandidatePath, \{ force: true \}\)/);
+  assert.match(safetyBlock, /Действующая база не изменена/);
+  assert.ok(restore.indexOf('db.close();', restore.indexOf('const safetyPath')) > restore.indexOf('await db.backup(safetyPath)'), 'live database stays open until safety backup succeeds');
 });
 
 test('payments and expenses reject impossible calendar dates before writing to SQLite', () => {
@@ -263,7 +292,7 @@ test('client cards can be edited through validated main-process IPC', () => {
   assert.match(preload, /updateClient: \(data\) => ipcRenderer\.invoke\('clients:update', data\)/);
   const handler = main.match(/ipcMain\.handle\('clients:update',[\s\S]*?\n\}\);/);
   assert.ok(handler); assert.match(handler[0], /Number\.isSafeInteger\(id\)/);
-  assert.match(handler[0], /UPDATE clients SET name=\?, phone=\?, email=\?, client_type=\?, notes=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
+  assert.match(handler[0], /UPDATE clients SET name=\?, phone=\?, email=\?, contact_name=\?, client_type=\?, notes=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
 });
 
 test('project status can be changed safely from the objects list', () => {
@@ -365,6 +394,10 @@ test('converting a commercial order to a lead preserves its PI economics as prov
   assert.match(handler[0], /estimated_margin_pct/);
   assert.match(handler[0], /estimated_days/);
   assert.match(handler[0], /бюджет заказчика не подтверждён/);
+  assert.match(handler[0], /INSERT INTO tasks\(lead_id,title,due_at\)/);
+  assert.match(handler[0], /Проверить заказ и связаться с заказчиком/);
+  assert.match(handler[0], /due\.setDate\(due\.getDate\(\)\+1\)/);
+  assert.match(renderer, /if\(!result\.alreadyExists\) await refreshTasks\(\)/);
 });
 
 test('client and prospect create, update and CSV import validate contact email at the main-process boundary', () => {
@@ -378,7 +411,7 @@ test('Windows app startup hides the legacy menu and reports startup failures', (
   assert.match(main, /Menu\.setApplicationMenu\(null\)/);
   assert.match(main, /win\.setMenuBarVisibility\(false\)/);
   assert.match(main, /Failed to load CRM interface/);
-  assert.match(main, /Struktura CRM startup failed/);
+  assert.match(main, /СКОЛ startup failed/);
 });
 
 test('startup splash has an independent CSS failsafe if renderer JavaScript never runs', () => {
@@ -402,6 +435,7 @@ test('primary navigation is registered before optional renderer widgets initiali
 test('renderer and Electron entry scripts pass Node syntax validation', () => {
   const files = [
     '../src/main.cjs', '../src/preload.cjs', '../src/renderer.js',
+    '../src/engineering-calculator-ui.js', '../src/engineering-project-plan.js', '../src/engineering-project-plan-ui.js',
     '../src/production-intelligence.js', '../src/prospect-scoring.js',
     '../src/prospect-radar.js', '../src/estimate-calculator.js'
   ];
@@ -559,7 +593,7 @@ test('product presentation tab is reachable and contains the STRUKTURA story and
   assert.match(html, /ПИ — производственный интеллект/);
   assert.match(html, /data-goto="production"/);
   assert.match(html, /data-goto="projects"/);
-  assert.match(renderer, /about: 'О продукте STRUKTURA'/);
+  assert.match(renderer, /about: 'О продукте СКОЛ'/);
 });
 
 test('product presentation includes responsive 3D visuals and respects reduced-motion preferences', () => {
@@ -660,6 +694,24 @@ test('production report export does not reference quote-only variables and quote
   assert.match(quote, /historySaved: true/);
 });
 
+
+test('PDF commercial quote recalculates the final total from submitted work lines', () => {
+  assert.match(main, /require\('\.\/quote-economics\.cjs'\)/);
+  const quoteStart = main.indexOf("ipcMain.handle('estimate:exportQuotePdf'");
+  const quoteEnd = main.indexOf("ipcMain.handle('updates:status'", quoteStart);
+  const quote = main.slice(quoteStart, quoteEnd);
+  assert.match(quote, /calculateQuoteTotals\(lines, input\.discount, input\.costInputs \|\| \{\}\)/);
+  assert.match(quote, /const total = totals\.revenueRub/);
+  assert.match(main, /function quoteUnitPrice\(value\)/);
+  assert.match(quote, /quoteUnitPrice\(line\.price\)/);
+  assert.match(quote, /const price = Math\.round\(priceInput \* 100\) \/ 100/);
+  assert.match(quote, /const discount = totals\.discountRub/);
+  assert.doesNotMatch(quote, /Number\(input\.revenue\)/);
+  assert.doesNotMatch(quote, /estimatedCostRub|estimatedProfitRub|input\.marginPct/);
+  assert.match(quote, /const profitRub = totals\.profitRub/);
+  assert.match(renderer, /costInputs: \{ payroll: r\.payroll/);
+});
+
 test('project editor exposes client and lead selectors and persists relationship columns', () => {
   assert.match(html, /id="projectClientSelect"/);
   assert.match(html, /id="projectLeadSelect"/);
@@ -678,20 +730,20 @@ test('date-only defaults use local calendar fields rather than UTC ISO conversio
 
 
 test('export filenames and startup dialogs use the current brand and real line breaks', () => {
-  assert.ok(main.includes('STRUKTURA-'));
+  assert.ok(main.includes('СКОЛ-'));
   assert.ok(!main.includes('gruzli-'));
   assert.ok(main.includes('Не удалось загрузить интерфейс приложения.\\n\\n'));
   assert.ok(!main.includes('Не удалось загрузить интерфейс приложения.\\\\n\\\\n'));
 });
 
 
-test('all prominent brand marks use STRUKTURA mark and client section does not promise missing activity history', () => {
-  assert.match(html, /hero-mini-symbol" >S</);
-  assert.match(html, /browser-welcome-mark" >S</);
-  assert.match(html, /plans-hero-mark" aria-hidden="true"><span >S</);
-  assert.doesNotMatch(html, /hero-mini-symbol" >G</);
-  assert.doesNotMatch(html, /browser-welcome-mark" >G</);
-  assert.match(html, /Контакты заказчиков и заметки/);
+test('all prominent brand marks use the СКОЛ monogram and client section does not promise missing activity history', () => {
+  assert.match(html, /hero-mini-symbol"><img src="assets\/skol-monogram-mark\.svg"/);
+  assert.match(html, /browser-welcome-mark"><img src="assets\/skol-monogram-mark\.svg"/);
+  assert.match(html, /plans-hero-monogram" src="assets\/skol-monogram-mark\.svg"/);
+  assert.doesNotMatch(html, /hero-mini-symbol"[^>]*>G</);
+  assert.doesNotMatch(html, /browser-welcome-mark"[^>]*>G</);
+  assert.match(html, /Компании, представители заказчиков и контактные данные/);
   assert.doesNotMatch(html, /Контакты заказчиков и история отношений/);
 });
 
@@ -702,7 +754,8 @@ test('regression fixes preserve contract amounts, task links, budgets and financ
   assert.match(renderer, /Math\.max\(0,Number\(p\.contract_rub\)-Math\.max\(0,Number\(p\.received_rub\)\)\)/);
   assert.match(renderer, /estimateCrewDaysForCost/);
   assert.match(renderer, /Полный срок не рассчитан — проверь оплату бригады/);
-  assert.match(main, /leadBudget=Math\.max\(0,Math\.round\(Number\(analysis\?\.revenue_rub\)\|\|0\)\)/);
+  assert.match(main, /leadBudget=Math\.max\(0,Math\.round\(Number\(order\.budget_rub\)\|\|0\)\)/);
+  assert.doesNotMatch(main, /leadBudget=Math\.max\(0,Math\.round\(Number\(analysis\?\.revenue_rub\)/);
   assert.match(main, /Статус «Превращена в заявку» устанавливается только действием конвертации/);
   assert.match(main, /normalizePhone/);
   assert.match(main, /datetime\(t\.due_at\)<datetime\('now','localtime'\)/);
@@ -732,4 +785,167 @@ test('PI shows user-friendly error explanations and hides raw IPC errors behind 
   assert.match(renderer, /Технические подробности для диагностики/);
   assert.doesNotMatch(renderer, /<p><strong>Техническое сообщение<\/strong>/);
   assert.match(renderer, /item\.userMessage \|\| piErrorUserMessage\(item\.message\)/);
+});
+
+
+test('production economics explains that per-unit costs exclude crew payroll', () => {
+  assert.match(html, /Прочие затраты на единицу, ₽/);
+  assert.match(html, /Без зарплаты рабочих: оплата бригады учитывается отдельно/);
+});
+
+test('engineering calculator UI script is loaded after its core module', () => {
+  const coreScript = '<script src="engineering-calculator.js"></script>';
+  const uiScript = '<script src="engineering-calculator-ui.js"></script>';
+  const coreIndex = html.indexOf(coreScript);
+  const uiIndex = html.indexOf(uiScript);
+  assert.notEqual(coreIndex, -1, 'engineering calculator core script is linked');
+  assert.notEqual(uiIndex, -1, 'engineering calculator UI script is linked');
+  assert.ok(uiIndex > coreIndex, 'UI script loads after the calculator core');
+  const ui = fs.readFileSync(path.join(__dirname, '../src/engineering-calculator-ui.js'), 'utf8');
+  assert.match(ui, /engCalculateBtn/);
+  assert.match(ui, /engSaveActualBtn/);
+});
+
+test('engineering calculator reports shift-report evidence instead of false zero-confidence warnings', () => {
+  const engineeringUi = fs.readFileSync(path.join(__dirname, '../src/engineering-calculator-ui.js'), 'utf8');
+  assert.ok(engineeringUi.includes('renderResult(result, input, Number(result.observations ?? observations.length))'));
+  assert.ok(engineeringUi.includes('Number.isFinite(Number(p.result?.observations))'));
+  assert.ok(engineeringUi.includes("p.result?.rateEvidenceSource === 'Фактические сменные отчёты'"));
+  assert.ok(engineeringUi.includes("result.warnings = (result.warnings || []).filter(w => !String(w).startsWith('Нет фактических наблюдений:'))"));
+  assert.ok(engineeringUi.includes('if (externalCount < 3) result.warnings.push'));
+});
+
+test('production rate-model IPC returns evidence weight for conservative estimate learning', () => {
+  assert.match(main, /observedWeight:\s*model\.observedWeight/);
+  const engineeringUi = fs.readFileSync(path.join(__dirname, '../src/engineering-calculator-ui.js'), 'utf8');
+  assert.match(engineeringUi, /api\.applyRateEvidence\(input, evidence\)/);
+});
+
+test('engineering calculator compares local history with production shift evidence', () => {
+  const core = fs.readFileSync(path.join(__dirname, '../src/engineering-calculator.js'), 'utf8');
+  const engineeringUi = fs.readFileSync(path.join(__dirname, '../src/engineering-calculator-ui.js'), 'utf8');
+  assert.match(core, /function selectRateEvidence\(localObservations = \[\], externalModel = null\)/);
+  assert.match(core, /externalCount > local\.length/);
+  assert.match(engineeringUi, /return api\.selectRateEvidence\(local, externalModel\)/);
+  assert.doesNotMatch(engineeringUi, /if \(local\.length\) return \{ observations: local/);
+});
+
+test('complex project-plan history can be opened, updated, deleted, and retains calendar settings', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const plannerUi = fs.readFileSync(path.join(__dirname, '../src/engineering-project-plan-ui.js'), 'utf8');
+  assert.match(html, /id="engPlanNewBtn"/);
+  assert.match(html, /id="engProjectPlanHistory"/);
+  assert.match(html, /Планы хранятся в SQLite и входят в резервную копию CRM/);
+  assert.match(plannerUi, /data-plan-load=/);
+  assert.match(plannerUi, /data-plan-delete=/);
+  assert.match(plannerUi, /window\.crm\?\.deleteEngineeringPlan/);
+  assert.match(plannerUi, /activeSavedPlanId \|\| makePlanId\(\)/);
+  assert.match(plannerUi, /const index = history\.findIndex\(item => item && item\.id === record\.id\)/);
+  assert.match(plannerUi, /calendarOptions/);
+  assert.match(plannerUi, /if \(missing\.length\) stored = await window\.crm\.listEngineeringPlans\(\)/);
+  assert.match(plannerUi, /localStorage\.removeItem\(STORAGE_KEY\)/);
+});
+
+test('estimate data transfers into standard or complex PI and triggers the chosen calculation',()=>{
+ const transfer=fs.readFileSync(path.join(__dirname,'../src/engineering-transfer.js'),'utf8');
+ const standardUI=fs.readFileSync(path.join(__dirname,'../src/engineering-calculator-ui.js'),'utf8');
+ const plannerUI=fs.readFileSync(path.join(__dirname,'../src/engineering-project-plan-ui.js'),'utf8');
+ assert.match(html,/id="estimatePiTransferBtn"/);assert.match(html,/id="estimateEngineeringTransferDialog"/);
+ assert.match(html,/value="standard"/);assert.match(html,/value="complex"/);assert.match(html,/Перенести и сразу рассчитать/);
+ assert.match(html,/src="engineering-transfer\.js"/);assert.match(renderer,/buildEstimateEngineeringTransfer\(mode,selectedLineId\)/);
+ assert.match(renderer,/durationLines:duration\.lines/);assert.match(renderer,/new CustomEvent\('skol:engineering-transfer'/);
+ assert.match(transfer,/function buildEngineeringTransfer\(source=\{\}\)/);assert.match(standardUI,/window\.addEventListener\('skol:engineering-transfer'/);
+ assert.match(standardUI,/runEngineeringCalculation\(\{/);assert.match(standardUI,/rateEvidenceAlreadyAdjusted/);
+ assert.match(plannerUI,/window\.addEventListener\('skol:engineering-transfer'/);assert.match(plannerUI,/sourceMetadata:activeSourceMetadata/);
+ assert.match(plannerUI,/\$\('engProjectPlanCalculateBtn'\)\.click\(\)/);
+});
+
+test('lead acquisition workspace shows source-backed order metrics and clear workspace naming', () => {
+  assert.ok(html.includes('Центр заказов'));
+  assert.ok(html.includes('Центр привлечения заказов'));
+  assert.ok(html.includes('id="orderMetricTotal"'));
+  assert.ok(html.includes('id="orderMetricBudget"'));
+  assert.ok(html.includes('id="orderMetricContacts"'));
+  assert.ok(html.includes('id="orderMetricConverted"'));
+  assert.ok(renderer.includes('orderMetricBudget:rows.filter(o=>Number(o.budget_rub)>0).length'));
+});
+
+test('client records support a structured representative contact field', () => {
+  assert.match(html, /<label>Контактное лицо<input name="contact_name"/);
+  assert.match(renderer, /c\.contact_name\|\|''/);
+  assert.match(renderer, /<th>Контактное лицо<\/th>/);
+  assert.match(renderer, /'contact_name','client_type'/);
+  assert.match(main, /INSERT INTO clients\(name,phone,email,contact_name,client_type,notes\)/);
+  assert.match(main, /UPDATE clients SET name=\?, phone=\?, email=\?, contact_name=\?/);
+});
+
+test('commercial order cards can read a public source page through a validated preload IPC action', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  const pageFetcher = fs.readFileSync(path.join(__dirname, '../src/order-page-fetch.cjs'), 'utf8');
+  assert.match(renderer, /data-order-fetch=/);
+  assert.match(renderer, /window\.crm\.fetchCommercialOrderSource\(orderId\)/);
+  assert.match(renderer, /source_page_text/);
+  assert.match(preload, /fetchCommercialOrderSource: \(id\) => ipcRenderer\.invoke\('orders:fetchSource', id\)/);
+  assert.match(main, /ipcMain\.handle\('orders:fetchSource'/);
+  assert.match(main, /UPDATE commercial_orders SET[\s\S]*source_page_text=/);
+  assert.match(pageFetcher, /robotsAllows/);
+  assert.match(pageFetcher, /validatePublicUrl/);
+  assert.match(pageFetcher, /AbortSignal\.timeout/);
+});
+
+test('commercial order attachments can be parsed as public PDF documents via scoped IPC', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  const pdfFetcher = fs.readFileSync(path.join(__dirname, '../src/order-pdf-fetch.cjs'), 'utf8');
+  assert.match(renderer, /data-order-pdf=/);
+  assert.match(renderer, /window\.crm\.fetchCommercialOrderPdf\(\{order_id:orderId,document_id:documentId\}\)/);
+  assert.match(preload, /fetchCommercialOrderPdf: \(data\) => ipcRenderer\.invoke\('orders:fetchPdf', data\)/);
+  assert.match(main, /ipcMain\.handle\('orders:fetchPdf'/);
+  assert.match(main, /SELECT \* FROM commercial_order_documents WHERE id=\? AND order_id=\?/);
+  assert.match(pdfFetcher, /MAX_PDF_PAGES=40/);
+  assert.match(pdfFetcher, /нет текстового слоя/);
+});
+
+test('commercial order spreadsheet attachments can be parsed through scoped IPC', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
+  const tableFetcher = fs.readFileSync(path.join(__dirname, '../src/order-table-fetch.cjs'), 'utf8');
+  assert.match(renderer, /data-order-table=/);
+  assert.match(renderer, /window\.crm\.fetchCommercialOrderTable\(\{order_id:orderId,document_id:documentId\}\)/);
+  assert.match(preload, /fetchCommercialOrderTable: \(data\) => ipcRenderer\.invoke\('orders:fetchTable', data\)/);
+  assert.match(main, /ipcMain\.handle\('orders:fetchTable'/);
+  assert.match(main, /SELECT \* FROM commercial_order_documents WHERE id=\? AND order_id=\?/);
+  assert.match(tableFetcher, /MAX_ROWS=5000/);
+  assert.match(tableFetcher, /MAX_TABLE_BYTES=12\*1024\*1024/);
+});
+
+test('tabular attachment parsing exposes normalized scope lines from a workbook', () => {
+  assert.match(renderer, /order-document-lines/);
+  assert.match(renderer, /line\.work_name/);
+  assert.match(renderer, /line\.quantity/);
+  assert.match(main, /line_items_json/);
+  assert.match(main, /JSON\.stringify\(table\.line_items\|\|\[\]\)/);
+  assert.match(renderer, /Позиции работ/);
+});
+
+test('commercial order scope lines can be reviewed and imported into the existing engineering plan', () => {
+  const planUi = fs.readFileSync(path.join(__dirname, '../src/engineering-project-plan-ui.js'), 'utf8');
+  assert.match(renderer, /data-order-plan=/);
+  assert.match(renderer, /skol:import-order-lines/);
+  assert.match(renderer, /showView\('engineering'\)/);
+  assert.match(planUi, /window\.addEventListener\('skol:import-order-lines'/);
+  assert.match(planUi, /parseEstimateText\(text\)/);
+  assert.match(planUi, /unitsCompatible\(sourceUnit, item\.unit\)/);
+  assert.match(planUi, /Цены и нормы взяты из прайса СКОЛ/);
+  assert.match(html, /order-plan-handoff\.cjs/);
+});
+
+test('engineering handoff requires catalog review before replacing plan operations', () => {
+  const planUi = fs.readFileSync(path.join(__dirname, '../src/engineering-project-plan-ui.js'), 'utf8');
+  assert.match(html, /id="engOrderPlanReview"/);
+  assert.match(planUi, /skol:import-order-lines/);
+  assert.match(planUi, /data-order-lines-accept/);
+  assert.match(planUi, /data-order-lines-cancel/);
+  assert.match(planUi, /unitsCompatible\(source\.unit, item\.unit\)/);
+  assert.match(planUi, /window\.confirm\('Сопоставлено позиций:/);
+  assert.match(planUi, /Цены и нормы взяты из прайса СКОЛ/);
+  assert.match(planUi, /mappedLines/);
 });
