@@ -408,3 +408,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   #view-dashboard .welcome-side{display:none}
   #view-about .about-hero{padding:24px 18px}
 }
+
+
+/* Desktop navigation follows the single-row application bar in the reference. */
+@media(min-width:1121px){
+  .sidebar{
+    position:sticky;top:0;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;
+    scrollbar-width:thin;scrollbar-color:#39475a #111927;
+  }
+  .brand{flex:0 0 auto}
+  .sidebar>.nav-item{flex:0 0 auto}
+  .sidebar-bottom{flex:0 0 auto;white-space:nowrap}
+  .sidebar-bottom .nav-item{flex:0 0 auto}
+}
