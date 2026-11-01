@@ -698,6 +698,87 @@ async function refreshDashboard() {
   try { return await dashboardRefreshPromise; }
   finally { dashboardRefreshPromise = null; }
 }
+const recordCaches = { leads: [], clients: [], projects: [] };
+const selectedRecordIds = { leads: null, clients: null, projects: null };
+function renderRecordDetailPanel(kind, record) {
+  const targetIds = { lead: 'leadDetailPanel', client: 'clientDetailPanel', project: 'projectDetailPanel' };
+  const target = $(targetIds[kind]);
+  if (!target) return;
+  const emptyCopy = {
+    lead: ['Заявка не выбрана', 'Выбери строку слева, чтобы увидеть бюджет, услугу, источник и детали обращения.'],
+    client: ['Клиент не выбран', 'Выбери контакт слева, чтобы увидеть способы связи и заметки.'],
+    project: ['Объект не выбран', 'Выбери объект слева, чтобы увидеть договор, поступления и расходы.']
+  }[kind];
+  if (!record) {
+    target.innerHTML = '<div class="record-detail-empty"><span class="record-detail-kicker">РАБОЧАЯ КАРТОЧКА</span><div class="record-detail-empty-mark">＋</div><strong>' + esc(emptyCopy[0]) + '</strong><p>' + esc(emptyCopy[1]) + '</p></div>';
+    return;
+  }
+  const title = kind === 'lead' ? record.title : kind === 'client' ? record.name : record.title;
+  const recordId = record.id == null ? '—' : '#' + String(record.id).padStart(4, '0');
+  let status = 'В базе';
+  let metrics = [];
+  let details = [];
+  if (kind === 'lead') {
+    status = statusLabels[record.status] || record.status || 'Новая';
+    metrics = [
+      ['Бюджет заказчика', fmt(record.budget_rub)],
+      ['Услуга', serviceLabels[record.service] || record.service || '—'],
+      ['Источник', sourceLabels[record.source] || record.source || '—']
+    ];
+    details = [
+      ['Адрес объекта', record.address || 'Не указан'],
+      ['Дата создания', String(record.created_at || '—').slice(0, 10)],
+      ['Текущий статус', status]
+    ];
+  } else if (kind === 'client') {
+    status = record.client_type === 'company' ? 'Компания' : 'Частный клиент';
+    metrics = [
+      ['Контактное лицо', record.contact_name || 'Не указано'],
+      ['Телефон', record.phone || 'Не указан'],
+      ['Электронная почта', record.email || 'Не указана'],
+      ['Тип клиента', status]
+    ];
+    details = [['Добавлен', String(record.created_at || '—').slice(0, 10)]];
+  } else {
+    status = projectStatusLabels[record.status] || record.status || 'Объект';
+    const debt = Math.max(0, Number(record.contract_rub || 0) - Math.max(0, Number(record.received_rub || 0)));
+    metrics = [
+      ['Сумма договора', fmt(record.contract_rub)],
+      ['Получено', fmt(record.received_rub)],
+      ['Оплачено расходов', fmt(record.paid_expenses_rub)]
+    ];
+    details = [
+      ['Услуга', serviceLabels[record.service] || record.service || '—'],
+      ['Заказчик', record.client_name || 'Не указан'],
+      ['Адрес', record.address || 'Не указан'],
+      ['Остаток к получению', fmt(debt)],
+      ['Период работ', [record.start_date || '', record.end_date || ''].filter(Boolean).join(' — ') || 'Не задан']
+    ];
+  }
+  const metricHtml = metrics.map(item => '<article class="record-metric"><span>' + esc(item[0]) + '</span><strong>' + esc(item[1]) + '</strong></article>').join('');
+  const detailHtml = details.map(item => '<div class="record-detail-line"><span>' + esc(item[0]) + '</span><strong>' + esc(item[1]) + '</strong></div>').join('');
+  const notes = record.notes ? '<div class="record-notes"><span>ЗАМЕТКИ</span><p>' + esc(record.notes) + '</p></div>' : '';
+  target.innerHTML = '<div class="record-detail-head"><div><span class="record-detail-kicker">' + (kind === 'lead' ? 'КАРТОЧКА ЗАЯВКИ' : kind === 'client' ? 'КАРТОЧКА КЛИЕНТА' : 'ПАСПОРТ ОБЪЕКТА') + '</span><span class="record-detail-id">' + esc(recordId) + '</span></div><span class="record-status">' + esc(status) + '</span></div>' +
+    '<h3 class="record-detail-title">' + esc(title || 'Без названия') + '</h3>' +
+    '<div class="record-metrics">' + metricHtml + '</div>' +
+    '<div class="record-detail-section-title">Основная информация</div>' +
+    '<div class="record-detail-lines">' + detailHtml + '</div>' + notes;
+}
+function selectRecord(kind, id) {
+  const cache = recordCaches[kind + 's'] || [];
+  const record = cache.find(item => String(item.id) === String(id));
+  if (!record) return;
+  selectedRecordIds[kind + 's'] = record.id;
+  const tableIds = { lead: 'leadsTable', client: 'clientsTable', project: 'projectsTable' };
+  const table = $(tableIds[kind]);
+  table?.querySelectorAll('tr[data-record-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.recordId) === String(record.id)));
+  renderRecordDetailPanel(kind, record);
+}
+document.addEventListener('click', event => {
+  const row = event.target.closest('tr[data-record-kind][data-record-id]');
+  if (!row || event.target.closest('button, select, input, textarea, a')) return;
+  selectRecord(row.dataset.recordKind, row.dataset.recordId);
+});
 async function refreshLeads() {
   const rows = await window.crm.listLeads();
   recordCaches.leads = rows;
