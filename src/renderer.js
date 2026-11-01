@@ -530,20 +530,120 @@ async function refreshDashboard() {
   try { const production = await window.crm.productionOverview(); renderProductionIntelligence(production, 'piHomeSummary', 'piHomeAlerts'); } catch (error) { $('piHomeSummary').textContent = 'Не удалось загрузить данные производства.'; $('piHomeAlerts').innerHTML = `<div class="pi-no-alerts">${esc(error.message)}</div>`; }
   refreshPiCoach().catch(() => {});
 }
+const recordCaches = { leads: [], clients: [], projects: [] };
+const selectedRecordIds = { leads: null, clients: null, projects: null };
+function renderRecordDetailPanel(kind, record) {
+  const targetIds = { lead: 'leadDetailPanel', client: 'clientDetailPanel', project: 'projectDetailPanel' };
+  const target = $(targetIds[kind]);
+  if (!target) return;
+  const emptyCopy = {
+    lead: ['Заявка не выбрана', 'Выбери строку слева, чтобы увидеть бюджет, услугу, источник и детали обращения.'],
+    client: ['Клиент не выбран', 'Выбери контакт слева, чтобы увидеть способы связи и заметки.'],
+    project: ['Объект не выбран', 'Выбери объект слева, чтобы увидеть договор, поступления и расходы.']
+  }[kind];
+  if (!record) {
+    target.innerHTML = '<div class="record-detail-empty"><span class="record-detail-kicker">РАБОЧАЯ КАРТОЧКА</span><div class="record-detail-empty-mark">＋</div><strong>' + esc(emptyCopy[0]) + '</strong><p>' + esc(emptyCopy[1]) + '</p></div>';
+    return;
+  }
+  const title = kind === 'lead' ? record.title : kind === 'client' ? record.name : record.title;
+  const recordId = record.id == null ? '—' : '#' + String(record.id).padStart(4, '0');
+  let status = 'В базе';
+  let metrics = [];
+  let details = [];
+  if (kind === 'lead') {
+    status = statusLabels[record.status] || record.status || 'Новая';
+    metrics = [
+      ['Бюджет заказчика', fmt(record.budget_rub)],
+      ['Услуга', serviceLabels[record.service] || record.service || '—'],
+      ['Источник', sourceLabels[record.source] || record.source || '—']
+    ];
+    details = [
+      ['Адрес объекта', record.address || 'Не указан'],
+      ['Дата создания', String(record.created_at || '—').slice(0, 10)],
+      ['Текущий статус', status]
+    ];
+  } else if (kind === 'client') {
+    status = record.client_type === 'company' ? 'Компания' : 'Частный клиент';
+    metrics = [
+      ['Контактное лицо', record.contact_name || 'Не указано'],
+      ['Телефон', record.phone || 'Не указан'],
+      ['Электронная почта', record.email || 'Не указана'],
+      ['Тип клиента', status]
+    ];
+    details = [['Добавлен', String(record.created_at || '—').slice(0, 10)]];
+  } else {
+    status = projectStatusLabels[record.status] || record.status || 'Объект';
+    const debt = Math.max(0, Number(record.contract_rub || 0) - Math.max(0, Number(record.received_rub || 0)));
+    metrics = [
+      ['Сумма договора', fmt(record.contract_rub)],
+      ['Получено', fmt(record.received_rub)],
+      ['Оплачено расходов', fmt(record.paid_expenses_rub)]
+    ];
+    details = [
+      ['Услуга', serviceLabels[record.service] || record.service || '—'],
+      ['Заказчик', record.client_name || 'Не указан'],
+      ['Адрес', record.address || 'Не указан'],
+      ['Остаток к получению', fmt(debt)],
+      ['Период работ', [record.start_date || '', record.end_date || ''].filter(Boolean).join(' — ') || 'Не задан']
+    ];
+  }
+  const metricHtml = metrics.map(item => '<article class="record-metric"><span>' + esc(item[0]) + '</span><strong>' + esc(item[1]) + '</strong></article>').join('');
+  const detailHtml = details.map(item => '<div class="record-detail-line"><span>' + esc(item[0]) + '</span><strong>' + esc(item[1]) + '</strong></div>').join('');
+  const notes = record.notes ? '<div class="record-notes"><span>ЗАМЕТКИ</span><p>' + esc(record.notes) + '</p></div>' : '';
+  target.innerHTML = '<div class="record-detail-head"><div><span class="record-detail-kicker">' + (kind === 'lead' ? 'КАРТОЧКА ЗАЯВКИ' : kind === 'client' ? 'КАРТОЧКА КЛИЕНТА' : 'ПАСПОРТ ОБЪЕКТА') + '</span><span class="record-detail-id">' + esc(recordId) + '</span></div><span class="record-status">' + esc(status) + '</span></div>' +
+    '<h3 class="record-detail-title">' + esc(title || 'Без названия') + '</h3>' +
+    '<div class="record-metrics">' + metricHtml + '</div>' +
+    '<div class="record-detail-section-title">Основная информация</div>' +
+    '<div class="record-detail-lines">' + detailHtml + '</div>' + notes;
+}
+function selectRecord(kind, id) {
+  const cache = recordCaches[kind + 's'] || [];
+  const record = cache.find(item => String(item.id) === String(id));
+  if (!record) return;
+  selectedRecordIds[kind + 's'] = record.id;
+  const tableIds = { lead: 'leadsTable', client: 'clientsTable', project: 'projectsTable' };
+  const table = $(tableIds[kind]);
+  table?.querySelectorAll('tr[data-record-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.recordId) === String(record.id)));
+  renderRecordDetailPanel(kind, record);
+}
+document.addEventListener('click', event => {
+  const row = event.target.closest('tr[data-record-kind][data-record-id]');
+  if (!row || event.target.closest('button, select, input, textarea, a')) return;
+  selectRecord(row.dataset.recordKind, row.dataset.recordId);
+});
 async function refreshLeads() {
-  const rows = await window.crm.listLeads(); const q = ($('leadSearch')?.value || '').toLowerCase(); const status = $('leadStatusFilter')?.value || '';
+  const rows = await window.crm.listLeads();
+  recordCaches.leads = rows;
+  const q = ($('leadSearch')?.value || '').toLowerCase();
+  const status = $('leadStatusFilter')?.value || '';
   const filtered = rows.filter(l => `${l.title} ${l.address} ${l.notes} ${sourceLabels[l.source]}`.toLowerCase().includes(q) && (!status || l.status === status));
-  $('leadsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th><th>Адрес</th><th>Создана</th><th>Действия</th></tr></thead><tbody>${filtered.map(l => `<tr><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><select class="lead-status-select" data-lead-status="${l.id}" aria-label="Статус заявки: ${esc(l.title)}">${Object.entries(statusLabels).map(([value,label]) => `<option value="${value}" ${l.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(l.budget_rub)}</td><td>${esc(l.address || '—')}</td><td>${esc(String(l.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-lead="${l.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Заявок не найдено','Создай заявку или измени фильтр.');
+  $('leadsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th><th>Адрес</th><th>Создана</th><th>Действия</th></tr></thead><tbody>${filtered.map(l => `<tr class="record-row${String(l.id) === String(selectedRecordIds.leads) ? ' is-selected' : ''}" data-record-kind="lead" data-record-id="${l.id}"><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><select class="lead-status-select" data-lead-status="${l.id}" aria-label="Статус заявки: ${esc(l.title)}">${Object.entries(statusLabels).map(([value,label]) => `<option value="${value}" ${l.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(l.budget_rub)}</td><td>${esc(l.address || '—')}</td><td>${esc(String(l.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-lead="${l.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Заявок не найдено','Создай заявку или измени фильтр.');
+  const selected = filtered.find(item => String(item.id) === String(selectedRecordIds.leads)) || filtered[0] || null;
+  selectedRecordIds.leads = selected?.id ?? null;
+  $('leadsTable').querySelectorAll('tr[data-record-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.recordId) === String(selectedRecordIds.leads)));
+  renderRecordDetailPanel('lead', selected);
 }
 async function refreshClients() {
-  const rows = await window.crm.listClients(); const q = ($('clientSearch')?.value || '').toLowerCase();
-  const filtered = rows.filter(c => `${c.name} ${c.contact_name||''} ${c.phone} ${c.email}`.toLowerCase().includes(q));
-  $('clientsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Клиент</th><th>Контактное лицо</th><th>Телефон</th><th>Email</th><th>Тип</th><th>Добавлен</th><th>Действия</th></tr></thead><tbody>${filtered.map(c => `<tr><td>${esc(c.name)}</td><td>${esc(c.contact_name || '—')}</td><td>${esc(c.phone || '—')}</td><td>${esc(c.email || '—')}</td><td>${c.client_type === 'company' ? 'Компания' : 'Частное лицо'}</td><td>${esc(String(c.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-client="${c.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Клиентов пока нет','Добавь первый контакт в свою базу.');
+  const rows = await window.crm.listClients();
+  recordCaches.clients = rows;
+  const q = ($('clientSearch')?.value || '').toLowerCase();
+  const filtered = rows.filter(c => `${c.name} ${c.contact_name || ''} ${c.phone} ${c.email}`.toLowerCase().includes(q));
+  $('clientsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Клиент</th><th>Контактное лицо</th><th>Телефон</th><th>Email</th><th>Тип</th><th>Добавлен</th><th>Действия</th></tr></thead><tbody>${filtered.map(c => `<tr class="record-row${String(c.id) === String(selectedRecordIds.clients) ? ' is-selected' : ''}" data-record-kind="client" data-record-id="${c.id}"><td>${esc(c.name)}</td><td>${esc(c.contact_name || '—')}</td><td>${esc(c.phone || '—')}</td><td>${esc(c.email || '—')}</td><td>${c.client_type === 'company' ? 'Компания' : 'Частное лицо'}</td><td>${esc(String(c.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-client="${c.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Клиентов пока нет','Добавь первый контакт в свою базу.');
+  const selected = filtered.find(item => String(item.id) === String(selectedRecordIds.clients)) || filtered[0] || null;
+  selectedRecordIds.clients = selected?.id ?? null;
+  $('clientsTable').querySelectorAll('tr[data-record-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.recordId) === String(selectedRecordIds.clients)));
+  renderRecordDetailPanel('client', selected);
 }
 async function refreshProjects() {
-  const rows = await window.crm.listProjects(); const q = ($('projectSearch')?.value || '').toLowerCase();
+  const rows = await window.crm.listProjects();
+  recordCaches.projects = rows;
+  const q = ($('projectSearch')?.value || '').toLowerCase();
   const filtered = rows.filter(p => `${p.title} ${p.address} ${p.client_name || ''}`.toLowerCase().includes(q));
-  $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th><th>Действия</th></tr></thead><tbody>${filtered.map(p => `<tr><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><select class="project-status-select" data-project-status="${p.id}" aria-label="Статус объекта: ${esc(p.title)}">${Object.entries(projectStatusLabels).map(([value,label]) => `<option value="${value}" ${p.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Math.max(0,Number(p.received_rub))))}</td><td><button type="button" class="button subtle compact" data-edit-project="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
+  $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th><th>Действия</th></tr></thead><tbody>${filtered.map(p => `<tr class="record-row${String(p.id) === String(selectedRecordIds.projects) ? ' is-selected' : ''}" data-record-kind="project" data-record-id="${p.id}"><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><select class="project-status-select" data-project-status="${p.id}" aria-label="Статус объекта: ${esc(p.title)}">${Object.entries(projectStatusLabels).map(([value,label]) => `<option value="${value}" ${p.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Math.max(0,Number(p.received_rub))))}</td><td><button type="button" class="button subtle compact" data-edit-project="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
+  const selected = filtered.find(item => String(item.id) === String(selectedRecordIds.projects)) || filtered[0] || null;
+  selectedRecordIds.projects = selected?.id ?? null;
+  $('projectsTable').querySelectorAll('tr[data-record-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.recordId) === String(selectedRecordIds.projects)));
+  renderRecordDetailPanel('project', selected);
   const options = rows.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
   $('paymentProject').innerHTML = `<option value="">Выбери объект</option>${options}`;
   $('expenseProject').innerHTML = `<option value="">Общий расход без объекта</option>${options}`;
@@ -567,6 +667,50 @@ function renderFinanceInsights(data) {
   for (const warning of (data.dataWarnings || [])) alerts.push({ level: 'warning', title: 'Проверь данные финансового прогноза', body: warning });
   $('financeAlerts').innerHTML = alerts.length ? alerts.map(a => `<article class="finance-alert ${a.level}"><strong>${esc(a.title)}</strong><span>${esc(a.body)}</span></article>`).join('') : '<div class="empty-state compact-empty"><strong>Критичных сигналов по введённым данным нет</strong><span>Это не гарантия платёжеспособности: проверь полноту учёта.</span></div>';
 }
+const financeRecordCaches = { payments: [], expenses: [] };
+const financeSelectedIds = { payments: null, expenses: null };
+function renderFinanceDetailPanel(kind, record) {
+  const target = $(kind === 'payment' ? 'paymentDetailPanel' : 'expenseDetailPanel');
+  if (!target) return;
+  const payment = kind === 'payment';
+  if (!record) {
+    target.innerHTML = '<div class="record-detail-empty"><span class="record-detail-kicker">ФИНАНСОВАЯ КАРТОЧКА</span><div class="record-detail-empty-mark">＋</div><strong>' + (payment ? 'Платежей пока нет' : 'Расходов пока нет') + '</strong><p>' + (payment ? 'Добавленные поступления и возвраты появятся в этом списке.' : 'Запланированные и оплаченные затраты появятся здесь.') + '</p></div>';
+    return;
+  }
+  const methodLabels = { cash: 'Наличные', bank: 'На счёт', transfer: 'Перевод', other: 'Другое' };
+  const isRefund = record.payment_type === 'refund';
+  const status = payment ? (isRefund ? 'Возврат заказчику' : 'Поступление') : (record.is_paid ? 'Оплачено' : 'Запланировано');
+  const amount = fmt(record.amount_rub);
+  const metrics = payment
+    ? [['Сумма операции', (isRefund ? '−' : '+') + amount], ['Операция', status], ['Способ', methodLabels[record.method] || record.method || '—']]
+    : [['Сумма расхода', amount], ['Статус', status], ['Категория', expenseLabels[record.category] || record.category || '—']];
+  const details = payment
+    ? [['Дата операции', record.payment_date || '—'], ['Объект', record.project_title || 'Не указан'], ['Способ оплаты', methodLabels[record.method] || record.method || '—']]
+    : [['Дата расхода', record.expense_date || '—'], ['Объект', record.project_title || 'Общий расход'], ['Категория', expenseLabels[record.category] || record.category || '—'], ['Статус оплаты', status]];
+  const metricHtml = metrics.map(item => '<article class="record-metric"><span>' + esc(item[0]) + '</span><strong>' + esc(item[1]) + '</strong></article>').join('');
+  const detailHtml = details.map(item => '<div class="record-detail-line"><span>' + esc(item[0]) + '</span><strong>' + esc(item[1]) + '</strong></div>').join('');
+  const note = record.note || record.description || '';
+  target.innerHTML = '<div class="record-detail-head"><div><span class="record-detail-kicker">' + (payment ? 'КАРТОЧКА ПЛАТЕЖА' : 'КАРТОЧКА РАСХОДА') + '</span><span class="record-detail-id">#' + String(record.id).padStart(4, '0') + '</span></div><span class="record-status">' + esc(status) + '</span></div>' +
+    '<h3 class="record-detail-title">' + esc(payment ? (record.project_title || 'Платёж по объекту') : (record.description || 'Расход')) + '</h3>' +
+    '<div class="record-metrics">' + metricHtml + '</div><div class="record-detail-section-title">Основная информация</div>' +
+    '<div class="record-detail-lines">' + detailHtml + '</div>' +
+    (note ? '<div class="record-notes"><span>КОММЕНТАРИЙ</span><p>' + esc(note) + '</p></div>' : '');
+}
+function selectFinanceRecord(kind, id) {
+  const records = financeRecordCaches[kind === 'payment' ? 'payments' : 'expenses'];
+  const record = records.find(item => String(item.id) === String(id));
+  if (!record) return;
+  const key = kind === 'payment' ? 'payments' : 'expenses';
+  financeSelectedIds[key] = record.id;
+  const targetId = kind === 'payment' ? 'paymentsTable' : 'expensesTable';
+  $(targetId)?.querySelectorAll('tr[data-finance-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.financeId) === String(record.id)));
+  renderFinanceDetailPanel(kind, record);
+}
+document.addEventListener('click', event => {
+  const row = event.target.closest('tr[data-finance-kind][data-finance-id]');
+  if (!row || event.target.closest('button, select, input, textarea, a')) return;
+  selectFinanceRecord(row.dataset.financeKind, row.dataset.financeId);
+});
 async function refreshFinance() {
   const [summary, payments, expenses, insights, incomeRecords] = await Promise.all([window.crm.summary(), window.crm.listPayments(), window.crm.listExpenses(), window.crm.financeInsights(), window.crm.listIncomeRecords()]);
   renderFinanceInsights(insights);
@@ -580,8 +724,18 @@ async function refreshFinance() {
   $('incomeYearDetail').textContent = `Официально: ${fmt(totalFor(yearRows.filter(row=>row.record_type==='official')))} · внутренний учёт: ${fmt(totalFor(yearRows.filter(row=>row.record_type==='internal')))}`;
   $('incomeTable').innerHTML = incomeRecords.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Источник</th><th>Категория</th><th>Сумма</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${incomeRecords.map(row=>`<tr><td>${esc(row.income_date)}</td><td>${esc(row.source)}</td><td><span class="pill ${row.record_type==='internal'?'estimate':'won'}">${row.record_type==='internal'?'Внутренний учёт':'Официальный учёт'}</span></td><td>+${fmt(row.amount_rub)}</td><td>${esc(row.note||'—')}</td><td><button type="button" class="button subtle compact" data-edit-income="${row.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Дополнительных поступлений пока нет','Нажми «Добавить доход», чтобы зафиксировать поступление вне списка платежей по объектам.');
 
-  $('paymentsTable').innerHTML = payments.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Операция</th><th>Сумма</th><th>Способ</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${payments.map(p => `<tr><td>${esc(p.payment_date)}</td><td>${esc(p.project_title)}</td><td>${p.payment_type === 'refund' ? '<span class="pill lost">Возврат</span>' : '<span class="pill won">Поступление</span>'}</td><td>${p.payment_type === 'refund' ? '−' : '+'}${fmt(p.amount_rub)}</td><td>${esc(({cash:'Наличные',bank:'На счёт',transfer:'Перевод',other:'Другое'})[p.method] || p.method)}</td><td>${esc(p.note || '—')}</td><td><button type="button" class="button subtle compact" data-edit-payment="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Платежей пока нет','Добавь объект, затем записывай авансы и окончательные расчёты.');
-  $('expensesTable').innerHTML = expenses.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Расход</th><th>Объект</th><th>Категория</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${esc(e.expense_date)}</td><td>${esc(e.description)}</td><td>${esc(e.project_title || 'Общий')}</td><td>${esc(expenseLabels[e.category] || e.category)}</td><td>${fmt(e.amount_rub)}</td><td><span class="pill ${e.is_paid ? 'won' : 'estimate'}">${e.is_paid ? 'Оплачено' : 'Запланировано'}</span></td><td><button type="button" class="button subtle compact" data-edit-expense="${e.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Расходов пока нет','Записывай материалы, рабочих, транспорт и другие расходы.');
+  financeRecordCaches.payments = payments;
+  const selectedPayment = payments.find(item => String(item.id) === String(financeSelectedIds.payments)) || payments[0] || null;
+  financeSelectedIds.payments = selectedPayment?.id ?? null;
+  $('paymentsTable').innerHTML = payments.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Операция</th><th>Сумма</th><th>Способ</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${payments.map(p => `<tr class="record-row${String(p.id) === String(financeSelectedIds.payments) ? ' is-selected' : ''}" data-finance-kind="payment" data-finance-id="${p.id}"><td>${esc(p.payment_date)}</td><td>${esc(p.project_title)}</td><td>${p.payment_type === 'refund' ? '<span class="pill lost">Возврат</span>' : '<span class="pill won">Поступление</span>'}</td><td>${p.payment_type === 'refund' ? '−' : '+'}${fmt(p.amount_rub)}</td><td>${esc(({cash:'Наличные',bank:'На счёт',transfer:'Перевод',other:'Другое'})[p.method] || p.method)}</td><td>${esc(p.note || '—')}</td><td><button type="button" class="button subtle compact" data-edit-payment="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Платежей пока нет','Добавь объект, затем записывай авансы и окончательные расчёты.');
+  $('paymentsTable').querySelectorAll('tr[data-finance-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.financeId) === String(financeSelectedIds.payments)));
+  renderFinanceDetailPanel('payment', selectedPayment);
+  financeRecordCaches.expenses = expenses;
+  const selectedExpense = expenses.find(item => String(item.id) === String(financeSelectedIds.expenses)) || expenses[0] || null;
+  financeSelectedIds.expenses = selectedExpense?.id ?? null;
+  $('expensesTable').innerHTML = expenses.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Расход</th><th>Объект</th><th>Категория</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${expenses.map(e => `<tr class="record-row${String(e.id) === String(financeSelectedIds.expenses) ? ' is-selected' : ''}" data-finance-kind="expense" data-finance-id="${e.id}"><td>${esc(e.expense_date)}</td><td>${esc(e.description)}</td><td>${esc(e.project_title || 'Общий')}</td><td>${esc(expenseLabels[e.category] || e.category)}</td><td>${fmt(e.amount_rub)}</td><td><span class="pill ${e.is_paid ? 'won' : 'estimate'}">${e.is_paid ? 'Оплачено' : 'Запланировано'}</span></td><td><button type="button" class="button subtle compact" data-edit-expense="${e.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Расходов пока нет','Записывай материалы, рабочих, транспорт и другие расходы.');
+  $('expensesTable').querySelectorAll('tr[data-finance-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.financeId) === String(financeSelectedIds.expenses)));
+  renderFinanceDetailPanel('expense', selectedExpense);
   await refreshProjects();
 }
 let estimateCatalog = window.StrukturaEstimateCalculator.getCatalog();
