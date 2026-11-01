@@ -311,3 +311,8 @@ input:not([type="checkbox"]):not([type="radio"]):focus, select:focus, textarea:f
 .startup-mark { filter: drop-shadow(0 8px 18px rgba(194, 74, 42, .10)); }
 .mockup-shadow-card > span { color: #fff; background: var(--accent); }
 .license-mark { color: #fff; background: var(--accent); }
+
+/* Secondary copy in product storytelling keeps AA contrast on pale panels. */
+.about-pi-index, .about-hero-index { color: #596579; }
+.about-final-cta p, .about-story-list small { color: #596579; }
+.about-story-list > div > i { color: #667085; }
