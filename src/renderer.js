@@ -94,8 +94,6 @@ function showView(name) {
   }
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  const moreNavigation = document.querySelector('.nav-more');
-  if (moreNavigation) moreNavigation.classList.toggle('has-active', Boolean(moreNavigation.querySelector('.nav-item.active')));
   const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', engineering: 'ПИ · Расчёт объекта', browser: 'Браузер и поиск заказчиков', prospects: 'Центр привлечения заказов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте СКОЛ' };
   $('pageTitle').textContent = titles[name] || 'СКОЛ CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
@@ -116,10 +114,6 @@ function showView(name) {
   // Re-evaluate business signals when the user moves between CRM sections.
   if (name !== 'dashboard') refreshPiCoach().catch(() => {});
 }
-document.addEventListener('click', event => {
-  if (event.target.closest('.nav-more')) return;
-  document.querySelectorAll('.nav-more[open]').forEach(menu => { menu.open = false; });
-});
 // Register primary navigation before the rest of renderer initialization. If a later widget
 // fails during setup, the workspace navigation remains usable and the error is observable.
 document.addEventListener('click', event => {
@@ -127,8 +121,6 @@ document.addEventListener('click', event => {
   if (!button) return;
   event.preventDefault();
   showView(button.dataset.view);
-  const overflowMenu = button.closest('.nav-more');
-  if (overflowMenu) overflowMenu.open = false;
 }, true);
 window.addEventListener('error', event => {
   console.error('СКОЛ renderer error:', event.error || event.message);
