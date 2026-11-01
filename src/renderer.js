@@ -660,6 +660,50 @@ function renderFinanceInsights(data) {
   for (const warning of (data.dataWarnings || [])) alerts.push({ level: 'warning', title: 'Проверь данные финансового прогноза', body: warning });
   $('financeAlerts').innerHTML = alerts.length ? alerts.map(a => `<article class="finance-alert ${a.level}"><strong>${esc(a.title)}</strong><span>${esc(a.body)}</span></article>`).join('') : '<div class="empty-state compact-empty"><strong>Критичных сигналов по введённым данным нет</strong><span>Это не гарантия платёжеспособности: проверь полноту учёта.</span></div>';
 }
+const financeRecordCaches = { payments: [], expenses: [] };
+const financeSelectedIds = { payments: null, expenses: null };
+function renderFinanceDetailPanel(kind, record) {
+  const target = $(kind === 'payment' ? 'paymentDetailPanel' : 'expenseDetailPanel');
+  if (!target) return;
+  const payment = kind === 'payment';
+  if (!record) {
+    target.innerHTML = '<div class="record-detail-empty"><span class="record-detail-kicker">ФИНАНСОВАЯ КАРТОЧКА</span><div class="record-detail-empty-mark">＋</div><strong>' + (payment ? 'Платежей пока нет' : 'Расходов пока нет') + '</strong><p>' + (payment ? 'Добавленные поступления и возвраты появятся в этом списке.' : 'Запланированные и оплаченные затраты появятся здесь.') + '</p></div>';
+    return;
+  }
+  const methodLabels = { cash: 'Наличные', bank: 'На счёт', transfer: 'Перевод', other: 'Другое' };
+  const isRefund = record.payment_type === 'refund';
+  const status = payment ? (isRefund ? 'Возврат заказчику' : 'Поступление') : (record.is_paid ? 'Оплачено' : 'Запланировано');
+  const amount = fmt(record.amount_rub);
+  const metrics = payment
+    ? [['Сумма операции', (isRefund ? '−' : '+') + amount], ['Операция', status], ['Способ', methodLabels[record.method] || record.method || '—']]
+    : [['Сумма расхода', amount], ['Статус', status], ['Категория', expenseLabels[record.category] || record.category || '—']];
+  const details = payment
+    ? [['Дата операции', record.payment_date || '—'], ['Объект', record.project_title || 'Не указан'], ['Способ оплаты', methodLabels[record.method] || record.method || '—']]
+    : [['Дата расхода', record.expense_date || '—'], ['Объект', record.project_title || 'Общий расход'], ['Категория', expenseLabels[record.category] || record.category || '—'], ['Статус оплаты', status]];
+  const metricHtml = metrics.map(item => '<article class="record-metric"><span>' + esc(item[0]) + '</span><strong>' + esc(item[1]) + '</strong></article>').join('');
+  const detailHtml = details.map(item => '<div class="record-detail-line"><span>' + esc(item[0]) + '</span><strong>' + esc(item[1]) + '</strong></div>').join('');
+  const note = record.note || record.description || '';
+  target.innerHTML = '<div class="record-detail-head"><div><span class="record-detail-kicker">' + (payment ? 'КАРТОЧКА ПЛАТЕЖА' : 'КАРТОЧКА РАСХОДА') + '</span><span class="record-detail-id">#' + String(record.id).padStart(4, '0') + '</span></div><span class="record-status">' + esc(status) + '</span></div>' +
+    '<h3 class="record-detail-title">' + esc(payment ? (record.project_title || 'Платёж по объекту') : (record.description || 'Расход')) + '</h3>' +
+    '<div class="record-metrics">' + metricHtml + '</div><div class="record-detail-section-title">Основная информация</div>' +
+    '<div class="record-detail-lines">' + detailHtml + '</div>' +
+    (note ? '<div class="record-notes"><span>КОММЕНТАРИЙ</span><p>' + esc(note) + '</p></div>' : '');
+}
+function selectFinanceRecord(kind, id) {
+  const records = financeRecordCaches[kind === 'payment' ? 'payments' : 'expenses'];
+  const record = records.find(item => String(item.id) === String(id));
+  if (!record) return;
+  const key = kind === 'payment' ? 'payments' : 'expenses';
+  financeSelectedIds[key] = record.id;
+  const targetId = kind === 'payment' ? 'paymentsTable' : 'expensesTable';
+  $(targetId)?.querySelectorAll('tr[data-finance-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.financeId) === String(record.id)));
+  renderFinanceDetailPanel(kind, record);
+}
+document.addEventListener('click', event => {
+  const row = event.target.closest('tr[data-finance-kind][data-finance-id]');
+  if (!row || event.target.closest('button, select, input, textarea, a')) return;
+  selectFinanceRecord(row.dataset.financeKind, row.dataset.financeId);
+});
 async function refreshFinance() {
   const [summary, payments, expenses, insights, incomeRecords] = await Promise.all([window.crm.summary(), window.crm.listPayments(), window.crm.listExpenses(), window.crm.financeInsights(), window.crm.listIncomeRecords()]);
   renderFinanceInsights(insights);
@@ -673,8 +717,20 @@ async function refreshFinance() {
   $('incomeYearDetail').textContent = `Официально: ${fmt(totalFor(yearRows.filter(row=>row.record_type==='official')))} · внутренний учёт: ${fmt(totalFor(yearRows.filter(row=>row.record_type==='internal')))}`;
   $('incomeTable').innerHTML = incomeRecords.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Источник</th><th>Категория</th><th>Сумма</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${incomeRecords.map(row=>`<tr><td>${esc(row.income_date)}</td><td>${esc(row.source)}</td><td><span class="pill ${row.record_type==='internal'?'estimate':'won'}">${row.record_type==='internal'?'Внутренний учёт':'Официальный учёт'}</span></td><td>+${fmt(row.amount_rub)}</td><td>${esc(row.note||'—')}</td><td><button type="button" class="button subtle compact" data-edit-income="${row.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Дополнительных поступлений пока нет','Нажми «Добавить доход», чтобы зафиксировать поступление вне списка платежей по объектам.');
 
-  $('paymentsTable').innerHTML = payments.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Операция</th><th>Сумма</th><th>Способ</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${payments.map(p => `<tr><td>${esc(p.payment_date)}</td><td>${esc(p.project_title)}</td><td>${p.payment_type === 'refund' ? '<span class="pill lost">Возврат</span>' : '<span class="pill won">Поступление</span>'}</td><td>${p.payment_type === 'refund' ? '−' : '+'}${fmt(p.amount_rub)}</td><td>${esc(({cash:'Наличные',bank:'На счёт',transfer:'Перевод',other:'Другое'})[p.method] || p.method)}</td><td>${esc(p.note || '—')}</td><td><button type="button" class="button subtle compact" data-edit-payment="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Платежей пока нет','Добавь объект, затем записывай авансы и окончательные расчёты.');
-  $('expensesTable').innerHTML = expenses.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Расход</th><th>Объект</th><th>Категория</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${expenses.map(e => `<tr><td>${esc(e.expense_date)}</td><td>${esc(e.description)}</td><td>${esc(e.project_title || 'Общий')}</td><td>${esc(expenseLabels[e.category] || e.category)}</td><td>${fmt(e.amount_rub)}</td><td><span class="pill ${e.is_paid ? 'won' : 'estimate'}">${e.is_paid ? 'Оплачено' : 'Запланировано'}</span></td><td><button type="button" class="button subtle compact" data-edit-expense="${e.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Расходов пока нет','Записывай материалы, рабочих, транспорт и другие расходы.');
+  financeRecordCaches.payments = payments;
+  const visiblePayments = payments;
+  const selectedPayment = visiblePayments.find(item => String(item.id) === String(financeSelectedIds.payments)) || visiblePayments[0] || null;
+  financeSelectedIds.payments = selectedPayment?.id ?? null;
+  $('paymentsTable').innerHTML = visiblePayments.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Операция</th><th>Сумма</th><th>Способ</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${visiblePayments.map(p => `<tr class="record-row${String(p.id) === String(financeSelectedIds.payments) ? ' is-selected' : ''}" data-finance-kind="payment" data-finance-id="${p.id}"><td>${esc(p.payment_date)}</td><td>${esc(p.project_title)}</td><td>${p.payment_type === 'refund' ? '<span class="pill lost">Возврат</span>' : '<span class="pill won">Поступление</span>'}</td><td>${p.payment_type === 'refund' ? '−' : '+'}${fmt(p.amount_rub)}</td><td>${esc(({cash:'Наличные',bank:'На счёт',transfer:'Перевод',other:'Другое'})[p.method] || p.method)}</td><td>${esc(p.note || '—')}</td><td><button type="button" class="button subtle compact" data-edit-payment="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Платежей пока нет','Добавь объект, затем записывай авансы и окончательные расчёты.');
+  $('paymentsTable').querySelectorAll('tr[data-finance-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.financeId) === String(financeSelectedIds.payments)));
+  renderFinanceDetailPanel('payment', selectedPayment);
+  financeRecordCaches.expenses = expenses;
+  const visibleExpenses = expenses;
+  const selectedExpense = visibleExpenses.find(item => String(item.id) === String(financeSelectedIds.expenses)) || visibleExpenses[0] || null;
+  financeSelectedIds.expenses = selectedExpense?.id ?? null;
+  $('expensesTable').innerHTML = visibleExpenses.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Расход</th><th>Объект</th><th>Категория</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${visibleExpenses.map(e => `<tr class="record-row${String(e.id) === String(financeSelectedIds.expenses) ? ' is-selected' : ''}" data-finance-kind="expense" data-finance-id="${e.id}"><td>${esc(e.expense_date)}</td><td>${esc(e.description)}</td><td>${esc(e.project_title || 'Общий')}</td><td>${esc(expenseLabels[e.category] || e.category)}</td><td>${fmt(e.amount_rub)}</td><td><span class="pill ${e.is_paid ? 'won' : 'estimate'}">${e.is_paid ? 'Оплачено' : 'Запланировано'}</span></td><td><button type="button" class="button subtle compact" data-edit-expense="${e.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Расходов пока нет','Записывай материалы, рабочих, транспорт и другие расходы.');
+  $('expensesTable').querySelectorAll('tr[data-finance-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.financeId) === String(financeSelectedIds.expenses)));
+  renderFinanceDetailPanel('expense', selectedExpense);
   await refreshProjects();
 }
 let estimateCatalog = window.StrukturaEstimateCalculator.getCatalog();
