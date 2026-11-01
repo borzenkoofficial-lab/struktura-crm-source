@@ -149,3 +149,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
  .stats-grid{grid-template-columns:1fr 1fr}
  .welcome h2{font-size:26px}
 }
+
+@media(prefers-reduced-motion:reduce){
+ *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
