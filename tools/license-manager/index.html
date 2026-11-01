@@ -23,6 +23,37 @@
       <div><span class="eyebrow">КРИПТОГРАФИЧЕСКАЯ ЗАЩИТА</span><h2>Закрытый ключ подписи</h2><p id="keyStatus">Ключ не выбран.</p></div>
       <button class="button secondary" id="choosePrivateKeyBtn" type="button">Выбрать PEM-файл</button>
     </section>
+    <section class="panel config-panel" id="tariffConfigPanel">
+      <div class="panel-heading">
+        <div><span class="eyebrow">КАТАЛОГ / ПРАВИЛА ВЫПУСКА</span><h2>Настройка тарифов</h2></div>
+        <div class="panel-actions">
+          <button class="button secondary" id="loadConfigBtn" type="button">Импорт JSON</button>
+          <button class="button secondary" id="saveConfigBtn" type="button">Экспорт JSON</button>
+        </div>
+      </div>
+      <p class="panel-description">Здесь задаются доступные планы, их состав и цена. CRM проверяет ID модулей по встроенному каталогу; неизвестные функции не попадут в лицензию.</p>
+      <div class="form-grid">
+        <label>Тариф для редактирования<select id="managedPlan" name="managedPlan"></select></label>
+        <label>ID тарифа<input id="managedPlanId" maxlength="48" required></label>
+        <label>Название тарифа<input id="managedPlanName" maxlength="80" required></label>
+        <label>Цена, ₽<input id="managedPlanPrice" type="number" min="0" max="100000000" step="1" placeholder="Не задана"></label>
+        <label>Максимум компьютеров<input id="managedPlanDevices" type="number" min="1" max="50" value="50" required></label>
+        <label class="wide">Описание<input id="managedPlanDescription" maxlength="300" placeholder="Что входит в тариф"></label>
+      </div>
+      <fieldset class="config-features">
+        <legend>Разрешённые модули</legend>
+        <div id="configFeatureOptions" class="feature-options"></div>
+      </fieldset>
+      <div class="form-actions config-actions">
+        <button class="button secondary" id="addPlanBtn" type="button">Добавить тариф</button>
+        <button class="button secondary" id="removePlanBtn" type="button">Удалить выбранный</button>
+        <span id="configStatus" role="status">Загружена встроенная конфигурация тарифов.</span>
+      </div>
+    </section>
+    <section class="panel request-panel">
+      <div><span class="eyebrow">ЗАЯВКА С САЙТА SKOL</span><h2>Импорт индивидуального состава</h2><p id="requestStatus">Можно загрузить JSON-заявку, созданную клиентом в конструкторе тарифов.</p></div>
+      <button class="button secondary" id="importRequestBtn" type="button">Загрузить заявку JSON</button>
+    </section>
     <form id="licenseForm" class="panel form-panel">
       <div class="panel-heading"><div><span class="eyebrow">ПАРАМЕТРЫ ПОКУПКИ</span><h2>Новая лицензия</h2></div><span class="step">01 / 02</span></div>
       <div class="form-grid">
