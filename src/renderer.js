@@ -1279,20 +1279,6 @@ document.addEventListener('keydown', event => {
   }
   if (event.key === 'Escape' && commandPalette?.open) commandPalette.close();
 });
-const sidebarToggle = $('toggleSidebarBtn');
-function setSidebarCollapsed(collapsed) {
-  const shell = document.querySelector('.app-shell');
-  shell.classList.toggle('sidebar-collapsed', collapsed);
-  sidebarToggle?.setAttribute('aria-pressed', String(collapsed));
-  sidebarToggle?.setAttribute('aria-label', collapsed ? 'Развернуть меню' : 'Свернуть меню');
-  document.querySelectorAll('.nav-item[data-view]').forEach(button => {
-    if (collapsed) button.title = button.textContent.trim();
-    else button.removeAttribute('title');
-  });
-  try { localStorage.setItem('gruzli.sidebarCollapsed', collapsed ? '1' : '0'); } catch (_) {}
-}
-try { setSidebarCollapsed(localStorage.getItem('gruzli.sidebarCollapsed') === '1'); } catch (_) { setSidebarCollapsed(false); }
-sidebarToggle?.addEventListener('click', () => setSidebarCollapsed(!document.querySelector('.app-shell').classList.contains('sidebar-collapsed')));
 document.querySelectorAll('[data-plan-action]').forEach(button => button.addEventListener('click', () => { const plan = button.dataset.planAction; const labels = { subscription: 'Подписка', lifetime: 'Покупка навсегда', pro: 'Профессиональный тариф' }; toast(`${labels[plan] || 'Тариф'}: оформление ещё не подключено. Никаких списаний не выполняется.`); }));
 document.addEventListener('click', e => {
   const goto = e.target.closest('[data-goto]'); if (goto) showView(goto.dataset.goto);
