@@ -146,16 +146,28 @@
         collectionPercent: percent(projectReceived, totalContract)
       },
       progress: {
-        projects: { done: completedProjects, total: allProjects.length, percent: percent(completedProjects, allProjects.length) },
+        projects: { done: completedProjects, total: allProjects.length, percent: percent(completedProjects, allProjects.length), available: Array.isArray(input.projects) },
         production: { actual: actualQuantity, planned: plannedQuantity, percent: percent(actualQuantity, plannedQuantity), available: productionAvailable },
-        tasks: { done: doneTasks, total: tasks.length, percent: percent(doneTasks, tasks.length) },
-        leads: { won: wonLeads, total: leads.length, percent: percent(wonLeads, leads.length) }
+        tasks: { done: doneTasks, total: tasks.length, percent: percent(doneTasks, tasks.length), available: Array.isArray(input.tasks) },
+        leads: { won: wonLeads, total: leads.length, percent: percent(wonLeads, leads.length), available: Array.isArray(input.leads) }
+      },
+      availability: {
+        leads: Array.isArray(input.leads),
+        clients: Array.isArray(input.clients),
+        projects: Array.isArray(input.projects),
+        tasks: Array.isArray(input.tasks),
+        finance: financeComplete,
+        production: productionAvailable
       },
       attention: {
         overdueTasks,
         newLeads,
         unstaffedProjects,
-        unplannedActiveProjects
+        unplannedActiveProjects,
+        tasksAvailable: Array.isArray(input.tasks),
+        leadsAvailable: Array.isArray(input.leads),
+        projectsAvailable: Array.isArray(input.projects),
+        productionAvailable
       },
       cashflow: input.financeEnabled ? buildCashflowChart({ payments, incomeRecords, expenses }, now) : []
     };
