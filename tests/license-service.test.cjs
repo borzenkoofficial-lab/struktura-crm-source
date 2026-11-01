@@ -83,13 +83,15 @@ test('feature mapping protects paid modules while leaving base channels availabl
   assert.equal(featureForChannel('pi:coachHistory'), 'production');
   assert.equal(featureForChannel('engineering:importEstimateFile'), 'engineering');
   assert.equal(featureForChannel('estimate:exportQuotePdf'), 'engineering');
-  assert.equal(featureForChannel('engineeringPlans:list'), 'engineering_plans');\n  assert.equal(featureForChannel('reports:summary'), 'reports');
+  assert.equal(featureForChannel('engineeringPlans:list'), 'engineering_plans');
+  assert.equal(featureForChannel('reports:summary'), 'reports');
   assert.equal(featureForChannel('orders:search'), 'order_radar');
   assert.equal(featureForChannel('prospects:list'), 'order_radar');
   assert.equal(featureForChannel('search:run'), 'order_radar');
   assert.equal(featureForChannel('browser:navigate'), 'web_browser');
   assert.equal(featureForChannel('clients:list'), null);
-  assert.equal(featureForChannel('reports:unknown'), 'reports');\n  assert.equal(featureForChannel('backup:create'), null);
+  assert.equal(featureForChannel('reports:unknown'), 'reports');
+  assert.equal(featureForChannel('backup:create'), null);
 });
 
 test('expired saved license is inactive but local data remains available for reactivation', () => {
