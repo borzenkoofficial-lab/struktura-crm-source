@@ -641,6 +641,49 @@ function renderDashboardSnapshot(snapshot) {
     ? `<table class="data-table"><thead><tr><th>Объект</th><th>Статус</th><th>Договор</th><th>Получено</th><th></th></tr></thead><tbody>${projects.slice(0,5).map(project=>`<tr><td><strong>${esc(project.title)}</strong><small class="table-sub">${esc(project.address || 'Адрес не указан')}</small></td><td><span class="pill ${project.status==='completed'?'won':project.status==='cancelled'?'lost':'contacted'}">${esc(projectStatusLabels[project.status] || project.status)}</span></td><td>${fmt(project.contract_rub)}</td><td>${fmt(project.received_rub)}</td><td><button type="button" class="button subtle compact" data-goto="projects">Открыть</button></td></tr>`).join('')}</tbody></table>`
     : empty('Объектов пока нет','Создай первый объект, чтобы вести договор и работы.');
 }
+async function refreshDashboard() {
+  if (dashboardRefreshPromise) return dashboardRefreshPromise;
+  dashboardRefreshPromise = (async () => {
+    const loaders = {
+      summary: () => window.crm.summary(),
+      leads: () => window.crm.listLeads(),
+      clients: () => window.crm.listClients(),
+      projects: () => window.crm.listProjects(),
+      tasks: () => window.crm.listTasks({ filter: 'all' })
+    };
+    if (licenseFeatures.has('finance')) {
+      loaders.payments = () => window.crm.listPayments();
+      loaders.incomeRecords = () => window.crm.listIncomeRecords();
+      loaders.expenses = () => window.crm.listExpenses();
+    }
+    if (licenseFeatures.has('production')) loaders.production = () => window.crm.productionOverview();
+    const snapshot = {};
+    const errors = [];
+    await Promise.all(Object.entries(loaders).map(async ([key, load]) => {
+      try { snapshot[key] = await load(); }
+      catch (error) { errors.push({ key, message: String(error?.message || error) }); }
+    }));
+    dashboardSnapshot = snapshot;
+    renderDashboardSnapshot(snapshot);
+    if (snapshot.production) {
+      try { renderProductionIntelligence(snapshot.production, 'piHomeSummary', 'piHomeAlerts'); }
+      catch (error) { errors.push({ key: 'production', message: String(error?.message || error) }); }
+    } else if (licenseFeatures.has('production')) {
+      $('piHomeSummary').textContent = 'Не удалось получить данные производства.';
+      $('piHomeAlerts').innerHTML = '<div class="pi-no-alerts">Проверь раздел «Производство» и повтори обновление.</div>';
+    } else {
+      $('piHomeSummary').textContent = 'Производственный модуль недоступен в текущей лицензии.';
+      $('piHomeAlerts').innerHTML = '';
+    }
+    $('dashboardDataStatus').textContent = errors.length
+      ? `Часть показателей не обновлена: ${errors.map(item => item.key).join(', ')}. Повтори обновление, если эти данные нужны.`
+      : `Данные загружены из локальной базы · обновлено ${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}`;
+    refreshPiCoach().catch(() => {});
+    return snapshot;
+  })();
+  try { return await dashboardRefreshPromise; }
+  finally { dashboardRefreshPromise = null; }
+}
 async function refreshLeads() {
   const rows = await window.crm.listLeads();
   recordCaches.leads = rows;
