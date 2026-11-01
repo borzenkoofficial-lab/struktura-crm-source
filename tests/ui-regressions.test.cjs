@@ -58,7 +58,7 @@ test('startup animation includes reduced-motion accessibility support', () => {
 test('dashboard home has real navigation actions and no fabricated business metrics', () => {
   const dashboard = html.match(/<section class="view active" id="view-dashboard">([\s\S]*?)<\/section>\s*<section class="view" id="view-leads">/);
   assert.ok(dashboard, 'dashboard section exists');
-  assert.match(dashboard[1], /Бизнес начинается/);
+  assert.match(dashboard[1], /Весь бизнес/);
   assert.match(dashboard[1], /data-goto="projects"/);
   assert.match(dashboard[1], /data-goto="leads"/);
   for (const id of ['statLeads', 'statProjects', 'statReceived', 'statCash', 'recentLeads']) {
@@ -172,18 +172,12 @@ test('notification settings are wired through the safe preload bridge and a 15-m
   assert.match(reminderEngine, /repeatEveryHours/);
 });
 
-test('homepage explains PI with a clearly labeled illustrative mockup, not live-looking fake business data', () => {
-  assert.match(html, /id="piExplainerTitle"/);
-  assert.match(html, /ПИ — производственный интеллект/);
-  assert.match(html, /class="pi-mockup"/);
-  assert.match(html, /Демо-данные/);
-  assert.match(html, /Цифры не относятся к вашим объектам/);
-  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
-  assert.match(css, /\.pi-explainer/);
-  assert.match(css, /\.pi-mockup-alert/);
-  assert.match(css, /@media\(max-width:900px\)\{\.pi-explainer/);
+test('homepage shows the live production-intelligence feed without an illustrative dashboard mockup', () => {
+  assert.match(html, /id="piHomeSummary"/);
+  assert.match(html, /id="piHomeAlerts"/);
+  assert.match(renderer, /renderProductionIntelligence\(snapshot\.production, 'piHomeSummary', 'piHomeAlerts'\)/);
+  assert.doesNotMatch(html, /id="piExplainerTitle"|class="pi-mockup"|Демо-данные/);
 });
-
 
 test('backup restore is exposed in the UI and safe preload bridge', () => {
   const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
@@ -588,12 +582,11 @@ test('PI keeps sparse calibration data in collection mode and never suggests an 
 });
 
 
-test('product presentation tab is reachable and contains the STRUKTURA story and functional navigation', () => {
+test('product presentation tab is reachable and keeps the SKOL story and contextual navigation', () => {
   assert.match(html, /data-view="about"/);
   assert.match(html, /id="view-about"/);
   assert.match(html, /Порядок в работе/);
   assert.match(html, /Факты важнее впечатлений/);
-  assert.match(html, /ПИ — производственный интеллект/);
   assert.match(html, /data-goto="production"/);
   assert.match(html, /data-goto="projects"/);
   assert.match(renderer, /about: 'О продукте СКОЛ'/);
@@ -614,7 +607,7 @@ test('objects workspace is divided into numbered, responsive sections with a sep
     'Фактическая производительность', 'Себестоимость и расходы',
     'Итоговая экономика', 'Контроль объекта: план / факт', 'Действия по смете'
   ]) assert.ok(projectView.includes(heading), `objects workflow includes "${heading}"`);
-  assert.match(projectView, /class="object-list-head"[\s\S]*?<div class="panel table-panel"><div id="projectsTable"/);
+  assert.match(projectView, /class="object-list-head"[\s\S]*?<div class="panel records-panel"><div class="records-workspace"><div id="projectsTable" class="table-wrap records-list">/);
   const styles = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
   assert.match(styles, /#view-projects \.object-block-title/);
   assert.match(styles, /@media\(max-width:480px\)\{#view-projects/);
@@ -740,12 +733,12 @@ test('export filenames and startup dialogs use the current brand and real line b
 });
 
 
-test('all prominent brand marks use the СКОЛ monogram and client section does not promise missing activity history', () => {
-  assert.match(html, /hero-mini-symbol"><img src="assets\/skol-monogram-mark\.svg"/);
-  assert.match(html, /browser-welcome-mark"><img src="assets\/skol-monogram-mark\.svg"/);
-  assert.match(html, /plans-hero-monogram" src="assets\/skol-monogram-mark\.svg"/);
-  assert.doesNotMatch(html, /hero-mini-symbol"[^>]*>G</);
-  assert.doesNotMatch(html, /browser-welcome-mark"[^>]*>G</);
+test('prominent brand surfaces use the SKOL wordmark and monogram assets', () => {
+  assert.match(html, /class="startup-mark"[^>]*><img src="assets\/skol-monogram-mark\.svg"/);
+  assert.match(html, /class="dashboard-hero-emblem"><img src="assets\/skol-monogram-mark\.svg"/);
+  assert.match(html, /class="browser-welcome-mark"><img src="assets\/skol-monogram-mark\.svg"/);
+  assert.match(html, /assets\/skol-wordmark\.svg/);
+  assert.doesNotMatch(html, /assets\/skol-wordmark-inverse\.svg/);
   assert.match(html, /Компании, представители заказчиков и контактные данные/);
   assert.doesNotMatch(html, /Контакты заказчиков и история отношений/);
 });
@@ -875,7 +868,7 @@ test('lead acquisition workspace shows source-backed order metrics and clear wor
 
 test('client records support a structured representative contact field', () => {
   assert.match(html, /<label>Контактное лицо<input name="contact_name"/);
-  assert.match(renderer, /c\.contact_name\|\|''/);
+  assert.match(renderer, /c\.contact_name\s*\|\|\s*''/);
   assert.match(renderer, /<th>Контактное лицо<\/th>/);
   assert.match(renderer, /'contact_name','client_type'/);
   assert.match(main, /INSERT INTO clients\(name,phone,email,contact_name,client_type,notes\)/);
@@ -952,3 +945,73 @@ test('engineering handoff requires catalog review before replacing plan operatio
   assert.match(planUi, /Цены и нормы взяты из прайса СКОЛ/);
   assert.match(planUi, /mappedLines/);
 });
+test('dashboard contains only live business KPI slots, interactive rings and explicit period controls', () => {
+  const start = html.indexOf('<section class="view active" id="view-dashboard">');
+  const end = html.indexOf('<section class="view" id="view-leads">', start);
+  assert.ok(start >= 0 && end > start, 'single home view exists');
+  const dashboard = html.slice(start, end);
+  for (const id of [
+    'statLeads','statProjects','dashboardClientsCount','dashboardPeopleCount',
+    'statReceived','dashboardExpensesAmount','statCash','dashboardCashflowChart',
+    'dashboardProjectPercent','dashboardProductionPercent','dashboardTaskPercent',
+    'dashboardLeadPercent','dashboardCollectionPercent','dashboardRecentProjects',
+    'dashboardAttention','piHomeSummary','piHomeAlerts'
+  ]) assert.ok(dashboard.includes('id="' + id + '"'), id + ' is available for live metrics');
+  for (const period of ['week','month','year']) assert.ok(dashboard.includes('data-dashboard-period="' + period + '"'));
+  assert.doesNotMatch(dashboard, /Демо-данные|68%|≈ 4 смены/);
+  assert.ok(renderer.includes('const metricsApi = window.SKOLDashboardMetrics'));
+  assert.ok(renderer.includes('metricsApi.computeDashboardMetrics'));
+  assert.ok(renderer.includes('window.SKOLDashboardMetrics.getTaskBucket'));
+  assert.match(renderer, /async function refreshDashboard\(\)/);
+  assert.ok(renderer.includes("metrics.progress.projects.total > 0 ? metrics.progress.projects.percent : null"));
+  assert.ok(renderer.includes("metrics.progress.tasks.total > 0 ? metrics.progress.tasks.percent : null"));
+  assert.ok(renderer.includes("metrics.progress.leads.total > 0 ? metrics.progress.leads.percent : null"));
+  assert.ok(renderer.includes("metrics.finance.totalContract > 0 ? metrics.finance.collectionPercent : null"));
+});
+
+test('navigation is grouped, all fourteen screens have one destination and the DOM has no duplicate ids', () => {
+  const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
+  const duplicateIds = [...new Set(ids.filter((id,index) => ids.indexOf(id) !== index))];
+  assert.deepEqual(duplicateIds, [], 'no duplicate HTML ids');
+  assert.equal((html.match(/class="nav-primary"/g) || []).length, 1);
+  assert.equal((html.match(/class="nav-more"/g) || []).length, 1);
+  const navStart = html.indexOf('class="nav-primary"');
+  const navEnd = html.indexOf('</nav>', navStart);
+  const primary = html.slice(navStart, navEnd);
+  assert.deepEqual([...primary.matchAll(/data-view="([^"]+)"/g)].map(match => match[1]),
+    ['dashboard','leads','clients','projects','production','finance']);
+  const views = [...html.matchAll(/id="view-([^"]+)"/g)].map(match => match[1]);
+  assert.equal(views.length, 14);
+  assert.equal(new Set(views).size, 14);
+  for (const view of views) assert.ok(html.includes('data-view="' + view + '"'), view + ' remains reachable from navigation');
+  assert.ok(!html.includes('toggleSidebarBtn'), 'old vertical-sidebar toggle is removed');
+  assert.ok(!renderer.includes('gruzli.sidebarCollapsed'), 'old brand-specific UI persistence key is removed');
+  assert.ok(renderer.includes("button.closest('.nav-more')"));
+});
+
+test('all five split workspaces keep a detail pane and table list in the current 1.25 interface', () => {
+  for (const id of ['leadDetailPanel','clientDetailPanel','projectDetailPanel','paymentDetailPanel','expenseDetailPanel']) {
+    assert.equal((html.match(new RegExp('id="' + id + '"','g')) || []).length, 1, id + ' appears once');
+  }
+  for (const id of ['leadsTable','clientsTable','projectsTable','paymentsTable','expensesTable']) {
+    assert.ok(html.includes('id="' + id + '" class="table-wrap records-list"'), id + ' uses the same list surface');
+  }
+  assert.ok(renderer.includes('function selectRecord(kind, id)'));
+  assert.ok(renderer.includes('function selectFinanceRecord(kind, id)'));
+  assert.ok(renderer.includes("renderRecordDetailPanel('client', selected)"));
+  assert.ok(renderer.includes("renderFinanceDetailPanel('expense', selectedExpense)"));
+});
+
+test('Salesforce light layout loads after base CSS and the reusable metrics module loads before renderer', () => {
+  const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\.css)">/g)].map(match => match[1]);
+  assert.ok(links.indexOf('theme-salesforce.css') > links.indexOf('styles.css'));
+  assert.ok(links.indexOf('theme-salesforce-light.css') > links.indexOf('theme-salesforce.css'));
+  assert.ok(html.includes('<script src="dashboard-metrics.js"></script><script src="renderer.js"></script>'));
+  const css = fs.readFileSync(path.join(__dirname, '../src/theme-salesforce-light.css'), 'utf8');
+  for (const selector of ['.dashboard-kpis','.dashboard-finance-metrics','.dashboard-rings-grid','.dashboard-attention-list','.nav-more-menu']) assert.ok(css.includes(selector));
+  assert.ok(css.includes('@media(max-width:620px)'));
+  assert.ok(css.includes('@media(prefers-reduced-motion:reduce)'));
+  assert.ok(css.includes('overflow-wrap:anywhere'));
+  assert.ok(css.includes('min-width:0'));
+});
+
