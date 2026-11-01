@@ -963,6 +963,10 @@ test('dashboard contains only live business KPI slots, interactive rings and exp
   assert.ok(renderer.includes('metricsApi.computeDashboardMetrics'));
   assert.ok(renderer.includes('window.SKOLDashboardMetrics.getTaskBucket'));
   assert.match(renderer, /async function refreshDashboard\(\)/);
+  assert.ok(renderer.includes("metrics.progress.projects.total > 0 ? metrics.progress.projects.percent : null"));
+  assert.ok(renderer.includes("metrics.progress.tasks.total > 0 ? metrics.progress.tasks.percent : null"));
+  assert.ok(renderer.includes("metrics.progress.leads.total > 0 ? metrics.progress.leads.percent : null"));
+  assert.ok(renderer.includes("metrics.finance.totalContract > 0 ? metrics.finance.collectionPercent : null"));
 });
 
 test('navigation is grouped, all fourteen screens have one destination and the DOM has no duplicate ids', () => {
