@@ -1946,7 +1946,7 @@ function applyLicenseEntitlements(status) {
   });
   const edition = $('licenseCurrentEdition');
   const details = $('licenseCurrentDetails');
-  if (edition) edition.textContent = licenseActivated ? status.license.edition : 'Не активирована';
+  if (edition) edition.textContent = licenseActivated ? (status.license.planName || status.license.edition) : 'Не активирована';
   if (details) {
     details.textContent = licenseActivated
       ? `Лицензия ${status.license.licenseId} · Место ${status.license.seatIndex}/${status.license.seatCount} · Обновления до ${status.license.updatesUntil || 'без ограничения'}`
