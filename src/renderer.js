@@ -980,20 +980,19 @@ function openProspectEditor(prospect) {
   openDialog('prospectDialog');
 }
 async function refreshReports() {
-  const [clients, leads, summary, finance] = await Promise.all([
-    window.crm.listClients(), window.crm.listLeads(), window.crm.summary(), window.crm.financeInsights()
-  ]);
-  const won = leads.filter(l => l.status === 'won').length;
-  $('reportClients').textContent = clients.length; $('reportLeads').textContent = leads.length; $('reportWon').textContent = won;
-  $('reportConversion').textContent = `${leads.length ? Math.round(won / leads.length * 100) : 0}%`;
-  $('reportReceived').textContent = fmt(summary.received);
-  $('reportExpenses').textContent = fmt(summary.expenses);
-  $('reportCash').textContent = fmt(summary.cash);
-  $('reportReceivables').textContent = fmt(finance.receivablesTotal);
-  const groups = {};
-  for (const lead of leads) { const key = lead.source || 'other'; if (!groups[key]) groups[key] = { count: 0, budget: 0, won: 0 }; groups[key].count++; groups[key].budget += Number(lead.budget_rub || 0); if (lead.status === 'won') groups[key].won++; }
-  const sorted = Object.entries(groups).sort((a,b) => b[1].count - a[1].count);
-  $('sourceReport').innerHTML = sorted.length ? `<table class="data-table"><thead><tr><th>Источник</th><th>Заявок</th><th>Выиграно</th><th>Ожидаемый бюджет</th></tr></thead><tbody>${sorted.map(([source,v]) => `<tr><td>${esc(sourceLabels[source] || source)}</td><td>${v.count}</td><td>${v.won}</td><td>${fmt(v.budget)}</td></tr>`).join('')}</tbody></table>` : empty('Пока нет данных','После добавления заявок здесь появится разбивка по источникам.');
+  const report = await window.crm.reportsSummary();
+  $('reportClients').textContent = report.clients;
+  $('reportLeads').textContent = report.leads;
+  $('reportWon').textContent = report.won;
+  $('reportConversion').textContent = `${report.conversion}%`;
+  if (report.finance) {
+    $('reportReceived').textContent = fmt(report.finance.received);
+    $('reportExpenses').textContent = fmt(report.finance.expenses);
+    $('reportCash').textContent = fmt(report.finance.cash);
+    $('reportReceivables').textContent = fmt(report.finance.receivablesTotal);
+  }
+  const groups = report.sources || [];
+  $('sourceReport').innerHTML = groups.length ? `<table class="data-table"><thead><tr><th>Источник</th><th>Заявок</th><th>Выиграно</th><th>Ожидаемый бюджет</th></tr></thead><tbody>${groups.map(item => `<tr><td>${esc(sourceLabels[item.source] || item.source)}</td><td>${item.count}</td><td>${item.won}</td><td>${fmt(item.budget)}</td></tr>`).join('')}</tbody></table>` : empty('Пока нет данных','После добавления заявок здесь появится разбивка по источникам.');
 }
 function empty(title, detail) { return `<div class="empty-state"><div class="empty-icon">◉</div><strong>${esc(title)}</strong><span>${esc(detail)}</span></div>`; }
 function openDialog(id) { $(id).showModal(); }
