@@ -1,6 +1,7 @@
 'use strict';
 
-const { sign, verify } = require('node:crypto');\nconst { normalizeFeatureIds } = require('./license-catalog.cjs');
+const { sign, verify } = require('node:crypto');
+const { normalizeFeatureIds } = require('./license-catalog.cjs');
 
 const TOKEN_PREFIX = 'SKOL1';
 const MAX_TOKEN_LENGTH = 2048;
@@ -94,7 +95,7 @@ function normalizeDeviceId(value) {
 
 function normalizeUpdatesUntil(value) {
   if (value === null) return null;
-  if (typeof value === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00.000Z`)) && new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) === value) return value;
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00.000Z`)) && new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) === value) return value;
   throw new Error('Некорректный срок обновлений лицензии.');
 }
 
