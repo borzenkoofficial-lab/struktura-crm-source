@@ -10,7 +10,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('offline License Manager UI provides tariff, device, seat and date controls', () => {
   const html = read('tools/license-manager/index.html');
-  for (const id of ['edition', 'deviceId', 'licenseId', 'seatIndex', 'seatCount', 'updatesUntil', 'expiresAt', 'choosePrivateKeyBtn', 'generateLicenseBtn', 'licenseOutput', 'copyLicenseBtn']) {
+  for (const id of ['edition', 'deviceId', 'licenseId', 'seatIndex', 'seatCount', 'updatesUntil', 'expiresAt', 'choosePrivateKeyBtn', 'generateLicenseBtn', 'licenseOutput', 'copyLicenseBtn', 'managedPlan', 'managedPlanId', 'managedPlanName', 'managedPlanPrice', 'managedPlanDevices', 'configFeatureOptions', 'loadConfigBtn', 'saveConfigBtn', 'importRequestBtn', 'addPlanBtn', 'removePlanBtn']) {
     assert.match(html, new RegExp(`id=["']${id}["']`), `missing License Manager control: ${id}`);
   }
 });
