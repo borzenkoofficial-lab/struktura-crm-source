@@ -1,6 +1,6 @@
 'use strict';
 
-const { sign, verify } = require('node:crypto');
+const { sign, verify } = require('node:crypto');\nconst { normalizeFeatureIds } = require('./license-catalog.cjs');
 
 const TOKEN_PREFIX = 'SKOL1';
 const MAX_TOKEN_LENGTH = 2048;
@@ -40,11 +40,9 @@ function parseIsoTimestamp(value, fieldName, { nullable = false } = {}) {
   return new Date(parsed).toISOString();
 }
 
-function normalizePayload(input) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Некорректные данные лицензии.');
+function normalizeLegacyPayload(input) {
   const allowedKeys = new Set(['v', 'product', 'licenseId', 'edition', 'features', 'deviceId', 'issuedAt', 'expiresAt', 'updatesUntil', 'seatIndex', 'seatCount']);
   if (Object.keys(input).some(key => !allowedKeys.has(key))) throw new Error('Лицензия содержит неизвестные поля.');
-  if (input.v !== 1) throw new Error('Неподдерживаемая версия лицензии.');
   if (input.product !== 'SKOL_CRM') throw new Error('Лицензия предназначена для другого продукта.');
   const edition = String(input.edition || '').toUpperCase();
   const expectedFeatures = getFeaturesForEdition(edition);
@@ -53,38 +51,68 @@ function normalizePayload(input) {
   if (new Set(features).size !== features.length || JSON.stringify(features) !== JSON.stringify(expectedFeatures)) {
     throw new Error('Список разрешений не соответствует выбранному тарифу.');
   }
-  const licenseId = String(input.licenseId || '');
-  if (!/^[A-Z0-9-]{8,64}$/.test(licenseId)) throw new Error('Некорректный номер лицензии.');
-  const deviceId = String(input.deviceId || '').toLowerCase();
-  if (!/^[a-f0-9]{64}$/.test(deviceId)) throw new Error('Некорректный идентификатор устройства.');
+  const licenseId = normalizeLicenseId(input.licenseId);
+  const deviceId = normalizeDeviceId(input.deviceId);
   const issuedAt = parseIsoTimestamp(input.issuedAt, 'issuedAt');
   const expiresAt = parseIsoTimestamp(input.expiresAt, 'expiresAt', { nullable: true });
   if (expiresAt && Date.parse(expiresAt) <= Date.parse(issuedAt)) throw new Error('Срок действия лицензии указан некорректно.');
-  const updatesUntil = input.updatesUntil === null
-    ? null
-    : (typeof input.updatesUntil === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input.updatesUntil) && Number.isFinite(Date.parse(`${input.updatesUntil}T00:00:00.000Z`))
-      ? input.updatesUntil
-      : (() => { throw new Error('Некорректный срок обновлений лицензии.'); })());
-  const seatCount = Number(input.seatCount);
-  const seatIndex = Number(input.seatIndex);
+  const updatesUntil = normalizeUpdatesUntil(input.updatesUntil);
+  const { seatIndex, seatCount } = normalizeSeats(input.seatIndex, input.seatCount);
+  return { v: 1, product: 'SKOL_CRM', licenseId, edition, features, deviceId, issuedAt, expiresAt, updatesUntil, seatIndex, seatCount };
+}
+
+function normalizeCustomPayload(input) {
+  const allowedKeys = new Set(['v', 'product', 'licenseId', 'planId', 'planName', 'features', 'deviceId', 'issuedAt', 'expiresAt', 'updatesUntil', 'seatIndex', 'seatCount']);
+  if (Object.keys(input).some(key => !allowedKeys.has(key))) throw new Error('Лицензия содержит неизвестные поля.');
+  if (input.product !== 'SKOL_CRM') throw new Error('Лицензия предназначена для другого продукта.');
+  const planId = String(input.planId || '').trim().toUpperCase();
+  if (!/^[A-Z][A-Z0-9_-]{1,47}$/.test(planId)) throw new Error('Некорректный ID тарифа.');
+  const planName = String(input.planName || '').trim();
+  if (!planName || planName.length > 80) throw new Error('Некорректное название тарифа.');
+  const features = normalizeFeatureIds(input.features);
+  const licenseId = normalizeLicenseId(input.licenseId);
+  const deviceId = normalizeDeviceId(input.deviceId);
+  const issuedAt = parseIsoTimestamp(input.issuedAt, 'issuedAt');
+  const expiresAt = parseIsoTimestamp(input.expiresAt, 'expiresAt', { nullable: true });
+  if (expiresAt && Date.parse(expiresAt) <= Date.parse(issuedAt)) throw new Error('Срок действия лицензии указан некорректно.');
+  const updatesUntil = normalizeUpdatesUntil(input.updatesUntil);
+  const { seatIndex, seatCount } = normalizeSeats(input.seatIndex, input.seatCount);
+  return { v: 2, product: 'SKOL_CRM', licenseId, planId, planName, features, deviceId, issuedAt, expiresAt, updatesUntil, seatIndex, seatCount };
+}
+
+function normalizeLicenseId(value) {
+  const licenseId = String(value || '');
+  if (!/^[A-Z0-9-]{8,64}$/.test(licenseId)) throw new Error('Некорректный номер лицензии.');
+  return licenseId;
+}
+
+function normalizeDeviceId(value) {
+  const deviceId = String(value || '').toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(deviceId)) throw new Error('Некорректный идентификатор устройства.');
+  return deviceId;
+}
+
+function normalizeUpdatesUntil(value) {
+  if (value === null) return null;
+  if (typeof value === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T00:00:00.000Z`)) && new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) === value) return value;
+  throw new Error('Некорректный срок обновлений лицензии.');
+}
+
+function normalizeSeats(seatIndexValue, seatCountValue) {
+  const seatCount = Number(seatCountValue);
+  const seatIndex = Number(seatIndexValue);
   if (!Number.isInteger(seatCount) || seatCount < 1 || seatCount > 50 || !Number.isInteger(seatIndex) || seatIndex < 1 || seatIndex > seatCount) {
     throw new Error('Некорректное количество устройств в лицензии.');
   }
-  return {
-    v: 1,
-    product: 'SKOL_CRM',
-    licenseId,
-    edition,
-    features,
-    deviceId,
-    issuedAt,
-    expiresAt,
-    updatesUntil,
-    seatIndex,
-    seatCount
-  };
+  return { seatIndex, seatCount };
 }
 
+function normalizePayload(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Некорректные данные лицензии.');
+  if (input.v === 1) return normalizeLegacyPayload(input);
+  if (input.v === 2) return normalizeCustomPayload(input);
+  throw new Error('Неподдерживаемая версия лицензии.');
+}
 function createLicenseToken(payload, privateKeyPem) {
   if (typeof privateKeyPem !== 'string' || !privateKeyPem.includes('PRIVATE KEY')) throw new Error('Не найден закрытый ключ подписи лицензий.');
   const normalized = normalizePayload(payload);
