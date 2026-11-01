@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomBytes, createPrivateKey, createPublicKey } = require('node:crypto');
 const { createLicenseToken, getFeaturesForEdition } = require('../src/license-core.cjs');
+const { normalizeFeatureIds } = require('../src/license-catalog.cjs');
 
 const ALLOWED_ARGUMENTS = new Set([
   'help', 'edition', 'device-id', 'private-key', 'license-id',
@@ -113,6 +114,50 @@ function generateLicense(args, expectedPublicKeyPem = null) {
   return { token: createLicenseToken(payload, privateKeyPem), payload };
 }
 
+
+function generateConfiguredLicense(input, expectedPublicKeyPem = null) {
+  const planId = String(input.planId || '').trim().toUpperCase();
+  const planName = String(input.planName || '').trim();
+  if (!/^[A-Z][A-Z0-9_-]{1,47}$/.test(planId)) throw new Error('Укажи корректный ID тарифа.');
+  if (!planName || planName.length > 80) throw new Error('Укажи название тарифа длиной до 80 символов.');
+  const features = normalizeFeatureIds(input.features);
+  const deviceId = String(input.deviceId || '').toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(deviceId)) throw new Error('Укажи корректный Device ID из окна активации СКОЛ.');
+  const privateKeyPath = input.privateKeyPath ? path.resolve(input.privateKeyPath) : '';
+  if (!privateKeyPath || !fs.existsSync(privateKeyPath)) throw new Error('Не найден закрытый PEM-ключ. Выбери файл ключа подписи.');
+  const privateKeyPem = fs.readFileSync(privateKeyPath, 'utf8');
+  const privateKey = createPrivateKey(privateKeyPem);
+  if (privateKey.asymmetricKeyType !== 'ed25519') throw new Error('Для лицензий СКОЛ требуется закрытый ключ Ed25519.');
+  const trustedPublicPem = expectedPublicKeyPem || fs.readFileSync(path.resolve(__dirname, '../src/license-public-key.pem'), 'utf8');
+  const trustedPublicDer = createPublicKey(trustedPublicPem).export({ type: 'spki', format: 'der' });
+  const selectedPublicDer = createPublicKey(privateKey).export({ type: 'spki', format: 'der' });
+  if (!Buffer.from(trustedPublicDer).equals(Buffer.from(selectedPublicDer))) {
+    throw new Error('Закрытый ключ не соответствует открытому ключу СКОЛ CRM.');
+  }
+  const seatIndex = parseInteger(input.seatIndex, 1, 'seat-index');
+  const seatCount = parseInteger(input.seatCount, 1, 'seat-count');
+  if (seatIndex > seatCount) throw new Error('--seat-index не может быть больше --seat-count.');
+  const licenseId = String(input.licenseId || `SKOL-${randomBytes(12).toString('hex').toUpperCase()}`).toUpperCase();
+  if (!/^[A-Z0-9-]{8,64}$/.test(licenseId)) throw new Error('Некорректный номер лицензии.');
+  const expiresAt = parseDateEnd(input.expiresAt, 'expires-at');
+  const updatesUntil = parseDateOnly(input.updatesUntil, 'updates-until');
+  const payload = {
+    v: 2,
+    product: 'SKOL_CRM',
+    licenseId,
+    planId,
+    planName,
+    features,
+    deviceId,
+    issuedAt: new Date().toISOString(),
+    expiresAt,
+    updatesUntil,
+    seatIndex,
+    seatCount
+  };
+  return { token: createLicenseToken(payload, privateKeyPem), payload };
+}
+
 function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   if (args.help) { console.log(usage()); return null; }
@@ -129,4 +174,4 @@ if (require.main === module) {
   catch (error) { console.error(`Ошибка генерации лицензии: ${error.message}`); process.exitCode = 1; }
 }
 
-module.exports = { parseArgs, parseDateEnd, parseDateOnly, parseInteger, generateLicense, main, usage };
+module.exports = { parseArgs, parseDateEnd, parseDateOnly, parseInteger, generateLicense, generateConfiguredLicense, main, usage };
