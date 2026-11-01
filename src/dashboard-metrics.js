@@ -173,5 +173,5 @@
     };
   }
 
-  return { number, sum, getPeriodRange, isInRange, getTaskBucket, computeDashboardMetrics };
+  return { number, sum, getPeriodRange, isInRange, getTaskBucket, percent, computeDashboardMetrics };
 });
