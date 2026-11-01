@@ -372,7 +372,10 @@ test('production shift reports can be corrected transactionally without stale wo
 test('reports combine sales funnel and finance metrics with explicit cash-balance limitations', () => {
   for (const id of ['reportReceived','reportExpenses','reportCash','reportReceivables']) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /не банковский баланс и не чистая прибыль/);
-  assert.ok(renderer.includes("$('reportReceivables').textContent = fmt(finance.receivablesTotal)"));
+  assert.ok(renderer.includes("$('reportReceivables').textContent = fmt(report.finance.receivablesTotal)"));
+  assert.match(renderer, /window\\.crm\\.reportsSummary\\(\\)/);
+  assert.match(main, /ipcMain\\.handle\\('reports:summary'/);
+  assert.match(html, /report-finance-stats" data-feature="finance"/);
 });
 
 test('commercial order card button is wired through preload to the lead conversion handler', () => {
