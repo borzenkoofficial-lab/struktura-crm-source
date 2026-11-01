@@ -111,14 +111,14 @@ test('collection progress is measured against non-cancelled contracts, not arbit
 
 test('project, production, task and lead rings use their corresponding actual denominators', () => {
   const metrics = computeDashboardMetrics(fixture(), 'week', NOW);
-  assert.deepEqual(metrics.progress.projects, { done: 1, total: 3, percent: 100 / 3, available: true });
+  assert.deepEqual(metrics.progress.projects, { done: 1, total: 3, percent: 1 / 3 * 100, available: true });
   assert.equal(metrics.progress.production.planned, 150);
   assert.equal(metrics.progress.production.actual, 70);
   assert.equal(metrics.progress.production.percent, 70 / 150 * 100);
   assert.deepEqual(metrics.progress.tasks, { done: 1, total: 4, percent: 25, available: true });
   assert.equal(metrics.progress.leads.won, 1);
   assert.equal(metrics.progress.leads.total, 3);
-  assert.equal(metrics.progress.leads.percent, 100 / 3);
+  assert.equal(metrics.progress.leads.percent, 1 / 3 * 100);
   assert.equal(metrics.progress.leads.available, true);
 });
 
