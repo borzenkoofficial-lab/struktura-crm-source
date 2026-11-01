@@ -611,7 +611,7 @@ test('objects workspace is divided into numbered, responsive sections with a sep
     'Фактическая производительность', 'Себестоимость и расходы',
     'Итоговая экономика', 'Контроль объекта: план / факт', 'Действия по смете'
   ]) assert.ok(projectView.includes(heading), `objects workflow includes "${heading}"`);
-  assert.match(projectView, /class="object-list-head"[\s\S]*?<div class="panel table-panel"><div id="projectsTable"/);
+  assert.match(projectView, /class="object-list-head"[\s\S]*?<div class="panel records-panel"><div class="records-workspace"><div id="projectsTable" class="table-wrap records-list">/);
   const styles = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
   assert.match(styles, /#view-projects \.object-block-title/);
   assert.match(styles, /@media\(max-width:480px\)\{#view-projects/);
@@ -872,7 +872,7 @@ test('lead acquisition workspace shows source-backed order metrics and clear wor
 
 test('client records support a structured representative contact field', () => {
   assert.match(html, /<label>Контактное лицо<input name="contact_name"/);
-  assert.match(renderer, /c\.contact_name\|\|''/);
+  assert.match(renderer, /c\.contact_name\s*\|\|\s*''/);
   assert.match(renderer, /<th>Контактное лицо<\/th>/);
   assert.match(renderer, /'contact_name','client_type'/);
   assert.match(main, /INSERT INTO clients\(name,phone,email,contact_name,client_type,notes\)/);
