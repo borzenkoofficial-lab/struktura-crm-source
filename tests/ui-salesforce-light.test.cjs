@@ -113,4 +113,6 @@ test('white colourway preserves the Salesforce layout and styles all interactive
 test('brand wordmarks on the white application shell and startup screen use the dark artwork', () => {
   assert.match(html, /class="brand-wordmark" src="assets\/skol-wordmark\.svg"/);
   assert.match(html, /class="startup-brand"><img src="assets\/skol-wordmark\.svg"/);
+  assert.match(html, /class="mockup-window-brand"><img src="assets\/skol-wordmark\.svg"/);
+  assert.doesNotMatch(html, /skol-wordmark-inverse\.svg/);
 });
