@@ -134,11 +134,7 @@ async function choosePrivateKey() {
 }
 
 $('choosePrivateKeyBtn').addEventListener('click', choosePrivateKey);
-$('managedPlan').addEventListener('change', () => {
-  try { commitEditor().catch(error => setStatus('configStatus', error.message, true)); }
-  catch (error) { setStatus('configStatus', error.message, true); }
-  loadPlanIntoEditor();
-});
+$('managedPlan').addEventListener('change', loadPlanIntoEditor);
 
 for (const id of ['managedPlanId', 'managedPlanName', 'managedPlanPrice', 'managedPlanDevices', 'managedPlanDescription', 'configFeatureOptions']) {
   $(id).addEventListener('change', () => {
