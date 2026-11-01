@@ -993,7 +993,7 @@ test('navigation is permanently visible, grouped, responsive and all fourteen sc
   assert.match(css, /\.nav-primary\{[^}]*overflow-y:auto/, 'desktop navigation scrolls inside the sidebar');
   assert.match(css, /@media\(max-width:700px\)[\s\S]*?\.nav-primary\{[^}]*overflow-x:auto/, 'mobile navigation is horizontally scrollable without a dropdown');
   assert.match(css, /@media\(max-width:700px\)[\s\S]*?\.topbar\{[^}]*flex-wrap:wrap/, 'mobile page header wraps instead of pushing actions outside the viewport');
-  assert.match(css, /\.top-actions\{[^}]*flex-wrap:wrap/, 'header actions can wrap on narrow screens');
+  assert.ok(css.includes('.top-actions{display:flex;flex:1 1 100%;width:100%;min-width:0;flex-wrap:wrap;'), 'header actions can wrap on narrow screens');
 });
 
 test('all five split workspaces keep a detail pane and table list in the current 1.25 interface', () => {
