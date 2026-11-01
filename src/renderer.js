@@ -529,10 +529,11 @@ function dashboardSetRing(id, percent) {
   const root = $(id);
   if (!root) return;
   const circle = root.querySelector('.dashboard-ring-progress');
-  const value = Math.max(0, Math.min(100, Number.isFinite(Number(percent)) ? Number(percent) : 0));
+  const available = percent !== null && percent !== undefined && Number.isFinite(Number(percent));
+  const value = available ? Math.max(0, Math.min(100, Number(percent))) : 0;
   if (circle) circle.setAttribute('stroke-dasharray', `${(DASHBOARD_RING_LENGTH * value / 100).toFixed(2)} ${DASHBOARD_RING_LENGTH.toFixed(2)}`);
   const valueNode = root.querySelector('.dashboard-ring-value');
-  if (valueNode) valueNode.textContent = `${Math.round(value)}%`;
+  if (valueNode) valueNode.textContent = available ? `${Math.round(value)}%` : '—';
 }
 
 function renderDashboardCashflowChart(cashflow, complete) {
@@ -564,13 +565,16 @@ function renderDashboardAttention(attention = {}) {
   const target = $('dashboardAttention');
   if (!target) return;
   const items = [];
-  if (attention.overdueTasks) items.push({title:'Просроченные задачи',value:attention.overdueTasks,detail:'Нужно обновить срок или закрыть задачу',view:'tasks',tone:'danger',icon:'!'});
-  if (attention.newLeads) items.push({title:'Новые заявки',value:attention.newLeads,detail:'Проверь обращение и назначь следующий шаг',view:'leads',tone:'warning',icon:'◉'});
-  if (attention.unstaffedProjects) items.push({title:'Объекты без численности бригады',value:attention.unstaffedProjects,detail:'Уточни план людей в карточках объектов',view:'projects',tone:'warning',icon:'♧'});
-  if (attention.unplannedActiveProjects) items.push({title:'Активные объекты без плана работ',value:attention.unplannedActiveProjects,detail:'Добавь производственный план, чтобы считать прогресс',view:'production',tone:'info',icon:'▤'});
+  if (attention.tasksAvailable && attention.overdueTasks) items.push({title:'Просроченные задачи',value:attention.overdueTasks,detail:'Нужно обновить срок или закрыть задачу',view:'tasks',tone:'danger',icon:'!'});
+  if (attention.leadsAvailable && attention.newLeads) items.push({title:'Новые заявки',value:attention.newLeads,detail:'Проверь обращение и назначь следующий шаг',view:'leads',tone:'warning',icon:'◉'});
+  if (attention.projectsAvailable && attention.unstaffedProjects) items.push({title:'Объекты без численности бригады',value:attention.unstaffedProjects,detail:'Уточни план людей в карточках объектов',view:'projects',tone:'warning',icon:'♧'});
+  if (attention.productionAvailable && attention.unplannedActiveProjects) items.push({title:'Активные объекты без плана работ',value:attention.unplannedActiveProjects,detail:'Добавь производственный план, чтобы считать прогресс',view:'production',tone:'info',icon:'▤'});
+  const unavailable = !attention.tasksAvailable || !attention.leadsAvailable || !attention.projectsAvailable;
   target.innerHTML = items.length
     ? items.map(item => `<button type="button" class="dashboard-attention-item ${item.tone}" data-goto="${item.view}"><span class="dashboard-attention-icon">${item.icon}</span><span class="dashboard-attention-copy"><strong>${esc(item.title)}</strong><small>${esc(item.detail)}</small></span><b>${item.value}</b><i>→</i></button>`).join('')
-    : '<div class="dashboard-attention-empty"><strong>Нет срочных сигналов по текущим данным.</strong><span>Проверяй полноту сведений и обновляй статусы после каждого действия.</span></div>';
+    : unavailable
+      ? '<div class="dashboard-attention-empty"><strong>Часть данных пока недоступна.</strong><span>Обнови обзор, чтобы проверить задачи, заявки и объекты.</span></div>'
+      : '<div class="dashboard-attention-empty"><strong>Нет срочных сигналов по текущим данным.</strong><span>Проверяй полноту сведений и обновляй статусы после каждого действия.</span></div>';
 }
 
 function renderDashboardSnapshot(snapshot) {
@@ -586,7 +590,7 @@ function renderDashboardSnapshot(snapshot) {
   $('statLeads').textContent = String(metrics.counts.activeLeads);
   $('statProjects').textContent = String(metrics.counts.activeProjects);
   $('dashboardClientsCount').textContent = metrics.counts.clients == null ? '—' : String(metrics.counts.clients);
-  $('dashboardPeopleCount').textContent = licenseFeatures.has('production') ? String(metrics.counts.plannedPeople) : '—';
+  $('dashboardPeopleCount').textContent = licenseFeatures.has('production') && metrics.availability.projects ? String(metrics.counts.plannedPeople) : '—';
   $('leadNavCount').textContent = String(metrics.counts.activeLeads);
 
   $('dashboardFinancePeriod').textContent = metrics.period.label;
@@ -602,33 +606,43 @@ function renderDashboardSnapshot(snapshot) {
       : 'Финансовая история загружена не полностью';
   }
 
-  dashboardSetRing('dashboardProjectRing', metrics.progress.projects.percent);
-  $('dashboardProjectDetail').textContent = metrics.progress.projects.total
-    ? `${metrics.progress.projects.done} из ${metrics.progress.projects.total} объектов завершено`
-    : 'Добавь первый объект';
+  dashboardSetRing('dashboardProjectRing', metrics.progress.projects.available ? metrics.progress.projects.percent : null);
+  $('dashboardProjectDetail').textContent = !metrics.progress.projects.available
+    ? 'Данные объектов не загружены'
+    : metrics.progress.projects.total
+      ? `${metrics.progress.projects.done} из ${metrics.progress.projects.total} объектов завершено`
+      : 'Добавь первый объект';
 
   dashboardSetRing('dashboardProductionRing', metrics.progress.production.percent);
-  $('dashboardProductionDetail').textContent = !metrics.progress.production.available
+  $('dashboardProductionDetail').textContent = !licenseFeatures.has('production')
     ? 'Недоступно по лицензии'
-    : metrics.progress.production.planned > 0
-      ? `${fmt(metrics.progress.production.actual)} из ${fmt(metrics.progress.production.planned)} ед. работ`
-      : 'Нет плана работ на активных объектах';
+    : !metrics.progress.production.available
+      ? 'Данные производства не загружены'
+      : metrics.progress.production.planned > 0
+        ? `${fmt(metrics.progress.production.actual)} из ${fmt(metrics.progress.production.planned)} ед. работ`
+        : 'Нет плана работ на активных объектах';
 
-  dashboardSetRing('dashboardTaskRing', metrics.progress.tasks.percent);
-  $('dashboardTaskDetail').textContent = metrics.progress.tasks.total
-    ? `${metrics.progress.tasks.done} из ${metrics.progress.tasks.total} задач закрыто`
-    : 'Добавь первые задачи';
+  dashboardSetRing('dashboardTaskRing', metrics.progress.tasks.available ? metrics.progress.tasks.percent : null);
+  $('dashboardTaskDetail').textContent = !metrics.progress.tasks.available
+    ? 'Данные задач не загружены'
+    : metrics.progress.tasks.total
+      ? `${metrics.progress.tasks.done} из ${metrics.progress.tasks.total} задач закрыто`
+      : 'Добавь первые задачи';
 
-  dashboardSetRing('dashboardLeadRing', metrics.progress.leads.percent);
-  $('dashboardLeadDetail').textContent = metrics.progress.leads.total
-    ? `${metrics.progress.leads.won} выиграно из ${metrics.progress.leads.total} заявок`
-    : 'Заявок пока нет';
+  dashboardSetRing('dashboardLeadRing', metrics.progress.leads.available ? metrics.progress.leads.percent : null);
+  $('dashboardLeadDetail').textContent = !metrics.progress.leads.available
+    ? 'Данные заявок не загружены'
+    : metrics.progress.leads.total
+      ? `${metrics.progress.leads.won} выиграно из ${metrics.progress.leads.total} заявок`
+      : 'Заявок пока нет';
 
   if (metrics.finance.available) {
-    dashboardSetRing('dashboardCollectionRing', metrics.finance.collectionPercent);
-    $('dashboardCollectionDetail').textContent = metrics.finance.totalContract > 0
-      ? `${fmt(metrics.finance.projectReceived)} из ${fmt(metrics.finance.totalContract)} по договорам`
-      : 'Нет договоров с указанной суммой';
+    dashboardSetRing('dashboardCollectionRing', metrics.availability.projects ? metrics.finance.collectionPercent : null);
+    $('dashboardCollectionDetail').textContent = !metrics.availability.projects
+      ? 'Данные объектов не загружены'
+      : metrics.finance.totalContract > 0
+        ? `${fmt(metrics.finance.projectReceived)} из ${fmt(metrics.finance.totalContract)} по договорам`
+        : 'Нет договоров с указанной суммой';
   }
   renderDashboardCashflowChart(metrics.cashflow, metrics.finance.complete);
   renderDashboardAttention(metrics.attention);
