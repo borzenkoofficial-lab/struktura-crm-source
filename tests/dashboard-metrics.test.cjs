@@ -111,14 +111,15 @@ test('collection progress is measured against non-cancelled contracts, not arbit
 
 test('project, production, task and lead rings use their corresponding actual denominators', () => {
   const metrics = computeDashboardMetrics(fixture(), 'week', NOW);
-  assert.deepEqual(metrics.progress.projects, { done: 1, total: 3, percent: 100 / 3 });
+  assert.deepEqual(metrics.progress.projects, { done: 1, total: 3, percent: 100 / 3, available: true });
   assert.equal(metrics.progress.production.planned, 150);
   assert.equal(metrics.progress.production.actual, 70);
   assert.equal(metrics.progress.production.percent, 70 / 150 * 100);
-  assert.deepEqual(metrics.progress.tasks, { done: 1, total: 4, percent: 25 });
+  assert.deepEqual(metrics.progress.tasks, { done: 1, total: 4, percent: 25, available: true });
   assert.equal(metrics.progress.leads.won, 1);
   assert.equal(metrics.progress.leads.total, 3);
   assert.equal(metrics.progress.leads.percent, 100 / 3);
+  assert.equal(metrics.progress.leads.available, true);
 });
 
 test('attention signals reuse the same task date rules and active object data', () => {
@@ -127,7 +128,11 @@ test('attention signals reuse the same task date rules and active object data', 
     overdueTasks: 1,
     newLeads: 1,
     unstaffedProjects: 0,
-    unplannedActiveProjects: 1
+    unplannedActiveProjects: 1,
+    tasksAvailable: true,
+    leadsAvailable: true,
+    projectsAvailable: true,
+    productionAvailable: true
   });
 });
 
@@ -162,6 +167,25 @@ test('restricted licence features do not expose finance or production metrics', 
   assert.equal(metrics.finance.available, false);
   assert.equal(metrics.progress.production.available, false);
   assert.deepEqual(metrics.cashflow, []);
+});
+
+test('progress and attention sources are marked unavailable when their lists fail to load', () => {
+  const input = fixture();
+  delete input.projects;
+  delete input.tasks;
+  delete input.leads;
+  delete input.production;
+  const metrics = computeDashboardMetrics(input, 'month', NOW);
+  assert.equal(metrics.availability.projects, false);
+  assert.equal(metrics.availability.tasks, false);
+  assert.equal(metrics.availability.leads, false);
+  assert.equal(metrics.availability.production, false);
+  assert.equal(metrics.progress.projects.available, false);
+  assert.equal(metrics.progress.tasks.available, false);
+  assert.equal(metrics.progress.leads.available, false);
+  assert.equal(metrics.attention.projectsAvailable, false);
+  assert.equal(metrics.attention.tasksAvailable, false);
+  assert.equal(metrics.progress.production.available, false);
 });
 
 test('invalid or missing numeric fields are safely treated as zero, not NaN', () => {
