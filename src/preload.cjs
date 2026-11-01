@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('crm', {
   updatePayment: (data) => ipcRenderer.invoke('payments:update', data),
   listExpenses: () => ipcRenderer.invoke('expenses:list'),
   financeInsights: () => ipcRenderer.invoke('finance:insights'),
+  reportsSummary: () => ipcRenderer.invoke('reports:summary'),
   listTasks: (filter) => ipcRenderer.invoke('tasks:list', filter),
   createTask: (data) => ipcRenderer.invoke('tasks:create', data),
   updateTask: (data) => ipcRenderer.invoke('tasks:update', data),
