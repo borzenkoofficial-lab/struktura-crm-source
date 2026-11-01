@@ -421,3 +421,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .sidebar-bottom{flex:0 0 auto;white-space:nowrap}
   .sidebar-bottom .nav-item{flex:0 0 auto}
 }
+
+/* Finance records use the same white-list / dark-detail composition as the reference. */
+#view-finance .finance-records-panel{margin-bottom:16px}
+#view-finance .finance-records-panel .records-workspace{grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr);min-height:365px}
+#view-finance .finance-records-panel .records-list{max-height:470px}
+#view-finance .finance-records-panel .record-detail-panel{align-self:stretch}
+#view-finance .finance-records-panel .data-table{min-width:470px}
+@media(max-width:840px){
+  #view-finance .finance-records-panel .records-workspace{grid-template-columns:1fr}
+  #view-finance .finance-records-panel .records-list{max-height:330px}
+}
