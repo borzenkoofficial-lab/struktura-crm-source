@@ -34,8 +34,8 @@ function token(name) {
 test('the Salesforce design is recoloured in place on the requested SKOL 1.24.0 codebase', () => {
   assert.equal(pkg.version, '1.24.0');
   assert.equal(pkg.build.productName, 'СКОЛ');
-  assert.equal(pkg.build.win.artifactName, 'SKOL-Setup-${version}.${ext}');
-  const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\\.css)">/g)].map(match => match[1]);
+  assert.equal(pkg.build.win.artifactName, 'SKOL-Setup-' + '$' + '{version}.' + '$' + '{ext}');
+  const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\.css)">/g)].map(match => match[1]);
   assert.deepEqual(links.slice(-5), [
     'styles.css',
     'engineering-calculator.css',
@@ -43,9 +43,9 @@ test('the Salesforce design is recoloured in place on the requested SKOL 1.24.0 
     'theme-salesforce.css',
     'theme-salesforce-light.css'
   ]);
-  assert.match(baseTheme, /\.sidebar\\s*\\{[\\s\\S]*?flex-direction:row/);
-  assert.match(baseTheme, /\.records-workspace\\s*\\{/);
-  assert.match(baseTheme, /\.record-detail-panel\\s*\\{/);
+  assert.match(baseTheme, /\.sidebar\s*\{[\s\S]*?flex-direction:row/);
+  assert.match(baseTheme, /\.records-workspace\s*\{/);
+  assert.match(baseTheme, /\.record-detail-panel\s*\{/);
   assert.match(lightTheme, /color-scheme:light/);
 });
 
@@ -73,17 +73,17 @@ test('new record split panes and finance detail cards are present in the actual 
 });
 
 test('renderer supports live row selection, record detail cards and finance detail cards', () => {
-  assert.match(renderer, /const recordCaches = \\{ leads: \\[\\], clients: \\[\\], projects: \\[\\] \\}/);
-  assert.match(renderer, /function renderRecordDetailPanel\\(kind, record\\)/);
-  assert.match(renderer, /function selectRecord\\(kind, id\\)/);
+  assert.match(renderer, /const recordCaches = \{ leads: \[\], clients: \[\], projects: \[\] \}/);
+  assert.match(renderer, /function renderRecordDetailPanel\(kind, record\)/);
+  assert.match(renderer, /function selectRecord\(kind, id\)/);
   assert.match(renderer, /data-record-kind="lead"/);
   assert.match(renderer, /data-record-kind="client"/);
   assert.match(renderer, /data-record-kind="project"/);
-  assert.match(renderer, /function renderFinanceDetailPanel\\(kind, record\\)/);
-  assert.match(renderer, /function selectFinanceRecord\\(kind, id\\)/);
+  assert.match(renderer, /function renderFinanceDetailPanel\(kind, record\)/);
+  assert.match(renderer, /function selectFinanceRecord\(kind, id\)/);
   assert.match(renderer, /data-finance-kind="payment"/);
   assert.match(renderer, /data-finance-kind="expense"/);
-  assert.match(renderer, /record\\.contact_name/);
+  assert.match(renderer, /record\.contact_name/);
   assert.match(renderer, /data-lead-status=/);
   assert.match(renderer, /data-project-status=/);
 });
@@ -104,13 +104,13 @@ test('white colourway preserves the Salesforce layout and styles all interactive
     '.sidebar {', '.nav-item.active', '.button.primary', '.records-workspace {',
     '.record-detail-panel {', '.records-list .data-table', 'dialog.modal'
   ]) assert.ok(lightTheme.includes(selector), 'light colourway defines ' + selector);
-  assert.match(lightTheme, /\\.nav-item\\.active[\\s\\S]*?background:var\\(--sf-lime\\)!important/);
-  assert.match(lightTheme, /button:focus-visible[\\s\\S]*?outline:3px solid/);
-  assert.match(lightTheme, /button:disabled[\\s\\S]*?cursor:not-allowed/);
-  assert.match(lightTheme, /input::placeholder,textarea::placeholder[\\s\\S]*?opacity:1/);
+  assert.match(lightTheme, /\.nav-item\.active[\s\S]*?background:var\(--sf-lime\)!important/);
+  assert.match(lightTheme, /button:focus-visible[\s\S]*?outline:3px solid/);
+  assert.match(lightTheme, /button:disabled[\s\S]*?cursor:not-allowed/);
+  assert.match(lightTheme, /input::placeholder,textarea::placeholder[\s\S]*?opacity:1/);
 });
 
 test('brand wordmarks on the white application shell and startup screen use the dark artwork', () => {
-  assert.match(html, /class="brand-wordmark" src="assets\\/skol-wordmark\\.svg"/);
-  assert.match(html, /class="startup-brand"><img src="assets\\/skol-wordmark\\.svg"/);
+  assert.match(html, /class="brand-wordmark" src="assets\/skol-wordmark\.svg"/);
+  assert.match(html, /class="startup-brand"><img src="assets\/skol-wordmark\.svg"/);
 });
