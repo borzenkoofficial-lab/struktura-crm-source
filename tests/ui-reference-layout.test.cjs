@@ -14,11 +14,15 @@ test('core record screens expose dedicated reference-style detail panels', () =>
   for (const id of ['leadDetailPanel', 'clientDetailPanel', 'projectDetailPanel']) {
     assert.match(html, new RegExp('id="' + id + '"'));
   }
+  for (const id of ['paymentDetailPanel', 'expenseDetailPanel']) assert.match(html, new RegExp('id="' + id + '"'));
   for (const kind of ['lead', 'client', 'project']) {
     assert.match(renderer, new RegExp('data-record-kind="' + kind + '"'));
   }
   assert.match(renderer, /function renderRecordDetailPanel\(kind, record\)/);
   assert.match(renderer, /function selectRecord\(kind, id\)/);
+  assert.match(renderer, /function renderFinanceDetailPanel\(kind, record\)/);
+  assert.match(renderer, /data-finance-kind="payment"/);
+  assert.match(renderer, /data-finance-kind="expense"/);
   assert.match(renderer, /class="lead-status-select" data-lead-status=/);
   assert.match(renderer, /class="project-status-select" data-project-status=/);
 });
