@@ -100,7 +100,6 @@ test('light palette has high contrast and keeps the lime accent with dark text',
 });
 
 test('white colourway preserves the Salesforce layout and styles all interactive states', () => {
-  for (const selector of [
   for (const pattern of [
     /\.sidebar\s*\{/, /\.nav-item\.active/, /\.button\.primary/, /\.records-workspace\s*\{/,
     /\.record-detail-panel\s*\{/, /\.records-list \.data-table/, /dialog\.modal/
