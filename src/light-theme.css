@@ -292,3 +292,22 @@ input:not([type="checkbox"]):not([type="radio"]):focus, select:focus, textarea:f
 @media (prefers-reduced-motion: reduce) {
   .button, .nav-item, .about-float-card, .hero-float, .hero-mini-card { transition: none !important; animation: none !important; }
 }
+
+
+/* The startup view is also part of the light product shell: keep the dark wordmark legible. */
+.startup-splash {
+  color: var(--ink);
+  background: radial-gradient(ellipse at 50% 43%, #ffffff 0%, #f6f8fa 54%, #edf2f6 100%);
+}
+.startup-splash::before {
+  opacity: .55;
+  background-image: linear-gradient(rgba(55, 74, 96, .045) 1px, transparent 1px), linear-gradient(90deg, rgba(55, 74, 96, .045) 1px, transparent 1px);
+}
+.startup-splash::after { border-color: rgba(55, 74, 96, .08); }
+.startup-caption, .startup-status, .startup-version { color: #526174; }
+.startup-progress { background: #e3e8ef; border-color: #d8e0e8; }
+.startup-progress > span { background: var(--accent); }
+.startup-glow { opacity: .14; filter: saturate(.55); }
+.startup-mark { filter: drop-shadow(0 8px 18px rgba(194, 74, 42, .10)); }
+.mockup-shadow-card > span { color: #fff; background: var(--accent); }
+.license-mark { color: #fff; background: var(--accent); }
