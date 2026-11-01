@@ -953,35 +953,42 @@ test('engineering handoff requires catalog review before replacing plan operatio
   assert.match(planUi, /mappedLines/);
 });
 test('dashboard contains only live business KPI slots, interactive rings and explicit period controls', () => {
-  const dashboard = html.match(/<section class="view active" id="view-dashboard">([\\s\\S]*?)<\\/section>\\s*<section class="view" id="view-leads">/);
-  assert.ok(dashboard, 'single home view exists');
+  const start = html.indexOf('<section class="view active" id="view-dashboard">');
+  const end = html.indexOf('<section class="view" id="view-leads">', start);
+  assert.ok(start >= 0 && end > start, 'single home view exists');
+  const dashboard = html.slice(start, end);
   for (const id of [
     'statLeads','statProjects','dashboardClientsCount','dashboardPeopleCount',
     'statReceived','dashboardExpensesAmount','statCash','dashboardCashflowChart',
     'dashboardProjectPercent','dashboardProductionPercent','dashboardTaskPercent',
     'dashboardLeadPercent','dashboardCollectionPercent','dashboardRecentProjects',
     'dashboardAttention','piHomeSummary','piHomeAlerts'
-  ]) assert.match(dashboard[1], new RegExp('id="' + id + '"'), id + ' is available for live metrics');
-  for (const period of ['week','month','year']) assert.match(dashboard[1], new RegExp('data-dashboard-period="' + period + '"'));
-  assert.doesNotMatch(dashboard[1], /Демо-данные|68%|≈ 4 смены/);
-  assert.match(renderer, /window\\.SKOLDashboardMetrics\\.computeDashboardMetrics/);
-  assert.match(renderer, /window\\.SKOLDashboardMetrics\\.getTaskBucket/);
+  ]) assert.ok(dashboard.includes('id="' + id + '"'), id + ' is available for live metrics');
+  for (const period of ['week','month','year']) assert.ok(dashboard.includes('data-dashboard-period="' + period + '"'));
+  assert.doesNotMatch(dashboard, /Демо-данные|68%|≈ 4 смены/);
+  assert.ok(renderer.includes('window.SKOLDashboardMetrics.computeDashboardMetrics'));
+  assert.ok(renderer.includes('window.SKOLDashboardMetrics.getTaskBucket'));
+  assert.match(renderer, /async function refreshDashboard\(\)/);
 });
 
 test('navigation is grouped, all fourteen screens have one destination and the DOM has no duplicate ids', () => {
-  const ids = [...html.matchAll(/\\sid="([^"]+)"/g)].map(match => match[1]);
+  const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
   const duplicateIds = [...new Set(ids.filter((id,index) => ids.indexOf(id) !== index))];
   assert.deepEqual(duplicateIds, [], 'no duplicate HTML ids');
   assert.equal((html.match(/class="nav-primary"/g) || []).length, 1);
   assert.equal((html.match(/class="nav-more"/g) || []).length, 1);
-  const primary = html.slice(html.indexOf('class="nav-primary"'), html.indexOf('</nav>', html.indexOf('class="nav-primary"')));
+  const navStart = html.indexOf('class="nav-primary"');
+  const navEnd = html.indexOf('</nav>', navStart);
+  const primary = html.slice(navStart, navEnd);
   assert.deepEqual([...primary.matchAll(/data-view="([^"]+)"/g)].map(match => match[1]),
     ['dashboard','leads','clients','projects','production','finance']);
   const views = [...html.matchAll(/id="view-([^"]+)"/g)].map(match => match[1]);
   assert.equal(views.length, 14);
   assert.equal(new Set(views).size, 14);
-  for (const view of views) assert.match(html, new RegExp('data-view="' + view + '"'), view + ' remains reachable from navigation');
-  assert.match(renderer, /const overflowMenu = button\\.closest\\('\\.nav-more'\\)/);
+  for (const view of views) assert.ok(html.includes('data-view="' + view + '"'), view + ' remains reachable from navigation');
+  assert.ok(!html.includes('toggleSidebarBtn'), 'old vertical-sidebar toggle is removed');
+  assert.ok(!renderer.includes('gruzli.sidebarCollapsed'), 'old brand-specific UI persistence key is removed');
+  assert.ok(renderer.includes("button.closest('.nav-more')"));
 });
 
 test('all five split workspaces keep a detail pane and table list in the current 1.25 interface', () => {
@@ -989,24 +996,24 @@ test('all five split workspaces keep a detail pane and table list in the current
     assert.equal((html.match(new RegExp('id="' + id + '"','g')) || []).length, 1, id + ' appears once');
   }
   for (const id of ['leadsTable','clientsTable','projectsTable','paymentsTable','expensesTable']) {
-    assert.match(html, new RegExp('id="' + id + '" class="table-wrap records-list"'), id + ' uses the same list surface');
+    assert.ok(html.includes('id="' + id + '" class="table-wrap records-list"'), id + ' uses the same list surface');
   }
-  assert.match(renderer, /function selectRecord\\(kind, id\\)/);
-  assert.match(renderer, /function selectFinanceRecord\\(kind, id\\)/);
-  assert.match(renderer, /renderRecordDetailPanel\\('client', selected\\)/);
-  assert.match(renderer, /renderFinanceDetailPanel\\('expense', selectedExpense\\)/);
+  assert.ok(renderer.includes('function selectRecord(kind, id)'));
+  assert.ok(renderer.includes('function selectFinanceRecord(kind, id)'));
+  assert.ok(renderer.includes("renderRecordDetailPanel('client', selected)"));
+  assert.ok(renderer.includes("renderFinanceDetailPanel('expense', selectedExpense)"));
 });
 
 test('Salesforce light layout loads after base CSS and the reusable metrics module loads before renderer', () => {
-  const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\\.css)">/g)].map(match => match[1]);
+  const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\.css)">/g)].map(match => match[1]);
   assert.ok(links.indexOf('theme-salesforce.css') > links.indexOf('styles.css'));
   assert.ok(links.indexOf('theme-salesforce-light.css') > links.indexOf('theme-salesforce.css'));
-  assert.match(html, /dashboard-metrics\\.js"><\\/script><script src="renderer\\.js"/);
+  assert.ok(html.includes('<script src="dashboard-metrics.js"></script><script src="renderer.js"></script>'));
   const css = fs.readFileSync(path.join(__dirname, '../src/theme-salesforce-light.css'), 'utf8');
   for (const selector of ['.dashboard-kpis','.dashboard-finance-metrics','.dashboard-rings-grid','.dashboard-attention-list','.nav-more-menu']) assert.ok(css.includes(selector));
-  assert.match(css, /@media\\(max-width:620px\\)/);
-  assert.match(css, /@media\\(prefers-reduced-motion:reduce\\)/);
-  assert.match(css, /overflow-wrap:anywhere/);
-  assert.match(css, /min-width:0/);
+  assert.ok(css.includes('@media(max-width:620px)'));
+  assert.ok(css.includes('@media(prefers-reduced-motion:reduce)'));
+  assert.ok(css.includes('overflow-wrap:anywhere'));
+  assert.ok(css.includes('min-width:0'));
 });
 
