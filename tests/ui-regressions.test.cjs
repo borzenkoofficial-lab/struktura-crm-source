@@ -172,18 +172,12 @@ test('notification settings are wired through the safe preload bridge and a 15-m
   assert.match(reminderEngine, /repeatEveryHours/);
 });
 
-test('homepage explains PI with a clearly labeled illustrative mockup, not live-looking fake business data', () => {
-  assert.match(html, /id="piExplainerTitle"/);
-  assert.match(html, /ПИ — производственный интеллект/);
-  assert.match(html, /class="pi-mockup"/);
-  assert.match(html, /Демо-данные/);
-  assert.match(html, /Цифры не относятся к вашим объектам/);
-  const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
-  assert.match(css, /\.pi-explainer/);
-  assert.match(css, /\.pi-mockup-alert/);
-  assert.match(css, /@media\(max-width:900px\)\{\.pi-explainer/);
+test('homepage shows the live production-intelligence feed without an illustrative dashboard mockup', () => {
+  assert.match(html, /id="piHomeSummary"/);
+  assert.match(html, /id="piHomeAlerts"/);
+  assert.match(renderer, /renderProductionIntelligence\(snapshot\.production, 'piHomeSummary', 'piHomeAlerts'\)/);
+  assert.doesNotMatch(html, /id="piExplainerTitle"|class="pi-mockup"|Демо-данные/);
 });
-
 
 test('backup restore is exposed in the UI and safe preload bridge', () => {
   const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
@@ -588,12 +582,11 @@ test('PI keeps sparse calibration data in collection mode and never suggests an 
 });
 
 
-test('product presentation tab is reachable and contains the STRUKTURA story and functional navigation', () => {
+test('product presentation tab is reachable and keeps the SKOL story and contextual navigation', () => {
   assert.match(html, /data-view="about"/);
   assert.match(html, /id="view-about"/);
   assert.match(html, /Порядок в работе/);
   assert.match(html, /Факты важнее впечатлений/);
-  assert.match(html, /ПИ — производственный интеллект/);
   assert.match(html, /data-goto="production"/);
   assert.match(html, /data-goto="projects"/);
   assert.match(renderer, /about: 'О продукте СКОЛ'/);
@@ -740,12 +733,12 @@ test('export filenames and startup dialogs use the current brand and real line b
 });
 
 
-test('all prominent brand marks use the СКОЛ monogram and client section does not promise missing activity history', () => {
-  assert.match(html, /hero-mini-symbol"><img src="assets\/skol-monogram-mark\.svg"/);
-  assert.match(html, /browser-welcome-mark"><img src="assets\/skol-monogram-mark\.svg"/);
-  assert.match(html, /plans-hero-monogram" src="assets\/skol-monogram-mark\.svg"/);
-  assert.doesNotMatch(html, /hero-mini-symbol"[^>]*>G</);
-  assert.doesNotMatch(html, /browser-welcome-mark"[^>]*>G</);
+test('prominent brand surfaces use the SKOL wordmark and monogram assets', () => {
+  assert.match(html, /class="startup-mark"[^>]*><img src="assets\/skol-monogram-mark\.svg"/);
+  assert.match(html, /class="dashboard-hero-emblem"><img src="assets\/skol-monogram-mark\.svg"/);
+  assert.match(html, /class="browser-welcome-mark"><img src="assets\/skol-monogram-mark\.svg"/);
+  assert.match(html, /assets\/skol-wordmark\.svg/);
+  assert.doesNotMatch(html, /assets\/skol-wordmark-inverse\.svg/);
   assert.match(html, /Компании, представители заказчиков и контактные данные/);
   assert.doesNotMatch(html, /Контакты заказчиков и история отношений/);
 });
@@ -966,7 +959,8 @@ test('dashboard contains only live business KPI slots, interactive rings and exp
   ]) assert.ok(dashboard.includes('id="' + id + '"'), id + ' is available for live metrics');
   for (const period of ['week','month','year']) assert.ok(dashboard.includes('data-dashboard-period="' + period + '"'));
   assert.doesNotMatch(dashboard, /Демо-данные|68%|≈ 4 смены/);
-  assert.ok(renderer.includes('window.SKOLDashboardMetrics.computeDashboardMetrics'));
+  assert.ok(renderer.includes('const metricsApi = window.SKOLDashboardMetrics'));
+  assert.ok(renderer.includes('metricsApi.computeDashboardMetrics'));
   assert.ok(renderer.includes('window.SKOLDashboardMetrics.getTaskBucket'));
   assert.match(renderer, /async function refreshDashboard\(\)/);
 });
