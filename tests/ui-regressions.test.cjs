@@ -982,7 +982,7 @@ test('navigation is permanently visible, grouped, responsive and all fourteen sc
   const primary = html.slice(navStart, navEnd);
   assert.deepEqual([...primary.matchAll(/data-view="([^"]+)"/g)].map(match => match[1]),
     ['dashboard','leads','clients','projects','production','finance','engineering','prospects','tasks','reports','browser','plans','settings','about']);
-  assert.equal((primary.match(/class="nav-menu-group"/g) || []).length, 3, 'navigation is grouped by purpose');
+  assert.equal((primary.match(/class="nav-menu-group(?: nav-menu-system)?"/g) || []).length, 3, 'navigation is grouped by purpose');
   const views = [...html.matchAll(/id="view-([^"]+)"/g)].map(match => match[1]);
   assert.equal(views.length, 14);
   assert.equal(new Set(views).size, 14);
