@@ -259,6 +259,7 @@ async function initialize() {
     featureCatalog = result.features;
     renderManagedPlans();
     renderLicensePlanOptions();
+    if (result.warning) setStatus('configStatus', result.warning, true);
   } catch (error) {
     setStatus('configStatus', error.message || 'Не удалось загрузить каталог тарифов.', true);
   }
