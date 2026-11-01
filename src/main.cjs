@@ -300,6 +300,45 @@ ipcMain.handle('dashboard:summary', () => {
   const clients = db.prepare('SELECT COUNT(*) count FROM clients').get().count;
   return filterDashboardSummary({ leads, projects, contract, received: totalReceived, expenses, clients, cash: totalReceived - expenses }, licenseState.license?.features || []);
 });
+
+ipcMain.handle('reports:summary', () => {
+  const features = new Set(licenseState.license?.features || []);
+  const clients = db.prepare('SELECT COUNT(*) count FROM clients').get().count;
+  const leads = db.prepare('SELECT source,status,budget_rub FROM leads ORDER BY id DESC').all();
+  const won = leads.filter(lead => lead.status === 'won').length;
+  const groups = {};
+  for (const lead of leads) {
+    const key = lead.source || 'other';
+    if (!groups[key]) groups[key] = { count: 0, budget: 0, won: 0 };
+    groups[key].count += 1;
+    groups[key].budget += Number(lead.budget_rub || 0);
+    if (lead.status === 'won') groups[key].won += 1;
+  }
+  const sourceBreakdown = Object.entries(groups)
+    .sort((a, b) => b[1].count - a[1].count)
+    .map(([source, values]) => ({ source, ...values }));
+  let finance = null;
+  if (features.has('finance')) {
+    const receivedPayments = db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END),0) total FROM payments").get().total;
+    const otherIncome = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM income_records').get().total;
+    const received = receivedPayments + otherIncome;
+    const paid = db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=1').get().total;
+    const projects = db.prepare(`SELECT p.*, COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub, COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub FROM projects p WHERE p.status != 'cancelled'`).all();
+    const expenses = db.prepare('SELECT * FROM expenses ORDER BY expense_date ASC').all();
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    const insights = buildFinanceInsights({ today, cash: received - paid, projects, expenses });
+    finance = { received, expenses: paid, cash: received - paid, receivablesTotal: insights.receivablesTotal };
+  }
+  return {
+    clients,
+    leads: leads.length,
+    won,
+    conversion: leads.length ? Math.round(won / leads.length * 100) : 0,
+    sources: sourceBreakdown,
+    finance
+  };
+});
 ipcMain.handle('clients:list', () => db.prepare('SELECT * FROM clients ORDER BY id DESC').all());
 function ensureClientPhoneUnique(phone, excludeId = null) {
   const key = normalizePhone(phone);
