@@ -1003,3 +1003,28 @@ dialog.modal>form{background:#fff;border-radius:inherit}
 .eng-order-plan-review-table select,.eng-order-plan-review-table input{width:100%;min-width:90px;padding:7px;border:1px solid #dfe5ec;border-radius:7px;background:#fff;color:#334155;font:inherit;font-size:11px}
 .eng-order-source-unit{font-size:11px;color:#526175}
 .eng-order-plan-review-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+/* Offline license activation */
+.license-screen{position:fixed;inset:0;z-index:12000;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 15% 12%,#3b536b 0,transparent 34%),radial-gradient(circle at 88% 85%,#733e35 0,transparent 32%),#172332}
+.license-screen[hidden]{display:none!important}
+.license-card{width:min(620px,100%);max-height:calc(100vh - 48px);overflow:auto;padding:34px;background:#fff;border:1px solid #ffffff42;border-radius:18px;box-shadow:0 28px 90px #07111f80}
+.license-card-brand{display:flex;align-items:center;gap:12px;margin-bottom:30px}
+.license-card-brand strong,.license-card-brand small{display:block}
+.license-card-brand strong{font-size:16px;letter-spacing:2px;color:#202b3c}
+.license-card-brand small{font-size:8px;letter-spacing:1.1px;color:#98a2b3;margin-top:4px}
+.license-mark{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#26384b;color:#fff;font-size:23px;font-weight:800}
+.license-card h1{font-size:27px;letter-spacing:-.7px;margin:9px 0 8px;color:#202b3c}
+.license-intro{font-size:13px;line-height:1.6;color:#778396;margin:0 0 22px}
+.license-device-panel{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px;border:1px solid #e5eaf0;border-radius:11px;background:#f8fafc;margin-bottom:18px}
+.license-device-panel span{display:block;font-size:9px;letter-spacing:1px;font-weight:800;color:#8b96a7;margin-bottom:7px}
+.license-device-panel code{display:block;max-width:360px;overflow-wrap:anywhere;font-size:11px;color:#34445a}
+.license-activation-form label{display:block;font-size:11px;font-weight:700;color:#526175}
+.license-activation-form textarea{display:block;width:100%;resize:vertical;min-height:90px;margin-top:8px;padding:12px;border:1px solid #dfe5ec;border-radius:9px;background:#fff;font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere}
+.license-activation-form .button{width:100%;margin-top:14px;min-height:43px}
+.license-status-message{min-height:18px;margin:10px 0 0;color:#b64d32;font-size:11px;line-height:1.5}
+.license-card-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:15px;border-top:1px solid #edf0f4;color:#98a2b3;font-size:10px}
+.license-settings-card{grid-column:1/-1}
+.license-settings-card .panel-head{align-items:center}
+.license-settings-card .pin-settings-badge{white-space:nowrap}
+[data-feature][hidden]{display:none!important}
+@media(max-width:640px){.license-screen{padding:12px}.license-card{padding:23px 18px;border-radius:14px}.license-card h1{font-size:23px}.license-device-panel{align-items:flex-start;flex-direction:column}.license-device-panel code{max-width:100%}.license-card-footer{align-items:flex-start}}

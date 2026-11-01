@@ -1,13 +1,15 @@
 {
   "name": "skol-desktop",
-  "version": "1.24.0",
+  "version": "1.25.0",
   "private": true,
   "description": "СКОЛ — локальная настольная система управления строительными заявками, объектами, производством, сметами и финансами",
   "main": "src/main.cjs",
   "scripts": {
     "start": "electron .",
     "test": "node --test tests/*.test.cjs",
-    "dist:win": "node scripts/create-installer-assets.cjs && electron-builder --win nsis"
+    "dist:win": "node scripts/create-installer-assets.cjs && electron-builder --win nsis",
+    "license-manager": "electron tools/license-manager/main.cjs",
+    "dist:license-manager": "electron-builder --win portable --config tools/license-manager/electron-builder.yml --publish never"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",

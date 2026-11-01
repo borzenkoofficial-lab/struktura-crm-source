@@ -372,7 +372,10 @@ test('production shift reports can be corrected transactionally without stale wo
 test('reports combine sales funnel and finance metrics with explicit cash-balance limitations', () => {
   for (const id of ['reportReceived','reportExpenses','reportCash','reportReceivables']) assert.match(html, new RegExp('id="' + id + '"'));
   assert.match(html, /не банковский баланс и не чистая прибыль/);
-  assert.ok(renderer.includes("$('reportReceivables').textContent = fmt(finance.receivablesTotal)"));
+  assert.ok(renderer.includes("$('reportReceivables').textContent = fmt(report.finance.receivablesTotal)"));
+  assert.match(renderer, /window\.crm\.reportsSummary\(\)/);
+  assert.match(main, /ipcMain\.handle\('reports:summary'/);
+  assert.match(html, /report-finance-stats" data-feature="finance"/);
 });
 
 test('commercial order card button is wired through preload to the lead conversion handler', () => {
@@ -655,7 +658,7 @@ test('startup PIN is configurable in settings, verified in main process, and has
   assert.match(html, /id="pinUnlockForm"/);
   assert.match(html, /id="pinSettingsForm"/);
   assert.match(html, /id="pinDisableBtn"/);
-  assert.match(renderer, /initializeStartupGate\(\)\.then\(\(\) => refreshDashboard\(\)\)/);
+  assert.match(renderer, /initializeStartupGate\(\)\s*\.then\(\(\) => Promise\.race\(\[\s*refreshDashboard\(\)/);
   assert.match(preload, /verifyPin: \(data\) => ipcRenderer\.invoke\('security:pinVerify', data\)/);
   assert.match(main, /require\('\.\/pin-security\.cjs'\)/);
   assert.match(pinSecurity, /crypto\.scryptSync\(pin, salt, 64\)/);

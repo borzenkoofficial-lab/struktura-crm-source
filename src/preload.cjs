@@ -1,5 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('crm', {
+  getLicenseStatus: () => ipcRenderer.invoke('license:status'),
+  activateLicense: (data) => ipcRenderer.invoke('license:activate', data),
+  copyLicenseDeviceId: () => ipcRenderer.invoke('license:copyDeviceId'),
   summary: () => ipcRenderer.invoke('dashboard:summary'),
   getNotificationSettings: () => ipcRenderer.invoke('notifications:getSettings'),
   getPinStatus: () => ipcRenderer.invoke('security:pinStatus'),
@@ -37,6 +40,7 @@ contextBridge.exposeInMainWorld('crm', {
   updatePayment: (data) => ipcRenderer.invoke('payments:update', data),
   listExpenses: () => ipcRenderer.invoke('expenses:list'),
   financeInsights: () => ipcRenderer.invoke('finance:insights'),
+  reportsSummary: () => ipcRenderer.invoke('reports:summary'),
   listTasks: (filter) => ipcRenderer.invoke('tasks:list', filter),
   createTask: (data) => ipcRenderer.invoke('tasks:create', data),
   updateTask: (data) => ipcRenderer.invoke('tasks:update', data),

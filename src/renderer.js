@@ -86,6 +86,12 @@ function toast(message, error = false) {
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function dateToday() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; }
 function showView(name) {
+  const requestedView = $(`view-${name}`);
+  const requiredFeature = requestedView?.dataset.feature;
+  if (requiredFeature && !licenseFeatures.has(requiredFeature)) {
+    toast('Этот раздел недоступен на текущем тарифе СКОЛ.', true);
+    return;
+  }
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', engineering: 'ПИ · Расчёт объекта', browser: 'Браузер и поиск заказчиков', prospects: 'Центр привлечения заказов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте СКОЛ' };
@@ -974,20 +980,19 @@ function openProspectEditor(prospect) {
   openDialog('prospectDialog');
 }
 async function refreshReports() {
-  const [clients, leads, summary, finance] = await Promise.all([
-    window.crm.listClients(), window.crm.listLeads(), window.crm.summary(), window.crm.financeInsights()
-  ]);
-  const won = leads.filter(l => l.status === 'won').length;
-  $('reportClients').textContent = clients.length; $('reportLeads').textContent = leads.length; $('reportWon').textContent = won;
-  $('reportConversion').textContent = `${leads.length ? Math.round(won / leads.length * 100) : 0}%`;
-  $('reportReceived').textContent = fmt(summary.received);
-  $('reportExpenses').textContent = fmt(summary.expenses);
-  $('reportCash').textContent = fmt(summary.cash);
-  $('reportReceivables').textContent = fmt(finance.receivablesTotal);
-  const groups = {};
-  for (const lead of leads) { const key = lead.source || 'other'; if (!groups[key]) groups[key] = { count: 0, budget: 0, won: 0 }; groups[key].count++; groups[key].budget += Number(lead.budget_rub || 0); if (lead.status === 'won') groups[key].won++; }
-  const sorted = Object.entries(groups).sort((a,b) => b[1].count - a[1].count);
-  $('sourceReport').innerHTML = sorted.length ? `<table class="data-table"><thead><tr><th>Источник</th><th>Заявок</th><th>Выиграно</th><th>Ожидаемый бюджет</th></tr></thead><tbody>${sorted.map(([source,v]) => `<tr><td>${esc(sourceLabels[source] || source)}</td><td>${v.count}</td><td>${v.won}</td><td>${fmt(v.budget)}</td></tr>`).join('')}</tbody></table>` : empty('Пока нет данных','После добавления заявок здесь появится разбивка по источникам.');
+  const report = await window.crm.reportsSummary();
+  $('reportClients').textContent = report.clients;
+  $('reportLeads').textContent = report.leads;
+  $('reportWon').textContent = report.won;
+  $('reportConversion').textContent = `${report.conversion}%`;
+  if (report.finance) {
+    $('reportReceived').textContent = fmt(report.finance.received);
+    $('reportExpenses').textContent = fmt(report.finance.expenses);
+    $('reportCash').textContent = fmt(report.finance.cash);
+    $('reportReceivables').textContent = fmt(report.finance.receivablesTotal);
+  }
+  const groups = report.sources || [];
+  $('sourceReport').innerHTML = groups.length ? `<table class="data-table"><thead><tr><th>Источник</th><th>Заявок</th><th>Выиграно</th><th>Ожидаемый бюджет</th></tr></thead><tbody>${groups.map(item => `<tr><td>${esc(sourceLabels[item.source] || item.source)}</td><td>${item.count}</td><td>${item.won}</td><td>${fmt(item.budget)}</td></tr>`).join('')}</tbody></table>` : empty('Пока нет данных','После добавления заявок здесь появится разбивка по источникам.');
 }
 function empty(title, detail) { return `<div class="empty-state"><div class="empty-icon">◉</div><strong>${esc(title)}</strong><span>${esc(detail)}</span></div>`; }
 function openDialog(id) { $(id).showModal(); }
@@ -1926,8 +1931,50 @@ for (const id of ['paymentForm','expenseForm']) { const field = $(id).elements[i
 const startupSplash = $('startupSplash');
 const startupStartedAt = performance.now();
 let pinUnlockResolve = null;
+let licenseUnlockResolve = null;
+let licenseGatePromise = null;
+let licenseActivated = false;
+let licenseFeatures = new Set();
 let startupGatePromise = null;
 let startupUnlocked = false;
+function applyLicenseEntitlements(status) {
+  licenseActivated = Boolean(status?.activated);
+  licenseFeatures = new Set(status?.license?.features || []);
+  document.querySelectorAll('[data-feature]').forEach(element => {
+    element.hidden = !licenseActivated || !licenseFeatures.has(element.dataset.feature);
+  });
+  const edition = $('licenseCurrentEdition');
+  const details = $('licenseCurrentDetails');
+  if (edition) edition.textContent = licenseActivated ? (status.license.planName || status.license.edition) : 'Не активирована';
+  if (details) {
+    details.textContent = licenseActivated
+      ? `Лицензия ${status.license.licenseId} · Место ${status.license.seatIndex}/${status.license.seatCount} · Обновления до ${status.license.updatesUntil || 'без ограничения'}`
+      : 'Лицензия ещё не активирована.';
+  }
+  const closeButton = $('closeLicenseActivationBtn');
+  if (closeButton) closeButton.hidden = !licenseActivated;
+}
+async function initializeLicenseGate() {
+  if (licenseGatePromise) return licenseGatePromise;
+  licenseGatePromise = (async () => {
+    const status = await window.crm.getLicenseStatus();
+    applyLicenseEntitlements(status);
+    $('licenseDeviceId').textContent = status.deviceId || 'Не удалось получить ID компьютера';
+    if (status.activated) return true;
+    const reasons = {
+      wrong_device: 'Этот ключ выпущен для другого компьютера. Передайте продавцу показанный Device ID.',
+      expired: 'Срок действия лицензии истёк. Введите новый ключ.',
+      invalid_signature: 'Сохранённый ключ недействителен. Введите действующий ключ.',
+      invalid_payload: 'Данные сохранённой лицензии повреждены. Введите новый ключ.'
+    };
+    $('licenseActivationStatus').textContent = reasons[status.reason] || '';
+    $('licenseActivationScreen').hidden = false;
+    $('licenseKeyInput').focus();
+    if (startupSplash) startupSplash.classList.add('is-hidden');
+    return new Promise(resolve => { licenseUnlockResolve = resolve; });
+  })();
+  return licenseGatePromise;
+}
 function refreshStartupSettings() {
   refreshSearchApiStatus();
   refreshNotificationSettings().catch(() => { $('notificationStatus').textContent = 'Настройки уведомлений недоступны'; });
@@ -1935,6 +1982,7 @@ function refreshStartupSettings() {
 async function initializeStartupGate() {
   if (startupGatePromise) return startupGatePromise;
   startupGatePromise = (async () => {
+    await initializeLicenseGate();
     const status = await window.crm.getPinStatus();
     if (!status.enabled) { startupUnlocked = true; refreshStartupSettings(); return true; }
     $('pinLockScreen').hidden = false;
@@ -1944,6 +1992,48 @@ async function initializeStartupGate() {
   })();
   return startupGatePromise;
 }
+$('licenseActivationForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const button = $('licenseActivateBtn');
+  const input = $('licenseKeyInput');
+  const status = $('licenseActivationStatus');
+  button.disabled = true;
+  status.textContent = 'Проверяем лицензию…';
+  try {
+    const result = await window.crm.activateLicense({ key: input.value });
+    applyLicenseEntitlements(result);
+    if (!result.activated) throw new Error('Не удалось активировать лицензию.');
+    $('licenseActivationScreen').hidden = true;
+    input.value = '';
+    status.textContent = '';
+    if (licenseUnlockResolve) { licenseUnlockResolve(true); licenseUnlockResolve = null; }
+  } catch (error) {
+    status.textContent = error.message || 'Не удалось активировать ключ.';
+    input.focus();
+  } finally { button.disabled = false; }
+});
+$('copyLicenseDeviceIdBtn').addEventListener('click', async () => {
+  const button = $('copyLicenseDeviceIdBtn');
+  try {
+    await window.crm.copyLicenseDeviceId();
+    button.textContent = 'Скопировано';
+  } catch {
+    button.textContent = 'Не удалось скопировать';
+  }
+});
+$('closeLicenseActivationBtn').addEventListener('click', () => {
+  if (licenseActivated) $('licenseActivationScreen').hidden = true;
+});
+$('manageLicenseBtn').addEventListener('click', async () => {
+  try {
+    const status = await window.crm.getLicenseStatus();
+    applyLicenseEntitlements(status);
+    $('licenseDeviceId').textContent = status.deviceId || '';
+    $('licenseActivationStatus').textContent = '';
+    $('licenseActivationScreen').hidden = false;
+    $('licenseKeyInput').focus();
+  } catch (error) { toast(error.message || 'Не удалось открыть управление лицензией.', true); }
+});
 $('pinUnlockForm').addEventListener('submit', async event => {
   event.preventDefault();
   const button = $('pinUnlockBtn'), input = $('pinUnlockInput'), status = $('pinUnlockStatus');
@@ -1982,10 +2072,11 @@ function hideStartupSplash() {
 }
 // Never leave the launch screen covering the app if initial data loading stalls.
 window.setTimeout(hideStartupSplash, 8000);
-Promise.race([
-  initializeStartupGate().then(() => refreshDashboard()),
-  new Promise((_, reject) => window.setTimeout(() => reject(new Error('Превышено время ожидания загрузки обзора (10 секунд). Проверьте локальную базу и перезапустите программу.')), 10000))
-])
+initializeStartupGate()
+  .then(() => Promise.race([
+    refreshDashboard(),
+    new Promise((_, reject) => window.setTimeout(() => reject(new Error('Превышено время ожидания загрузки обзора (10 секунд). Проверьте локальную базу и перезапустите программу.')), 10000))
+  ]))
   .catch(e => {
     toast(`Не удалось загрузить обзор: ${e.message}`, true);
     const target = $('recentLeads');

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>СКОЛ · Генератор лицензий</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="renderer.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="top">
+      <div class="brand"><span class="mark">S</span><div><strong>СКОЛ</strong><small>LICENSE MANAGER · OFFLINE</small></div></div>
+      <span class="offline"><i></i> Локальный режим</span>
+    </header>
+    <section class="intro">
+      <span class="eyebrow">ВНУТРЕННИЙ ИНСТРУМЕНТ</span>
+      <h1>Выпуск лицензий</h1>
+      <p>Создавай подписанные ключи активации для покупателей. Закрытый ключ остаётся на этом компьютере и не отправляется в CRM клиента.</p>
+    </section>
+    <section class="panel key-panel">
+      <div><span class="eyebrow">КРИПТОГРАФИЧЕСКАЯ ЗАЩИТА</span><h2>Закрытый ключ подписи</h2><p id="keyStatus">Ключ не выбран.</p></div>
+      <button class="button secondary" id="choosePrivateKeyBtn" type="button">Выбрать PEM-файл</button>
+    </section>
+    <section class="panel config-panel" id="tariffConfigPanel">
+      <div class="panel-heading">
+        <div><span class="eyebrow">КАТАЛОГ / ПРАВИЛА ВЫПУСКА</span><h2>Настройка тарифов</h2></div>
+        <div class="panel-actions">
+          <button class="button secondary" id="loadConfigBtn" type="button">Импорт JSON</button>
+          <button class="button secondary" id="saveConfigBtn" type="button">Экспорт JSON</button>
+        </div>
+      </div>
+      <p class="panel-description">Здесь задаются доступные планы, их состав и цена. CRM проверяет ID модулей по встроенному каталогу; неизвестные функции не попадут в лицензию.</p>
+      <div class="form-grid">
+        <label>Тариф для редактирования<select id="managedPlan" name="managedPlan"></select></label>
+        <label>ID тарифа<input id="managedPlanId" maxlength="48" required></label>
+        <label>Название тарифа<input id="managedPlanName" maxlength="80" required></label>
+        <label>Цена, ₽<input id="managedPlanPrice" type="number" min="0" max="100000000" step="1" placeholder="Не задана"></label>
+        <label>Максимум компьютеров<input id="managedPlanDevices" type="number" min="1" max="50" value="50" required></label>
+        <label class="wide">Описание<input id="managedPlanDescription" maxlength="300" placeholder="Что входит в тариф"></label>
+      </div>
+      <fieldset class="config-features">
+        <legend>Разрешённые модули</legend>
+        <div id="configFeatureOptions" class="feature-options"></div>
+      </fieldset>
+      <div class="form-actions config-actions">
+        <button class="button secondary" id="addPlanBtn" type="button">Добавить тариф</button>
+        <button class="button secondary" id="removePlanBtn" type="button">Удалить выбранный</button>
+        <span id="configStatus" role="status">Загружена встроенная конфигурация тарифов.</span>
+      </div>
+    </section>
+    <section class="panel request-panel">
+      <div><span class="eyebrow">ЗАЯВКА С САЙТА SKOL</span><h2>Импорт индивидуального состава</h2><p id="requestStatus">Можно загрузить JSON-заявку, созданную клиентом в конструкторе тарифов.</p></div>
+      <button class="button secondary" id="importRequestBtn" type="button">Загрузить заявку JSON</button>
+    </section>
+    <form id="licenseForm" class="panel form-panel">
+      <div class="panel-heading"><div><span class="eyebrow">ПАРАМЕТРЫ ПОКУПКИ</span><h2>Новая лицензия</h2></div><span class="step">01 / 02</span></div>
+      <div class="form-grid">
+        <label>Тариф<select id="edition" name="edition"><option value="START">START</option><option value="PRO" selected>PRO</option><option value="BUSINESS">BUSINESS</option></select></label>
+        <label class="wide">Device ID покупателя<input id="deviceId" name="deviceId" required maxlength="64" pattern="[a-fA-F0-9]{64}" placeholder="64 символа из окна активации CRM"></label>
+        <label class="wide">Номер покупки (необязательно)<input id="licenseId" name="licenseId" maxlength="64" placeholder="Например, SKOL-ORDER-0001"></label>
+        <label>Номер компьютера<input id="seatIndex" name="seatIndex" type="number" min="1" max="50" value="1" required></label>
+        <label>Всего компьютеров<input id="seatCount" name="seatCount" type="number" min="1" max="50" value="1" required></label>
+        <label>Обновления до<input id="updatesUntil" name="updatesUntil" type="date"></label>
+        <label>Истечение лицензии<input id="expiresAt" name="expiresAt" type="date"><small>Оставь пустым для бессрочного права использования.</small></label>
+      </div>
+      <div class="form-actions"><button class="button primary" type="submit" id="generateLicenseBtn">Сгенерировать ключ</button><span id="generateStatus" role="status"></span></div>
+    </form>
+    <section class="panel output-panel">
+      <div class="panel-heading"><div><span class="eyebrow">ГОТОВ К ПЕРЕДАЧЕ ПОКУПАТЕЛЮ</span><h2>Лицензионный ключ</h2></div><span class="step">02 / 02</span></div>
+      <textarea id="licenseOutput" rows="5" readonly spellcheck="false" placeholder="После генерации здесь появится подписанный ключ SKOL1…"></textarea>
+      <div class="output-footer"><p id="licenseSummary">Сначала выбери закрытый ключ и заполни параметры покупки.</p><button class="button secondary" id="copyLicenseBtn" type="button" disabled>Скопировать ключ</button></div>
+    </section>
+    <footer>Закрытый ключ — главный секрет системы. Не отправляй его покупателям и не добавляй в Git.</footer>
+  </main>
+</body>
+</html>
