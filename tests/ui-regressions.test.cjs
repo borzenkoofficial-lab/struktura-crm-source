@@ -9,6 +9,7 @@ const main = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
 const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
 const pinSecurity = fs.readFileSync(path.join(__dirname, '../src/pin-security.cjs'), 'utf8');
+const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
 
 test('async create forms capture their form before awaiting IPC', () => {
   for (const id of ['leadForm', 'clientForm', 'projectForm', 'paymentForm', 'expenseForm']) {
@@ -969,24 +970,28 @@ test('dashboard contains only live business KPI slots, interactive rings and exp
   assert.ok(renderer.includes("metrics.finance.totalContract > 0 ? metrics.finance.collectionPercent : null"));
 });
 
-test('navigation is grouped, all fourteen screens have one destination and the DOM has no duplicate ids', () => {
+test('navigation is permanently visible, grouped, responsive and all fourteen screens have one destination', () => {
   const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
   const duplicateIds = [...new Set(ids.filter((id,index) => ids.indexOf(id) !== index))];
   assert.deepEqual(duplicateIds, [], 'no duplicate HTML ids');
   assert.equal((html.match(/class="nav-primary"/g) || []).length, 1);
-  assert.equal((html.match(/class="nav-more"/g) || []).length, 1);
+  assert.equal((html.match(/class="nav-more"/g) || []).length, 0, 'dropdown navigation is removed');
+  assert.doesNotMatch(html, /<details[^>]+nav-more|<summary[^>]+nav-more/, 'navigation has no disclosure control');
   const navStart = html.indexOf('class="nav-primary"');
   const navEnd = html.indexOf('</nav>', navStart);
   const primary = html.slice(navStart, navEnd);
   assert.deepEqual([...primary.matchAll(/data-view="([^"]+)"/g)].map(match => match[1]),
-    ['dashboard','leads','clients','projects','production','finance']);
+    ['dashboard','leads','clients','projects','production','finance','engineering','prospects','tasks','reports','browser','plans','settings','about']);
+  assert.equal((primary.match(/class="nav-menu-group"/g) || []).length, 3, 'navigation is grouped by purpose');
   const views = [...html.matchAll(/id="view-([^"]+)"/g)].map(match => match[1]);
   assert.equal(views.length, 14);
   assert.equal(new Set(views).size, 14);
-  for (const view of views) assert.ok(html.includes('data-view="' + view + '"'), view + ' remains reachable from navigation');
+  for (const view of views) assert.ok(primary.includes('data-view="' + view + '"'), view + ' remains reachable from persistent navigation');
   assert.ok(!html.includes('toggleSidebarBtn'), 'old vertical-sidebar toggle is removed');
   assert.ok(!renderer.includes('gruzli.sidebarCollapsed'), 'old brand-specific UI persistence key is removed');
-  assert.ok(renderer.includes("button.closest('.nav-more')"));
+  assert.doesNotMatch(renderer, /nav-more|button\.closest\(['"]\.nav-more['"]\)/, 'no open/close dropdown handlers remain');
+  assert.match(css, /\.nav-primary\{[^}]*overflow-y:auto/, 'desktop navigation scrolls inside the sidebar');
+  assert.match(css, /@media\(max-width:700px\)[\s\S]*?\.nav-primary\{[^}]*overflow-x:auto/, 'mobile navigation is horizontally scrollable without a dropdown');
 });
 
 test('all five split workspaces keep a detail pane and table list in the current 1.25 interface', () => {
