@@ -1,4 +1,4 @@
-name: Struktura CRM checks and Windows release
+name: Struktura CRM checks and Windows test installer
 
 on:
   workflow_dispatch:
@@ -46,7 +46,7 @@ jobs:
   build-windows:
     name: Build Windows installer
     needs: test
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/installer-build/') || (github.event_name == 'workflow_dispatch' && inputs.build_installer)
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/installer-build/') || (github.event_name == 'workflow_dispatch' && inputs.build_installer) || (github.event_name == 'pull_request' && github.head_ref == 'fix/ui-salesforce-dashboard-redesign')
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
