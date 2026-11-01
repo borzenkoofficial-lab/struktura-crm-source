@@ -19,6 +19,8 @@ test('core record screens expose dedicated reference-style detail panels', () =>
   }
   assert.match(renderer, /function renderRecordDetailPanel\(kind, record\)/);
   assert.match(renderer, /function selectRecord\(kind, id\)/);
+  assert.match(renderer, /class="lead-status-select" data-lead-status=/);
+  assert.match(renderer, /class="project-status-select" data-project-status=/);
 });
 
 test('all primary CRM views remain present and receive application-wide styling', () => {
