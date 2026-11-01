@@ -569,7 +569,7 @@ function renderDashboardAttention(attention = {}) {
   if (attention.leadsAvailable && attention.newLeads) items.push({title:'Новые заявки',value:attention.newLeads,detail:'Проверь обращение и назначь следующий шаг',view:'leads',tone:'warning',icon:'◉'});
   if (attention.projectsAvailable && attention.unstaffedProjects) items.push({title:'Объекты без численности бригады',value:attention.unstaffedProjects,detail:'Уточни план людей в карточках объектов',view:'projects',tone:'warning',icon:'♧'});
   if (attention.productionAvailable && attention.unplannedActiveProjects) items.push({title:'Активные объекты без плана работ',value:attention.unplannedActiveProjects,detail:'Добавь производственный план, чтобы считать прогресс',view:'production',tone:'info',icon:'▤'});
-  const unavailable = !attention.tasksAvailable || !attention.leadsAvailable || !attention.projectsAvailable;
+  const unavailable = !attention.tasksAvailable || !attention.leadsAvailable || !attention.projectsAvailable || (licenseFeatures.has('production') && !attention.productionAvailable);
   target.innerHTML = items.length
     ? items.map(item => `<button type="button" class="dashboard-attention-item ${item.tone}" data-goto="${item.view}"><span class="dashboard-attention-icon">${item.icon}</span><span class="dashboard-attention-copy"><strong>${esc(item.title)}</strong><small>${esc(item.detail)}</small></span><b>${item.value}</b><i>→</i></button>`).join('')
     : unavailable
@@ -606,14 +606,14 @@ function renderDashboardSnapshot(snapshot) {
       : 'Финансовая история загружена не полностью';
   }
 
-  dashboardSetRing('dashboardProjectRing', metrics.progress.projects.available ? metrics.progress.projects.percent : null);
+  dashboardSetRing('dashboardProjectRing', metrics.progress.projects.available && metrics.progress.projects.total > 0 ? metrics.progress.projects.percent : null);
   $('dashboardProjectDetail').textContent = !metrics.progress.projects.available
     ? 'Данные объектов не загружены'
     : metrics.progress.projects.total
       ? `${metrics.progress.projects.done} из ${metrics.progress.projects.total} объектов завершено`
       : 'Добавь первый объект';
 
-  dashboardSetRing('dashboardProductionRing', metrics.progress.production.percent);
+  dashboardSetRing('dashboardProductionRing', metrics.progress.production.available && metrics.progress.production.planned > 0 ? metrics.progress.production.percent : null);
   $('dashboardProductionDetail').textContent = !licenseFeatures.has('production')
     ? 'Недоступно по лицензии'
     : !metrics.progress.production.available
@@ -622,14 +622,14 @@ function renderDashboardSnapshot(snapshot) {
         ? `${fmt(metrics.progress.production.actual)} из ${fmt(metrics.progress.production.planned)} ед. работ`
         : 'Нет плана работ на активных объектах';
 
-  dashboardSetRing('dashboardTaskRing', metrics.progress.tasks.available ? metrics.progress.tasks.percent : null);
+  dashboardSetRing('dashboardTaskRing', metrics.progress.tasks.available && metrics.progress.tasks.total > 0 ? metrics.progress.tasks.percent : null);
   $('dashboardTaskDetail').textContent = !metrics.progress.tasks.available
     ? 'Данные задач не загружены'
     : metrics.progress.tasks.total
       ? `${metrics.progress.tasks.done} из ${metrics.progress.tasks.total} задач закрыто`
       : 'Добавь первые задачи';
 
-  dashboardSetRing('dashboardLeadRing', metrics.progress.leads.available ? metrics.progress.leads.percent : null);
+  dashboardSetRing('dashboardLeadRing', metrics.progress.leads.available && metrics.progress.leads.total > 0 ? metrics.progress.leads.percent : null);
   $('dashboardLeadDetail').textContent = !metrics.progress.leads.available
     ? 'Данные заявок не загружены'
     : metrics.progress.leads.total
@@ -637,7 +637,7 @@ function renderDashboardSnapshot(snapshot) {
       : 'Заявок пока нет';
 
   if (metrics.finance.available) {
-    dashboardSetRing('dashboardCollectionRing', metrics.availability.projects ? metrics.finance.collectionPercent : null);
+    dashboardSetRing('dashboardCollectionRing', metrics.availability.projects && metrics.finance.totalContract > 0 ? metrics.finance.collectionPercent : null);
     $('dashboardCollectionDetail').textContent = !metrics.availability.projects
       ? 'Данные объектов не загружены'
       : metrics.finance.totalContract > 0
