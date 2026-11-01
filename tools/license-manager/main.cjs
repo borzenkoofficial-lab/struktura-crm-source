@@ -7,12 +7,22 @@ const path = require('node:path');
 const { generateConfiguredLicense } = require('../license-generator.cjs');
 const { FEATURE_CATALOG } = require('../../src/license-catalog.cjs');
 const { createDefaultTariffConfig, normalizeTariffConfig, normalizeLicenseRequest } = require('../../src/license-config.cjs');
+const { loadTariffConfigFile, saveTariffConfigFile } = require('../../src/license-config-storage.cjs');
 
 app.setName('СКОЛ License Manager');
 let mainWindow = null;
 let privateKeyPath = '';
 let tariffConfig = createDefaultTariffConfig();
+let tariffConfigWarning = null;
 let pendingRequest = null;
+
+function localTariffConfigPath() {
+  return path.join(app.getPath('userData'), 'tariff-config.json');
+}
+
+function persistTariffConfig(config) {
+  saveTariffConfigFile(localTariffConfigPath(), config);
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -60,11 +70,15 @@ ipcMain.handle('licenseManager:chooseKey', async () => {
 
 ipcMain.handle('licenseManager:config:get', () => ({
   config: tariffConfig,
-  features: Object.values(FEATURE_CATALOG)
+  features: Object.values(FEATURE_CATALOG),
+  warning: tariffConfigWarning
 }));
 
 ipcMain.handle('licenseManager:config:update', (_event, input) => {
-  tariffConfig = normalizeTariffConfig(input);
+  const nextConfig = normalizeTariffConfig(input);
+  persistTariffConfig(nextConfig);
+  tariffConfig = nextConfig;
+  tariffConfigWarning = null;
   return { config: tariffConfig };
 });
 
@@ -77,7 +91,10 @@ ipcMain.handle('licenseManager:config:load', async () => {
   if (result.canceled || !result.filePaths[0]) return { canceled: true };
   const selectedPath = result.filePaths[0];
   const parsed = JSON.parse(fs.readFileSync(selectedPath, 'utf8'));
-  tariffConfig = normalizeTariffConfig(parsed);
+  const nextConfig = normalizeTariffConfig(parsed);
+  persistTariffConfig(nextConfig);
+  tariffConfig = nextConfig;
+  tariffConfigWarning = null;
   return { config: tariffConfig, fileName: path.basename(selectedPath) };
 });
 
@@ -89,8 +106,10 @@ ipcMain.handle('licenseManager:config:save', async (_event, input) => {
     filters: [{ name: 'JSON', extensions: ['json'] }]
   });
   if (result.canceled || !result.filePath) return { canceled: true };
-  fs.writeFileSync(result.filePath, JSON.stringify(config, null, 2), { encoding: 'utf8', flag: 'w' });
+  saveTariffConfigFile(result.filePath, config);
+  persistTariffConfig(config);
   tariffConfig = config;
+  tariffConfigWarning = null;
   return { saved: true, fileName: path.basename(result.filePath) };
 });
 
@@ -156,7 +175,12 @@ ipcMain.handle('licenseManager:copy', (_event, value) => {
   return { copied: true };
 });
 
-app.whenReady().then(createWindow).catch(error => {
+app.whenReady().then(() => {
+  const restored = loadTariffConfigFile(localTariffConfigPath());
+  tariffConfig = restored.config;
+  tariffConfigWarning = restored.warning;
+  createWindow();
+}).catch(error => {
   dialog.showErrorBox('СКОЛ License Manager', error.message || String(error));
   app.quit();
 });
