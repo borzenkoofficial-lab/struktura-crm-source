@@ -577,7 +577,7 @@ test('objects workspace is divided into numbered, responsive sections with a sep
     'Фактическая производительность', 'Себестоимость и расходы',
     'Итоговая экономика', 'Контроль объекта: план / факт', 'Действия по смете'
   ]) assert.ok(projectView.includes(heading), `objects workflow includes "${heading}"`);
-  assert.match(projectView, /class="object-list-head"[\s\S]*?<div class="panel table-panel"><div id="projectsTable"/);
+  assert.match(projectView, /class="object-list-head"[\s\S]*?<div class="panel records-panel"><div class="records-workspace"><div id="projectsTable" class="table-wrap records-list"><\/div><aside id="projectDetailPanel"/);
   const styles = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
   assert.match(styles, /#view-projects \.object-block-title/);
   assert.match(styles, /@media\(max-width:480px\)\{#view-projects/);
