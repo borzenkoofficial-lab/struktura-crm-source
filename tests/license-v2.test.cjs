@@ -111,7 +111,7 @@ test('CRM license service activates custom plan and enforces its actual IPC modu
   const context = { licenseUnlocked: true, appUnlocked: true, features: status.license.features };
   assert.doesNotThrow(() => assertIpcAccess('finance:insights', context));
   assert.doesNotThrow(() => assertIpcAccess('reports:summary', context));
-  assert.throws(() => assertIpcAccess('browser:navigate', context), /тариф/i);
+  assert.throws(() => assertIpcAccess('browser:navigate', context), /тариф/i);\n  assert.throws(() => assertIpcAccess('reports:summary', { ...context, features: ['finance'] }), /тариф/i);
   assert.equal(publicLicenseSummary({ ...payload(), v: 2 }).edition, 'TEAM_PLUS');
 });
 
