@@ -90,6 +90,7 @@ function normalizePlan(input, index) {
   if (Object.keys(input).some(key => !allowed.has(key))) throw new Error('Тариф содержит неизвестные поля.');
   const id = boundedString(input.id, 'id', 48).toUpperCase();
   if (!/^[A-Z][A-Z0-9_-]{1,47}$/.test(id)) throw new Error('ID тарифа может содержать латинские буквы, цифры, дефис и подчёркивание.');
+  if (id === 'CUSTOM') throw new Error('ID тарифа CUSTOM зарезервирован для индивидуальной заявки с сайта.');
   const name = boundedString(input.name, 'name', 80);
   const description = boundedString(input.description ?? '', 'description', 300, { optional: true });
   const maxDevices = Number(input.maxDevices ?? MAX_DEVICES);
