@@ -66,7 +66,7 @@ test('new record split panes and finance detail cards are present in the actual 
     assert.match(html, new RegExp('id="' + id + '" class="table-wrap records-list"'));
   }
   const projectStart = html.indexOf('id="view-projects"');
-  const estimate = html.indexOf('class="estimate-panel estimate-pro-panel"', projectStart);
+  const estimate = html.indexOf('class="panel estimate-panel estimate-pro-panel"', projectStart);
   const projectList = html.indexOf('id="projectsTable"', projectStart);
   assert.ok(projectList > projectStart && projectList < estimate, 'object list is above the estimate calculator');
   assert.match(html, /class="panel records-panel finance-records-panel"/);
@@ -101,9 +101,10 @@ test('light palette has high contrast and keeps the lime accent with dark text',
 
 test('white colourway preserves the Salesforce layout and styles all interactive states', () => {
   for (const selector of [
-    '.sidebar {', '.nav-item.active', '.button.primary', '.records-workspace {',
-    '.record-detail-panel {', '.records-list .data-table', 'dialog.modal'
-  ]) assert.ok(lightTheme.includes(selector), 'light colourway defines ' + selector);
+  for (const pattern of [
+    /\.sidebar\s*\{/, /\.nav-item\.active/, /\.button\.primary/, /\.records-workspace\s*\{/,
+    /\.record-detail-panel\s*\{/, /\.records-list \.data-table/, /dialog\.modal/
+  ]) assert.match(lightTheme, pattern, 'light colourway defines ' + pattern);
   assert.match(lightTheme, /\.nav-item\.active[\s\S]*?background:var\(--sf-lime\)!important/);
   assert.match(lightTheme, /button:focus-visible[\s\S]*?outline:3px solid/);
   assert.match(lightTheme, /button:disabled[\s\S]*?cursor:not-allowed/);
