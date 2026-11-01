@@ -65,7 +65,8 @@ test('visible application screens use the СКОЛ wordmark and no former brand 
   const html = read('src/index.html');
   const renderer = read('src/renderer.js');
   assert.match(html, /<title>СКОЛ<\/title>/);
-  assert.match(html, /assets\/skol-wordmark-inverse\.svg/);
+  assert.match(html, /assets\/skol-wordmark\.svg/);
+  assert.doesNotMatch(html, /assets\/skol-wordmark-inverse\.svg/);
   assert.match(html, /assets\/skol-monogram\.svg/);
   assert.doesNotMatch(html, /STRUKTURA|Struktura CRM/);
   assert.match(renderer, /О продукте СКОЛ/);
