@@ -6,6 +6,7 @@ const FEATURE_CHANNELS = Object.freeze([
   [/^(finance|income|payments|expenses):/, 'finance'],
   [/^(production|pi):/, 'production'],
   [/^(engineering|estimate):/, 'engineering'],
+  [/^reports:/, 'reports'],
   [/^engineeringPlans:/, 'engineering_plans'],
   [/^(orders|prospects|search):/, 'order_radar'],
   [/^browser:/, 'web_browser']
@@ -42,9 +43,13 @@ function filterDashboardSummary(summary, features = []) {
 
 function publicLicenseSummary(license) {
   if (!license) return null;
+  const planId = license.planId || license.edition;
   return {
     licenseId: license.licenseId,
-    edition: license.edition,
+    edition: planId,
+    planId,
+    planName: license.planName || license.edition,
+    formatVersion: license.v || 1,
     features: [...license.features],
     issuedAt: license.issuedAt,
     expiresAt: license.expiresAt,
