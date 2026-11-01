@@ -58,7 +58,7 @@ test('startup animation includes reduced-motion accessibility support', () => {
 test('dashboard home has real navigation actions and no fabricated business metrics', () => {
   const dashboard = html.match(/<section class="view active" id="view-dashboard">([\s\S]*?)<\/section>\s*<section class="view" id="view-leads">/);
   assert.ok(dashboard, 'dashboard section exists');
-  assert.match(dashboard[1], /Бизнес начинается/);
+  assert.match(dashboard[1], /Весь бизнес/);
   assert.match(dashboard[1], /data-goto="projects"/);
   assert.match(dashboard[1], /data-goto="leads"/);
   for (const id of ['statLeads', 'statProjects', 'statReceived', 'statCash', 'recentLeads']) {
@@ -614,7 +614,7 @@ test('objects workspace is divided into numbered, responsive sections with a sep
     'Фактическая производительность', 'Себестоимость и расходы',
     'Итоговая экономика', 'Контроль объекта: план / факт', 'Действия по смете'
   ]) assert.ok(projectView.includes(heading), `objects workflow includes "${heading}"`);
-  assert.match(projectView, /class="object-list-head"[\s\S]*?<div class="panel table-panel"><div id="projectsTable"/);
+  assert.match(projectView, /class="object-list-head"[\s\S]*?<div class="panel records-panel"><div class="records-workspace"><div id="projectsTable" class="table-wrap records-list">/);
   const styles = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
   assert.match(styles, /#view-projects \.object-block-title/);
   assert.match(styles, /@media\(max-width:480px\)\{#view-projects/);
@@ -875,7 +875,7 @@ test('lead acquisition workspace shows source-backed order metrics and clear wor
 
 test('client records support a structured representative contact field', () => {
   assert.match(html, /<label>Контактное лицо<input name="contact_name"/);
-  assert.match(renderer, /c\.contact_name\|\|''/);
+  assert.match(renderer, /c\.contact_name\s*\|\|\s*''/);
   assert.match(renderer, /<th>Контактное лицо<\/th>/);
   assert.match(renderer, /'contact_name','client_type'/);
   assert.match(main, /INSERT INTO clients\(name,phone,email,contact_name,client_type,notes\)/);
@@ -952,3 +952,61 @@ test('engineering handoff requires catalog review before replacing plan operatio
   assert.match(planUi, /Цены и нормы взяты из прайса СКОЛ/);
   assert.match(planUi, /mappedLines/);
 });
+test('dashboard contains only live business KPI slots, interactive rings and explicit period controls', () => {
+  const dashboard = html.match(/<section class="view active" id="view-dashboard">([\\s\\S]*?)<\\/section>\\s*<section class="view" id="view-leads">/);
+  assert.ok(dashboard, 'single home view exists');
+  for (const id of [
+    'statLeads','statProjects','dashboardClientsCount','dashboardPeopleCount',
+    'statReceived','dashboardExpensesAmount','statCash','dashboardCashflowChart',
+    'dashboardProjectPercent','dashboardProductionPercent','dashboardTaskPercent',
+    'dashboardLeadPercent','dashboardCollectionPercent','dashboardRecentProjects',
+    'dashboardAttention','piHomeSummary','piHomeAlerts'
+  ]) assert.match(dashboard[1], new RegExp('id="' + id + '"'), id + ' is available for live metrics');
+  for (const period of ['week','month','year']) assert.match(dashboard[1], new RegExp('data-dashboard-period="' + period + '"'));
+  assert.doesNotMatch(dashboard[1], /Демо-данные|68%|≈ 4 смены/);
+  assert.match(renderer, /window\\.SKOLDashboardMetrics\\.computeDashboardMetrics/);
+  assert.match(renderer, /window\\.SKOLDashboardMetrics\\.getTaskBucket/);
+});
+
+test('navigation is grouped, all fourteen screens have one destination and the DOM has no duplicate ids', () => {
+  const ids = [...html.matchAll(/\\sid="([^"]+)"/g)].map(match => match[1]);
+  const duplicateIds = [...new Set(ids.filter((id,index) => ids.indexOf(id) !== index))];
+  assert.deepEqual(duplicateIds, [], 'no duplicate HTML ids');
+  assert.equal((html.match(/class="nav-primary"/g) || []).length, 1);
+  assert.equal((html.match(/class="nav-more"/g) || []).length, 1);
+  const primary = html.slice(html.indexOf('class="nav-primary"'), html.indexOf('</nav>', html.indexOf('class="nav-primary"')));
+  assert.deepEqual([...primary.matchAll(/data-view="([^"]+)"/g)].map(match => match[1]),
+    ['dashboard','leads','clients','projects','production','finance']);
+  const views = [...html.matchAll(/id="view-([^"]+)"/g)].map(match => match[1]);
+  assert.equal(views.length, 14);
+  assert.equal(new Set(views).size, 14);
+  for (const view of views) assert.match(html, new RegExp('data-view="' + view + '"'), view + ' remains reachable from navigation');
+  assert.match(renderer, /const overflowMenu = button\\.closest\\('\\.nav-more'\\)/);
+});
+
+test('all five split workspaces keep a detail pane and table list in the current 1.25 interface', () => {
+  for (const id of ['leadDetailPanel','clientDetailPanel','projectDetailPanel','paymentDetailPanel','expenseDetailPanel']) {
+    assert.equal((html.match(new RegExp('id="' + id + '"','g')) || []).length, 1, id + ' appears once');
+  }
+  for (const id of ['leadsTable','clientsTable','projectsTable','paymentsTable','expensesTable']) {
+    assert.match(html, new RegExp('id="' + id + '" class="table-wrap records-list"'), id + ' uses the same list surface');
+  }
+  assert.match(renderer, /function selectRecord\\(kind, id\\)/);
+  assert.match(renderer, /function selectFinanceRecord\\(kind, id\\)/);
+  assert.match(renderer, /renderRecordDetailPanel\\('client', selected\\)/);
+  assert.match(renderer, /renderFinanceDetailPanel\\('expense', selectedExpense\\)/);
+});
+
+test('Salesforce light layout loads after base CSS and the reusable metrics module loads before renderer', () => {
+  const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\\.css)">/g)].map(match => match[1]);
+  assert.ok(links.indexOf('theme-salesforce.css') > links.indexOf('styles.css'));
+  assert.ok(links.indexOf('theme-salesforce-light.css') > links.indexOf('theme-salesforce.css'));
+  assert.match(html, /dashboard-metrics\\.js"><\\/script><script src="renderer\\.js"/);
+  const css = fs.readFileSync(path.join(__dirname, '../src/theme-salesforce-light.css'), 'utf8');
+  for (const selector of ['.dashboard-kpis','.dashboard-finance-metrics','.dashboard-rings-grid','.dashboard-attention-list','.nav-more-menu']) assert.ok(css.includes(selector));
+  assert.match(css, /@media\\(max-width:620px\\)/);
+  assert.match(css, /@media\\(prefers-reduced-motion:reduce\\)/);
+  assert.match(css, /overflow-wrap:anywhere/);
+  assert.match(css, /min-width:0/);
+});
+
