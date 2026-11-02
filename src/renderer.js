@@ -2172,7 +2172,7 @@ $('crawlWebsitesBtn').addEventListener('click', async () => {
   button.disabled = true; button.textContent = 'Ищем контакты…'; result.hidden = false; result.className = 'crawler-result'; result.textContent = 'Проверяем доступность сайтов и robots.txt. Большие сайты могут обрабатываться несколько минут.';
   try {
     const report = await window.crm.crawlProspectWebsites({ urls, service: $('crawlerService').value, region: $('crawlerRegion').value, maxPages: Number($('crawlerMaxPages').value) });
-    const lines = [`Найдено сайтов с контактами: ${report.discovered}`, `Добавлено в базу: ${report.imported}`, `Пропущено дублей: ${report.skipped}`, `Проверено HTML-страниц: ${report.pagesChecked}`, `Ошибок поиска: ${report.errors.length}`, `ИИ-план запросов: ${report.aiPlanUsed ? 'выполнен' : 'резервный режим'}`, `ИИ-ранжирование: ${report.aiUsed ? 'выполнено' : 'резервный режим'}`];
+    const lines = [`Найдено сайтов с контактами: ${report.discovered}`, `Добавлено в базу: ${report.imported}`, `Пропущено дублей: ${report.skipped}`, `Проверено HTML-страниц: ${report.pagesChecked}`, `Ошибок поиска: ${report.errors.length}`, `ИИ-анализ: ${report.aiUsed ? 'выполнен' : 'резервный режим'}`];
     if (report.errors.length) lines.push('', 'Первые ошибки:', ...report.errors.slice(0,5).map(e => `• ${e.url}: ${e.error}`));
     result.textContent = lines.join('\n'); await refreshProspects();
     toast(`Парсинг завершён. Добавлено компаний: ${report.imported}.`);
@@ -2223,7 +2223,7 @@ $('runWebSearchBtn').addEventListener('click', async () => {
   result.textContent = 'ИИ формирует запросы, получает публичные результаты и отбирает подходящие сайты.';
   try {
     const report = await window.crm.searchProspects({ service: $('domainSearchService').value, region: $('domainSearchRegion').value });
-    const lines = [`Поисковых запросов: ${report.queries.length}`, `Получено результатов: ${report.received}`, `Добавлено сайтов в CRM: ${report.imported}`, `Пропущено дублей: ${report.skipped}`, `Ошибок источников: ${report.errors.length}`, `ИИ-анализ: ${report.aiUsed ? 'выполнен' : 'резервный режим'}`];
+    const lines = [`Поисковых запросов: ${report.queries.length}`, `Получено результатов: ${report.received}`, `Добавлено сайтов в CRM: ${report.imported}`, `Пропущено дублей: ${report.skipped}`, `Ошибок источников: ${report.errors.length}`, `ИИ-план запросов: ${report.aiPlanUsed ? 'выполнен' : 'резервный режим'}`, `ИИ-ранжирование: ${report.aiUsed ? 'выполнено' : 'резервный режим'}`];
     if (report.errors.length) lines.push('', 'Ошибки:', ...report.errors.map(e => `• ${e.query}: ${e.error}`));
     lines.push('', 'Важно: телефоны и email из выдачи не подтверждены. Открой сайт и запусти парсер публичных страниц.');
     result.textContent = lines.join('\n'); await refreshProspects();
