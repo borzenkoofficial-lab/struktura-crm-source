@@ -1997,3 +1997,563 @@ input[type="checkbox"], input[type="radio"] {
     transform: none !important;
   }
 }
+
+
+/* SKOL 1.27.1 — secondary workspaces: order acquisition, tasks, reports, browser and settings. */
+
+/* Order acquisition: search tools, source checks and the radar share one visual rhythm. */
+#view-prospects > .section-head {
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 17px;
+}
+#view-prospects > .section-head > .button-row {
+  flex: 0 0 auto;
+}
+#view-prospects .crawler-panel,
+#view-prospects .opportunity-radar {
+  margin: 0 0 14px;
+  border: 1px solid var(--skol-line);
+  border-radius: 17px !important;
+  background: var(--skol-surface);
+  box-shadow: var(--skol-elevation-1);
+}
+#view-prospects .crawler-panel .panel-head,
+#view-prospects .opportunity-radar .panel-head {
+  align-items: flex-start;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--skol-line);
+}
+#view-prospects .crawler-panel .panel-head h3,
+#view-prospects .opportunity-radar .panel-head h3 {
+  color: var(--skol-ink);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+#view-prospects .crawler-panel .panel-head p,
+#view-prospects .opportunity-radar .panel-head p {
+  color: var(--skol-muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+#view-prospects .crawler-body {
+  padding: 16px 18px 18px;
+}
+#view-prospects .crawler-body label {
+  color: var(--skol-muted);
+  font-weight: 700;
+}
+#view-prospects .crawler-body .form-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 11px;
+}
+#view-prospects .crawler-footer {
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 13px;
+}
+#view-prospects .crawler-footer > span {
+  max-width: 76ch;
+  color: var(--skol-muted);
+  line-height: 1.55;
+}
+#view-prospects .crawler-footer .button-row {
+  justify-content: flex-end;
+  gap: 7px;
+}
+#view-prospects .crawler-result {
+  border: 1px solid var(--skol-line);
+  border-radius: 11px;
+  background: var(--skol-surface-soft);
+  color: var(--skol-ink);
+}
+#view-prospects .search-api-status {
+  margin-bottom: 13px;
+  padding: 10px 12px;
+  border: 1px solid var(--skol-line);
+  border-radius: 10px;
+  background: var(--skol-surface-soft);
+  color: var(--skol-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+#view-prospects .domain-search-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+#view-prospects .domain-search-links a {
+  max-width: 100%;
+  border-radius: 9px;
+  overflow-wrap: anywhere;
+}
+#view-prospects .order-radar-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 240px);
+  align-items: center;
+  gap: 9px;
+  margin: 14px 0;
+}
+#view-prospects .order-radar-metrics {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 9px;
+  margin: 0 0 13px;
+}
+#view-prospects .order-radar-metrics .stat-card {
+  min-width: 0;
+  min-height: 103px;
+  padding: 13px 14px;
+  border: 1px solid var(--skol-line);
+  border-radius: 13px !important;
+  background: var(--skol-surface);
+  box-shadow: none;
+}
+#view-prospects .order-radar-metrics .stat-card > strong {
+  color: var(--skol-ink);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+#view-prospects .pi-order-summary {
+  margin: 13px 0;
+  padding: 13px 15px;
+  border: 1px solid var(--skol-line);
+  border-radius: 12px;
+  background: var(--skol-surface-soft);
+}
+#view-prospects .commercial-orders-list {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+#view-prospects .opportunity-radar .radar-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  padding: 14px 17px;
+}
+#view-prospects .radar-metrics article {
+  min-width: 0;
+  padding: 12px 13px;
+  border: 1px solid var(--skol-line);
+  border-radius: 12px;
+  background: var(--skol-surface-soft);
+}
+#view-prospects .radar-metrics article span,
+#view-prospects .radar-metrics article small {
+  color: var(--skol-muted);
+  line-height: 1.45;
+}
+#view-prospects .radar-metrics article strong {
+  color: var(--skol-ink);
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+#view-prospects .radar-queue {
+  border-top: 1px solid var(--skol-line);
+}
+#view-prospects .radar-item {
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 17px;
+  border-bottom: 1px solid var(--skol-line);
+}
+#view-prospects .radar-item:last-child {
+  border-bottom: 0;
+}
+#view-prospects .radar-item-main {
+  min-width: 0;
+}
+#view-prospects .radar-tag {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* Tasks and reports: KPI groups stay compact and tables remain the main data surface. */
+#view-tasks .task-stats,
+#view-reports .report-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 17px;
+}
+#view-tasks .task-stats .stat-card,
+#view-reports .report-stats .stat-card {
+  min-width: 0;
+  min-height: 105px;
+  padding: 14px 15px;
+  border: 1px solid var(--skol-line);
+  border-radius: 14px !important;
+  background: var(--skol-surface);
+  box-shadow: var(--skol-elevation-1);
+}
+#view-tasks .task-stats .stat-card > strong,
+#view-reports .report-stats .stat-card > strong {
+  color: var(--skol-ink);
+  font-size: clamp(20px, 1.8vw, 25px);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+#view-tasks .toolbar {
+  align-items: center;
+  gap: 9px;
+  margin: 14px 0;
+}
+#view-tasks .toolbar .search {
+  width: min(420px, 100%);
+}
+#view-tasks .toolbar select {
+  min-width: 180px;
+}
+#view-tasks .table-panel,
+#view-reports .table-panel {
+  border: 1px solid var(--skol-line);
+  border-radius: 17px;
+  background: var(--skol-surface);
+  box-shadow: var(--skol-elevation-1);
+}
+#view-tasks .table-panel .table-wrap,
+#view-reports .table-panel .table-wrap {
+  border-radius: inherit;
+}
+#view-reports .report-data-note {
+  max-width: 90ch;
+  margin: 0 0 18px;
+  padding: 11px 13px;
+  border-left: 3px solid var(--skol-accent);
+  border-radius: 0 10px 10px 0;
+  background: var(--skol-surface-soft);
+  color: var(--skol-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+/* Browser: the page stays primary; the inspector is a quiet contextual side panel. */
+#view-browser.browser-view {
+  min-height: 560px;
+}
+#view-browser .browser-shell {
+  border: 1px solid var(--skol-line);
+  border-radius: 18px;
+  background: var(--skol-surface);
+  box-shadow: var(--skol-elevation-1);
+}
+#view-browser .browser-toolbar {
+  gap: 8px;
+  padding: 9px 11px;
+}
+#view-browser .browser-icon-btn {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  transition: background .18s ease, border-color .18s ease, color .18s ease;
+}
+#view-browser .browser-address-form {
+  border-radius: 11px;
+}
+#view-browser .browser-statusline {
+  min-width: 0;
+  gap: 9px;
+}
+#view-browser .browser-workspace {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 292px);
+}
+#view-browser .browser-inspector {
+  min-width: 0;
+  gap: 12px;
+  padding: 17px 15px;
+  border-left: 1px solid var(--skol-line);
+  background: var(--skol-surface-soft);
+}
+#view-browser .inspector-heading {
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--skol-line);
+}
+#view-browser .inspector-heading strong {
+  color: var(--skol-ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+#view-browser .inspector-heading small,
+#view-browser .inspector-empty p {
+  color: var(--skol-muted);
+  line-height: 1.55;
+}
+#view-browser .inspector-empty {
+  padding: 12px 2px;
+}
+#view-browser .inspector-content {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+#view-browser .inspector-content label {
+  color: var(--skol-muted);
+  font-size: 9px;
+  font-weight: 800;
+}
+#view-browser .inspector-value,
+#view-browser .inspector-url {
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--skol-line);
+  border-radius: 10px;
+  background: var(--skol-surface);
+  color: var(--skol-ink);
+  overflow-wrap: anywhere;
+}
+#view-browser .inspector-tag-row {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+#view-browser .inspector-save-btn,
+#view-browser .inspector-open-prospects {
+  width: 100%;
+}
+#view-browser .inspector-footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--skol-line);
+  color: var(--skol-muted);
+}
+
+/* Pricing and integrations: three comparable offers, then a separate integrations area. */
+#view-plans .plans-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: clamp(20px, 2vw, 28px);
+  border: 1px solid var(--skol-line);
+  border-radius: 20px;
+  background: var(--skol-surface);
+  box-shadow: var(--skol-elevation-1);
+}
+#view-plans .plans-hero > div:first-child {
+  min-width: 0;
+}
+#view-plans .plans-hero h2 {
+  line-height: 1.14;
+  letter-spacing: -.04em;
+}
+#view-plans .pricing-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+#view-plans .pricing-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 9px;
+  padding: 19px;
+  border: 1px solid var(--skol-line);
+  border-radius: 18px !important;
+  background: var(--skol-surface);
+  box-shadow: var(--skol-elevation-1);
+}
+#view-plans .pricing-card.featured {
+  border-color: color-mix(in srgb, var(--skol-accent) 55%, var(--skol-line));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--skol-accent) 22%, transparent), var(--skol-elevation-1);
+}
+#view-plans .pricing-card h3 {
+  color: var(--skol-ink);
+  font-size: 17px;
+  font-weight: 800;
+}
+#view-plans .pricing-card .pricing-price {
+  min-height: 40px;
+  color: var(--skol-ink);
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+#view-plans .pricing-card ul {
+  flex: 1 1 auto;
+  padding-left: 18px;
+  color: var(--skol-muted);
+  font-size: 10px;
+  line-height: 1.7;
+}
+#view-plans .pricing-card .button {
+  width: 100%;
+}
+#view-plans .pricing-card .pricing-note {
+  min-height: 30px;
+  color: var(--skol-muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+#view-plans .ai-integrations-panel {
+  margin-top: 18px;
+  border: 1px solid var(--skol-line);
+  border-radius: 18px;
+  background: var(--skol-surface);
+}
+
+/* Settings: one primary security panel, with notification and license cards below. */
+#view-settings .settings-page-heading {
+  margin: 0 0 18px;
+}
+#view-settings .settings-page-heading h2 {
+  margin: 5px 0 6px;
+  color: var(--skol-ink);
+  font-size: clamp(24px, 2.2vw, 29px);
+  font-weight: 750;
+  letter-spacing: -.04em;
+}
+#view-settings .settings-page-heading p {
+  color: var(--skol-muted);
+  line-height: 1.55;
+}
+#view-settings .settings-page-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  align-items: stretch;
+}
+#view-settings .settings-card:first-child {
+  grid-column: 1 / -1;
+}
+#view-settings .settings-card {
+  min-width: 0;
+  border: 1px solid var(--skol-line);
+  border-radius: 17px !important;
+  background: var(--skol-surface);
+  box-shadow: var(--skol-elevation-1);
+}
+#view-settings .settings-card .panel-head {
+  padding: 16px 18px;
+}
+#view-settings .settings-card .panel-head h3 {
+  color: var(--skol-ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+#view-settings .settings-card .panel-head p,
+#view-settings .settings-card-description,
+#view-settings .settings-card-body > p {
+  color: var(--skol-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+#view-settings .settings-card-body {
+  display: grid;
+  gap: 12px;
+  padding: 17px 18px;
+  background: transparent;
+}
+#view-settings .settings-card-body form {
+  display: grid;
+  gap: 12px;
+}
+#view-settings .settings-card-body .form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+#view-settings .settings-card-body .modal-actions {
+  justify-content: flex-start;
+}
+#view-settings .settings-card-description {
+  margin: 0;
+}
+#view-settings .license-settings-card .settings-card-body {
+  align-content: start;
+}
+
+/* Responsive rules for secondary workspaces. */
+@media (max-width: 1120px) {
+  #view-prospects .order-radar-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  #view-tasks .task-stats,
+  #view-reports .report-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #view-browser .browser-workspace {
+    grid-template-columns: minmax(0, 1fr) 260px;
+  }
+  #view-plans .pricing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 760px) {
+  #view-prospects > .section-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  #view-prospects > .section-head > .button-row {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  #view-prospects .crawler-body .form-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #view-prospects .crawler-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  #view-prospects .crawler-footer .button-row {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  #view-prospects .order-radar-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #view-prospects .opportunity-radar .radar-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 12px;
+  }
+  #view-browser.browser-view {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+  #view-browser .browser-shell {
+    min-height: 600px;
+  }
+  #view-browser .browser-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #view-browser .browser-inspector {
+    border-top: 1px solid var(--skol-line);
+    border-left: 0;
+  }
+  #view-settings .settings-page-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #view-settings .settings-card:first-child {
+    grid-column: auto;
+  }
+}
+@media (max-width: 520px) {
+  #view-prospects .crawler-body .form-row,
+  #view-prospects .opportunity-radar .radar-metrics,
+  #view-tasks .task-stats,
+  #view-reports .report-stats,
+  #view-plans .pricing-grid,
+  #view-settings .settings-card-body .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #view-prospects .order-radar-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #view-browser .browser-toolbar {
+    flex-wrap: wrap;
+    height: auto;
+  }
+  #view-browser .browser-address-form {
+    flex: 1 1 100%;
+    order: 2;
+  }
+  #view-browser .browser-page-title {
+    max-width: 45%;
+  }
+  #view-plans .plans-hero {
+    align-items: flex-start;
+  }
+  #view-plans .plans-hero-mark {
+    display: none;
+  }
+}

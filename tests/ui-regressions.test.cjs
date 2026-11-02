@@ -1122,3 +1122,23 @@ test('workspace polish gives dashboard, records, estimate, production, finance a
   assert.match(workspaceCss, /@media \(prefers-reduced-motion: reduce\)/);
   assert.doesNotMatch(workspaceCss, /overflow\s*:\s*hidden/, 'workspace polish must not clip business content or interactive controls');
 });
+
+
+test('secondary workspaces keep order radar, task/report tables, browser inspector, pricing and settings responsive', () => {
+  const marker = '/* SKOL 1.27.1 — secondary workspaces:';
+  const secondaryCss = layoutCss.slice(layoutCss.lastIndexOf(marker));
+  assert.ok(layoutCss.includes(marker), 'secondary workspace polish is in the final CSS layer');
+  assert.match(secondaryCss, /#view-prospects \.crawler-panel/);
+  assert.match(secondaryCss, /#view-prospects \.order-radar-metrics/);
+  assert.match(secondaryCss, /#view-prospects \.radar-queue/);
+  assert.match(secondaryCss, /#view-tasks \.task-stats/);
+  assert.match(secondaryCss, /#view-reports \.report-stats/);
+  assert.match(secondaryCss, /#view-browser \.browser-workspace/);
+  assert.match(secondaryCss, /#view-browser \.browser-inspector/);
+  assert.match(secondaryCss, /#view-plans \.pricing-grid/);
+  assert.match(secondaryCss, /#view-settings \.settings-card:first-child\s*\{\s*grid-column: 1 \/ -1/);
+  assert.match(secondaryCss, /@media \(max-width: 1120px\)/);
+  assert.match(secondaryCss, /@media \(max-width: 760px\)/);
+  assert.match(secondaryCss, /@media \(max-width: 520px\)/);
+  assert.doesNotMatch(secondaryCss, /overflow\s*:\s*hidden/, 'secondary workspace polish must not clip text or controls');
+});
