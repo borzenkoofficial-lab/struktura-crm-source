@@ -45,7 +45,8 @@ test('IPC channel contract includes critical data safety and production workflow
     'ai:status',
     'ai:saveConfig',
     'ai:testConnection',
-    'ai:piCoach'
+    'ai:piCoach',
+    'orders:aiReview'
   ]) {
     assert.ok(exposedChannels.has(channel), 'missing critical bridge channel: ' + channel);
   }
