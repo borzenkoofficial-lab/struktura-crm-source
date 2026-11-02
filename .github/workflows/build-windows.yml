@@ -17,6 +17,7 @@ on:
     branches:
       - main
       - 'fix/**'
+      - 'test/**'
       - 'installer-build/**'
     tags:
       - 'v*'
