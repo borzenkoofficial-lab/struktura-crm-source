@@ -296,6 +296,24 @@ ipcMain.handle('security:pinDisable', (_event, input = {}) => {
   return { enabled: false };
 });
 
+ipcMain.handle('notifications:getInbox', () => {
+  const settings = normalizeReminderSettings(getSetting('reminder_settings', DEFAULT_REMINDER_SETTINGS));
+  if (!settings.enabled) return [];
+  const tasks = db.prepare(`SELECT t.id,t.title,t.due_at,t.is_done,t.project_id,p.title project_title
+    FROM tasks t LEFT JOIN projects p ON p.id=t.project_id
+    WHERE t.is_done=0 AND t.due_at IS NOT NULL AND t.due_at<>''`).all();
+  const projects = db.prepare(`SELECT p.id,p.title,p.status,p.start_date,p.end_date,p.created_at,
+    (SELECT MAX(ws.shift_date) FROM work_shifts ws WHERE ws.project_id=p.id) last_shift_date
+    FROM projects p WHERE p.status='active'`).all();
+  // Inbox shows current actionable conditions regardless of desktop push schedule/cooldown.
+  const inboxSettings = { ...settings, enabled: true, startHour: 0, endHour: 24, weekdaysOnly: false };
+  const items = buildReminders({ tasks, projects, now: new Date(), settings: inboxSettings, lastSent: {} });
+  return items.map(item => {
+    const [kind, rawId] = item.key.split(':');
+    const id = Number(rawId);
+    return { ...item, id, kind: kind === 'task' ? 'task' : kind === 'project-deadline' ? 'project' : 'shift-report' };
+  }).sort((a, b) => (a.level === 'danger' ? -1 : 0) - (b.level === 'danger' ? -1 : 0));
+});
 ipcMain.handle('notifications:getSettings', () => normalizeReminderSettings(getSetting('reminder_settings', DEFAULT_REMINDER_SETTINGS)));
 ipcMain.handle('notifications:saveSettings', (_event, input = {}) => {
   const settings = normalizeReminderSettings(input);
