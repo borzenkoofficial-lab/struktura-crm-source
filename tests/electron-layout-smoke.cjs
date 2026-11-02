@@ -16,10 +16,10 @@ const viewNames = [
   'prospects', 'tasks', 'reports', 'browser', 'plans', 'settings', 'about'
 ];
 const viewportMatrix = [
-  { name: '1024x768', width: 1024, height: 768, screenshots: ['dashboard', 'leads', 'finance', 'engineering', 'settings'] },
-  { name: '1280x800', width: 1280, height: 800, screenshots: ['dashboard', 'clients', 'projects', 'production'] },
-  { name: '1440x900', width: 1440, height: 900, screenshots: ['dashboard', 'prospects', 'tasks', 'reports', 'browser'] },
-  { name: '1920x1080', width: 1920, height: 1080, screenshots: ['dashboard', 'plans', 'about'] }
+  { name: '1024x768', width: 1024, height: 768, views: viewNames, screenshots: ['dashboard', 'leads', 'finance', 'engineering', 'settings'] },
+  { name: '1280x800', width: 1280, height: 800, views: ['dashboard', 'projects', 'production', 'finance', 'engineering'], screenshots: ['dashboard', 'projects', 'production'] },
+  { name: '1440x900', width: 1440, height: 900, views: viewNames, screenshots: ['dashboard', 'prospects', 'tasks', 'reports', 'browser'] },
+  { name: '1920x1080', width: 1920, height: 1080, views: ['dashboard', 'projects', 'production', 'finance', 'engineering', 'plans', 'about'], screenshots: ['dashboard', 'plans', 'about'] }
 ];
 
 function makeTestLicense(deviceId, privateKeyPem) {
@@ -234,13 +234,16 @@ async function run() {
     await page.waitForFunction(() => !document.querySelector('.sidebar')?.classList.contains('nav-expanded'), null, { timeout: 7500 });
 
     for (const viewport of viewportMatrix) {
+      console.log('[viewport] ' + viewport.name + ' started');
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.waitForFunction(expected => window.innerWidth === expected.width && window.innerHeight === expected.height, viewport, { timeout: 10000 });
 
-      for (const viewName of viewNames) {
+      for (const viewName of (viewport.views || viewNames)) {
+        console.log('[view] ' + viewport.name + ' / ' + viewName + ' checking');
         await openView(page, viewName);
         const report = await collectGeometry(page, viewport, viewName);
         geometry.push({ viewport: viewport.name, view: viewName, ...report });
+        console.log('[view] ' + viewport.name + ' / ' + viewName + ' passed');
         if (viewport.screenshots.includes(viewName)) {
           const screenshotName = viewport.name + '-' + safeFileName(viewName) + '.png';
           const screenshotPath = path.join(outputDir, screenshotName);
@@ -256,7 +259,8 @@ async function run() {
       electronVersion: await electronApp.evaluate(({ app }) => process.versions.electron),
       chromiumVersion: await electronApp.evaluate(() => process.versions.chrome || process.versions.chromium || 'unknown'),
       viewports: viewportMatrix,
-      viewsChecked: viewNames,
+      viewsChecked: [...new Set(geometry.map(item => item.view))],
+      checkedPairs: geometry.map(item => ({ viewport: item.viewport, view: item.view })),
       screenshots,
       pageErrors,
       geometry

@@ -1156,6 +1156,9 @@ test('Windows CI includes a real Electron viewport smoke test with isolated prof
   assert.match(e2e, /executablePath: electronExecutable/);
   assert.match(e2e, /createLicenseToken/);
   assert.match(e2e, /setViewportSize/);
+  assert.match(e2e, /console\.log\('\[view\] '/);
+  assert.match(e2e, /checkedPairs: geometry\.map/);
+  assert.ok(e2e.includes("views: ['dashboard', 'projects', 'production', 'finance', 'engineering']"));
   assert.match(e2e, /1024/);
   assert.match(e2e, /1280/);
   assert.match(e2e, /1440/);
