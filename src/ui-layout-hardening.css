@@ -2865,3 +2865,36 @@ input[type="checkbox"], input[type="radio"] {
   .pi-coach-ai-result{max-height:280px;font-size:11px}
   #aiSettingsCard .settings-data-actions .button{flex:1 1 100%}
 }
+
+
+/* Procurement AI review — evidence-first, readable on desktop and small screens. */
+.order-ai-review{
+  margin:12px 0;padding:12px 14px;border:1px solid rgba(118,145,172,.28);
+  border-radius:13px;background:linear-gradient(145deg,rgba(42,62,82,.08),rgba(255,255,255,.025));
+}
+.order-ai-review>summary{
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap;cursor:pointer;
+  color:var(--text-primary,#eaf0f6);list-style:none;
+}
+.order-ai-review>summary::-webkit-details-marker{display:none}
+.order-ai-review>summary>strong{font-size:12px}
+.order-ai-review>summary>small{margin-left:auto;color:var(--text-muted,#96a4b4);font-size:10px}
+.order-ai-review-body{display:grid;gap:10px;margin-top:13px;min-width:0}
+.order-ai-review-body>p{margin:0;color:var(--text-primary,#eaf0f6);font-size:12px;line-height:1.65;overflow-wrap:anywhere}
+.order-ai-review-section{display:grid;gap:6px;min-width:0}
+.order-ai-review-section>strong{font-size:10px;letter-spacing:.055em;text-transform:uppercase;color:var(--text-muted,#96a4b4)}
+.order-ai-review-section ul{display:grid;gap:7px;margin:0;padding-left:17px}
+.order-ai-review-section li{min-width:0;padding-left:2px;color:var(--text-primary,#eaf0f6);font-size:11px;line-height:1.55;overflow-wrap:anywhere}
+.order-ai-review-section li>span:not(.order-ai-risk-level){display:inline}
+.order-ai-review-section li blockquote{margin:4px 0;padding:7px 9px;border-left:2px solid var(--accent,#b9a08e);border-radius:0 7px 7px 0;background:rgba(128,145,164,.09);color:var(--text-secondary,#b4c0cc);font-size:10px}
+.order-ai-review-section li small{display:block;margin-top:3px;color:var(--text-muted,#96a4b4);font-size:9px}
+.order-ai-risk-level{display:inline-flex;align-items:center;margin-right:6px;padding:2px 6px;border:1px solid rgba(183,147,116,.25);border-radius:999px;font-size:9px;font-weight:700;vertical-align:1px}
+.order-ai-risk-level.high{background:rgba(193,83,69,.14);color:#d98b83}
+.order-ai-risk-level.medium{background:rgba(205,155,74,.13);color:#d8b77c}
+.order-ai-risk-level.low{background:rgba(91,161,126,.13);color:#8ac7a5}
+@media(max-width:700px){
+  .order-ai-review{padding:10px}
+  .order-ai-review>summary{gap:6px}
+  .order-ai-review>summary>small{flex:1 1 100%;margin-left:0}
+  .order-ai-review-section li{font-size:10px}
+}
