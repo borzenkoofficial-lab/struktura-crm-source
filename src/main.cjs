@@ -1171,9 +1171,11 @@ ipcMain.handle('orders:search',async(_event,input={})=>{
   const snippet=clean(item.snippet||item.description||item.summary,1200);
   if(!sourceUrl||!title||!hasAiCitation(sourceUrl,research.citations))return null;
   const inferredType=classifyOrderSource(sourceUrl);
+  if(sourceType==='web'&&inferredType!=='web')return null;
   if(sourceType==='avito'&&inferredType!=='avito')return null;
   if(sourceType==='telegram'&&inferredType!=='telegram')return null;
-  if((sourceType==='tenders'||sourceType==='eis')&&inferredType!=='tenders')return null;
+  if(sourceType==='tenders'&&inferredType!=='tenders')return null;
+  if(sourceType==='eis'&&new URL(sourceUrl).hostname.toLowerCase().replace(/^www\\./,'')!=='zakupki.gov.ru')return null;
   const normalized=normalizeOrderResult({title,url:sourceUrl,description:snippet},'AnyModel AI web research',service,region);
   return normalized?{...normalized,source_url:sourceUrl,search_query:'AnyModel AI web research'}:null;
  }).filter(Boolean);
