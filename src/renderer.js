@@ -191,7 +191,7 @@ function dockOpenSettings() {
         '<span class="dock-settings-order"><button type="button" data-dock-move="-1" aria-label="Переместить выше" ' + (index === 0 ? 'disabled' : '') + '>↑</button><button type="button" data-dock-move="1" aria-label="Переместить ниже" ' + (index === items.length - 1 ? 'disabled' : '') + '>↓</button></span></div>').join('') +
       '</section>';
   }).join('');
-  dockSettingsDialog.showModal();
+  if (!dockSettingsDialog.open) dockSettingsDialog.showModal();
 }
 function dockOpenContext(event, item) {
   if (!dockContextMenu) return;
@@ -273,7 +273,7 @@ async function dockAppendRecordResults(query) {
 function dockOpenPalette() {
   if (!dockPaletteDialog) return;
   if (dockContextMenu) dockContextMenu.hidden = true;
-  dockPaletteDialog.showModal();
+  if (!dockPaletteDialog.open) dockPaletteDialog.showModal();
   $('dockPaletteSearch').value = '';
   dockPaletteActiveIndex = 0;
   dockRenderPalette('');
@@ -303,6 +303,13 @@ dockLoadPreferences();
 dockApplyPreferences();
 dockObserveCounters();
 if (skolDock) {
+  skolDock.addEventListener('keydown', event => {
+    if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+    const item = event.target.closest('.dock-item');
+    if (!item) return;
+    const rect = item.getBoundingClientRect();
+    dockOpenContext({ preventDefault: () => {}, clientX: rect.left + rect.width / 2, clientY: rect.top }, item);
+  });
   skolDock.addEventListener('contextmenu', event => dockOpenContext(event, event.target.closest('.dock-item')));
   let dockFrame = 0;
   skolDock.addEventListener('pointermove', event => {
