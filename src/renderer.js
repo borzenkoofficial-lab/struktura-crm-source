@@ -244,8 +244,29 @@ function dockOpenPalette() {
   dockRenderPalette('');
   requestAnimationFrame(() => $('dockPaletteSearch')?.focus());
 }
+function dockSyncBadge(type, sourceId) {
+  const source = $(sourceId);
+  const badge = document.querySelector('[data-dock-badge="' + type + '"]');
+  if (!source || !badge) return;
+  const count = Math.max(0, Number(String(source.textContent || '0').replace(/[^0-9]/g, '')) || 0);
+  badge.textContent = count > 99 ? '99+' : String(count);
+  badge.hidden = count === 0;
+}
+function dockObserveCounters() {
+  dockSyncBadge('lead', 'leadNavCount');
+  dockSyncBadge('task', 'taskNavCount');
+  if (typeof MutationObserver === 'undefined') return;
+  const observer = new MutationObserver(records => {
+    for (const record of records) {
+      if (record.target.id === 'leadNavCount') dockSyncBadge('lead', 'leadNavCount');
+      if (record.target.id === 'taskNavCount') dockSyncBadge('task', 'taskNavCount');
+    }
+  });
+  ['leadNavCount','taskNavCount'].forEach(id => { const node = $(id); if (node) observer.observe(node, { childList: true, characterData: true, subtree: true }); });
+}
 dockLoadPreferences();
 dockApplyPreferences();
+dockObserveCounters();
 if (skolDock) {
   skolDock.addEventListener('contextmenu', event => dockOpenContext(event, event.target.closest('.dock-item')));
   let dockFrame = 0;
