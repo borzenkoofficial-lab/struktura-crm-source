@@ -1074,3 +1074,24 @@ test('top menu has premium motion and an accessible interactive first-run guide'
   assert.match(layoutCss, /\.sidebar \.nav-primary \.nav-item:hover[\s\S]*?animation:skolNavJelly/);
   assert.match(layoutCss, /@media \(prefers-reduced-motion:reduce\)[\s\S]*?\.nav-guide-card/);
 });
+
+
+test('shared design system keeps component rhythm consistent without replacing page layouts', () => {
+  assert.match(layoutCss, /--skol-radius-control:\s*12px/);
+  assert.match(layoutCss, /--skol-radius-card:\s*17px/);
+  assert.match(layoutCss, /--skol-radius-panel:\s*20px/);
+  assert.match(layoutCss, /--skol-elevation-1:/);
+  assert.match(layoutCss, /--skol-elevation-2:/);
+  assert.match(layoutCss, /:where\(\s*\.panel, \.records-panel, \.settings-card/);
+  assert.match(layoutCss, /\.button\.compact, \.data-table \.button/);
+  assert.match(layoutCss, /input:not\(\[type="checkbox"\]\):not\(\[type="radio"\]\)/);
+  assert.match(layoutCss, /\.data-table tbody tr:hover td/);
+  assert.match(layoutCss, /@media \(max-width: 760px\)/);
+  assert.match(layoutCss, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.doesNotMatch(designCssForTest(layoutCss), /overflow\s*:\s*hidden/, 'shared design polish must not clip interactive/business content');
+});
+
+function designCssForTest(source) {
+  const marker = '/* SKOL 1.26 — shared visual system.';
+  return source.slice(source.lastIndexOf(marker));
+}
