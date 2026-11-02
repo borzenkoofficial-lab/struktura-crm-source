@@ -421,3 +421,279 @@ dialog.modal > form {
     transform: none !important;
   }
 }
+
+
+
+/* SKOL top navigation: a single horizontal row with a timed slide-down panel.
+   This final layer intentionally supersedes legacy sidebar/mobile navigation rules. */
+.sidebar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: 100% !important;
+  height: auto !important;
+  min-width: 0 !important;
+  min-height: 66px !important;
+  max-height: none !important;
+  padding: 10px clamp(12px, 2.4vw, 34px) !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+}
+
+.sidebar .brand {
+  display: flex !important;
+  flex: 0 0 auto !important;
+  align-items: center !important;
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 14px 0 0 !important;
+  border: 0 !important;
+  border-right: 1px solid var(--sf-line, #dfe5ec) !important;
+}
+
+.nav-menu-toggle {
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  min-width: 108px !important;
+  min-height: 38px !important;
+  padding: 8px 13px !important;
+  border: 1px solid var(--sf-line, #dfe5ec) !important;
+  border-radius: 999px !important;
+  background: var(--sf-panel, #fff) !important;
+  color: var(--sf-text, #253246) !important;
+  font: inherit !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  transition: background .18s ease, border-color .18s ease, transform .18s ease !important;
+}
+
+.nav-menu-toggle:hover {
+  border-color: var(--sf-lime, #a8e500) !important;
+  transform: translateY(-1px);
+}
+
+.nav-menu-toggle:focus-visible {
+  outline: 3px solid rgba(132, 183, 0, .38) !important;
+  outline-offset: 2px !important;
+}
+
+.nav-menu-toggle > i {
+  display: inline-block;
+  font-style: normal;
+  font-size: 17px;
+  line-height: 1;
+  transform: translateY(-2px);
+  transition: transform .22s ease;
+}
+
+.sidebar.nav-expanded .nav-menu-toggle > i {
+  transform: rotate(180deg) translateY(2px);
+}
+
+.sidebar .nav-primary {
+  position: absolute !important;
+  top: 100% !important;
+  left: clamp(10px, 2vw, 28px) !important;
+  right: clamp(10px, 2vw, 28px) !important;
+  z-index: 1010 !important;
+  display: flex !important;
+  flex: 0 0 auto !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  width: auto !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  max-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overflow-y: hidden !important;
+  border: 1px solid transparent !important;
+  border-top: 0 !important;
+  border-radius: 0 0 17px 17px !important;
+  background: var(--sf-shell, #fff) !important;
+  box-shadow: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translateY(-9px);
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 145, 164, .45) transparent;
+  transition:
+    max-height .24s ease,
+    padding .24s ease,
+    transform .24s ease,
+    opacity .18s ease,
+    border-color .18s ease,
+    box-shadow .24s ease,
+    visibility 0s linear .24s !important;
+}
+
+.sidebar.nav-expanded .nav-primary {
+  max-height: 94px !important;
+  padding: 10px 12px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  border-color: var(--sf-line, #dfe5ec) !important;
+  box-shadow: 0 18px 42px rgba(18, 32, 48, .16) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+  transform: translateY(0);
+  transition:
+    max-height .24s ease,
+    padding .24s ease,
+    transform .24s ease,
+    opacity .18s ease,
+    border-color .18s ease,
+    box-shadow .24s ease,
+    visibility 0s linear 0s !important;
+}
+
+.sidebar .nav-menu-group {
+  display: flex !important;
+  flex: 0 0 auto !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: auto !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.sidebar .nav-menu-group + .nav-menu-group {
+  margin-left: 6px !important;
+  padding-left: 12px !important;
+  border-left: 1px solid var(--sf-line, #dfe5ec) !important;
+}
+
+.sidebar .nav-menu-label {
+  display: none !important;
+}
+
+.sidebar .nav-primary .nav-item {
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: auto !important;
+  min-width: max-content !important;
+  min-height: 36px !important;
+  margin: 0 !important;
+  padding: 8px 11px !important;
+  white-space: nowrap !important;
+  line-height: 1.25 !important;
+}
+
+.sidebar > .local-badge {
+  display: flex !important;
+  flex: 0 0 auto !important;
+  align-items: center !important;
+  margin: 0 0 0 auto !important;
+  max-width: 190px;
+}
+
+@media (max-width: 700px) {
+  .sidebar {
+    position: sticky !important;
+    top: 0 !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    min-height: 60px !important;
+    padding: 8px 10px !important;
+    gap: 8px !important;
+  }
+
+  .sidebar .brand {
+    flex: 0 1 auto !important;
+    max-width: calc(100% - 132px);
+    padding-right: 9px !important;
+  }
+
+  .sidebar .brand-wordmark {
+    width: 104px !important;
+    max-width: 100% !important;
+  }
+
+  .sidebar .brand-copy small {
+    display: none !important;
+  }
+
+  .nav-menu-toggle {
+    min-width: 96px !important;
+    min-height: 36px !important;
+    gap: 7px !important;
+    padding: 7px 10px !important;
+  }
+
+  .sidebar > .local-badge {
+    display: none !important;
+  }
+
+  .sidebar .nav-primary {
+    left: 8px !important;
+    right: 8px !important;
+    gap: 6px !important;
+  }
+
+  .sidebar.nav-expanded .nav-primary {
+    max-height: 88px !important;
+    padding: 8px !important;
+  }
+
+  .sidebar .nav-menu-group {
+    gap: 5px !important;
+  }
+
+  .sidebar .nav-primary .nav-item {
+    min-height: 34px !important;
+    padding: 7px 9px !important;
+    font-size: 10px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .sidebar .brand-wordmark {
+    width: 88px !important;
+  }
+
+  .nav-menu-toggle {
+    min-width: 88px !important;
+    font-size: 10px !important;
+  }
+
+  .sidebar .nav-primary .nav-item {
+    padding: 7px 8px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-menu-toggle,
+  .nav-menu-toggle > i,
+  .sidebar .nav-primary {
+    transition: none !important;
+  }
+
+  .nav-menu-toggle:hover {
+    transform: none !important;
+  }
+}
