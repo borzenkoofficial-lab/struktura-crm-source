@@ -1095,3 +1095,30 @@ function designCssForTest(source) {
   const marker = '/* SKOL 1.26 — shared visual system.';
   return source.slice(source.lastIndexOf(marker));
 }
+
+
+test('workspace polish gives dashboard, records, estimate, production, finance and engineering consistent responsive layouts', () => {
+  const marker = '/* SKOL 1.27 — workspace-specific visual pass.';
+  const workspaceCss = layoutCss.slice(layoutCss.lastIndexOf(marker));
+  assert.ok(layoutCss.includes(marker), 'workspace polish is present in the final layout layer');
+
+  assert.match(workspaceCss, /#view-dashboard \.dashboard-hero/);
+  assert.match(workspaceCss, /#view-dashboard \.dashboard-finance-metrics/);
+  assert.match(workspaceCss, /#view-dashboard \.dashboard-rings-grid/);
+  assert.match(workspaceCss, /\.records-workspace\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1\.12fr\) minmax\(300px, \.88fr\)/);
+  assert.match(workspaceCss, /\.record-detail-panel\s*\{[\s\S]*?background: var\(--skol-surface-soft\)/);
+  assert.match(workspaceCss, /#view-projects \.estimate-meta-grid/);
+  assert.match(workspaceCss, /#view-projects \.estimate-duration-results/);
+  assert.match(workspaceCss, /#view-production \.production-project-grid/);
+  assert.match(workspaceCss, /#view-production \.production-model-note/);
+  assert.match(workspaceCss, /#view-finance \.finance-grid\s*\{[\s\S]*?repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(workspaceCss, /#view-finance \.finance-forecast-grid/);
+  assert.match(workspaceCss, /#view-engineering \.eng-layout/);
+  assert.match(workspaceCss, /#view-engineering \.eng-form-grid/);
+
+  for (const breakpoint of ['1120px','760px','520px']) {
+    assert.ok(workspaceCss.includes('max-width: ' + breakpoint), 'responsive breakpoint ' + breakpoint + ' is defined');
+  }
+  assert.match(workspaceCss, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.doesNotMatch(workspaceCss, /overflow\s*:\s*hidden/, 'workspace polish must not clip business content or interactive controls');
+});

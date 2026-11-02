@@ -1131,3 +1131,869 @@ input[type="checkbox"], input[type="radio"] {
     transform: none !important;
   }
 }
+
+
+/* SKOL 1.27 — workspace-specific visual pass.
+   Page composition stays intact; this layer aligns the high-use workspaces. */
+
+/* Dashboard: separate headline, operational KPIs and analytical sections. */
+#view-dashboard .dashboard-hero {
+  min-height: 208px;
+  padding: clamp(23px, 2.4vw, 34px);
+  border-radius: 23px;
+}
+#view-dashboard .dashboard-toolbar {
+  align-items: flex-end;
+  gap: 18px;
+  margin: 24px 1px 14px;
+}
+#view-dashboard .dashboard-toolbar-copy p {
+  max-width: 62ch;
+}
+#view-dashboard .dashboard-toolbar-actions {
+  flex: 0 0 auto;
+}
+#view-dashboard .dashboard-kpis {
+  gap: 12px;
+}
+#view-dashboard .dashboard-kpi-card {
+  min-height: 126px;
+  border-radius: 17px !important;
+}
+#view-dashboard .dashboard-kpi-card > strong {
+  font-size: clamp(24px, 2vw, 29px) !important;
+  font-variant-numeric: tabular-nums;
+}
+#view-dashboard .dashboard-finance-panel,
+#view-dashboard .dashboard-progress-section {
+  margin-top: 17px;
+  padding: clamp(16px, 1.7vw, 22px);
+  border-radius: 20px;
+}
+#view-dashboard .dashboard-panel-heading {
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+#view-dashboard .dashboard-panel-heading h3 {
+  font-size: 17px;
+}
+#view-dashboard .dashboard-finance-metrics {
+  gap: 11px;
+}
+#view-dashboard .dashboard-money-card {
+  min-height: 112px;
+  border-radius: 15px;
+}
+#view-dashboard .dashboard-chart-heading {
+  margin-top: 19px;
+}
+#view-dashboard .dashboard-cashflow-chart {
+  min-width: 0;
+}
+#view-dashboard .dashboard-rings-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 168px), 1fr));
+  gap: 11px;
+}
+#view-dashboard .dashboard-ring-card {
+  min-height: 214px;
+  border-radius: 16px;
+}
+#view-dashboard .dashboard-lists-grid {
+  align-items: start;
+  gap: 14px;
+}
+#view-dashboard .dashboard-list-panel,
+#view-dashboard .dashboard-attention-panel,
+#view-dashboard .pi-home-panel {
+  border-radius: 18px;
+}
+#view-dashboard .dashboard-list-panel .panel-head,
+#view-dashboard .dashboard-attention-panel .panel-head,
+#view-dashboard .pi-home-panel .panel-head {
+  padding: 16px 18px;
+}
+#view-dashboard .dashboard-list-panel .table-wrap {
+  border-radius: 0 0 16px 16px;
+}
+#view-dashboard .dashboard-attention-list {
+  gap: 8px;
+}
+#view-dashboard .pi-home-actions {
+  flex-wrap: wrap;
+}
+
+/* Leads, clients and projects: the list and selected-record pane read as one workspace. */
+#view-leads .records-panel,
+#view-clients .records-panel,
+#view-projects > .records-panel,
+#view-finance .finance-records-panel {
+  border-radius: 19px !important;
+  overflow: visible;
+}
+#view-leads .toolbar,
+#view-clients .toolbar,
+#view-projects > .toolbar {
+  align-items: center;
+  gap: 9px;
+  margin: 13px 0 16px;
+}
+#view-leads .toolbar .search,
+#view-clients .toolbar .search,
+#view-projects .object-list-head .search {
+  width: min(420px, 100%);
+  min-height: 41px;
+}
+#view-leads .toolbar select {
+  min-width: 180px;
+  min-height: 41px;
+}
+.records-workspace {
+  grid-template-columns: minmax(0, 1.12fr) minmax(300px, .88fr);
+  align-items: stretch;
+  min-width: 0;
+}
+.records-list {
+  min-width: 0;
+  max-width: 100%;
+  scrollbar-gutter: stable;
+}
+.record-detail-panel {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  margin: 11px;
+  padding: clamp(16px, 1.5vw, 22px);
+  border: 1px solid var(--skol-line) !important;
+  border-radius: 16px !important;
+  background: var(--skol-surface-soft) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.62), 0 3px 12px rgba(22,38,57,.025) !important;
+}
+.record-detail-panel:empty {
+  min-height: 300px;
+}
+.record-detail-panel .record-detail-title {
+  margin: 0;
+  font-size: clamp(16px, 1.35vw, 19px);
+  line-height: 1.3;
+  letter-spacing: -.025em;
+  overflow-wrap: anywhere;
+}
+.record-detail-panel .record-detail-line {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--skol-line);
+}
+.record-detail-panel .record-metrics {
+  gap: 8px;
+}
+.record-detail-panel .record-metric {
+  padding: 11px;
+  border: 1px solid var(--skol-line);
+  border-radius: 11px;
+  background: var(--skol-surface);
+}
+.record-detail-panel .record-metric strong {
+  font-size: 17px;
+}
+#view-projects .object-list-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 2px 0 12px;
+}
+#view-projects .object-list-head h4 {
+  margin: 0;
+  color: var(--skol-ink);
+  font-size: 15px;
+  line-height: 1.3;
+  letter-spacing: -.02em;
+}
+#view-projects .object-list-head p {
+  margin: 5px 0 0;
+  color: var(--skol-muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+/* Estimate PRO: clearer stages, less visual competition between inputs and results. */
+#view-projects .estimate-pro-panel {
+  margin-top: 23px;
+  border-radius: 21px !important;
+  overflow: visible;
+}
+#view-projects .estimate-pro-head {
+  padding: clamp(17px, 1.8vw, 23px);
+  align-items: flex-start;
+}
+#view-projects .estimate-pro-head h3 {
+  font-size: clamp(17px, 1.6vw, 20px);
+  line-height: 1.25;
+}
+#view-projects .estimate-pro-body {
+  display: grid;
+  gap: 13px;
+  padding: clamp(15px, 1.8vw, 23px);
+}
+#view-projects .object-block-title {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 8px 0 2px;
+  padding: 0 0 9px;
+  border-bottom: 1px solid var(--skol-line);
+}
+#view-projects .object-block-title > span:first-child {
+  display: grid;
+  flex: 0 0 30px;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--skol-accent) 30%, var(--skol-line));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--skol-accent) 12%, var(--skol-surface));
+  color: var(--skol-ink);
+  font-size: 10px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+#view-projects .object-block-title strong {
+  display: block;
+  color: var(--skol-ink);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+#view-projects .object-block-title small {
+  display: block;
+  margin-top: 3px;
+  color: var(--skol-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+#view-projects .estimate-meta-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 11px;
+}
+#view-projects .estimate-meta-grid label,
+#view-projects .estimate-add-row label,
+#view-projects .estimate-input-grid label {
+  min-width: 0;
+  line-height: 1.45;
+}
+#view-projects .estimate-add-row {
+  align-items: end;
+  gap: 9px;
+  padding: 13px;
+  border-radius: 13px;
+  background: var(--skol-surface-soft);
+  border-color: var(--skol-line);
+}
+#view-projects .estimate-two-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+#view-projects .estimate-subpanel,
+#view-projects .estimate-duration-panel,
+#view-projects .estimate-calibration-panel,
+#view-projects .estimate-actual-panel {
+  min-width: 0;
+  border: 1px solid var(--skol-line);
+  border-radius: 15px;
+  background: var(--skol-surface);
+}
+#view-projects .estimate-subpanel {
+  padding: clamp(13px, 1.4vw, 17px);
+}
+#view-projects .estimate-duration-panel,
+#view-projects .estimate-calibration-panel,
+#view-projects .estimate-actual-panel {
+  padding: clamp(14px, 1.55vw, 19px);
+}
+#view-projects .estimate-duration-results {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 142px), 1fr));
+  gap: 9px;
+}
+#view-projects .estimate-duration-results article {
+  min-height: 104px;
+  border-radius: 12px;
+  background: var(--skol-surface-soft);
+  border-color: var(--skol-line);
+}
+#view-projects .estimate-duration-results strong {
+  font-variant-numeric: tabular-nums;
+}
+#view-projects .estimate-results {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 138px), 1fr));
+  gap: 9px;
+}
+#view-projects .estimate-results > div {
+  min-height: 94px;
+  border-radius: 12px;
+  border-color: var(--skol-line);
+  background: var(--skol-surface-soft);
+}
+#view-projects .estimate-actions,
+#view-projects .estimate-pro-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+#view-projects .estimate-risk-alerts,
+#view-projects .estimate-advisor {
+  min-width: 0;
+  border-radius: 13px;
+}
+#view-projects .estimate-lines-empty {
+  padding: 18px;
+  border: 1px dashed var(--skol-line);
+  border-radius: 12px;
+  color: var(--skol-muted);
+  line-height: 1.55;
+  background: var(--skol-surface-soft);
+}
+
+/* Production: four live indicators, project cards and shift history form a clear hierarchy. */
+#view-production .production-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 11px;
+  margin: 0 0 17px;
+}
+#view-production .production-stats > article {
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 7px;
+  padding: 15px 16px;
+  border: 1px solid var(--skol-line);
+  border-radius: 15px !important;
+  background: var(--skol-surface);
+  box-shadow: var(--skol-elevation-1);
+}
+#view-production .production-stats > article span {
+  color: var(--skol-muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+#view-production .production-stats > article strong {
+  color: var(--skol-ink);
+  font-size: clamp(22px, 2vw, 27px);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+#view-production .production-stats > article small {
+  color: var(--skol-muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+#view-production .pi-production-panel {
+  margin-bottom: 15px;
+}
+#view-production .production-model-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin: 14px 0 17px;
+  padding: 15px 17px;
+  border: 1px solid var(--skol-line);
+  border-radius: 15px;
+  background: var(--skol-surface-soft);
+}
+#view-production .production-model-note > div:nth-child(2) {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+#view-production .production-model-note strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--skol-ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+#view-production .production-model-note p {
+  margin: 0;
+  color: var(--skol-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+#view-production .production-model-note > .pill {
+  flex: 0 0 auto;
+}
+#view-production .production-project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr));
+  align-items: start;
+  gap: 13px;
+}
+#view-production .production-project-card {
+  min-width: 0;
+  padding: 17px;
+  border: 1px solid var(--skol-line);
+  border-radius: 17px !important;
+  background: var(--skol-surface);
+  box-shadow: var(--skol-elevation-1);
+}
+#view-production .production-project-card h4 {
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+#view-production .production-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+#view-production .production-card-actions .button {
+  flex: 1 1 auto;
+}
+#view-production .production-history {
+  min-width: 0;
+}
+
+/* Finance: three top-level figures, two period cards and four forecast indicators. */
+#view-finance .finance-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px;
+  margin: 14px 0 19px;
+}
+#view-finance .finance-card {
+  display: flex;
+  min-width: 0;
+  min-height: 112px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 17px 18px;
+  border: 1px solid var(--skol-line);
+  border-radius: 16px !important;
+  background: var(--skol-surface);
+  box-shadow: var(--skol-elevation-1);
+}
+#view-finance .finance-card span {
+  color: var(--skol-muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+#view-finance .finance-card strong {
+  color: var(--skol-ink);
+  font-size: clamp(20px, 2vw, 27px);
+  line-height: 1.18;
+  letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+#view-finance .income-period-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+#view-finance .income-period-card {
+  min-width: 0;
+  display: flex;
+  min-height: 104px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 15px 17px;
+  border: 1px solid var(--skol-line);
+  border-radius: 15px;
+  background: var(--skol-surface);
+}
+#view-finance .income-period-card span {
+  color: var(--skol-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+#view-finance .income-period-card strong {
+  color: var(--skol-ink);
+  font-size: clamp(19px, 1.8vw, 24px);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+#view-finance .income-period-card small {
+  color: var(--skol-muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+#view-finance .income-classification-note {
+  max-width: 90ch;
+  margin: 11px 0 18px;
+  padding: 11px 13px;
+  border-left: 3px solid var(--skol-accent);
+  border-radius: 0 10px 10px 0;
+  background: var(--skol-surface-soft);
+  color: var(--skol-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+#view-finance .finance-insights {
+  margin: 15px 0 20px;
+  padding-bottom: 15px;
+  border-radius: 18px !important;
+}
+#view-finance .finance-insights .panel-head {
+  padding: 17px 18px;
+}
+#view-finance .finance-forecast-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  padding: 14px 17px 10px;
+}
+#view-finance .finance-forecast-grid > article {
+  min-width: 0;
+  display: flex;
+  min-height: 103px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--skol-line);
+  border-radius: 12px;
+  background: var(--skol-surface-soft);
+}
+#view-finance .finance-forecast-grid > article span {
+  color: var(--skol-muted);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+#view-finance .finance-forecast-grid > article strong {
+  color: var(--skol-ink);
+  font-size: clamp(16px, 1.5vw, 21px);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+#view-finance .finance-forecast-grid > article small {
+  color: var(--skol-muted);
+  font-size: 9px;
+  line-height: 1.45;
+}
+#view-finance .finance-insights > .notice {
+  margin: 10px 17px 0;
+}
+#view-finance .finance-records-panel {
+  margin: 0 0 18px;
+}
+#view-finance .finance-records-panel .records-workspace {
+  min-height: 345px;
+}
+
+/* Engineering calculator: make the input/result relationship easier to scan. */
+#view-engineering .eng-hero {
+  align-items: center;
+  gap: 22px;
+  margin: 16px 0;
+  padding: clamp(18px, 2vw, 26px);
+  border-radius: 19px;
+  border-color: var(--skol-line);
+  background: var(--skol-surface);
+  box-shadow: var(--skol-elevation-1);
+}
+#view-engineering .eng-hero h2 {
+  margin: 6px 0 8px;
+  color: var(--skol-ink);
+  font-size: clamp(22px, 2.2vw, 28px);
+  line-height: 1.2;
+  letter-spacing: -.035em;
+}
+#view-engineering .eng-hero p {
+  color: var(--skol-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+#view-engineering .eng-hero-mark {
+  flex: 0 0 58px;
+  width: 58px;
+  height: 58px;
+  border: 1px solid var(--skol-line);
+  border-radius: 16px;
+  background: var(--skol-surface-soft);
+  color: var(--skol-ink);
+}
+#view-engineering .eng-stat-grid {
+  gap: 10px;
+  margin: 13px 0 18px;
+}
+#view-engineering .eng-stat {
+  min-height: 102px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 7px;
+  padding: 14px 15px;
+  border: 1px solid var(--skol-line);
+  border-radius: 14px;
+  background: var(--skol-surface);
+  box-shadow: var(--skol-elevation-1);
+}
+#view-engineering .eng-stat span {
+  color: var(--skol-muted);
+  font-size: 9px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+#view-engineering .eng-stat strong {
+  margin-top: 0;
+  color: var(--skol-ink);
+  font-size: clamp(18px, 1.8vw, 23px);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+#view-engineering .eng-stat small {
+  color: var(--skol-muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+#view-engineering .eng-layout {
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr);
+  gap: 13px;
+}
+#view-engineering .eng-card {
+  border: 1px solid var(--skol-line);
+  border-radius: 16px;
+  background: var(--skol-surface);
+  box-shadow: var(--skol-elevation-1);
+}
+#view-engineering .eng-card-head {
+  padding: 16px 18px;
+  border-bottom-color: var(--skol-line);
+}
+#view-engineering .eng-card-head h3 {
+  color: var(--skol-ink);
+  font-size: 14px;
+  font-weight: 800;
+}
+#view-engineering .eng-card-head p {
+  color: var(--skol-muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+#view-engineering .eng-card-body {
+  padding: clamp(14px, 1.55vw, 20px);
+}
+#view-engineering .eng-form-grid {
+  gap: 13px;
+}
+#view-engineering .eng-form-grid label,
+#view-engineering .eng-observation-form label {
+  color: var(--skol-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+#view-engineering .eng-note,
+#view-engineering .eng-form-help {
+  border-radius: 11px;
+  line-height: 1.6;
+}
+#view-engineering .eng-result {
+  border: 1px solid var(--skol-line);
+  border-radius: 11px;
+  background: var(--skol-surface-soft);
+}
+#view-engineering .eng-result strong {
+  color: var(--skol-ink);
+  font-variant-numeric: tabular-nums;
+}
+#view-engineering .eng-history-item {
+  border-color: var(--skol-line);
+  border-radius: 12px;
+  background: var(--skol-surface);
+}
+#view-engineering .eng-section-title {
+  align-items: flex-end;
+  margin: 25px 0 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--skol-line);
+}
+#view-engineering .eng-section-title h3 {
+  color: var(--skol-ink);
+  font-size: 15px;
+  font-weight: 800;
+}
+#view-engineering .eng-section-title p {
+  color: var(--skol-muted);
+  max-width: 75ch;
+  line-height: 1.55;
+}
+#view-engineering .eng-estimate-import {
+  border: 1px solid var(--skol-line);
+  border-radius: 13px;
+  background: var(--skol-surface-soft);
+}
+#view-engineering .eng-estimate-import h4 {
+  color: var(--skol-ink);
+}
+#view-engineering .eng-estimate-import p {
+  color: var(--skol-muted);
+}
+#view-engineering .eng-plan-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+}
+#view-engineering .eng-calendar-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--skol-line);
+  border-radius: 13px;
+  background: var(--skol-surface-soft);
+}
+#view-engineering .eng-calendar-controls label {
+  min-width: min(220px, 100%);
+}
+#view-engineering .eng-project-calendar {
+  min-width: 0;
+  margin-top: 14px;
+  padding: 15px;
+  border: 1px solid var(--skol-line);
+  border-radius: 14px;
+  background: var(--skol-surface);
+}
+
+/* Carefully collapse the workspaces without letting headings or action rows collide. */
+@media (max-width: 1120px) {
+  .records-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .record-detail-panel {
+    margin: 10px;
+  }
+  #view-projects .estimate-meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #view-projects .estimate-two-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #view-projects .estimate-duration-results,
+  #view-projects .estimate-results {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  #view-finance .finance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  #view-finance .finance-forecast-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #view-engineering .eng-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  #view-dashboard .dashboard-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  #view-dashboard .dashboard-toolbar-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  #view-dashboard .dashboard-finance-metrics,
+  #view-dashboard .dashboard-lists-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #view-projects .object-list-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  #view-projects .object-list-head .toolbar,
+  #view-projects .object-list-head .search {
+    width: 100%;
+  }
+  #view-projects .estimate-pro-head {
+    flex-direction: column;
+  }
+  #view-projects .estimate-meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #view-projects .estimate-add-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  #view-projects .estimate-add-row .button {
+    width: 100%;
+  }
+  #view-projects .estimate-duration-results,
+  #view-projects .estimate-results {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #view-production .production-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #view-production .production-model-note {
+    flex-wrap: wrap;
+  }
+  #view-production .production-model-note > .pill {
+    margin-left: 43px;
+  }
+  #view-finance .finance-forecast-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #view-engineering .eng-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #view-engineering .eng-section-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  #view-engineering .eng-section-title > .pill {
+    align-self: flex-start;
+  }
+}
+@media (max-width: 520px) {
+  #view-dashboard .dashboard-hero {
+    min-height: 0;
+    padding: 21px 18px;
+  }
+  #view-dashboard .dashboard-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #view-dashboard .dashboard-money-card {
+    min-height: 98px;
+  }
+  #view-dashboard .dashboard-ring-card {
+    min-height: 196px;
+  }
+  #view-projects .estimate-meta-grid,
+  #view-projects .estimate-duration-results,
+  #view-projects .estimate-results,
+  #view-production .production-stats,
+  #view-finance .finance-grid,
+  #view-finance .income-period-grid,
+  #view-finance .finance-forecast-grid,
+  #view-engineering .eng-stat-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #view-engineering .eng-hero {
+    align-items: flex-start;
+  }
+  #view-engineering .eng-hero-mark {
+    flex-basis: 46px;
+    width: 46px;
+    height: 46px;
+    font-size: 23px;
+  }
+  #view-engineering .eng-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #view-engineering .eng-form-grid .wide {
+    grid-column: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #view-dashboard .dashboard-kpi-card,
+  #view-dashboard .dashboard-money-card,
+  #view-dashboard .dashboard-ring-card,
+  .records-list .data-table tbody tr {
+    transition: none !important;
+    transform: none !important;
+  }
+}
