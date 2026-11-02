@@ -191,7 +191,7 @@ test('backup restore is exposed in the UI and safe preload bridge', () => {
 
 test('data and product utilities are grouped inside Settings, not in the Dock', () => {
   const settingsStart = html.indexOf('id="view-settings"');
-  const settingsEnd = html.indexOf('</section>', settingsStart);
+  const settingsEnd = html.indexOf('<footer class="app-footer"', settingsStart);
   const settings = html.slice(settingsStart, settingsEnd);
   for (const id of ['dataFolderBtn','backupBtn','restoreBackupBtn']) {
     assert.ok(settings.includes('id="' + id + '"'), id + ' is available in Settings');
