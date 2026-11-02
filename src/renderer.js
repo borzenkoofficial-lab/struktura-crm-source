@@ -1585,16 +1585,22 @@ function prospectPriority(p) {
 }
 async function refreshSearchApiStatus() {
   const status = $('searchApiStatus');
+  const settingsStatus = $('aiSettingsStatus');
   try {
     const result = await window.crm.searchStatus();
-    status.textContent = result.configured
-      ? 'API-ключ сохранён. Можно запускать автоматический поиск.'
-      : 'API-ключ не настроен. Сначала сохрани ключ Brave Search.';
-    status.className = `search-api-status${result.configured ? ' ready' : ''}`;
-    $('runWebSearchBtn').disabled = !result.configured;
+    const message = result.configured
+      ? `ИИ подключён · ${result.model}. Поиск компаний и заказов доступен.`
+      : 'ИИ не настроен. Укажи ключ AnyModel в Настройках.';
+    if (status) { status.textContent = message; status.className = `search-api-status${result.configured ? ' ready' : ''}`; }
+    if (settingsStatus) settingsStatus.textContent = message;
+    const badge = $('aiConnectionBadge');
+    if (badge) badge.textContent = result.configured ? 'Подключён' : 'Не настроен';
+    if ($('aiModelInput') && result.model) $('aiModelInput').value = result.model;
+    if ($('runWebSearchBtn')) $('runWebSearchBtn').disabled = !result.configured;
+    if ($('runOrderRadarBtn')) $('runOrderRadarBtn').disabled = !result.configured;
   } catch (error) {
-    status.textContent = `Не удалось проверить настройки: ${error.message}`;
-    status.className = 'search-api-status error';
+    if (status) { status.textContent = `Не удалось проверить настройки: ${error.message}`; status.className = 'search-api-status error'; }
+    if (settingsStatus) settingsStatus.textContent = `Ошибка проверки: ${error.message}`;
   }
 }
 function refreshDomainSearchLinks() {
@@ -2165,7 +2171,7 @@ $('crawlWebsitesBtn').addEventListener('click', async () => {
   button.disabled = true; button.textContent = 'Ищем контакты…'; result.hidden = false; result.className = 'crawler-result'; result.textContent = 'Проверяем доступность сайтов и robots.txt. Большие сайты могут обрабатываться несколько минут.';
   try {
     const report = await window.crm.crawlProspectWebsites({ urls, service: $('crawlerService').value, region: $('crawlerRegion').value, maxPages: Number($('crawlerMaxPages').value) });
-    const lines = [`Найдено сайтов с контактами: ${report.discovered}`, `Добавлено в базу: ${report.imported}`, `Пропущено дублей: ${report.skipped}`, `Проверено HTML-страниц: ${report.pagesChecked}`, `Ошибок: ${report.errors.length}`];
+    const lines = [`Найдено сайтов с контактами: ${report.discovered}`, `Добавлено в базу: ${report.imported}`, `Пропущено дублей: ${report.skipped}`, `Проверено HTML-страниц: ${report.pagesChecked}`, `Ошибок поиска: ${report.errors.length}`, `ИИ-анализ: ${report.aiUsed ? 'выполнен' : 'резервный режим'}`];
     if (report.errors.length) lines.push('', 'Первые ошибки:', ...report.errors.slice(0,5).map(e => `• ${e.url}: ${e.error}`));
     result.textContent = lines.join('\n'); await refreshProspects();
     toast(`Парсинг завершён. Добавлено компаний: ${report.imported}.`);
@@ -2175,23 +2181,48 @@ $('crawlWebsitesBtn').addEventListener('click', async () => {
 $('saveSearchKeyBtn').addEventListener('click', async () => {
   const button = $('saveSearchKeyBtn');
   const apiKey = $('searchApiKey').value.trim();
-  if (!apiKey) { toast('Вставь API-ключ Brave Search.', true); return; }
+  const model = $('aiModelInput')?.value.trim() || 'am/free';
+  if (!apiKey) { toast('Вставь ключ AnyModel. Пустое поле не изменяет сохранённый ключ.', true); return; }
   button.disabled = true; button.textContent = 'Сохраняем…';
   try {
-    await window.crm.saveSearchKey({ apiKey });
+    await window.crm.saveSearchKey({ apiKey, model });
     $('searchApiKey').value = '';
-    toast('API-ключ сохранён в защищённом локальном хранилище.');
+    toast('Настройки ИИ сохранены в защищённом локальном хранилище.');
     await refreshSearchApiStatus();
   } catch (error) { toast(error.message, true); }
-  finally { button.disabled = false; button.textContent = 'Сохранить ключ'; }
+  finally { button.disabled = false; button.textContent = 'Сохранить настройки ИИ'; }
+});
+$('testAiConnectionBtn')?.addEventListener('click', async () => {
+  const button = $('testAiConnectionBtn'), status = $('aiSettingsStatus');
+  button.disabled = true; button.textContent = 'Проверяем…';
+  try {
+    const result = await window.crm.testAiConnection();
+    if (status) status.textContent = `Соединение работает · модель ${result.model} · ответ: ${result.response}`;
+    toast('AnyModel отвечает. Подключение проверено.');
+  } catch (error) {
+    if (status) status.textContent = error.message;
+    toast(error.message, true);
+  } finally { button.disabled = false; button.textContent = 'Проверить соединение'; }
+});
+$('askAiAssistantBtn')?.addEventListener('click', async () => {
+  const button = $('askAiAssistantBtn'), question = $('aiAssistantQuestion'), answer = $('aiAssistantAnswer');
+  const prompt = question?.value.trim() || '';
+  if (!prompt) { toast('Напиши вопрос для ИИ.', true); return; }
+  button.disabled = true; button.textContent = 'ИИ анализирует…';
+  answer.hidden = false; answer.textContent = 'Формирую ответ…';
+  try {
+    const result = await window.crm.askAi({ question: prompt });
+    answer.textContent = result.answer + (result.model ? '\\n\\nМодель: ' + result.model : '');
+  } catch (error) { answer.textContent = error.message; toast(error.message, true); }
+  finally { button.disabled = false; button.textContent = 'Спросить ИИ'; }
 });
 $('runWebSearchBtn').addEventListener('click', async () => {
   const button = $('runWebSearchBtn'), result = $('webSearchResult');
   button.disabled = true; button.textContent = 'Ищем…'; result.hidden = false; result.className = 'crawler-result';
-  result.textContent = 'Выполняем три поисковых запроса. Это может занять до нескольких десятков секунд.';
+  result.textContent = 'ИИ формирует запросы, получает публичные результаты и отбирает подходящие сайты.';
   try {
     const report = await window.crm.searchProspects({ service: $('domainSearchService').value, region: $('domainSearchRegion').value });
-    const lines = [`Поисковых запросов: ${report.queries.length}`, `Получено результатов: ${report.received}`, `Добавлено сайтов в CRM: ${report.imported}`, `Пропущено дублей: ${report.skipped}`, `Ошибок запросов: ${report.errors.length}`];
+    const lines = [`Поисковых запросов: ${report.queries.length}`, `Получено результатов: ${report.received}`, `Добавлено сайтов в CRM: ${report.imported}`, `Пропущено дублей: ${report.skipped}`, `Ошибок источников: ${report.errors.length}`, `ИИ-анализ: ${report.aiUsed ? 'выполнен' : 'резервный режим'}`];
     if (report.errors.length) lines.push('', 'Ошибки:', ...report.errors.map(e => `• ${e.query}: ${e.error}`));
     lines.push('', 'Важно: телефоны и email из выдачи не подтверждены. Открой сайт и запусти парсер публичных страниц.');
     result.textContent = lines.join('\n'); await refreshProspects();
@@ -2202,15 +2233,15 @@ $('runWebSearchBtn').addEventListener('click', async () => {
 $('runOrderRadarBtn').addEventListener('click',async()=>{
  const b=$('runOrderRadarBtn'),r=$('orderRadarResult'),sourceType=$('orderRadarSource')?.value||'web';
  if(sourceType==='files'){r.hidden=false;r.className='crawler-result';r.textContent='Для источника «Импорт из файла» нажми «Импорт CSV».';return;}
- b.disabled=true;b.textContent='Ищем…';r.hidden=false;r.className='crawler-result';r.textContent='Ищем страницы заказов по выбранному источнику…';
+ b.disabled=true;b.textContent='Ищем…';r.hidden=false;r.className='crawler-result';r.textContent='ИИ формирует поисковые запросы и проверяет найденные ссылки…';
  try{
   const report=await window.crm.searchCommercialOrders({service:$('orderRadarService').value,region:$('orderRadarRegion').value,sourceType});
   const lines=[`Источник: ${sourceType}`,`Запросов: ${report.queries.length}`,`Результатов: ${report.received}`,`Уникальных ссылок: ${report.unique}`,`Новых карточек: ${report.added}`,`Обновлено: ${report.refreshed}`,`Защищено вручную отмеченных: ${report.protected||0}`,`Ошибок: ${report.errors.length}`];
   if(report.errors.length)lines.push('','Ошибки:',...report.errors.map(x=>`• ${x.query}: ${x.error}`));
   lines.push('','Результаты — кандидаты. Проверь актуальность и условия на исходном сайте.');
   r.textContent=lines.join('\n');await refreshCommercialOrders();toast(`Поиск завершён. Новых карточек: ${report.added}.`);
- }catch(e){r.className='crawler-result error';r.textContent=`Поиск не выполнен: ${e.message}. Если API недоступен, используй «Открыть ручной поиск».`;toast(e.message,true)}
- finally{b.disabled=false;b.textContent='⌕ Найти через API'}
+ }catch(e){r.className='crawler-result error';r.textContent=`Поиск не выполнен: ${e.message}. Если публичная выдача недоступна, используй «Открыть ручной поиск».`;toast(e.message,true)}
+ finally{b.disabled=false;b.textContent='⌕ Найти с ИИ'}
 });
 $('manualOrderSearchBtn').addEventListener('click',async()=>{
  try{const sourceType=$('orderRadarSource')?.value||'all';if(sourceType==='files'){toast('Для источника «Импорт из файла» используй кнопку «Импорт CSV».');return;}const url=await window.crm.manualCommercialOrderSearchUrl({service:$('orderRadarService').value,region:$('orderRadarRegion').value,sourceType});await window.crm.openExternal(url);toast('Открылся ручной поиск. Проверь первоисточники и импортируй подходящие заказы из CSV.')}
