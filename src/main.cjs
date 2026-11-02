@@ -917,7 +917,19 @@ ipcMain.handle('ai:engineeringReview', async (_event, input = {}) => {
 ipcMain.handle('ai:ask', async (_event, input = {}) => {
   const question = clean(input.question, 6000);
   if (!question) throw new Error('Напиши вопрос для ИИ.');
-  const context = clean(input.context, 12000);
+  let context = clean(input.context, 12000);
+  if (input.includeBusinessContext === true) {
+    const counts = {
+      leads: db.prepare('SELECT COUNT(*) AS total FROM leads').get().total,
+      activeLeads: db.prepare("SELECT COUNT(*) AS total FROM leads WHERE status NOT IN ('won','lost')").get().total,
+      clients: db.prepare('SELECT COUNT(*) AS total FROM clients').get().total,
+      activeProjects: db.prepare("SELECT COUNT(*) AS total FROM projects WHERE status NOT IN ('completed','cancelled')").get().total,
+      openTasks: db.prepare('SELECT COUNT(*) AS total FROM tasks WHERE is_done=0').get().total,
+      prospects: db.prepare("SELECT COUNT(*) AS total FROM prospects WHERE status NOT IN ('rejected','converted')").get().total,
+      commercialOrders: db.prepare("SELECT COUNT(*) AS total FROM commercial_orders WHERE status NOT IN ('rejected')").get().total
+    };
+    context = [context, 'Сводка CRM — агрегированные количества без имён и контактов: ' + JSON.stringify(counts)].filter(Boolean).join('\\n\\n');
+  }
   const response = await anyModelClient.complete({ apiKey: readAiKey(), model: readAiModel(), maxTokens: 2200, messages: [
     { role: 'system', content: 'Ты встроенный помощник СКОЛ CRM для строительного подрядчика. Отделяй факты из контекста от предположений. Не выдумывай суммы, контакты, нормы, сроки и события. Если данных недостаточно — прямо скажи, чего не хватает. Не изменяй данные CRM и не выполняй финансовые или юридические действия.' },
     { role: 'user', content: 'Контекст CRM (может быть пустым):\n' + context + '\n\nВопрос пользователя:\n' + question }
