@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('crm', {
   copyLicenseDeviceId: () => ipcRenderer.invoke('license:copyDeviceId'),
   summary: () => ipcRenderer.invoke('dashboard:summary'),
   getNotificationSettings: () => ipcRenderer.invoke('notifications:getSettings'),
+  getNotificationInbox: () => ipcRenderer.invoke('notifications:getInbox'),
   getPinStatus: () => ipcRenderer.invoke('security:pinStatus'),
   verifyPin: (data) => ipcRenderer.invoke('security:pinVerify', data),
   setPin: (data) => ipcRenderer.invoke('security:pinSet', data),
