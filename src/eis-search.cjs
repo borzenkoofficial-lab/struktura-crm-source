@@ -70,7 +70,9 @@ function parseEisSearchResults(html, query = '', { count = 20 } = {}) {
   const unique = new Map();
   for (let index = 0; index < starts.length; index += 1) {
     const block = source.slice(starts[index], starts[index + 1] ?? source.length);
-    const titleBlock = block.match(/class=["'][^"']*registry-entry__header-mid__title[^"']*["'][^>]*>([\s\S]*?)(?:<\/div>|<\/span>)/i);
+    const titleBlock = block.match(/class=["'][^"']*registry-entry__body-value[^"']*["'][^>]*>([\s\S]*?)(?:<\/div>|<\/span>)/i)
+      || block.match(/class=["'][^"']*registry-entry__header-mid__title[^"']*["'][^>]*>([\s\S]*?)(?:<\/div>|<\/span>)/i)
+      || block.match(/class=["'][^"']*registry-entry__header-top__title[^"']*["'][^>]*>([\s\S]*?)(?:<\/div>|<\/span>)/i);
     const anchors = [...block.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)];
     const preferred = anchors.find(match => /regNumber=|\/epz\/order\//i.test(match[1])) || anchors[0];
     const title = cleanText(titleBlock?.[1] || preferred?.[2] || '');
