@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld('crm', {
   searchStatus: () => ipcRenderer.invoke('search:status'),
   testAiConnection: () => ipcRenderer.invoke('ai:test'),
   askAi: (data) => ipcRenderer.invoke('ai:ask', data),
+  reviewEngineeringDescription: (data) => ipcRenderer.invoke('ai:engineeringReview', data),
   saveSearchKey: (data) => ipcRenderer.invoke('search:saveKey', data),
   searchProspects: (data) => ipcRenderer.invoke('search:run', data),
   crawlProspectWebsites: (data) => ipcRenderer.invoke('prospects:crawlWebsites', data),
