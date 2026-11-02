@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="UTF-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СКОЛ</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="engineering-calculator.css"><link rel="stylesheet" href="engineering-project-plan.css"><link rel="stylesheet" href="theme-salesforce.css"><link rel="stylesheet" href="theme-salesforce-light.css"></head>
+<html lang="ru"><head><meta charset="UTF-8"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:"><meta name="viewport" content="width=device-width,initial-scale=1"><title>СКОЛ</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="engineering-calculator.css"><link rel="stylesheet" href="engineering-project-plan.css"><link rel="stylesheet" href="theme-salesforce.css"><link rel="stylesheet" href="theme-salesforce-light.css"><link rel="stylesheet" href="ui-layout-hardening.css"></head>
 <body>
   <div class="startup-splash" id="startupSplash" role="status" aria-live="polite" aria-label="Запуск СКОЛ">
     <div class="startup-glow startup-glow-one"></div><div class="startup-glow startup-glow-two"></div>
@@ -47,15 +47,40 @@
   <div class="app-shell">
   <aside class="sidebar" aria-label="Навигация СКОЛ">
 <div class="brand"><div class="brand-mark"><img src="assets/skol-monogram.svg" alt="СКОЛ"></div><div class="brand-copy"><img class="brand-wordmark" src="assets/skol-wordmark.svg" alt="СКОЛ"><small>ДЕМОНТАЖ · ОТДЕЛКА</small></div></div>
-<nav class="nav-primary" aria-label="Основные разделы">
+<button class="nav-menu-toggle" id="navMenuToggle" type="button" aria-controls="nav-primary" aria-expanded="false" aria-label="Открыть меню разделов" title="Открыть меню разделов">
+  <span class="nav-menu-symbol" aria-hidden="true"><b></b><b></b><b></b></span>
+  <span class="nav-menu-toggle-text">МЕНЮ</span>
+  <i class="nav-menu-chevron" aria-hidden="true">⌄</i>
+</button>
+<button class="nav-guide-replay" id="navGuideReplay" type="button" aria-label="Показать обучение по меню" title="Как пользоваться меню">?</button>
+<nav class="nav-primary" id="nav-primary" aria-label="Навигация по разделам СКОЛ" aria-hidden="true" inert>
+<div class="nav-menu-group">
+<span class="nav-menu-label">РАБОЧЕЕ ПРОСТРАНСТВО</span>
 <button class="nav-item active" data-view="dashboard" aria-current="page"><span>▦</span>Обзор</button><button class="nav-item" data-view="leads"><span>◉</span>Заявки <i id="leadNavCount">0</i></button><button class="nav-item" data-view="clients"><span>♙</span>Клиенты</button><button class="nav-item" data-view="projects"><span>▤</span>Объекты</button><button class="nav-item" data-view="production" data-feature="production"><span>◷</span>Производство</button><button class="nav-item" data-view="finance" data-feature="finance"><span>₽</span>Финансы</button>
+</div>
+<div class="nav-menu-group">
+<span class="nav-menu-label">ИНСТРУМЕНТЫ</span>
+<button class="nav-item" data-view="engineering" data-feature="engineering"><span>⌘</span>Расчёт объекта</button><button class="nav-item" data-view="prospects" data-feature="order_radar"><span>⌕</span>Центр заказов</button><button class="nav-item" data-view="tasks"><span>✓</span>План действий <i id="taskNavCount">0</i></button><button class="nav-item" data-view="reports" data-feature="reports"><span>▥</span>Отчёты</button><button class="nav-item" data-view="browser" data-feature="web_browser"><span>▣</span>Браузер</button><button class="nav-item" data-view="plans" data-feature="engineering_plans"><span>✧</span>Тариф и интеграции <i>PREVIEW</i></button>
+</div>
+<div class="nav-menu-group nav-menu-system">
+<span class="nav-menu-label">СИСТЕМА И ДАННЫЕ</span>
+<button class="nav-item" data-view="settings"><span>⚙</span>Настройки</button><button class="nav-item" data-view="about"><span>✦</span>О продукте</button><button class="nav-item" id="dataFolderBtn"><span>▣</span>Папка данных</button><button class="nav-item" id="backupBtn"><span>↧</span>Создать резервную копию</button><button class="nav-item" id="restoreBackupBtn"><span>↥</span>Восстановить копию</button>
+</div>
 </nav>
-<details class="nav-more"><summary class="nav-more-toggle"><span>···</span> Ещё</summary><div class="nav-more-menu">
-<div class="nav-menu-group"><span class="nav-menu-label">ИНСТРУМЕНТЫ</span>
-<button class="nav-item" data-view="engineering" data-feature="engineering"><span>⌘</span>Расчёт объекта</button><button class="nav-item" data-view="prospects" data-feature="order_radar"><span>⌕</span>Центр заказов</button><button class="nav-item" data-view="tasks"><span>✓</span>План действий <i id="taskNavCount">0</i></button><button class="nav-item" data-view="reports" data-feature="reports"><span>▥</span>Отчёты</button><button class="nav-item" data-view="browser" data-feature="web_browser"><span>▣</span>Браузер</button><button class="nav-item" data-view="plans" data-feature="engineering_plans"><span>✧</span>Тариф и интеграции <i>PREVIEW</i></button></div>
-<div class="nav-menu-group nav-menu-system"><span class="nav-menu-label">СИСТЕМА И ДАННЫЕ</span>
-<button class="nav-item" data-view="settings"><span>⚙</span>Настройки</button><button class="nav-item" data-view="about"><span>✦</span>О продукте</button><button class="nav-item" id="dataFolderBtn"><span>▣</span>Папка данных</button><button class="nav-item" id="backupBtn"><span>↧</span>Создать резервную копию</button><button class="nav-item" id="restoreBackupBtn"><span>↥</span>Восстановить копию</button><div class="local-badge"><span></span><div><strong>Локальная база</strong><small>Данные на этом компьютере</small></div></div></div>
-</div></details></aside>
+<div class="nav-guide-backdrop" id="navGuideBackdrop" hidden></div>
+<section class="nav-guide-card" id="navGuideCard" role="dialog" aria-modal="true" aria-labelledby="navGuideTitle" aria-describedby="navGuideText" data-step="1" hidden>
+  <div class="nav-guide-card-top"><span>СКОЛ / БЫСТРОЕ ОБУЧЕНИЕ</span><span id="navGuideProgress">01 / 02</span></div>
+  <h2 id="navGuideTitle">Главная кнопка навигации</h2>
+  <p id="navGuideText">Кнопка «МЕНЮ» открывает список всех разделов CRM. Нажмите её, чтобы увидеть рабочие пространства, инструменты и настройки.</p>
+  <div class="nav-guide-card-actions">
+    <button class="button subtle" id="navGuideSkip" type="button">Пропустить</button>
+    <div class="nav-guide-step-actions">
+      <button class="button subtle" id="navGuideBack" type="button" hidden>Назад</button>
+      <button class="button primary" id="navGuideNext" type="button">Показать меню <span aria-hidden="true">↗</span></button>
+    </div>
+  </div>
+</section>
+<div class="local-badge"><span></span><div><strong>Локальная база</strong><small>Данные на этом компьютере</small></div></div></aside>
 <main class="main"><header class="topbar"><div class="topbar-heading"><div><div class="eyebrow">ВАШ БИЗНЕС · В ОДНОМ МЕСТЕ</div><h1 id="pageTitle">Обзор бизнеса</h1></div></div><div class="top-actions"><div class="today" id="today"></div><button class="button subtle" id="openCommandPaletteBtn" type="button" title="Быстрый переход · Ctrl+K">⌕ Быстрый переход</button><button class="button subtle" id="openUpdatesBtn" type="button">↻ Обновления</button><button class="button primary" id="quickLead">＋ Новая заявка</button></div></header>
   <section class="view active" id="view-dashboard">
 <div class="dashboard-hero welcome"><div class="welcome-copy"><div class="welcome-tag"><span class="welcome-live-dot"></span> СКОЛ <span>·</span> ПАНЕЛЬ УПРАВЛЕНИЯ</div><h2>Весь бизнес.<br>В одной картине.</h2><p>Деньги, объекты, команда и задачи — на основе записей CRM, без демонстрационных цифр.</p><div class="welcome-actions"><button class="button hero-primary" data-goto="projects">＋ Новый объект</button><button class="button hero-secondary" data-goto="leads">Добавить заявку <span>↗</span></button></div></div><div class="dashboard-hero-side" aria-hidden="true"><div class="dashboard-hero-orbit dashboard-hero-orbit-one"></div><div class="dashboard-hero-orbit dashboard-hero-orbit-two"></div><div class="dashboard-hero-emblem"><img src="assets/skol-monogram-mark.svg" alt=""></div><span class="dashboard-hero-caption">BUSINESS CONTROL / LOCAL FIRST</span></div></div>

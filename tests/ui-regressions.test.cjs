@@ -9,6 +9,8 @@ const main = fs.readFileSync(path.join(__dirname, '../src/main.cjs'), 'utf8');
 const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
 const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
 const pinSecurity = fs.readFileSync(path.join(__dirname, '../src/pin-security.cjs'), 'utf8');
+const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+const layoutCss = fs.readFileSync(path.join(__dirname, '../src/ui-layout-hardening.css'), 'utf8');
 
 test('async create forms capture their form before awaiting IPC', () => {
   for (const id of ['leadForm', 'clientForm', 'projectForm', 'paymentForm', 'expenseForm']) {
@@ -44,7 +46,7 @@ test('startup animation is wired to initial dashboard readiness with a safety ti
   assert.match(html, /class="startup-mark"/);
   assert.match(html, /class="startup-progress"/);
   assert.match(renderer, /function hideStartupSplash\(\)/);
-  assert.match(renderer, /\.finally\(hideStartupSplash\)/);
+  assert.match(renderer, /\.finally\(\(\) => \{[\s\S]*?hideStartupSplash\(\);[\s\S]*?maybeStartNavGuide\(\);[\s\S]*?\}\)/, 'startup hides the splash and schedules first-run menu guidance');
   assert.match(renderer, /window\.setTimeout\(hideStartupSplash, 8000\)/);
   assert.match(renderer, /startupSplash\.classList\.add\('is-hidden'\)/);
 });
@@ -969,26 +971,40 @@ test('dashboard contains only live business KPI slots, interactive rings and exp
   assert.ok(renderer.includes("metrics.finance.totalContract > 0 ? metrics.finance.collectionPercent : null"));
 });
 
-test('navigation is grouped, all fourteen screens have one destination and the DOM has no duplicate ids', () => {
+test('navigation is a horizontal slide-out top panel with a five-second idle close', () => {
   const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
   const duplicateIds = [...new Set(ids.filter((id,index) => ids.indexOf(id) !== index))];
   assert.deepEqual(duplicateIds, [], 'no duplicate HTML ids');
   assert.equal((html.match(/class="nav-primary"/g) || []).length, 1);
-  assert.equal((html.match(/class="nav-more"/g) || []).length, 1);
-  const navStart = html.indexOf('class="nav-primary"');
+  assert.equal((html.match(/id="navMenuToggle"/g) || []).length, 1, 'there is one arrow toggle');
+  assert.equal((html.match(/id="nav-primary"/g) || []).length, 1, 'the panel has a stable target id');
+  assert.match(html, /id="navMenuToggle"[^>]*aria-expanded="false"/, 'navigation starts collapsed');
+  assert.match(html, /id="nav-primary"[^>]*aria-hidden="true"[^>]*inert/, 'closed navigation is removed from keyboard navigation');
+  assert.equal((html.match(/class="nav-more"/g) || []).length, 0, 'the old dropdown is removed');
+  const navStart = html.indexOf('id="nav-primary"');
   const navEnd = html.indexOf('</nav>', navStart);
   const primary = html.slice(navStart, navEnd);
   assert.deepEqual([...primary.matchAll(/data-view="([^"]+)"/g)].map(match => match[1]),
-    ['dashboard','leads','clients','projects','production','finance']);
+    ['dashboard','leads','clients','projects','production','finance','engineering','prospects','tasks','reports','browser','plans','settings','about']);
+  assert.equal((primary.match(/class="nav-menu-group(?: nav-menu-system)?"/g) || []).length, 3, 'logical navigation groups remain');
   const views = [...html.matchAll(/id="view-([^"]+)"/g)].map(match => match[1]);
   assert.equal(views.length, 14);
   assert.equal(new Set(views).size, 14);
-  for (const view of views) assert.ok(html.includes('data-view="' + view + '"'), view + ' remains reachable from navigation');
+  for (const view of views) assert.ok(primary.includes('data-view="' + view + '"'), view + ' remains reachable from the top navigation');
   assert.ok(!html.includes('toggleSidebarBtn'), 'old vertical-sidebar toggle is removed');
   assert.ok(!renderer.includes('gruzli.sidebarCollapsed'), 'old brand-specific UI persistence key is removed');
-  assert.ok(renderer.includes("button.closest('.nav-more')"));
+  assert.doesNotMatch(renderer, /nav-more|button\.closest\(['"]\.nav-more['"]\)/, 'old disclosure handlers are removed');
+  assert.match(renderer, /NAV_MENU_AUTO_CLOSE_MS\s*=\s*5000/, 'the idle close delay is exactly five seconds');
+  assert.ok(renderer.includes("navMenuToggle.addEventListener('click'"), 'the arrow toggles the panel');
+  assert.ok(renderer.includes("addEventListener('pointerenter'"), 'pointer entry cancels the close timer');
+  assert.ok(renderer.includes("addEventListener('pointerleave'"), 'pointer exit schedules the close timer');
+  assert.ok(renderer.includes("addEventListener('focusin'"), 'keyboard focus keeps navigation available');
+  assert.ok(renderer.includes("addEventListener('focusout'"), 'leaving keyboard focus schedules the close timer');
+  assert.match(layoutCss, /\.sidebar \.nav-primary\s*\{[\s\S]*?flex-direction: row !important/);
+  assert.match(layoutCss, /\.sidebar\.nav-expanded \.nav-primary\s*\{[\s\S]*?overflow-x: auto !important/);
+  assert.match(layoutCss, /\.sidebar \.nav-menu-group\s*\{[\s\S]*?flex-direction: row !important/);
+  assert.match(layoutCss, /@media \(max-width: 700px\)[\s\S]*?\.sidebar \.nav-primary\s*\{[\s\S]*?left: 8px !important/);
 });
-
 test('all five split workspaces keep a detail pane and table list in the current 1.25 interface', () => {
   for (const id of ['leadDetailPanel','clientDetailPanel','projectDetailPanel','paymentDetailPanel','expenseDetailPanel']) {
     assert.equal((html.match(new RegExp('id="' + id + '"','g')) || []).length, 1, id + ' appears once');
@@ -1015,3 +1031,46 @@ test('Salesforce light layout loads after base CSS and the reusable metrics modu
   assert.ok(css.includes('min-width:0'));
 });
 
+
+
+
+test('shared layout hardening keeps content inside cards, forms, tables and dialogs', () => {
+  const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\.css)"/g)].map(match => match[1]);
+  assert.equal(links.at(-1), 'ui-layout-hardening.css', 'the shared geometry layer loads after both themes');
+  assert.ok(layoutCss.includes('.main'));
+  assert.ok(layoutCss.includes('min-width: 0'));
+  assert.match(layoutCss, /\.stat-card > strong[\s\S]*?white-space: normal/);
+  assert.ok(layoutCss.includes('overflow-wrap: anywhere'));
+  assert.match(layoutCss, /\.table-wrap,[\s\S]*?overflow-x: auto/);
+  assert.match(layoutCss, /dialog\.modal,[\s\S]*?max-height: calc\(100dvh - 32px\)/);
+  assert.match(layoutCss, /@media \(max-width: 1120px\)[\s\S]*?\.records-workspace[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+  const withoutComments = layoutCss.replace(/\/\*[\s\S]*?\*\//g, '');
+  const navigationAnimationRules = withoutComments
+    .replace(/\.sidebar \.nav-primary\s*\{[^}]*\}/g, '')
+    .replace(/\.sidebar\.nav-expanded \.nav-primary\s*\{[^}]*\}/g, '');
+  assert.doesNotMatch(navigationAnimationRules, /overflow\s*:\s*hidden/, 'the layout layer must not conceal business content; only the collapsed navigation panel may clip during its animation');
+});
+
+
+test('top menu has premium motion and an accessible interactive first-run guide', () => {
+  assert.match(html, /class="nav-menu-toggle"[^>]*id="navMenuToggle"/);
+  assert.match(html, /class="nav-menu-toggle-text">МЕНЮ<\/span>/);
+  assert.match(html, /id="navGuideReplay"/);
+  assert.match(html, /id="navGuideCard"[^>]*role="dialog"[^>]*aria-modal="true"/);
+  for (const id of ['navGuideBackdrop','navGuideTitle','navGuideText','navGuideProgress','navGuideSkip','navGuideBack','navGuideNext']) {
+    assert.equal((html.match(new RegExp('id="' + id + '"','g')) || []).length, 1, id + ' is unique');
+  }
+  assert.match(renderer, /NAV_GUIDE_STORAGE_KEY/);
+  assert.match(renderer, /function showNavGuideStep\(step\)/);
+  assert.match(renderer, /function maybeStartNavGuide\(\)/);
+  assert.match(renderer, /navGuideReplay\?\.addEventListener\('click', startNavGuide\)/);
+  assert.match(renderer, /event\.key !== 'Escape'/);
+  assert.match(renderer, /navGuideCard\?\.addEventListener\('keydown'/);
+  assert.match(renderer, /setTimeout\(\(\) => \{\s*if \(startupUnlocked\) maybeStartNavGuide\(\)/);
+  assert.match(layoutCss, /\.sidebar \.nav-menu-toggle\s*\{[\s\S]*?left: 50% !important/);
+  assert.match(layoutCss, /\.nav-guide-card\s*\{[\s\S]*?position:fixed/);
+  assert.match(layoutCss, /@keyframes skolNavJelly/);
+  assert.match(layoutCss, /@keyframes skolNavGuidePulse/);
+  assert.match(layoutCss, /\.sidebar \.nav-primary \.nav-item:hover[\s\S]*?animation:skolNavJelly/);
+  assert.match(layoutCss, /@media \(prefers-reduced-motion:reduce\)[\s\S]*?\.nav-guide-card/);
+});

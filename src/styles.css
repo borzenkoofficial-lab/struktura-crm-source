@@ -1028,3 +1028,32 @@ dialog.modal>form{background:#fff;border-radius:inherit}
 .license-settings-card .pin-settings-badge{white-space:nowrap}
 [data-feature][hidden]{display:none!important}
 @media(max-width:640px){.license-screen{padding:12px}.license-card{padding:23px 18px;border-radius:14px}.license-card h1{font-size:23px}.license-device-panel{align-items:flex-start;flex-direction:column}.license-device-panel code{max-width:100%}.license-card-footer{align-items:flex-start}}
+
+
+/* SKOL 1.25.1 — stable persistent navigation */
+.sidebar{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;overflow:hidden}
+.nav-primary{display:flex;flex:1 1 auto;flex-direction:column;gap:17px;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 2px 12px;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(148,163,184,.35) transparent}
+.nav-menu-group{display:flex;flex-direction:column;gap:2px;min-width:0}
+.nav-menu-label{display:block;padding:0 12px 6px;color:#8293a7;font-size:9px;font-weight:800;letter-spacing:1.25px;line-height:1.4}
+.nav-primary .nav-item{flex:0 0 auto;width:100%;min-width:0}
+.sidebar>.local-badge{flex:0 0 auto;margin-top:10px}
+@media(max-width:700px){
+  .sidebar{position:relative;top:auto;width:100%;height:auto;min-height:0;max-height:none;overflow:hidden;padding:12px 12px 10px}
+  .brand{flex:0 0 auto;padding:0 6px 10px}
+  .nav-primary{display:flex;flex:0 0 auto;flex-direction:row;align-items:center;gap:6px;max-width:100%;min-height:0;overflow-x:auto;overflow-y:hidden;padding:0 0 8px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+  .nav-menu-group{display:contents}
+  .nav-menu-label{display:none}
+  .nav-primary .nav-item{display:inline-flex;flex:0 0 auto;width:auto;min-height:36px;white-space:nowrap;padding:8px 10px;margin:0;scroll-snap-align:start}
+  .nav-primary .nav-item span{flex:0 0 auto;width:auto}
+  .nav-primary .nav-item i{display:none}
+  .sidebar>.local-badge{display:none}
+  .main{width:100%;max-width:none;padding:0 14px}
+}
+
+@media(max-width:700px){
+  .topbar{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;min-width:0}
+  .topbar-heading{flex:1 1 100%;width:100%;min-width:0}
+  .top-actions{display:flex;flex:1 1 100%;width:100%;min-width:0;flex-wrap:wrap;justify-content:flex-start;gap:7px}
+  .top-actions>.button{max-width:100%;min-width:0;white-space:normal;line-height:1.35}
+  .top-actions>.button.primary{margin-left:auto}
+}

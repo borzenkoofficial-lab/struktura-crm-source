@@ -94,8 +94,6 @@ function showView(name) {
   }
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  const moreNavigation = document.querySelector('.nav-more');
-  if (moreNavigation) moreNavigation.classList.toggle('has-active', Boolean(moreNavigation.querySelector('.nav-item.active')));
   const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', engineering: 'ПИ · Расчёт объекта', browser: 'Браузер и поиск заказчиков', prospects: 'Центр привлечения заказов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте СКОЛ' };
   $('pageTitle').textContent = titles[name] || 'СКОЛ CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
@@ -116,19 +114,196 @@ function showView(name) {
   // Re-evaluate business signals when the user moves between CRM sections.
   if (name !== 'dashboard') refreshPiCoach().catch(() => {});
 }
-document.addEventListener('click', event => {
-  if (event.target.closest('.nav-more')) return;
-  document.querySelectorAll('.nav-more[open]').forEach(menu => { menu.open = false; });
+// Top navigation: one horizontal panel, opened by the chevron and closed
+// five seconds after the pointer and keyboard focus leave the navigation area.
+const NAV_MENU_AUTO_CLOSE_MS = 5000;
+const navMenuShell = document.querySelector('.sidebar');
+const navMenuToggle = $('navMenuToggle');
+const navMenuPanel = $('nav-primary');
+let navMenuCloseTimer = null;
+let navPointerInside = false;
+let navFocusInside = false;
+
+function cancelNavMenuClose() {
+  if (navMenuCloseTimer !== null) {
+    window.clearTimeout(navMenuCloseTimer);
+    navMenuCloseTimer = null;
+  }
+}
+
+function setNavMenuOpen(open, { restoreFocus = false } = {}) {
+  if (!navMenuShell || !navMenuToggle || !navMenuPanel) return;
+  cancelNavMenuClose();
+  navMenuShell.classList.toggle('nav-expanded', open);
+  navMenuToggle.setAttribute('aria-expanded', String(open));
+  navMenuToggle.setAttribute('aria-label', open ? 'Закрыть меню разделов' : 'Открыть меню разделов');
+  navMenuToggle.title = open ? 'Закрыть меню разделов' : 'Открыть меню разделов';
+  navMenuPanel.setAttribute('aria-hidden', String(!open));
+  navMenuPanel.inert = !open;
+  if (!open && (restoreFocus || navMenuPanel.contains(document.activeElement))) {
+    navMenuToggle.focus();
+  }
+}
+
+function scheduleNavMenuClose() {
+  cancelNavMenuClose();
+  if (!navMenuShell?.classList.contains('nav-expanded') || navPointerInside || navFocusInside) return;
+  navMenuCloseTimer = window.setTimeout(() => {
+    navMenuCloseTimer = null;
+    if (!navPointerInside && !navFocusInside) setNavMenuOpen(false);
+  }, NAV_MENU_AUTO_CLOSE_MS);
+}
+
+if (navMenuShell && navMenuToggle && navMenuPanel) {
+  navMenuShell.addEventListener('pointerenter', () => {
+    navPointerInside = true;
+    cancelNavMenuClose();
+  });
+  navMenuShell.addEventListener('pointerleave', () => {
+    navPointerInside = false;
+    scheduleNavMenuClose();
+  });
+  navMenuShell.addEventListener('focusin', () => {
+    navFocusInside = true;
+    cancelNavMenuClose();
+  });
+  navMenuShell.addEventListener('focusout', () => {
+    window.setTimeout(() => {
+      navFocusInside = navMenuShell.contains(document.activeElement);
+      scheduleNavMenuClose();
+    }, 0);
+  });
+  navMenuToggle.addEventListener('click', event => {
+    const shouldOpen = !navMenuShell.classList.contains('nav-expanded');
+    setNavMenuOpen(shouldOpen);
+    // A mouse click should not leave keyboard focus on the trigger and prevent auto-close.
+    if (event.detail > 0) navMenuToggle.blur();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    if (navGuideCard && !navGuideCard.hidden) {
+      closeNavGuide(true);
+      return;
+    }
+    if (navMenuShell.classList.contains('nav-expanded')) {
+      setNavMenuOpen(false, { restoreFocus: true });
+    }
+  });
+}
+
+// Interactive first-run guide for the top navigation.
+const NAV_GUIDE_STORAGE_KEY = 'skol.navGuide.menu.v1';
+const navGuideBackdrop = $('navGuideBackdrop');
+const navGuideCard = $('navGuideCard');
+const navGuideTitle = $('navGuideTitle');
+const navGuideText = $('navGuideText');
+const navGuideProgress = $('navGuideProgress');
+const navGuideSkip = $('navGuideSkip');
+const navGuideBack = $('navGuideBack');
+const navGuideNext = $('navGuideNext');
+const navGuideReplay = $('navGuideReplay');
+let navGuideStep = 0;
+let navGuideReturnFocus = null;
+
+function showNavGuideStep(step) {
+  if (!navMenuShell || !navMenuToggle || !navMenuPanel || !navGuideBackdrop || !navGuideCard) return;
+  navGuideStep = step === 2 ? 2 : 1;
+  navMenuShell.classList.add('nav-guide-active');
+  navGuideBackdrop.hidden = false;
+  navGuideCard.hidden = false;
+  navGuideCard.dataset.step = String(navGuideStep);
+
+  if (navGuideStep === 1) {
+    setNavMenuOpen(false);
+    navMenuToggle.classList.add('nav-guide-highlight');
+    navMenuPanel.classList.remove('nav-guide-highlight');
+    navGuideTitle.textContent = 'Главная кнопка навигации';
+    navGuideText.textContent = 'Кнопка «МЕНЮ» по центру верхней панели открывает список всех разделов CRM. Нажмите «Показать меню» или саму выделенную кнопку, чтобы увидеть рабочие пространства, инструменты и настройки.';
+    navGuideProgress.textContent = '01 / 02';
+    navGuideBack.hidden = true;
+    navGuideNext.textContent = 'Показать меню ↗';
+  } else {
+    setNavMenuOpen(true);
+    navMenuToggle.classList.remove('nav-guide-highlight');
+    navMenuPanel.classList.add('nav-guide-highlight');
+    navGuideTitle.textContent = 'Выберите нужный раздел';
+    navGuideText.textContent = 'Пункты меню открывают соответствующие экраны: заявки, клиентов, объекты, производство, финансы и инструменты. Наведите курсор на пункт, чтобы увидеть плавную анимацию. После ухода курсора меню свернётся через 5 секунд.';
+    navGuideProgress.textContent = '02 / 02';
+    navGuideBack.hidden = false;
+    navGuideNext.textContent = 'Понятно';
+  }
+  navGuideNext?.focus();
+}
+
+function closeNavGuide(markComplete = true) {
+  if (!navGuideCard || navGuideCard.hidden) return;
+  navGuideCard.hidden = true;
+  if (navGuideBackdrop) navGuideBackdrop.hidden = true;
+  navMenuToggle?.classList.remove('nav-guide-highlight');
+  navMenuPanel?.classList.remove('nav-guide-highlight');
+  navMenuShell?.classList.remove('nav-guide-active');
+  setNavMenuOpen(false);
+  if (markComplete) {
+    try { localStorage.setItem(NAV_GUIDE_STORAGE_KEY, 'done'); } catch { /* The guide remains available through the ? button. */ }
+  }
+  const returnTarget = navGuideReturnFocus?.isConnected && navGuideReturnFocus !== document.body
+    ? navGuideReturnFocus
+    : navMenuToggle;
+  navGuideReturnFocus = null;
+  returnTarget?.focus();
+}
+
+function startNavGuide() {
+  if (!navGuideCard || !navGuideBackdrop) return;
+  navGuideReturnFocus = document.activeElement;
+  showNavGuideStep(1);
+}
+
+function maybeStartNavGuide() {
+  let completed = false;
+  try { completed = localStorage.getItem(NAV_GUIDE_STORAGE_KEY) === 'done'; } catch { completed = false; }
+  if (!completed && startupUnlocked) startNavGuide();
+}
+
+navGuideReplay?.addEventListener('click', startNavGuide);
+navMenuToggle?.addEventListener('click', () => {
+  if (navGuideCard && !navGuideCard.hidden && navGuideStep === 1) showNavGuideStep(2);
 });
+navGuideSkip?.addEventListener('click', () => closeNavGuide(true));
+navGuideNext?.addEventListener('click', () => {
+  if (navGuideStep === 1) showNavGuideStep(2);
+  else closeNavGuide(true);
+});
+navGuideBack?.addEventListener('click', () => showNavGuideStep(1));
+navGuideBackdrop?.addEventListener('click', () => closeNavGuide(true));
+navGuideCard?.addEventListener('keydown', event => {
+  if (event.key !== 'Tab') return;
+  const focusable = [navGuideSkip, navGuideBack, navGuideNext].filter(button => button && !button.hidden && !button.disabled);
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
+
 // Register primary navigation before the rest of renderer initialization. If a later widget
 // fails during setup, the workspace navigation remains usable and the error is observable.
 document.addEventListener('click', event => {
+  const menuButton = event.target.closest('#nav-primary button');
   const button = event.target.closest('[data-view]');
-  if (!button) return;
-  event.preventDefault();
-  showView(button.dataset.view);
-  const overflowMenu = button.closest('.nav-more');
-  if (overflowMenu) overflowMenu.open = false;
+  if (button) {
+    event.preventDefault();
+    showView(button.dataset.view);
+  }
+  if (menuButton) {
+    setNavMenuOpen(false, { restoreFocus: event.detail === 0 });
+    if (event.detail > 0) navMenuToggle?.blur();
+  }
 }, true);
 window.addEventListener('error', event => {
   console.error('СКОЛ renderer error:', event.error || event.message);
@@ -2411,6 +2586,11 @@ initializeStartupGate()
       errorBox.append(heading, detail, retry); target.append(errorBox);
     }
   })
-  .finally(hideStartupSplash);
+  .finally(() => {
+    hideStartupSplash();
+    window.setTimeout(() => {
+      if (startupUnlocked) maybeStartNavGuide();
+    }, 650);
+  });
 // PI does not query business data until the startup PIN gate has been passed.
 setInterval(() => { if (startupUnlocked) refreshPiCoach().catch(() => {}); }, 5 * 60 * 1000);
