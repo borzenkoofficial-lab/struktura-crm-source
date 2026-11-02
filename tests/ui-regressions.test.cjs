@@ -1207,3 +1207,31 @@ test('Dock notification inbox routes each actionable reminder to its real workfl
   assert.match(renderer, /Открыть задачу/);
   assert.match(renderer, /Открыть объект/);
 });
+
+
+test('AnyModel AI is wired into the installed CRM without exposing the API key to the renderer', () => {
+  const aiService = fs.readFileSync(path.join(__dirname, '../src/ai-service.cjs'), 'utf8');
+  assert.match(main, /require\('\.\/ai-service\.cjs'\)/);
+  assert.match(main, /webResearch\(\{ apiKey, model: getAiConfig\(\)\.searchModel/);
+  assert.match(main, /ipcMain\.handle\('ai:saveConfig'/);
+  assert.match(main, /safeStorage\.encryptString\(suppliedKey\)/);
+  assert.match(main, /ipcMain\.handle\('ai:piCoach'/);
+  assert.match(preload, /saveAiConfig: \(data\) => ipcRenderer\.invoke\('ai:saveConfig', data\)/);
+  assert.match(preload, /askPiWithAi: \(data\) => ipcRenderer\.invoke\('ai:piCoach', data\)/);
+  assert.match(html, /id="aiSettingsCard"/);
+  assert.match(html, /id="aiApiKey"/);
+  assert.match(html, /id="piCoachAiBtn"/);
+  assert.match(renderer, /window\.crm\.askPiWithAi/);
+  assert.match(aiService, /tools: \[\{ type: 'web_search' \}\]/);
+  assert.match(aiService, /https:\/\/anymodel\.org\/v1/);
+  assert.doesNotMatch(main, /searchBrave|readSearchKey|brave-search-key\.enc/);
+  assert.doesNotMatch(html, /Brave Search API|API-ключ Brave Search/);
+});
+
+test('AI-powered company and commercial-order imports require cited source URLs', () => {
+  assert.match(main, /hasAiCitation\(sourceUrl, research\.citations\)/);
+  assert.match(main, /ИИ не вернул заказов с подтверждёнными ссылками/);
+  assert.match(main, /ИИ не вернул компаний с подтверждёнными веб-цитатами/);
+  assert.match(main, /status NOT IN \('relevant','rejected'\)/);
+  assert.match(main, /AnyModel AI Search/);
+});
