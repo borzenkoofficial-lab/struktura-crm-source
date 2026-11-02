@@ -2217,6 +2217,39 @@ $('askAiAssistantBtn')?.addEventListener('click', async () => {
   } catch (error) { answer.textContent = error.message; toast(error.message, true); }
   finally { button.disabled = false; button.textContent = 'Спросить ИИ'; }
 });
+const aiWorkspaceDialog = $('aiWorkspaceDialog');
+$('aiWorkspaceReviewBtn')?.addEventListener('click', async () => {
+  const button = $('aiWorkspaceReviewBtn'), status = $('aiWorkspaceStatus'), output = $('aiWorkspaceResult');
+  const activeName = document.querySelector('.view.active')?.id?.replace(/^view-/, '') || 'dashboard';
+  const supported = ['dashboard','leads','clients','projects','production','engineering','finance','prospects','tasks','reports','settings','browser'];
+  const workspace = supported.includes(activeName) ? activeName : 'dashboard';
+  const title = $('pageTitle')?.textContent?.trim() || 'Текущий раздел';
+  if (!aiWorkspaceDialog?.open) aiWorkspaceDialog?.showModal();
+  $('aiWorkspaceTitle').textContent = 'Анализ · ' + title;
+  status.textContent = 'Собираю рабочие показатели и передаю обезличенную сводку ИИ…';
+  output.textContent = 'Проверяю факты, риски и следующие действия. Это может занять несколько секунд.';
+  $('aiWorkspaceModel').textContent = '';
+  button.disabled = true;
+  try {
+    const response = await window.crm.askAi({
+      workspace,
+      question: 'Проведи практический управленческий анализ текущего раздела «' + title + '». Сначала краткий вывод. Затем выдели подтверждённые факты, 3–5 главных рисков или узких мест, приоритетные следующие действия и недостающие данные. Не выдумывай причины, цифры и сроки. Если данных мало, прямо укажи это. Не предлагай менять детерминированные расчёты на догадки ИИ.'
+    });
+    output.textContent = response.answer || 'ИИ вернул пустой ответ.';
+    status.textContent = 'Анализ завершён. Проверь вывод по исходным записям CRM.';
+    $('aiWorkspaceModel').textContent = response.model ? 'Модель: ' + response.model : '';
+  } catch (error) {
+    status.textContent = 'Анализ не выполнен.';
+    output.textContent = error.message || 'Не удалось выполнить анализ текущего раздела.';
+  } finally {
+    button.disabled = false;
+  }
+});
+$('closeAiWorkspaceDialog')?.addEventListener('click', () => aiWorkspaceDialog?.close());
+aiWorkspaceDialog?.addEventListener('click', event => {
+  if (event.target === aiWorkspaceDialog) aiWorkspaceDialog.close();
+});
+
 $('runWebSearchBtn').addEventListener('click', async () => {
   const button = $('runWebSearchBtn'), result = $('webSearchResult');
   button.disabled = true; button.textContent = 'Ищем…'; result.hidden = false; result.className = 'crawler-result';
