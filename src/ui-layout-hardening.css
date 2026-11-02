@@ -2317,81 +2317,6 @@ input[type="checkbox"], input[type="radio"] {
   color: var(--skol-muted);
 }
 
-/* Pricing and integrations: three comparable offers, then a separate integrations area. */
-#view-plans .plans-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: clamp(20px, 2vw, 28px);
-  border: 1px solid var(--skol-line);
-  border-radius: 20px;
-  background: var(--skol-surface);
-  box-shadow: var(--skol-elevation-1);
-}
-#view-plans .plans-hero > div:first-child {
-  min-width: 0;
-}
-#view-plans .plans-hero h2 {
-  line-height: 1.14;
-  letter-spacing: -.04em;
-}
-#view-plans .pricing-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  align-items: stretch;
-}
-#view-plans .pricing-card {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 9px;
-  padding: 19px;
-  border: 1px solid var(--skol-line);
-  border-radius: 18px !important;
-  background: var(--skol-surface);
-  box-shadow: var(--skol-elevation-1);
-}
-#view-plans .pricing-card.featured {
-  border-color: color-mix(in srgb, var(--skol-accent) 55%, var(--skol-line));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--skol-accent) 22%, transparent), var(--skol-elevation-1);
-}
-#view-plans .pricing-card h3 {
-  color: var(--skol-ink);
-  font-size: 17px;
-  font-weight: 800;
-}
-#view-plans .pricing-card .pricing-price {
-  min-height: 40px;
-  color: var(--skol-ink);
-  font-size: 14px;
-  font-weight: 750;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-#view-plans .pricing-card ul {
-  flex: 1 1 auto;
-  padding-left: 18px;
-  color: var(--skol-muted);
-  font-size: 10px;
-  line-height: 1.7;
-}
-#view-plans .pricing-card .button {
-  width: 100%;
-}
-#view-plans .pricing-card .pricing-note {
-  min-height: 30px;
-  color: var(--skol-muted);
-  font-size: 9px;
-  line-height: 1.5;
-}
-#view-plans .ai-integrations-panel {
-  margin-top: 18px;
-  border: 1px solid var(--skol-line);
-  border-radius: 18px;
-  background: var(--skol-surface);
-}
-
 /* Settings: one primary security panel, with notification and license cards below. */
 #view-settings .settings-page-heading {
   margin: 0 0 18px;
@@ -2557,3 +2482,49 @@ input[type="checkbox"], input[type="radio"] {
     display: none;
   }
 }
+
+
+/* SKOL macOS-inspired persistent Dock — fixed to the bottom on every workspace. */
+.app-shell{display:block!important;min-height:100vh;min-height:100dvh}
+.main{width:100%!important;max-width:1700px!important;margin:0 auto!important;padding:0 clamp(14px,2.2vw,34px) 150px!important;min-width:0}
+.skol-dock{position:fixed;z-index:1000;left:50%;bottom:max(14px,env(safe-area-inset-bottom));transform:translateX(-50%);display:flex;align-items:flex-end;gap:10px;width:max-content;max-width:calc(100vw - 28px);padding:11px 13px 10px;border:1px solid rgba(255,255,255,.72);border-radius:25px;background:linear-gradient(145deg,rgba(255,255,255,.84),rgba(244,248,252,.76));box-shadow:0 18px 55px rgba(26,42,61,.19),inset 0 1px 0 rgba(255,255,255,.92);backdrop-filter:blur(28px) saturate(1.65);-webkit-backdrop-filter:blur(28px) saturate(1.65);overflow-x:auto;overflow-y:visible;scrollbar-width:none;overscroll-behavior-x:contain;isolation:isolate}
+.skol-dock::-webkit-scrollbar{display:none}
+.dock-group{display:flex;align-items:flex-end;gap:7px;flex:0 0 auto}
+.dock-divider{align-self:center;flex:0 0 1px;width:1px;height:43px;margin:0 2px;background:linear-gradient(180deg,transparent,rgba(105,123,145,.32),transparent)}
+.skol-dock .dock-item{position:relative;display:flex;flex:0 0 auto;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;width:auto;min-width:66px;max-width:152px;min-height:82px;padding:0 3px 1px;border:0;border-radius:16px;background:transparent;color:#637287;box-shadow:none;transform-origin:50% 100%;transition:transform .26s cubic-bezier(.2,.85,.25,1.35),color .2s ease,filter .2s ease;cursor:pointer;outline:none}
+.skol-dock .dock-icon{display:grid;place-items:center;width:48px;height:48px;border:1px solid rgba(255,255,255,.92);border-radius:15px;background:linear-gradient(145deg,#fff 0%,#e9eff5 100%);color:#53677d;box-shadow:0 5px 12px rgba(35,54,77,.13),inset 0 1px 0 #fff;transition:transform .28s cubic-bezier(.2,.85,.25,1.35),background .22s ease,color .22s ease,box-shadow .22s ease;will-change:transform}
+.skol-dock .dock-icon svg{display:block;width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.skol-dock .dock-label{display:inline-flex;align-items:center;justify-content:center;gap:5px;max-width:100%;min-height:21px;padding:4px 10px;border:1px solid rgba(207,217,228,.82);border-radius:999px;background:rgba(255,255,255,.78);color:#64748a;font-size:9px;font-weight:750;letter-spacing:-.1px;line-height:1.15;white-space:nowrap;overflow:visible;box-shadow:0 2px 7px rgba(33,52,75,.055);transition:background .2s ease,border-color .2s ease,color .2s ease,transform .2s ease;}
+.skol-dock .dock-label i{display:inline-grid;place-items:center;min-width:15px;height:15px;padding:0 4px;border-radius:99px;background:#e96c42;color:#fff;font-size:8px;font-style:normal;font-weight:850}
+.skol-dock .dock-item:hover,.skol-dock .dock-item:focus-visible{z-index:3;color:#d85c35;transform:translateY(-8px) scale(1.12);filter:drop-shadow(0 7px 8px rgba(28,44,64,.12))}
+.skol-dock .dock-item:hover .dock-icon,.skol-dock .dock-item:focus-visible .dock-icon{transform:translateY(-2px);background:linear-gradient(145deg,#fff 0%,#ffe9df 100%);color:#d95e36;box-shadow:0 10px 22px rgba(217,94,54,.2),inset 0 1px 0 #fff}
+.skol-dock:has(.dock-item:hover) .dock-item:not(:hover){transform:translateY(-2px) scale(1.025)}
+.skol-dock .dock-item:hover .dock-label,.skol-dock .dock-item:focus-visible .dock-label{background:#fff;border-color:rgba(228,117,78,.42);color:#bd502e;transform:translateY(1px)}
+.skol-dock .dock-item.active{color:#d65b34}
+.skol-dock .dock-item.active .dock-icon{background:linear-gradient(145deg,#fff7f2,#ffe4d8);border-color:rgba(229,126,89,.45);color:#d75d35;box-shadow:0 5px 14px rgba(217,94,54,.16),inset 0 1px 0 #fff}
+.skol-dock .dock-item.active .dock-label{border-color:rgba(228,117,78,.38);background:linear-gradient(180deg,#fff8f4,#ffede5);color:#bd502e}
+.skol-dock .dock-item:active{transform:translateY(-2px) scale(.97);transition-duration:.08s}
+.skol-dock .dock-item[hidden]{display:none!important}
+.skol-dock .dock-item[data-feature][hidden]{display:none!important}
+@media(max-width:1180px){.skol-dock{gap:7px;max-width:calc(100vw - 20px);padding:9px 10px}.dock-group{gap:4px}.skol-dock .dock-item{min-width:60px;min-height:76px}.skol-dock .dock-icon{width:43px;height:43px;border-radius:13px}.skol-dock .dock-icon svg{width:23px;height:23px}.skol-dock .dock-label{font-size:8px;padding:4px 8px}}
+@media(max-width:760px){.main{padding:0 13px calc(124px + env(safe-area-inset-bottom))!important}.skol-dock{left:10px;right:10px;bottom:max(8px,env(safe-area-inset-bottom));width:auto;max-width:none;transform:none;justify-content:flex-start;border-radius:21px;padding:8px 9px 7px;gap:6px}.dock-group{gap:3px}.dock-divider{height:35px;margin:0 1px}.skol-dock .dock-item{min-width:58px;max-width:130px;min-height:70px;gap:5px}.skol-dock .dock-icon{width:40px;height:40px;border-radius:12px}.skol-dock .dock-icon svg{width:21px;height:21px}.skol-dock .dock-label{min-height:19px;font-size:8px;padding:3px 7px}.skol-dock .dock-item:hover,.skol-dock .dock-item:focus-visible{transform:translateY(-4px) scale(1.06)}}
+@media(max-width:420px){.skol-dock{left:6px;right:6px;padding:7px 7px 6px}.skol-dock .dock-item{min-width:53px;min-height:66px}.skol-dock .dock-icon{width:37px;height:37px}.skol-dock .dock-label{font-size:7px;padding:3px 6px}.dock-group{gap:2px}.dock-divider{margin:0}}
+@media(prefers-reduced-motion:reduce){.skol-dock,.skol-dock *{transition:none!important;animation:none!important;scroll-behavior:auto!important}.skol-dock .dock-item:hover,.skol-dock .dock-item:focus-visible,.skol-dock:has(.dock-item:hover) .dock-item:not(:hover){transform:none!important}}
+@media(prefers-reduced-transparency:reduce){.skol-dock{backdrop-filter:none;-webkit-backdrop-filter:none;background:#f4f7fb;border-color:#d9e1ea}}
+
+/* Settings actions and embedded product information. */
+#view-settings .data-management-card,#view-settings .settings-about-card{grid-column:1/-1}
+#view-settings .settings-data-actions{display:flex;flex-wrap:wrap;gap:9px}
+#view-settings .settings-data-actions .button{min-height:40px}
+#view-settings .settings-data-actions .button.danger{background:#fff1ef;border-color:#f0d1cb;color:#a84435}
+#view-settings .about-settings-details>summary{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:18px 20px;cursor:pointer;list-style:none}
+#view-settings .about-settings-details>summary::-webkit-details-marker{display:none}
+#view-settings .about-settings-details>summary>span{display:grid;gap:5px}
+#view-settings .about-settings-details>summary strong{color:var(--skol-ink);font-size:15px}
+#view-settings .about-settings-details>summary small{color:var(--skol-muted);font-size:10px;line-height:1.5}
+#view-settings .about-settings-details>summary>i{display:grid;place-items:center;width:32px;height:32px;border:1px solid var(--skol-line);border-radius:10px;color:var(--skol-muted);font-size:18px;font-style:normal;transition:transform .2s ease}
+#view-settings .about-settings-details[open]>summary>i{transform:rotate(180deg)}
+#view-settings .about-settings-content{padding:0 18px 20px;border-top:1px solid var(--skol-line)}
+#view-settings .about-settings-content .about-hero{margin-top:18px}
+#view-settings .about-settings-content .about-intro-row{margin-top:22px}
+@media(max-width:760px){#view-settings .settings-data-actions{display:grid;grid-template-columns:1fr}#view-settings .about-settings-details>summary{padding:16px}}
