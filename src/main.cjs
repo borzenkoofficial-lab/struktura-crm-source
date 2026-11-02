@@ -142,17 +142,20 @@ async function askAiJson(system, user, { maxTokens = 2200, temperature = 0.1 } =
 }
 async function buildAiSearchQueries({ service, region, kind, sourceType = 'all', seedQueries = [] }) {
   const labels = { demolition: 'демонтаж коммерческих помещений', finishing: 'отделка и fit-out коммерческих объектов', raised_floor: 'монтаж и демонтаж фальшполов' };
+  let aiPlanError = '';
   try {
     const result = await askAiJson(
       'Ты специалист по B2B-лидогенерации строительного подрядчика в России. Составляй только поисковые запросы для реального веб-поиска. Не придумывай компании, URL и факты. Верни JSON {"queries":["..."]}.',
       JSON.stringify({ task: kind === 'orders' ? 'найти реальные страницы с открытыми заказами, закупками или поиском подрядчика' : 'найти официальные сайты потенциальных корпоративных заказчиков и генподрядчиков', service: labels[service] || labels.demolition, region, sourceType, examples: seedQueries, count: 4 }),
       { maxTokens: 700, temperature: 0.15 }
     );
-    const queries = Array.isArray(result.data?.queries) ? result.data.queries.map(x => clean(x, 400)).filter(Boolean).slice(0, 6) : [];
-    return queries.length ? queries : seedQueries.slice(0, 4);
+    const queries = Array.isArray(result.data?.queries) ? [...new Set(result.data.queries.map(x => clean(x, 400)).filter(Boolean))].slice(0, 6) : [];
+    if (queries.length) return { queries, aiPlanUsed: true, aiPlanError: '' };
+    aiPlanError = 'ИИ не вернул поисковые запросы; использован резервный список.';
   } catch (error) {
-    return seedQueries.slice(0, 4);
+    aiPlanError = clean(error.message, 240);
   }
+  return { queries: seedQueries.slice(0, 4), aiPlanUsed: false, aiPlanError };
 }
 async function rankAiSearchResults(results, { kind, service, region }) {
   const compact = results.slice(0, 40).map(item => ({ url: item.url, title: item.title, snippet: item.snippet, engine: item.engine, query: item.query }));
@@ -164,18 +167,22 @@ async function rankAiSearchResults(results, { kind, service, region }) {
       { maxTokens: 2600, temperature: 0.1 }
     );
     const byUrl = new Map(compact.map(item => [item.url, item]));
+    const seen = new Set();
     const items = (Array.isArray(response.data?.items) ? response.data.items : []).flatMap(candidate => {
-      const source = byUrl.get(String(candidate?.url || ''));
-      if (!source) return [];
+      const url = String(candidate?.url || '');
+      const source = byUrl.get(url);
+      if (!source || seen.has(url)) return [];
+      seen.add(url);
       return [{ ...source, company_name: clean(candidate.company_name, 180) || source.title, score: Math.max(0, Math.min(100, Number(candidate.score) || 0)), reason: clean(candidate.reason, 500), category: clean(candidate.category, 160) }];
     });
-    return { items: items.slice(0, 20), aiUsed: true, model: response.model };
+    return { items: items.sort((a, b) => b.score - a.score).slice(0, 20), aiUsed: true, model: response.model };
   } catch (error) {
     return { items: compact.map(item => ({ ...item, company_name: item.title, score: 0, reason: 'ИИ-анализ недоступен; результат оставлен без оценки.' })), aiUsed: false, reason: clean(error.message, 240) };
   }
 }
 async function runAiWebSearch({ kind, service, region, sourceType = 'all', seedQueries = [] }) {
-  const queries = await buildAiSearchQueries({ kind, service, region, sourceType, seedQueries });
+  const plan = await buildAiSearchQueries({ kind, service, region, sourceType, seedQueries });
+  const queries = plan.queries;
   const found = [], errors = [];
   for (const query of queries) {
     const result = await searchPublicWeb(query, { count: 10 });
@@ -185,7 +192,7 @@ async function runAiWebSearch({ kind, service, region, sourceType = 'all', seedQ
   const seen = new Set();
   const unique = found.filter(item => { if (seen.has(item.url)) return false; seen.add(item.url); return true; });
   const ranked = await rankAiSearchResults(unique, { kind, service, region });
-  return { queries, engineResults: unique, items: ranked.items, aiUsed: ranked.aiUsed, model: ranked.model || readAiModel(), errors, aiError: ranked.reason || '' };
+  return { queries, engineResults: unique, items: ranked.items, aiUsed: ranked.aiUsed, model: ranked.model || readAiModel(), errors, aiError: ranked.reason || '', aiPlanUsed: plan.aiPlanUsed, aiPlanError: plan.aiPlanError };
 }
 
 function amount(value, { allowZero = false } = {}) {
