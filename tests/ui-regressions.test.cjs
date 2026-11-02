@@ -1025,8 +1025,9 @@ test('Salesforce light layout loads after base CSS and the reusable metrics modu
 
 
 
+
 test('shared layout hardening keeps content inside cards, forms, tables and dialogs', () => {
-  const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\\.css)"/g)].map(match => match[1]);
+  const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\.css)"/g)].map(match => match[1]);
   assert.equal(links.at(-1), 'ui-layout-hardening.css', 'the shared geometry layer loads after both themes');
   assert.ok(layoutCss.includes('.main'));
   assert.ok(layoutCss.includes('min-width: 0'));
