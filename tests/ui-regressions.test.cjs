@@ -1051,6 +1051,8 @@ test('Dock interaction layer exposes command search, contextual actions and pers
   assert.match(renderer, /contextmenu/);
   assert.match(renderer, /dockOpenPalette/);
   assert.match(renderer, /dockRunCommand/);
+  assert.match(renderer, /dockRememberView/);
+  assert.match(renderer, /data-dock-recent-index/);
   assert.match(renderer, /dockPreferences\.order/);
   assert.match(layoutCss, /--dock-pointer-x/);
   assert.match(layoutCss, /dock-context-menu/);
