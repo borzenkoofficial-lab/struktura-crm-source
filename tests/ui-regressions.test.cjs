@@ -27,7 +27,7 @@ test('async create forms capture their form before awaiting IPC', () => {
 
 test('commercial tariff page is fully removed without affecting license management', () => {
   assert.doesNotMatch(html, /id="view-plans"|data-view="plans"|data-plan-action/);
-  assert.doesNotMatch(html, /Тариф и интеграции|Покупка пока не активна|платёжный провайдер будет подключён отдельно/);
+  assert.doesNotMatch(html, /Тариф СКОЛ CRM|Тариф и интеграции|Покупка пока не активна|платёжный провайдер будет подключён отдельно/);
   assert.doesNotMatch(renderer, /data-plan-action|plans: 'Тариф/);
   assert.match(html, /id="manageLicenseBtn"/, 'local license management remains available in Settings');
 });
