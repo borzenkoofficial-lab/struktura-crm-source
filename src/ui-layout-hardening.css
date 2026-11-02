@@ -2518,3 +2518,7 @@ input[type="checkbox"], input[type="radio"] {
 #view-settings .about-settings-content .about-hero{margin-top:18px}
 #view-settings .about-settings-content .about-intro-row{margin-top:22px}
 @media(max-width:760px){#view-settings .settings-data-actions{display:grid;grid-template-columns:1fr}#view-settings .about-settings-details>summary{padding:16px}}
+
+.dock-brand{display:grid;place-items:center;flex:0 0 auto;width:42px;height:48px;margin:0 3px 27px 1px;border:1px solid rgba(255,255,255,.85);border-radius:14px;background:linear-gradient(145deg,#f27e51,#d9532f);box-shadow:0 7px 17px rgba(211,83,47,.24),inset 0 1px 0 rgba(255,255,255,.42)}
+.dock-brand img{display:block;width:27px;height:27px;object-fit:contain;filter:brightness(0) invert(1)}
+@media(max-width:760px){.dock-brand{width:36px;height:42px;margin:0 2px 24px 0;border-radius:12px}.dock-brand img{width:23px;height:23px}}
