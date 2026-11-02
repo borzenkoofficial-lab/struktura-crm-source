@@ -127,14 +127,6 @@ function normalizeOrderResult(item = {}, query = '', service = 'demolition', reg
   };
 }
 
-function normalizeBraveOrderResult(item = {}, query = '', service = 'demolition', region = 'Москва и Московская область') {
-  // searchBrave() exposes company_name/source_url/snippet, not title/url/description.
-  return normalizeOrderResult({
-    title: item.company_name,
-    url: item.source_url,
-    description: item.snippet
-  }, query, service, region);
-}
 
 function leadSourceForOrderType(sourceType) {
   return ({ avito: 'avito', telegram: 'telegram', web: 'website', tenders: 'website', files: 'other' })[sourceType] || 'website';
@@ -155,4 +147,4 @@ function deduplicateOrders(items = []) {
   });
 }
 
-module.exports = { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, classifyOrderSource, leadSourceForOrderType };
+module.exports = { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, orderRefreshAction, deduplicateOrders, classifyOrderSource, leadSourceForOrderType };
