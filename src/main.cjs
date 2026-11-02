@@ -149,7 +149,7 @@ function aiSourceKey(value) {
   const safe = normalizeAiHttpUrl(value);
   if (!safe) return '';
   const url = new URL(safe);
-  return url.hostname.toLowerCase() + url.pathname.replace(/\\/+$/, '');
+  return url.hostname.toLowerCase().replace(/^www\\./, '') + url.pathname.replace(/\\/+$/, '');
 }
 function hasAiCitation(sourceUrl, citations = []) {
   const key = aiSourceKey(sourceUrl);
@@ -867,8 +867,6 @@ ipcMain.handle('ai:saveConfig', (_event, input = {}) => {
   const suppliedKey = clean(input.apiKey, 1000);
   const chatModel = clean(input.chatModel, 120) || DEFAULT_CHAT_MODEL;
   const searchModel = clean(input.searchModel, 120) || DEFAULT_SEARCH_MODEL;
-  // Validate IDs before persisting configuration.
-  chatCompletion({ apiKey: 'validation-only-placeholder-key', model: chatModel, prompt: 'validation' }).catch(() => {});
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,119}$/.test(chatModel) || !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,119}$/.test(searchModel)) {
     throw new Error('Проверь идентификаторы моделей. Допустимы буквы, цифры, точка, подчёркивание, двоеточие, слеш и дефис.');
   }
@@ -946,7 +944,8 @@ ipcMain.handle('search:run', async (_event, input = {}) => {
   const candidates = aiResultsFromText(research.text);
   const citedRows = candidates.map(item => {
     const sourceUrl = normalizeAiHttpUrl(item.source_url || item.url || '');
-    const website = normalizeAiHttpUrl(item.website_url || item.website || sourceUrl);
+    const websiteCandidate = normalizeAiHttpUrl(item.website_url || item.website || sourceUrl);
+    const website = websiteCandidate && hasAiCitation(websiteCandidate, research.citations) ? websiteCandidate : sourceUrl;
     const companyName = clean(item.company_name || item.name, 180);
     if (!companyName || !sourceUrl || !hasAiCitation(sourceUrl, research.citations)) return null;
     return {
@@ -1161,6 +1160,7 @@ ipcMain.handle('orders:search',async(_event,input={})=>{
   tenders:'Ищи тендерные и коммерческие закупочные площадки, включая ЕИС, РТС-тендер, Росэлторг и B2B-Center.',
   eis:'Ищи только официальные публикации ЕИС на zakupki.gov.ru по 44-ФЗ и 223-ФЗ.'
  };
+ const queries=['AnyModel web_search · '+sourceType+' · '+serviceLabel+' · '+region];
  const task='Найди до 20 реальных и по возможности актуальных коммерческих заказов/закупок в регионе «'+region+'» по направлению «'+serviceLabel+'». Источники: '+sourceRules[sourceType]+'\n'+
  'Нужны публикации, где заказчик закупает работы, ищет подрядчика, проводит тендер или запрашивает коммерческое предложение. Исключай объявления исполнителей, вакансии, статьи, завершённые нерелевантные тендеры и рекламные страницы. Для каждой записи верни title, source_url (точная ссылка на конкретную страницу публикации), snippet (краткая выдержка только по тексту источника). Не выдумывай бюджет, объём, заказчика, контакты или срок. Если актуальность явно не подтверждена, укажи это в snippet. Все source_url должны иметь веб-цитаты. Верни только JSON: {"results":[...]}';
  const research=await webResearch({apiKey,model:getAiConfig().searchModel,prompt:task,timeoutMs:120000});
