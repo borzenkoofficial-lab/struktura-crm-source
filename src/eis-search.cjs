@@ -103,6 +103,10 @@ async function searchEisProcurements(query, {
   url.searchParams.set('morphology', 'on');
   url.searchParams.set('fz44', 'on');
   url.searchParams.set('fz223', 'on');
+  url.searchParams.set('pageNumber', '1');
+  url.searchParams.set('recordsPerPage', '_50');
+  url.searchParams.set('sortBy', 'UPDATE_DATE');
+  url.searchParams.set('sortDirection', 'false');
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.max(1000, Math.min(45000, Number(timeoutMs) || 16000)));
