@@ -129,6 +129,211 @@ if (skolDock) {
   });
 }
 
+
+// Dock interaction layer: proximity magnification, command palette, contextual actions and preferences.
+const DOCK_PREFS_KEY = 'skol-dock-preferences-v1';
+const dockContextMenu = $('dockContextMenu');
+const dockPaletteDialog = $('dockPaletteDialog');
+const dockSettingsDialog = $('dockSettingsDialog');
+const dockCommands = [
+  ...[...document.querySelectorAll('#skolDock .dock-item[data-view]')].map(item => ({
+    type: 'view', view: item.dataset.view, label: item.title || item.innerText.trim(),
+    description: item.closest('.dock-group')?.getAttribute('aria-label') || 'Раздел CRM'
+  })),
+  { type: 'action', action: 'lead', label: 'Создать заявку', description: 'Новое обращение клиента' },
+  { type: 'action', action: 'client', label: 'Добавить клиента', description: 'Новая запись в клиентской базе' },
+  { type: 'action', action: 'project', label: 'Создать объект', description: 'Новый объект и договор' },
+  { type: 'action', action: 'task', label: 'Создать задачу', description: 'Добавить пункт плана действий' },
+  { type: 'action', action: 'settings', label: 'Настроить Dock', description: 'Состав и порядок разделов' }
+];
+let dockPaletteActiveIndex = 0;
+let dockPreferences = { hidden: [], order: [] };
+function dockLoadPreferences() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DOCK_PREFS_KEY) || '{}');
+    dockPreferences = {
+      hidden: Array.isArray(saved.hidden) ? saved.hidden.filter(value => typeof value === 'string') : [],
+      order: Array.isArray(saved.order) ? saved.order.filter(value => typeof value === 'string') : []
+    };
+  } catch { dockPreferences = { hidden: [], order: [] }; }
+}
+function dockApplyPreferences() {
+  if (!skolDock) return;
+  const items = [...skolDock.querySelectorAll('.dock-item[data-view]')];
+  items.forEach(item => { item.hidden = dockPreferences.hidden.includes(item.dataset.view); });
+  for (const group of skolDock.querySelectorAll('.dock-group')) {
+    const children = [...group.querySelectorAll('.dock-item[data-view]')];
+    const rank = new Map(dockPreferences.order.map((name, index) => [name, index]));
+    children.sort((a, b) => (rank.get(a.dataset.view) ?? 999) - (rank.get(b.dataset.view) ?? 999));
+    children.forEach(item => group.appendChild(item));
+  }
+  for (const group of skolDock.querySelectorAll('.dock-group')) {
+    const visible = group.querySelectorAll('.dock-item:not([hidden])').length > 0;
+    group.hidden = !visible;
+    const divider = group.nextElementSibling;
+    if (divider?.classList.contains('dock-divider')) divider.hidden = !visible;
+  }
+}
+function dockSavePreferences() {
+  try { localStorage.setItem(DOCK_PREFS_KEY, JSON.stringify(dockPreferences)); }
+  catch { toast('Не удалось сохранить настройки Dock в локальном хранилище.', true); }
+}
+function dockOpenSettings() {
+  if (!dockSettingsDialog || !skolDock) return;
+  const list = $('dockSettingsList');
+  const groups = [...skolDock.querySelectorAll('.dock-group')];
+  list.innerHTML = groups.map(group => {
+    const groupName = group.getAttribute('aria-label') || 'Разделы';
+    const items = [...group.querySelectorAll('.dock-item[data-view]')];
+    return '<section class="dock-settings-group"><h3>' + esc(groupName) + '</h3>' +
+      items.map((item, index) => '<div class="dock-settings-row" data-dock-setting-row="' + esc(item.dataset.view) + '">' +
+        '<label><input type="checkbox" data-dock-visible="' + esc(item.dataset.view) + '"' + (dockPreferences.hidden.includes(item.dataset.view) ? '' : ' checked') + '><span class="dock-settings-icon">' + item.querySelector('.dock-icon').innerHTML + '</span><span>' + esc(item.title || item.innerText.trim()) + '</span></label>' +
+        '<span class="dock-settings-order"><button type="button" data-dock-move="-1" aria-label="Переместить выше" ' + (index === 0 ? 'disabled' : '') + '>↑</button><button type="button" data-dock-move="1" aria-label="Переместить ниже" ' + (index === items.length - 1 ? 'disabled' : '') + '>↓</button></span></div>').join('') +
+      '</section>';
+  }).join('');
+  dockSettingsDialog.showModal();
+}
+function dockOpenContext(event, item) {
+  if (!dockContextMenu) return;
+  event.preventDefault();
+  const view = item?.dataset.view;
+  const actions = [
+    { label: 'Открыть раздел', run: () => view && showView(view) },
+    ...(view === 'leads' ? [{ label: '＋ Создать заявку', run: () => $('quickLead')?.click() }] : []),
+    ...(view === 'clients' ? [{ label: '＋ Добавить клиента', run: () => $('addClientBtn')?.click() }] : []),
+    ...(view === 'projects' ? [{ label: '＋ Создать объект', run: () => $('addProjectBtn')?.click() }] : []),
+    ...(view === 'tasks' ? [{ label: '＋ Создать задачу', run: () => $('addTaskBtn')?.click() }] : []),
+    { label: '⌕ Быстрый поиск', run: dockOpenPalette },
+    { label: '⚙ Настроить Dock', run: dockOpenSettings }
+  ];
+  dockContextMenu.innerHTML = actions.map((action, index) => '<button type="button" role="menuitem" data-dock-context-action="' + index + '">' + esc(action.label) + '</button>').join('');
+  dockContextMenu._actions = actions;
+  dockContextMenu.hidden = false;
+  const width = 218, height = actions.length * 38 + 12;
+  dockContextMenu.style.left = Math.max(8, Math.min(window.innerWidth - width - 8, event.clientX)) + 'px';
+  dockContextMenu.style.top = Math.max(8, Math.min(window.innerHeight - height - 8, event.clientY)) + 'px';
+}
+function dockRunCommand(command) {
+  if (!command) return;
+  if (command.type === 'view') showView(command.view);
+  if (command.type === 'action') {
+    const ids = { lead: 'quickLead', client: 'addClientBtn', project: 'addProjectBtn', task: 'addTaskBtn' };
+    if (command.action === 'settings') dockOpenSettings();
+    else $(ids[command.action])?.click();
+  }
+  if (dockPaletteDialog?.open) dockPaletteDialog.close();
+}
+function dockRenderPalette(query = '') {
+  const target = $('dockPaletteResults');
+  if (!target) return;
+  const normalized = query.trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+  const results = dockCommands.filter(item => (item.label + ' ' + item.description).toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').includes(normalized));
+  dockPaletteActiveIndex = Math.min(dockPaletteActiveIndex, Math.max(0, results.length - 1));
+  target.innerHTML = results.length ? results.map((item, index) =>
+    '<button type="button" role="option" aria-selected="' + (index === dockPaletteActiveIndex) + '" data-dock-command-index="' + index + '">' +
+    '<span class="dock-command-glyph">' + (item.type === 'view' ? '↗' : '＋') + '</span><span><strong>' + esc(item.label) + '</strong><small>' + esc(item.description) + '</small></span><kbd>' + (item.type === 'view' ? 'Раздел' : 'Действие') + '</kbd></button>'
+  ).join('') : '<p class="dock-palette-empty">Ничего не найдено. Попробуй другое название.</p>';
+  target._results = results;
+}
+function dockOpenPalette() {
+  if (!dockPaletteDialog) return;
+  if (dockContextMenu) dockContextMenu.hidden = true;
+  dockPaletteDialog.showModal();
+  $('dockPaletteSearch').value = '';
+  dockPaletteActiveIndex = 0;
+  dockRenderPalette('');
+  requestAnimationFrame(() => $('dockPaletteSearch')?.focus());
+}
+dockLoadPreferences();
+dockApplyPreferences();
+if (skolDock) {
+  skolDock.addEventListener('contextmenu', event => dockOpenContext(event, event.target.closest('.dock-item')));
+  let dockFrame = 0;
+  skolDock.addEventListener('pointermove', event => {
+    if (event.pointerType === 'touch') return;
+    cancelAnimationFrame(dockFrame);
+    dockFrame = requestAnimationFrame(() => {
+      const items = [...skolDock.querySelectorAll('.dock-item:not([hidden])')];
+      items.forEach(item => {
+        const rect = item.getBoundingClientRect();
+        const distance = Math.abs(event.clientX - (rect.left + rect.width / 2));
+        const influence = Math.max(0, 1 - distance / 112);
+        item.style.setProperty('--dock-scale', (1 + influence * .24).toFixed(3));
+      });
+      skolDock.style.setProperty('--dock-pointer-x', (event.clientX - skolDock.getBoundingClientRect().left) + 'px');
+    });
+  });
+  skolDock.addEventListener('pointerleave', () => {
+    skolDock.querySelectorAll('.dock-item').forEach(item => item.style.removeProperty('--dock-scale'));
+    skolDock.style.removeProperty('--dock-pointer-x');
+  });
+}
+$('openCommandPaletteBtn')?.addEventListener('click', dockOpenPalette);
+document.addEventListener('keydown', event => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault();
+    dockOpenPalette();
+  }
+  if (event.key === 'Escape' && dockContextMenu && !dockContextMenu.hidden) dockContextMenu.hidden = true;
+});
+$('dockPaletteSearch')?.addEventListener('input', event => { dockPaletteActiveIndex = 0; dockRenderPalette(event.target.value); });
+$('dockPaletteSearch')?.addEventListener('keydown', event => {
+  const results = $('dockPaletteResults')?._results || [];
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    dockPaletteActiveIndex = (dockPaletteActiveIndex + (event.key === 'ArrowDown' ? 1 : -1) + results.length) % Math.max(1, results.length);
+    dockRenderPalette(event.currentTarget.value);
+  } else if (event.key === 'Enter') {
+    event.preventDefault();
+    dockRunCommand(results[dockPaletteActiveIndex]);
+  }
+});
+$('dockPaletteResults')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-dock-command-index]');
+  if (button) dockRunCommand($('dockPaletteResults')._results?.[Number(button.dataset.dockCommandIndex)]);
+});
+dockContextMenu?.addEventListener('click', event => {
+  const button = event.target.closest('[data-dock-context-action]');
+  if (button) dockContextMenu._actions?.[Number(button.dataset.dockContextAction)]?.run();
+  dockContextMenu.hidden = true;
+});
+document.addEventListener('pointerdown', event => {
+  if (dockContextMenu && !dockContextMenu.hidden && !dockContextMenu.contains(event.target)) dockContextMenu.hidden = true;
+});
+document.querySelectorAll('[data-dock-close]').forEach(button => button.addEventListener('click', () => $(button.dataset.dockClose)?.close()));
+$('dockSettingsList')?.addEventListener('change', event => {
+  const view = event.target.dataset.dockVisible;
+  if (!view) return;
+  dockPreferences.hidden = event.target.checked ? dockPreferences.hidden.filter(name => name !== view) : [...new Set([...dockPreferences.hidden, view])];
+});
+$('dockSettingsList')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-dock-move]');
+  if (!button) return;
+  const row = button.closest('[data-dock-setting-row]');
+  const group = row?.parentElement;
+  const rows = [...(group?.querySelectorAll('[data-dock-setting-row]') || [])];
+  const index = rows.indexOf(row), next = index + Number(button.dataset.dockMove);
+  if (next < 0 || next >= rows.length) return;
+  if (next < index) group.insertBefore(row, rows[next]); else group.insertBefore(rows[next], row);
+  group.querySelectorAll('[data-dock-move]').forEach(control => { control.disabled = false; });
+  const updated = [...group.querySelectorAll('[data-dock-setting-row]')];
+  updated[0]?.querySelector('[data-dock-move="-1"]')?.setAttribute('disabled', '');
+  updated.at(-1)?.querySelector('[data-dock-move="1"]')?.setAttribute('disabled', '');
+});
+$('dockSettingsSave')?.addEventListener('click', () => {
+  dockPreferences.order = [...( $('dockSettingsList')?.querySelectorAll('[data-dock-setting-row]') || [])].map(row => row.dataset.dockSettingRow);
+  dockSavePreferences();
+  dockApplyPreferences();
+  dockSettingsDialog?.close();
+  toast('Настройки Dock сохранены.');
+});
+$('dockSettingsReset')?.addEventListener('click', () => {
+  dockPreferences = { hidden: [], order: [] };
+  dockSavePreferences();
+  dockApplyPreferences();
+  dockOpenSettings();
+});
+
 document.addEventListener('click', event => {
   const button = event.target.closest('[data-view]');
   if (!button || button.disabled) return;
