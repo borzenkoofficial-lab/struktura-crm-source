@@ -20,9 +20,10 @@ test('activation screen exposes a device ID, copy action and license key form', 
 
 test('protected navigation and views declare their feature entitlements', () => {
   const html = read('src/index.html');
-  for (const feature of ['finance', 'production', 'engineering', 'reports', 'engineering_plans', 'order_radar', 'web_browser']) {
+  for (const feature of ['finance', 'production', 'engineering', 'reports', 'order_radar', 'web_browser']) {
     assert.match(html, new RegExp(`data-feature=["']${feature}["']`), `missing feature marker: ${feature}`);
   }
+  assert.doesNotMatch(html, /data-feature=["']engineering_plans["']/);
 });
 
 test('preload exposes only the required license status, activation and device-copy actions', () => {
