@@ -159,15 +159,15 @@ function buildAiWorkspaceSnapshot(workspace) {
     const received = Number(db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END),0) total FROM payments").get().total || 0)
       + Number(db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM income_records').get().total || 0);
     const paid = Number(db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=1').get().total || 0);
-    return { workspace, counts, finance: { received_rub: received, paid_expenses_rub: paid, cash_balance_rub: received - paid } };
+    const finance = (licenseState.license?.features || []).includes('finance') ? { received_rub: received, paid_expenses_rub: paid, cash_balance_rub: received - paid } : { available: false };
+    return { workspace, counts, finance };
   }
   if (workspace === 'leads') {
-    const rows = db.prepare('SELECT id,title,service,source,status,budget_rub,notes,updated_at FROM leads ORDER BY id DESC LIMIT 30').all()
-      .map(row => ({ ...row, notes: redactAiText(row.notes, 500) }));
+    const rows = db.prepare('SELECT id,service,source,status,budget_rub,updated_at FROM leads ORDER BY id DESC LIMIT 30').all();
     return { workspace, counts, recent_leads: rows };
   }
   if (workspace === 'projects') {
-    const rows = db.prepare(`SELECT p.id,p.title,p.service,p.status,p.contract_rub,p.start_date,p.end_date,p.planned_people,p.complexity_factor,
+    const rows = db.prepare(`SELECT p.id,p.service,p.status,p.contract_rub,p.start_date,p.end_date,p.planned_people,p.complexity_factor,
       COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub,
       COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub,
       COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub
@@ -186,7 +186,7 @@ function buildAiWorkspaceSnapshot(workspace) {
     const otherIncome = Number(db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM income_records').get().total || 0);
     const paid = Number(db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=1').get().total || 0);
     const planned = Number(db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=0').get().total || 0);
-    const byProject = db.prepare(`SELECT p.title,p.contract_rub,
+    const byProject = db.prepare(`SELECT p.id,p.contract_rub,
       COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub,
       COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub,
       COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub
@@ -194,8 +194,8 @@ function buildAiWorkspaceSnapshot(workspace) {
     return { workspace, totals: { received_rub: receivedPayments + otherIncome, paid_expenses_rub: paid, planned_expenses_rub: planned, cash_balance_rub: receivedPayments + otherIncome - paid }, projects: byProject };
   }
   if (workspace === 'tasks') {
-    const rows = db.prepare(`SELECT t.id,t.title,t.due_at,t.is_done,l.title lead_title,p.title project_title
-      FROM tasks t LEFT JOIN leads l ON l.id=t.lead_id LEFT JOIN projects p ON p.id=t.project_id
+    const rows = db.prepare(`SELECT t.id,t.due_at,t.is_done,t.lead_id,t.project_id
+      FROM tasks t
       WHERE t.is_done=0 ORDER BY CASE WHEN t.due_at IS NULL OR t.due_at='' THEN 1 ELSE 0 END,t.due_at ASC,t.id DESC LIMIT 40`).all();
     return { workspace, counts, open_tasks: rows };
   }
@@ -210,12 +210,12 @@ function buildAiWorkspaceSnapshot(workspace) {
     return { workspace, counts, commercial_orders: rows };
   }
   if (workspace === 'quotes') {
-    const rows = db.prepare('SELECT title,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count FROM quote_history ORDER BY prepared_at DESC LIMIT 25').all();
+    const rows = db.prepare('SELECT prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count FROM quote_history ORDER BY prepared_at DESC LIMIT 25').all();
     return { workspace, recent_quotes: rows };
   }
   if (workspace === 'engineering') {
-    const rows = db.prepare('SELECT title,created_at,updated_at,operations_json,result_json FROM engineering_project_plans ORDER BY updated_at DESC LIMIT 12').all()
-      .map(row => ({ ...row, operations_json: String(row.operations_json || '').slice(0, 2500), result_json: String(row.result_json || '').slice(0, 2500) }));
+    const rows = db.prepare('SELECT created_at,updated_at,operations_json FROM engineering_project_plans ORDER BY updated_at DESC LIMIT 12').all()
+      .map(row => ({ ...row, operations_json: String(row.operations_json || '').slice(0, 2500) }));
     return { workspace, engineering_plans: rows };
   }
   if (workspace === 'clients') return { workspace, client_count: db.prepare('SELECT COUNT(*) total FROM clients').get().total, note: 'Контактные данные клиентов в ИИ не передаются.' };
