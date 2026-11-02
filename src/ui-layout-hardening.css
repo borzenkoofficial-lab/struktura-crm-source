@@ -2834,3 +2834,22 @@ input[type="checkbox"], input[type="radio"] {
 @media(prefers-reduced-motion:reduce){
   .skol-dock .dock-label{transition:none!important}
 }
+
+
+/* AnyModel AI settings and in-app assistant. */
+.ai-settings-card .settings-card-body{display:grid;gap:12px}
+.ai-settings-card .settings-card-body>label{display:grid;gap:6px;color:#536174;font-size:11px;font-weight:650}
+.ai-settings-card .settings-card-body>input,
+.ai-settings-card .settings-card-body>textarea,
+.ai-assistant-inline textarea{
+  width:100%;min-width:0;box-sizing:border-box;padding:11px 13px;border:1px solid #dce4ed;border-radius:11px;
+  background:#fff;color:#25364b;font:inherit;font-size:13px;outline:none;transition:border-color .18s ease,box-shadow .18s ease
+}
+.ai-settings-card .settings-card-body>input:focus,
+.ai-assistant-inline textarea:focus{border-color:#829ab5;box-shadow:0 0 0 3px rgba(89,125,164,.12)}
+.ai-settings-status{padding:10px 12px;border:1px solid #e0e7ef;border-radius:10px;background:#f6f8fb;color:#65758a;font-size:12px}
+.ai-assistant-inline{display:grid;gap:10px;margin-top:8px;padding:16px;border:1px solid #e1e8ef;border-radius:14px;background:linear-gradient(145deg,#f8fafc,#f0f4f8)}
+.ai-assistant-inline h4{margin:0;color:#26374b;font-size:14px}
+.ai-assistant-inline label{color:#64748a;font-size:11px;font-weight:650}
+.ai-assistant-answer{padding:14px;border:1px solid #dce5ed;border-radius:11px;background:#fff;color:#293b50;font-size:13px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+.ai-settings-card .settings-card-description{line-height:1.55}
