@@ -1190,3 +1190,20 @@ test('Windows CI includes a real Electron viewport smoke test with isolated prof
   assert.match(workflow, /SKOL-Electron-UI-Screenshots/);
   assert.match(workflow, /playwright@1\.64\.1/);
 });
+
+test('Dock notification inbox routes each actionable reminder to its real workflow', () => {
+  assert.match(html, /id="dockNotificationsDialog"/);
+  assert.match(html, /data-notification-filter="shift-report"/);
+  assert.match(preload, /getNotificationInbox: \(\) => ipcRenderer\.invoke\('notifications:getInbox'\)/);
+  assert.match(main, /ipcMain\.handle\('notifications:getInbox'/);
+  assert.match(main, /buildReminders\(\{ tasks, projects, now: new Date\(\), settings: inboxSettings, lastSent: \{\} \}\)/);
+  assert.match(renderer, /item\.kind === 'task'[\s\S]*?refreshTasks\(\)\.then/);
+  assert.match(renderer, /item\.kind === 'shift-report'[\s\S]*?openProductionShift\(item\.id\)/);
+  assert.match(renderer, /item\.kind === 'project'[\s\S]*?refreshProjects\(\)\.then/);
+  assert.match(renderer, /showView\('tasks', \{ skipLoad: true \}\)/);
+  assert.match(renderer, /showView\('projects', \{ skipLoad: true \}\)/);
+  assert.match(renderer, /showView\('production', \{ skipLoad: true \}\)/);
+  assert.match(renderer, /Заполнить отчёт смены/);
+  assert.match(renderer, /Открыть задачу/);
+  assert.match(renderer, /Открыть объект/);
+});
