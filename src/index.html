@@ -430,7 +430,13 @@
     <div class="modal-actions"><button type="button" class="button subtle" data-close="manualOrderDialog">Отмена</button><button type="submit" class="button primary">Сохранить и оценить в ПИ</button></div>
   </form>
 </dialog>
-<dialog id="aiWorkspaceDialog" class="modal ai-workspace-dialog" aria-labelledby="aiWorkspaceTitle">\n  <div class="modal-head"><div><span class="eyebrow">СКОЛ · АНАЛИЗ ДАННЫХ CRM</span><h2 id="aiWorkspaceTitle">Анализ текущего раздела</h2><p class="production-modal-intro">ИИ использует локальные рабочие данные без телефонов и email. Результат — рекомендации, не изменения CRM.</p></div><button type="button" class="close-btn" id="closeAiWorkspaceDialog" aria-label="Закрыть">×</button></div>\n  <div id="aiWorkspaceStatus" class="ai-workspace-status" role="status" aria-live="polite">Ожидает запуска анализа.</div>\n  <div id="aiWorkspaceResult" class="ai-workspace-result" aria-live="polite"></div>\n  <div class="ai-workspace-footer"><span id="aiWorkspaceModel"></span><span>Проверь вывод по исходным записям перед принятием решений.</span></div>\n</dialog>\n<aside class="pi-companion" id="piCompanion" aria-label="Голосовой советник ПИ">
+<dialog id="aiWorkspaceDialog" class="modal ai-workspace-dialog" aria-labelledby="aiWorkspaceTitle">
+  <div class="modal-head"><div><span class="eyebrow">СКОЛ · АНАЛИЗ ДАННЫХ CRM</span><h2 id="aiWorkspaceTitle">Анализ текущего раздела</h2><p class="production-modal-intro">ИИ использует локальные рабочие данные без телефонов и email. Результат — рекомендации, не изменения CRM.</p></div><button type="button" class="close-btn" id="closeAiWorkspaceDialog" aria-label="Закрыть">×</button></div>
+  <div id="aiWorkspaceStatus" class="ai-workspace-status" role="status" aria-live="polite">Ожидает запуска анализа.</div>
+  <div id="aiWorkspaceResult" class="ai-workspace-result" aria-live="polite"></div>
+  <div class="ai-workspace-footer"><span id="aiWorkspaceModel"></span><span>Проверь вывод по исходным записям перед принятием решений.</span></div>
+</dialog>
+<aside class="pi-companion" id="piCompanion" aria-label="Голосовой советник ПИ">
   <section class="pi-coach-popover" id="piCoachPopover" hidden aria-live="polite" aria-atomic="true">
     <header class="pi-coach-head"><div><span class="pi-coach-eyebrow">ПИ · ПРОИЗВОДСТВЕННЫЙ ИНТЕЛЛЕКТ</span><strong>Совет по данным бизнеса</strong></div><button id="piCoachCloseBtn" type="button" aria-label="Свернуть совет ПИ">×</button></header>
     <div class="pi-coach-priority" id="piCoachPriority">АНАЛИЗ ДАННЫХ</div>
