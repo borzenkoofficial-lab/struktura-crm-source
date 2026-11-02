@@ -779,7 +779,7 @@ test('regression fixes preserve contract amounts, task links, budgets and financ
 
 
 test('PIN controls are available from a dedicated Settings workspace', () => {
-  assert.match(html, /data-view="settings"><span>⚙<\/span>Настройки/);
+  assert.match(html, /id="skolDock"[\s\S]*?data-view="settings"/);
   assert.match(html, /id="view-settings"/);
   assert.match(html, /id="pinSettingsForm"/);
   assert.match(renderer, /settings: 'Настройки'/);
