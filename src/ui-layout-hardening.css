@@ -2754,3 +2754,15 @@ input[type="checkbox"], input[type="radio"] {
 .skol-dock .dock-notifications-label{font-size:9px;line-height:1.1;white-space:nowrap;color:inherit}
 .skol-dock .dock-notifications-trigger:hover,.skol-dock .dock-notifications-trigger:focus-visible{transform:translateY(-5px) scale(1.08);outline:none}
 @media(max-width:1360px){.skol-dock .dock-notifications-trigger{flex:0 0 34px;width:34px;min-width:34px;max-width:34px;padding:0;overflow:visible}.skol-dock .dock-notifications-label{display:none}.skol-dock .dock-notifications-icon{width:32px;height:32px}}
+
+ 
+/* Dock vertical fit: keep labeled desktop rail within the 60px layout budget. */
+@media(min-width:1361px) and (max-width:1600px){
+  .skol-dock{padding-top:5px!important;padding-bottom:5px!important}
+  .skol-dock .dock-item{padding-top:0!important;padding-bottom:0!important}
+  .skol-dock .dock-icon{width:32px!important;height:32px!important}
+  .skol-dock .dock-label{font-size:8px!important;line-height:9px!important}
+  .skol-dock .dock-notifications-trigger{gap:1px!important;padding-top:0!important;padding-bottom:0!important}
+  .skol-dock .dock-notifications-icon{width:32px!important;height:32px!important}
+  .skol-dock .dock-notifications-label{font-size:8px!important;line-height:9px!important}
+}
