@@ -163,6 +163,10 @@ async function run() {
     assert.equal(path.resolve(actualUserData), path.resolve(userData), 'Electron must use an isolated temporary profile');
 
     page = await electronApp.firstWindow({ timeout: 60000 });
+    await page.waitForTimeout(1500);
+    const knownWindows = electronApp.windows();
+    const crmWindow = knownWindows.find(candidate => candidate.url().startsWith('file://'));
+    if (crmWindow) page = crmWindow;
     page.setDefaultTimeout(15000);
     page.on('pageerror', error => pageErrors.push(String(error?.stack || error?.message || error)));
     page.on('console', message => rendererConsole.push(message.type() + ': ' + message.text()));
@@ -174,6 +178,7 @@ async function run() {
       const diagnostics = await page.evaluate(() => ({
         title: document.title,
         url: location.href,
+        electronWindows: electronApp.windows().map(candidate => candidate.url()),
         readyState: document.readyState,
         bodyText: (document.body?.innerText || '').slice(0, 4000),
         licenseScreenExists: Boolean(document.getElementById('licenseActivationScreen')),
