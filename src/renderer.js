@@ -318,6 +318,68 @@ function dockObserveCounters() {
   });
   ['leadNavCount','taskNavCount'].forEach(id => { const node = $(id); if (node) observer.observe(node, { childList: true, characterData: true, subtree: true }); });
 }
+let dockNotificationItems = [];
+let dockNotificationFilter = 'all';
+let dockNotificationError = '';
+function dockRenderNotifications() {
+  const list = $('dockNotificationsList'), state = $('dockNotificationsState'), badge = $('dockNotificationBadge');
+  if (!list || !state || !badge) return;
+  const count = dockNotificationItems.length;
+  badge.textContent = count > 99 ? '99+' : String(count);
+  badge.hidden = count === 0;
+  $('dockNotificationsSummary').textContent = count ? `Актуальных событий: ${count}. Выбери событие, чтобы открыть связанную запись.` : 'Новых событий по текущим правилам нет.';
+  const filtered = dockNotificationFilter === 'all' ? dockNotificationItems : dockNotificationItems.filter(item => item.kind === dockNotificationFilter);
+  state.hidden = filtered.length > 0;
+  state.textContent = dockNotificationError ? 'Не удалось загрузить уведомления. Проверь соединение с локальной базой и повтори попытку.' : count === 0 ? 'Сейчас нет актуальных уведомлений.' : 'В этой категории событий нет.';
+  list.innerHTML = filtered.map(item => {
+    const type = item.kind === 'task' ? 'ЗАДАЧА' : item.kind === 'project' ? 'СРОК ОБЪЕКТА' : 'ОТЧЁТ СМЕНЫ';
+    return `<button type="button" class="dock-notification-item ${item.level === 'danger' ? 'is-danger' : ''}" data-notification-key="${esc(item.key)}"><span class="dock-notification-type">${type}</span><strong>${esc(item.title)}</strong><span>${esc(item.body)}</span><small>Открыть запись →</small></button>`;
+  }).join('');
+}
+async function dockRefreshNotifications() {
+  const state = $('dockNotificationsState'), list = $('dockNotificationsList');
+  if (state) { state.hidden = false; state.textContent = 'Обновляю события…'; }
+  if (list) list.innerHTML = '';
+  dockNotificationError = '';
+  try { dockNotificationItems = await window.crm.getNotificationInbox(); }
+  catch (error) { dockNotificationItems = []; dockNotificationError = error?.message || 'load_failed'; }
+  dockRenderNotifications();
+}
+function dockOpenNotifications() {
+  const dialog = $('dockNotificationsDialog');
+  if (!dialog) return;
+  if (!dialog.open) dialog.showModal();
+  dockRefreshNotifications();
+}
+$('dockNotificationsBtn')?.addEventListener('click', dockOpenNotifications);
+$('dockNotificationsRefresh')?.addEventListener('click', () => dockRefreshNotifications());
+$('dockNotificationsDialog')?.addEventListener('click', event => {
+  const filter = event.target.closest('[data-notification-filter]');
+  if (filter) {
+    dockNotificationFilter = filter.dataset.notificationFilter;
+    document.querySelectorAll('[data-notification-filter]').forEach(button => button.classList.toggle('is-active', button === filter));
+    dockRenderNotifications();
+    return;
+  }
+  const itemButton = event.target.closest('[data-notification-key]');
+  if (!itemButton) return;
+  const item = dockNotificationItems.find(entry => entry.key === itemButton.dataset.notificationKey);
+  if (!item) return;
+  $('dockNotificationsDialog').close();
+  if (item.kind === 'task') {
+    showView('tasks');
+    $('taskFilter').value = 'all';
+    refreshTasks().then(() => {
+      const button = [...document.querySelectorAll('[data-edit-task]')].find(node => Number(node.dataset.editTask) === item.id);
+      if (button) button.click();
+    }).catch(error => toast(error.message, true));
+  } else {
+    selectedRecordIds.projects = item.id;
+    showView('projects');
+    refreshProjects().catch(error => toast(error.message, true));
+  }
+});
+
 dockLoadPreferences();
 dockApplyPreferences();
 dockObserveCounters();
