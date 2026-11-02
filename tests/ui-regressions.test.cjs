@@ -1043,18 +1043,17 @@ test('Salesforce light layout loads after base CSS and the reusable metrics modu
 
 
 test('Dock interaction layer exposes command search, contextual actions and persistent preferences', () => {
-  const html = fs.readFileSync(path.join(root, 'src/index.html'), 'utf8');
-  const renderer = fs.readFileSync(path.join(root, 'src/renderer.js'), 'utf8');
-  const layout = fs.readFileSync(path.join(root, 'src/ui-layout-hardening.css'), 'utf8');
   assert.match(html, /id="dockPaletteDialog"/);
   assert.match(html, /id="dockSettingsDialog"/);
+  assert.match(html, /data-dock-badge="lead"/);
+  assert.match(html, /data-dock-badge="task"/);
   assert.match(renderer, /DOCK_PREFS_KEY/);
   assert.match(renderer, /contextmenu/);
   assert.match(renderer, /dockOpenPalette/);
   assert.match(renderer, /dockRunCommand/);
   assert.match(renderer, /dockPreferences\.order/);
-  assert.match(layout, /--dock-pointer-x/);
-  assert.match(layout, /dock-context-menu/);
+  assert.match(layoutCss, /--dock-pointer-x/);
+  assert.match(layoutCss, /dock-context-menu/);
 });
 
 test('shared layout hardening keeps content inside cards, forms, tables and dialogs', () => {
