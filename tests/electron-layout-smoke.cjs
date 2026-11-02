@@ -13,13 +13,13 @@ const root = path.resolve(__dirname, '..');
 const outputDir = path.resolve(process.env.SKOL_UI_E2E_OUTPUT || path.join(root, 'artifacts', 'ui-layout-smoke'));
 const viewNames = [
   'dashboard', 'leads', 'clients', 'projects', 'production', 'finance', 'engineering',
-  'prospects', 'tasks', 'reports', 'browser', 'plans', 'settings', 'about'
+  'prospects', 'tasks', 'reports', 'browser', 'settings'
 ];
 const viewportMatrix = [
   { name: '1024x768', width: 1024, height: 768, views: viewNames, screenshots: ['dashboard', 'leads', 'finance', 'engineering', 'settings'] },
   { name: '1280x800', width: 1280, height: 800, views: ['dashboard', 'projects', 'production', 'finance', 'engineering'], screenshots: ['dashboard', 'projects', 'production'] },
   { name: '1440x900', width: 1440, height: 900, views: viewNames, screenshots: ['dashboard', 'prospects', 'tasks', 'reports', 'browser'] },
-  { name: '1920x1080', width: 1920, height: 1080, views: ['dashboard', 'projects', 'production', 'finance', 'engineering', 'plans', 'about'], screenshots: ['dashboard', 'plans', 'about'] }
+  { name: '1920x1080', width: 1920, height: 1080, views: viewNames, screenshots: ['dashboard', 'projects', 'settings'] }
 ];
 
 function makeTestLicense(deviceId, privateKeyPem) {
@@ -44,10 +44,7 @@ function safeFileName(value) {
 }
 
 async function openView(page, name) {
-  const expanded = await page.locator('.sidebar').evaluate(node => node.classList.contains('nav-expanded'));
-  if (!expanded) await page.locator('#navMenuToggle').click();
-
-  const item = page.locator('#nav-primary button[data-view="' + name + '"]');
+  const item = page.locator('#skolDock .dock-item[data-view="' + name + '"]');
   await item.scrollIntoViewIfNeeded();
   await item.click();
 
@@ -202,58 +199,42 @@ async function run() {
       return !splash || splash.classList.contains('is-hidden');
     }, null, { timeout: 15000 });
     await page.waitForTimeout(750);
-    if (await page.locator('#navGuideCard').isVisible().catch(() => false)) {
-      await page.locator('#navGuideSkip').click();
-    }
-
-    // Exercise the actual two-step guide and the centered top menu.
-    await page.locator('#navGuideReplay').click();
-    await page.locator('#navGuideCard:not([hidden])').waitFor({ state: 'visible' });
-    assert.equal(await page.locator('#navGuideCard').getAttribute('data-step'), '1');
-    assert.ok(await page.locator('#navMenuToggle').evaluate(node => node.classList.contains('nav-guide-highlight')));
-    await page.screenshot({ path: path.join(outputDir, 'navigation-guide-step-1.png'), animations: 'disabled' });
-    await page.locator('#navGuideNext').click();
-    assert.equal(await page.locator('#navGuideCard').getAttribute('data-step'), '2');
-    assert.ok(await page.locator('#nav-primary').evaluate(node => node.classList.contains('nav-guide-highlight')));
-    await page.screenshot({ path: path.join(outputDir, 'navigation-guide-step-2.png'), animations: 'disabled' });
-    await page.locator('#navGuideSkip').click();
-
-    await page.locator('#navMenuToggle').click();
-    const navLayout = await page.evaluate(() => {
-      const shell = document.querySelector('.sidebar');
-      const toggle = document.getElementById('navMenuToggle');
-      const panel = document.getElementById('nav-primary');
-      const shellRect = shell.getBoundingClientRect();
-      const toggleRect = toggle.getBoundingClientRect();
-      const groups = Array.from(panel.querySelectorAll('.nav-menu-group'));
-      const items = Array.from(panel.querySelectorAll('.nav-item[data-view]'));
+    // Exercise the persistent macOS-inspired Dock on the real Electron window.
+    const dock = page.locator('#skolDock');
+    await dock.waitFor({ state: 'visible' });
+    const dockLayout = await dock.evaluate(node => {
+      const rect = node.getBoundingClientRect();
+      const items = [...node.querySelectorAll('.dock-item')];
       return {
-        toggleCenter: toggleRect.left + toggleRect.width / 2,
-        shellCenter: shellRect.left + shellRect.width / 2,
-        viewportWidth: window.innerWidth,
-        shellWidth: shellRect.width,
-        navVisible: getComputedStyle(panel).visibility === 'visible',
-        groupDirections: groups.map(group => getComputedStyle(group).flexDirection),
-        itemCount: items.length
+        position: getComputedStyle(node).position,
+        bottomGap: Math.round(window.innerHeight - rect.bottom),
+        left: Math.round(rect.left),
+        right: Math.round(rect.right),
+        itemCount: items.length,
+        groupCount: node.querySelectorAll('.dock-group').length,
+        labelCount: node.querySelectorAll('.dock-label').length,
+        iconCount: node.querySelectorAll('.dock-icon svg').length,
+        labels: items.map(item => item.querySelector('.dock-label')?.innerText.trim())
       };
     });
-    assert.ok(Math.abs(navLayout.toggleCenter - navLayout.shellCenter) <= 2, 'top menu trigger must be horizontally centered within the navigation shell: ' + JSON.stringify(navLayout));
-    assert.equal(navLayout.navVisible, true, 'top navigation panel must be visible after opening');
-    assert.equal(navLayout.itemCount, 14, 'all 14 main workspaces must remain in the navigation');
-    assert.ok(navLayout.groupDirections.every(value => value === 'row'), 'navigation groups must stay horizontal');
-    await page.screenshot({ path: path.join(outputDir, 'navigation-open.png'), animations: 'disabled' });
+    assert.equal(dockLayout.position, 'fixed', 'Dock stays fixed to the application window');
+    assert.ok(dockLayout.bottomGap >= 0 && dockLayout.bottomGap <= 20, 'Dock is attached to the bottom edge: ' + JSON.stringify(dockLayout));
+    assert.equal(dockLayout.itemCount, 12, 'all 12 primary workspaces are present');
+    assert.equal(dockLayout.groupCount, 4, 'workspaces are grouped into four logical groups');
+    assert.equal(dockLayout.labelCount, 12, 'every icon has a visible text capsule');
+    assert.equal(dockLayout.iconCount, 12, 'every destination has a vector icon');
+    assert.ok(dockLayout.labels.includes('Создать резервную копию') === false, 'data utilities live in Settings, not in the Dock');
+    await page.screenshot({ path: path.join(outputDir, 'dock-default.png'), animations: 'disabled' });
 
-    const hoverTarget = page.locator('#nav-primary .nav-item[data-view="projects"]');
+    const hoverTarget = dock.locator('.dock-item[data-view="projects"]');
+    const beforeHover = await hoverTarget.boundingBox();
     await hoverTarget.hover();
-    const hoverAnimation = await hoverTarget.evaluate(node => getComputedStyle(node).animationName);
-    assert.match(hoverAnimation, /skolNavJelly/, 'navigation item hover must use the jelly motion');
+    await page.waitForTimeout(300);
+    const afterHover = await hoverTarget.boundingBox();
+    assert.ok(afterHover.width > beforeHover.width * 1.05, 'hover magnifies the dock icon and its hit target');
+    await page.screenshot({ path: path.join(outputDir, 'dock-hover.png'), animations: 'disabled' });
+    await page.keyboard.press('Tab');
     await page.keyboard.press('Escape');
-    await page.waitForFunction(() => !document.querySelector('.sidebar')?.classList.contains('nav-expanded'));
-
-    // Check the real five-second idle close rather than only inspecting the timer constant.
-    await page.locator('#navMenuToggle').click();
-    await page.mouse.move(12, Math.min(500, await page.evaluate(() => window.innerHeight - 20)));
-    await page.waitForFunction(() => !document.querySelector('.sidebar')?.classList.contains('nav-expanded'), null, { timeout: 7500 });
 
     for (const viewport of viewportMatrix) {
       console.log('[viewport] ' + viewport.name + ' started');
