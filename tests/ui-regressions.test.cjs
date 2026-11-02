@@ -10,6 +10,7 @@ const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
 const preload = fs.readFileSync(path.join(__dirname, '../src/preload.cjs'), 'utf8');
 const pinSecurity = fs.readFileSync(path.join(__dirname, '../src/pin-security.cjs'), 'utf8');
 const css = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
+const layoutCss = fs.readFileSync(path.join(__dirname, '../src/ui-layout-hardening.css'), 'utf8');
 
 test('async create forms capture their form before awaiting IPC', () => {
   for (const id of ['leadForm', 'clientForm', 'projectForm', 'paymentForm', 'expenseForm']) {
@@ -1022,3 +1023,15 @@ test('Salesforce light layout loads after base CSS and the reusable metrics modu
   assert.ok(css.includes('min-width:0'));
 });
 
+
+test('shared layout hardening keeps content inside cards, forms, tables and dialogs', () => {
+  const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\\.css)"/g)].map(match => match[1]);
+  assert.equal(links.at(-1), 'ui-layout-hardening.css', 'the shared geometry layer loads after both themes');
+  assert.match(layoutCss, /\.main[\\s\\S]*?min-width:\\s*0/);
+  assert.match(layoutCss, /\.stat-card > strong[\\s\\S]*?white-space:\\s*normal/);
+  assert.match(layoutCss, /overflow-wrap:\\s*anywhere/);
+  assert.match(layoutCss, /\.table-wrap[\\s\\S]*?overflow-x:\\s*auto/);
+  assert.match(layoutCss, /dialog\\.modal[\\s\\S]*?max-height:\\s*calc\\(100dvh - 32px\\)/);
+  assert.match(layoutCss, /@media \\(max-width: 1120px\\)[\\s\\S]*?\.records-workspace[\\s\\S]*?grid-template-columns:\\s*minmax\\(0, 1fr\\)/);
+  assert.doesNotMatch(layoutCss.replace(/\\/\\*[\\s\\S]*?\\*\\//g, ''), /overflow\\s*:\\s*hidden/);
+});
