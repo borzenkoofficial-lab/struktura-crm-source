@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { _electron: electron } = require('playwright');
+const electronExecutable = require('electron');
 const { createLicenseToken, getFeaturesForEdition } = require('../src/license-core.cjs');
 
 const root = path.resolve(__dirname, '..');
@@ -153,6 +154,7 @@ async function run() {
 
   try {
     electronApp = await electron.launch({
+      executablePath: electronExecutable,
       args: [root],
       env: childEnv,
       timeout: 60000
