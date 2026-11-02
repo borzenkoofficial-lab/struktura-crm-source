@@ -146,7 +146,7 @@ function redactAiText(value, max = 600) {
     .replace(/(?:\\+?\\d[\\d\\s().-]{7,}\\d)/g, '[phone]');
 }
 function buildAiWorkspaceSnapshot(workspace) {
-  const allowed = new Set(['dashboard','leads','projects','production','finance','tasks','prospects','orders','quotes','engineering','reports','clients']);
+  const allowed = new Set(['dashboard','leads','projects','production','finance','tasks','prospects','orders','quotes','engineering','reports','clients','settings','browser']);
   if (!allowed.has(workspace)) throw new Error('Для этого раздела пока нет AI-контекста.');
   const counts = {
     leads: db.prepare("SELECT COUNT(*) total FROM leads WHERE status NOT IN ('won','lost')").get().total,
