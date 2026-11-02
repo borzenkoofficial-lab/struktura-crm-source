@@ -9,8 +9,9 @@ test('AI JSON parser accepts fenced and embedded JSON', () => {
   assert.deepEqual(parseJsonObject('```json\n{"items":[1]}\n```'), { items: [1] });
   assert.deepEqual(parseJsonObject('Result: {"ok":true}'), { ok: true });
 });
-test('AI JSON parser rejects non-JSON', () => {
+test('AI JSON parser rejects non-JSON and array roots', () => {
   assert.throws(() => parseJsonObject('plain text'), /неверном формате/);
+  assert.throws(() => parseJsonObject('[1,2]'), /неверном формате/);
 });
 test('AnyModel client sends OpenAI-compatible request', async () => {
   let request;
@@ -50,6 +51,8 @@ test('Bing parser extracts organic results', () => {
 test('search result validator rejects unsafe and engine links', () => {
   assert.equal(safeResult('javascript:alert(1)', 'bad', '', 'test', ''), null);
   assert.equal(safeResult('https://duckduckgo.com/?q=x', 'bad', '', 'test', ''), null);
+  assert.equal(safeResult('http://127.0.0.1/private', 'local', '', 'test', ''), null);
+  assert.equal(safeResult('http://localhost:8080/private', 'local', '', 'test', ''), null);
 });
 test('public search falls back when first engine has no parsed results', async () => {
   let calls = 0;
