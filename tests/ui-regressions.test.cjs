@@ -1235,3 +1235,18 @@ test('AI-powered company and commercial-order imports require cited source URLs'
   assert.match(main, /status NOT IN \('relevant','rejected'\)/);
   assert.match(main, /AnyModel AI Search/);
 });
+
+test('commercial order AI review is persisted, source-grounded and invalidated after source refresh', () => {
+  const dbSchema = fs.readFileSync(path.join(__dirname, '../src/db.cjs'), 'utf8');
+  assert.match(dbSchema, /CREATE TABLE IF NOT EXISTS commercial_order_ai_reviews/);
+  assert.match(main, /ipcMain\\.handle\\('orders:aiReview'/);
+  assert.match(main, /normalizeAiReviewList\\(payload\\.requirements,[\\s\\S]*?evidenceRequired:true/);
+  assert.match(main, /source\\.includes\\(normalizeSpace\\(evidence\\)\\)/);
+  assert.match(main, /redactAiPrivateText\\(part\\.text,privateValues\\)/);
+  assert.match(main, /safeStorage/);
+  assert.match(main, /DELETE FROM commercial_order_ai_reviews WHERE order_id=\\?/);
+  assert.match(preload, /reviewCommercialOrderWithAi: \\(data\\) => ipcRenderer\\.invoke\\('orders:aiReview', data\\)/);
+  assert.match(renderer, /data-order-ai-review/);
+  assert.match(renderer, /renderCommercialOrderAiReview\\(o\\.ai_review\\)/);
+  assert.match(renderer, /window\\.crm\\.reviewCommercialOrderWithAi/);
+});
