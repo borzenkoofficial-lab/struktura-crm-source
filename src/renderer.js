@@ -1673,6 +1673,38 @@ function renderOpportunityRadar(rows) {
     return `<article class="radar-item"><div class="radar-item-main"><div class="radar-company-line"><strong>${esc(p.company_name)}</strong><span class="radar-score ${score >= 30 ? 'hot' : score >= 18 ? 'warm' : ''}">${score ? `Сигнал ${score}/100` : 'Без сигнала спроса'}</span></div><div class="radar-tags">${tags || '<span class="radar-tag muted-tag">Сигнал спроса не найден</span>'}</div><p>${esc(p.radar.nextAction)}</p><small>${esc(p.phone || p.email || (p.website ? 'Контакт не найден — есть сайт' : 'Нет контактов и сайта'))}</small></div><div class="radar-actions"><button class="button small-button" data-prospect-edit="${p.id}">Карточка</button>${p.website ? `<button class="button small-button" data-external="${esc(p.website)}">Открыть сайт</button>` : ''}</div></article>`;
   }).join('') : empty('Пока нечего анализировать','Добавь компании или запусти поиск — радар разберёт заметки и фрагменты выдачи.');
 }
+function renderCommercialOrderAiReview(entry) {
+ if(!entry?.review||typeof entry.review!=='object')return '';
+ const review=entry.review;
+ const decision=String(review.decision||'недостаточно данных');
+ const decisionClass=decision==='подходит'?'won':decision==='не подходит'?'lost':'contacted';
+ const list=(items,label,mode='fact')=>{
+  if(!Array.isArray(items)||!items.length)return '';
+  return '<section class="order-ai-review-section"><strong>'+esc(label)+'</strong><ul>'+items.map(item=>{
+   const title=esc(item.item||'');
+   const details=[item.value?esc(item.value):'',item.date?esc(item.date):''].filter(Boolean).join(' · ');
+   const evidence=item.evidence?'<blockquote>'+esc(item.evidence)+'</blockquote>':'';
+   const source=item.source?'<small>'+esc(item.source)+'</small>':'';
+   const level=mode==='risk'?'<span class="order-ai-risk-level '+esc(item.level||'medium')+'">'+esc(({high:'Высокий',medium:'Средний',low:'Низкий'})[item.level]||'Средний')+'</span>':'';
+   return '<li>'+level+'<span>'+title+(details?' · '+details:'')+'</span>'+evidence+source+'</li>';
+  }).join('')+'</ul></section>';
+ };
+ const textList=(items,label)=>{
+  if(!Array.isArray(items)||!items.length)return '';
+  return '<section class="order-ai-review-section"><strong>'+esc(label)+'</strong><ul>'+items.map(item=>'<li>'+esc(item)+'</li>').join('')+'</ul></section>';
+ };
+ return '<details class="order-ai-review" open><summary><strong>ИИ · Анализ документации</strong><span class="pill '+decisionClass+'">'+esc(decision)+'</span><small>'+esc(entry.model||'AnyModel')+' · '+esc(entry.updated_at||'сохранено')+'</small></summary>'+
+  '<div class="order-ai-review-body"><p>'+esc(review.summary||'')+'</p>'+
+  list(review.requirements,'Требования к подрядчику')+
+  list(review.scope,'Состав и объём работ')+
+  list(review.deadlines,'Сроки и даты')+
+  list(review.risks,'Риски','risk')+
+  textList(review.unknowns,'Не хватает данных')+
+  textList(review.questions,'Что уточнить у заказчика')+
+  textList(review.nextSteps,'Рекомендуемые следующие шаги')+
+  (Number(review.unverifiedItemsOmitted)>0?'<small>Не показано неподтверждённых пунктов без точной цитаты из загруженного текста: '+Number(review.unverifiedItemsOmitted)+'</small>':'')+
+  '<small>'+esc(review.evidencePolicy||'Проверь каждый вывод по исходному документу.')+'</small></div></details>';
+}
 let commercialOrderCache=[];
 let piEconomicsCatalogCache=[];
 const orderStatusLabels={new:'Новый',opened:'Открывали',relevant:'Подходит',rejected:'Не подходит'};
@@ -1703,6 +1735,7 @@ async function refreshCommercialOrders(){
   if(o.email) factChips.push('Email: '+o.email);
   if(o.procurement_number) factChips.push('Закупка № '+o.procurement_number);
   const factMarkup=factChips.length?`<div class="order-evidence-facts">${factChips.map(x=>`<span>${esc(x)}</span>`).join('')}</div>`:'';
+  const aiReviewMarkup=renderCommercialOrderAiReview(o.ai_review);
   const pageText=String(o.source_page_text||'');
   const sourcePageMarkup=pageText?'<details class="order-source-page"><summary>Текст первоисточника · '+esc(o.source_fetched_at||'загружен')+'</summary><div class="order-source-page-body"><strong>'+esc(o.source_page_title||'Прочитанная страница')+'</strong><p>'+esc(pageText.slice(0,4200))+(pageText.length>4200?'…':'')+'</p><small>Открытая страница: '+esc(o.source_page_url||o.source_url)+'</small></div></details>':'';
   const pdfDocs=Array.isArray(o.documents)?o.documents:[];
@@ -1720,7 +1753,7 @@ async function refreshCommercialOrders(){
   }).join('')+'</ul></section>':'';
   const evidenceRows=Array.isArray(o.fact_evidence)?o.fact_evidence:[];
   const evidenceMarkup=evidenceRows.length?`<details class="order-evidence-details"><summary>Фрагменты, из которых извлечены сведения (${evidenceRows.length})</summary><ul>${evidenceRows.map(x=>`<li><strong>${esc(x.field)}:</strong> ${esc(x.excerpt)}</li>`).join('')}</ul><small>Автоматическое извлечение. Каждый факт нужно сверить на исходной странице.</small></details>`:'';
-  return `<article class="commercial-order-card"><div class="commercial-order-main"><div class="commercial-order-title-line"><strong>${esc(o.title)}</strong><span class="radar-score ${o.signal_score>=50?'hot':o.signal_score>=25?'warm':''}">Сигналы ${o.signal_score}/100</span><span class="pi-order-score ${score>=65?'high':score>=40?'medium':'low'}">ПИ ${score}/100</span><span class="pill ${o.status==='relevant'?'won':o.status==='rejected'?'lost':o.status==='opened'?'contacted':'new'}">${esc(orderStatusLabels[o.status]||o.status)}</span></div><p>${esc(o.snippet||'Описание в поисковой выдаче отсутствует — открой оригинал.')}</p>${factMarkup}${evidenceMarkup}${sourcePageMarkup}${documentsMarkup}<div class="radar-tags">${labels.map(x=>`<span class="radar-tag">${esc(x)}</span>`).join('')||'<span class="radar-tag muted-tag">Сигналы не подтверждены</span>'}</div><div class="pi-order-brief"><strong>${esc(pi?.label||'Нужна проверка')}</strong><span>Уверенность: ${esc(pi?.confidence||'низкая')} · Факторов оценено: ${Number(pi?.knownFactors||0)}/${Number(pi?.totalFactors||5)}</span></div>${o.pi_analysis ? '<div class="pi-order-economics ' + (Number(o.pi_analysis.estimated_profit_rub)<0?'negative':'') + '"><strong>Предварительная экономика · ' + esc(o.pi_analysis.work_name) + '</strong><span>Выручка: ' + fmt(o.pi_analysis.revenue_rub) + ' · Расходы: ' + fmt(o.pi_analysis.estimated_cost_rub) + '</span><span>' + (Number(o.pi_analysis.budget_rub)>0?'Основа выручки: введённый бюджет':'Основа выручки: ставка прайса; бюджет заказчика не подтверждён') + '</span><span>Прибыль: ' + fmt(o.pi_analysis.estimated_profit_rub) + ' · Маржа: ' + Number(o.pi_analysis.estimated_margin_pct).toLocaleString('ru-RU',{maximumFractionDigits:1}) + '%</span><span>Срок: ' + Number(o.pi_analysis.estimated_days).toLocaleString('ru-RU',{maximumFractionDigits:1}) + ' смен · Бригада: ' + Number(o.pi_analysis.crew_size) + ' · История смен: ' + Number(o.pi_analysis.observations_count) + ' наблюдений</span><small>' + (Number(o.pi_analysis.cost_per_unit)===0?'Внимание: себестоимость за единицу не задана; расчёт зависит от зарплаты и прочих расходов.':'Расчёт ориентировочный; проверь условия, ставки и дополнительные затраты.') + '</small></div>' : ''}<details class="pi-order-details"><summary>Почему такой приоритет и что уточнить</summary><div class="pi-order-details-body"><strong>Основания</strong><ul>${reasons.map(x=>`<li>${esc(x)}</li>`).join('')||'<li>Недостаточно сведений для объяснения оценки.</li>'}</ul><strong>Следующие вопросы</strong><ul>${questions.map(x=>`<li>${esc(x)}</li>`).join('')||'<li>Проверь бюджет, объём и сроки в первоисточнике.</li>'}</ul><small>${esc(pi?.disclaimer||'Предварительная сортировка; требуется проверка первоисточника.')}</small></div></details><small>${esc(o.source_name)} · ${esc(o.region)} · Обнаружено: ${esc(o.last_seen_at||o.first_seen_at||'—')}</small></div><div class="commercial-order-actions"><button class="button small-button" data-order-fetch="${o.id}">${o.source_fetched_at?'Обновить условия':'Прочитать источник'}</button><button class="button small-button" data-order-economics="${o.id}">${o.pi_analysis?'Изменить экономику':'Оценить экономику'}</button><button class="button small-button primary" data-order-open="${o.id}" data-order-url="${esc(o.source_url)}">Открыть источник ↗</button>${o.converted_to_lead?'<span class="pill won">Уже в заявках</span>':`<button class="button small-button" data-order-convert="${o.id}">В заявку</button>`}<select aria-label="Статус заказа" data-order-status="${o.id}"><option value="new" ${o.status==='new'?'selected':''}>Новый</option><option value="opened" ${o.status==='opened'?'selected':''}>Открывали</option><option value="relevant" ${o.status==='relevant'?'selected':''}>Подходит</option><option value="rejected" ${o.status==='rejected'?'selected':''}>Не подходит</option></select></div></article>`;
+  return `<article class="commercial-order-card"><div class="commercial-order-main"><div class="commercial-order-title-line"><strong>${esc(o.title)}</strong><span class="radar-score ${o.signal_score>=50?'hot':o.signal_score>=25?'warm':''}">Сигналы ${o.signal_score}/100</span><span class="pi-order-score ${score>=65?'high':score>=40?'medium':'low'}">ПИ ${score}/100</span><span class="pill ${o.status==='relevant'?'won':o.status==='rejected'?'lost':o.status==='opened'?'contacted':'new'}">${esc(orderStatusLabels[o.status]||o.status)}</span></div><p>${esc(o.snippet||'Описание в поисковой выдаче отсутствует — открой оригинал.')}</p>${factMarkup}${evidenceMarkup}${sourcePageMarkup}${documentsMarkup}${aiReviewMarkup}<div class="radar-tags">${labels.map(x=>`<span class="radar-tag">${esc(x)}</span>`).join('')||'<span class="radar-tag muted-tag">Сигналы не подтверждены</span>'}</div><div class="pi-order-brief"><strong>${esc(pi?.label||'Нужна проверка')}</strong><span>Уверенность: ${esc(pi?.confidence||'низкая')} · Факторов оценено: ${Number(pi?.knownFactors||0)}/${Number(pi?.totalFactors||5)}</span></div>${o.pi_analysis ? '<div class="pi-order-economics ' + (Number(o.pi_analysis.estimated_profit_rub)<0?'negative':'') + '"><strong>Предварительная экономика · ' + esc(o.pi_analysis.work_name) + '</strong><span>Выручка: ' + fmt(o.pi_analysis.revenue_rub) + ' · Расходы: ' + fmt(o.pi_analysis.estimated_cost_rub) + '</span><span>' + (Number(o.pi_analysis.budget_rub)>0?'Основа выручки: введённый бюджет':'Основа выручки: ставка прайса; бюджет заказчика не подтверждён') + '</span><span>Прибыль: ' + fmt(o.pi_analysis.estimated_profit_rub) + ' · Маржа: ' + Number(o.pi_analysis.estimated_margin_pct).toLocaleString('ru-RU',{maximumFractionDigits:1}) + '%</span><span>Срок: ' + Number(o.pi_analysis.estimated_days).toLocaleString('ru-RU',{maximumFractionDigits:1}) + ' смен · Бригада: ' + Number(o.pi_analysis.crew_size) + ' · История смен: ' + Number(o.pi_analysis.observations_count) + ' наблюдений</span><small>' + (Number(o.pi_analysis.cost_per_unit)===0?'Внимание: себестоимость за единицу не задана; расчёт зависит от зарплаты и прочих расходов.':'Расчёт ориентировочный; проверь условия, ставки и дополнительные затраты.') + '</small></div>' : ''}<details class="pi-order-details"><summary>Почему такой приоритет и что уточнить</summary><div class="pi-order-details-body"><strong>Основания</strong><ul>${reasons.map(x=>`<li>${esc(x)}</li>`).join('')||'<li>Недостаточно сведений для объяснения оценки.</li>'}</ul><strong>Следующие вопросы</strong><ul>${questions.map(x=>`<li>${esc(x)}</li>`).join('')||'<li>Проверь бюджет, объём и сроки в первоисточнике.</li>'}</ul><small>${esc(pi?.disclaimer||'Предварительная сортировка; требуется проверка первоисточника.')}</small></div></details><small>${esc(o.source_name)} · ${esc(o.region)} · Обнаружено: ${esc(o.last_seen_at||o.first_seen_at||'—')}</small></div><div class="commercial-order-actions"><button class="button small-button" data-order-fetch="${o.id}">${o.source_fetched_at?'Обновить условия':'Прочитать источник'}</button><button class="button small-button" data-order-ai-review="${o.id}">${o.ai_review?'Обновить ИИ-разбор':'Разобрать условия с ИИ'}</button><button class="button small-button" data-order-economics="${o.id}">${o.pi_analysis?'Изменить экономику':'Оценить экономику'}</button><button class="button small-button primary" data-order-open="${o.id}" data-order-url="${esc(o.source_url)}">Открыть источник ↗</button>${o.converted_to_lead?'<span class="pill won">Уже в заявках</span>':`<button class="button small-button" data-order-convert="${o.id}">В заявку</button>`}<select aria-label="Статус заказа" data-order-status="${o.id}"><option value="new" ${o.status==='new'?'selected':''}>Новый</option><option value="opened" ${o.status==='opened'?'selected':''}>Открывали</option><option value="relevant" ${o.status==='relevant'?'selected':''}>Подходит</option><option value="rejected" ${o.status==='rejected'?'selected':''}>Не подходит</option></select></div></article>`;
  }).join(''):empty('Заказы пока не найдены','Нажми «Найти с ИИ» после настройки AnyModel или измени фильтры.');
 }
 async function refreshProspects() {
@@ -2352,6 +2385,18 @@ $('orderRadarSearch').addEventListener('input',()=>refreshCommercialOrders().cat
 $('orderRadarStatus').addEventListener('change',()=>refreshCommercialOrders().catch(e=>toast(e.message,true)));
 $('orderRadarService').addEventListener('change',()=>refreshCommercialOrders().catch(e=>toast(e.message,true)));
 $('orderRadarSource').addEventListener('change',()=>{refreshCommercialOrders().catch(e=>toast(e.message,true));const b=$('runOrderRadarBtn');if(b)b.textContent=$('orderRadarSource').value==='files'?'Выбран импорт CSV':'⌕ Найти с ИИ';});
+$('commercialOrdersList').addEventListener('click',async e=>{
+ const button=e.target.closest('[data-order-ai-review]');if(!button)return;
+ const orderId=Number(button.dataset.orderAiReview);
+ if(!Number.isSafeInteger(orderId)||orderId<1){toast('Некорректный номер заказа.',true);return;}
+ button.disabled=true;button.textContent='ИИ анализирует…';
+ try{
+  const result=await window.crm.reviewCommercialOrderWithAi({order_id:orderId});
+  toast('ИИ-разбор сохранён. Неподтверждённые факты отсеяны.');
+  await refreshCommercialOrders();
+ }catch(error){toast('Не удалось выполнить ИИ-разбор: '+error.message,true);}
+ finally{button.disabled=false;}
+});
 $('commercialOrdersList').addEventListener('click',async e=>{
  const button=e.target.closest('[data-order-fetch]');if(!button)return;
  const orderId=Number(button.dataset.orderFetch);
