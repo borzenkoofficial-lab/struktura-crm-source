@@ -1157,6 +1157,7 @@ ipcMain.handle('orders:fetchSource', async (_event, orderId) => {
   }
  });
  saveAttachments(Array.isArray(page.attachments)?page.attachments:[]);
+ db.prepare('DELETE FROM commercial_order_ai_reviews WHERE order_id=?').run(id);
  return {id,title:page.title,source_page_url:page.page_url,extractedFacts:pageEvidence.length,documentsFound,
   fieldsFound:['customer_name','contact_name','phone','email','budget_rub','volume_value','deadline_text','procurement_number','work_address'].filter(field=>extracted[field]!==''&&extracted[field]!==0)};
 });
@@ -1201,6 +1202,7 @@ ipcMain.handle('orders:fetchPdf', async (_event, input = {}) => {
    WHERE id=@id`).run({...facts,id:orderId,fact_evidence_json:JSON.stringify([...merged.values()].slice(-120))});
  });
  persist();
+ db.prepare('DELETE FROM commercial_order_ai_reviews WHERE order_id=?').run(orderId);
  return {order_id:orderId,document_id:documentId,file_name:pdf.file_name,page_count:pdf.page_count,
   extractedFacts:taggedEvidence.length,bytes:pdf.bytes,sha256:pdf.sha256};
 });
@@ -1239,6 +1241,7 @@ ipcMain.handle('orders:fetchTable', async (_event, input = {}) => {
    fact_evidence_json=@fact_evidence_json WHERE id=@id`).run({...facts,id:orderId,fact_evidence_json:JSON.stringify([...merged.values()].slice(-120))});
  });
  persist();
+ db.prepare('DELETE FROM commercial_order_ai_reviews WHERE order_id=?').run(orderId);
  return {order_id:orderId,document_id:documentId,file_name:table.file_name,sheet_count:table.sheet_count,row_count:table.row_count,
   extractedFacts:taggedEvidence.length,bytes:table.bytes,sha256:table.sha256};
 });
