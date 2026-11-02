@@ -2211,7 +2211,7 @@ $('askAiAssistantBtn')?.addEventListener('click', async () => {
   button.disabled = true; button.textContent = 'ИИ анализирует…';
   answer.hidden = false; answer.textContent = 'Формирую ответ…';
   try {
-    const result = await window.crm.askAi({ question: prompt });
+    const result = await window.crm.askAi({ question: prompt, includeBusinessContext: Boolean($('aiIncludeBusinessContext')?.checked) });
     answer.textContent = result.answer + (result.model ? '\\n\\nМодель: ' + result.model : '');
   } catch (error) { answer.textContent = error.message; toast(error.message, true); }
   finally { button.disabled = false; button.textContent = 'Спросить ИИ'; }
