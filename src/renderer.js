@@ -85,6 +85,17 @@ function toast(message, error = false) {
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function dateToday() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; }
+const dockRecentViews = [];
+function dockRememberView(name) {
+  const view = document.getElementById('view-' + name);
+  if (!view) return;
+  const title = document.querySelector('#skolDock .dock-item[data-view="' + name + '"]')?.title ||
+    document.querySelector('.nav-item[data-view="' + name + '"]')?.textContent?.trim() || name;
+  const previous = dockRecentViews.findIndex(item => item.name === name);
+  if (previous >= 0) dockRecentViews.splice(previous, 1);
+  dockRecentViews.unshift({ name, title });
+  dockRecentViews.splice(5);
+}
 function showView(name) {
   const requestedView = $(`view-${name}`);
   const requiredFeature = requestedView?.dataset.feature;
@@ -92,6 +103,7 @@ function showView(name) {
     toast('Этот раздел недоступен на текущем тарифе СКОЛ.', true);
     return;
   }
+  dockRememberView(name);
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', engineering: 'ПИ · Расчёт объекта', browser: 'Браузер и поиск заказчиков', prospects: 'Центр привлечения заказов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки' };
@@ -234,6 +246,12 @@ function dockRenderPalette(query = '') {
     '<span class="dock-command-glyph">' + (item.type === 'view' ? '↗' : '＋') + '</span><span><strong>' + esc(item.label) + '</strong><small>' + esc(item.description) + '</small></span><kbd>' + (item.type === 'view' ? 'Раздел' : 'Действие') + '</kbd></button>'
   ).join('') : '<p class="dock-palette-empty">Ничего не найдено. Попробуй другое название.</p>';
   target._results = results;
+  const recent = !normalized ? dockRecentViews.filter(item => item.name !== 'dashboard').slice(0, 5) : [];
+  target._recent = recent;
+  if (recent.length) {
+    target.insertAdjacentHTML('afterbegin', '<div class="dock-palette-section-label">НЕДАВНИЕ РАЗДЕЛЫ</div>' +
+      recent.map((item, index) => '<button type="button" role="option" data-dock-recent-index="' + index + '"><span class="dock-command-glyph">↶</span><span><strong>' + esc(item.title) + '</strong><small>Недавно открывали</small></span><kbd>Недавно</kbd></button>').join(''));
+  }
 }
 let dockRecordSearchVersion = 0;
 let dockRecordSearchTimer = null;
@@ -373,6 +391,14 @@ $('dockPaletteResults')?.addEventListener('click', event => {
     input.value = record.query;
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
+  dockPaletteDialog?.close();
+});
+$('dockPaletteResults')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-dock-recent-index]');
+  if (!button) return;
+  const recent = $('dockPaletteResults')._recent?.[Number(button.dataset.dockRecentIndex)];
+  if (!recent) return;
+  showView(recent.name);
   dockPaletteDialog?.close();
 });
 dockContextMenu?.addEventListener('click', event => {
