@@ -181,6 +181,7 @@ function buildAiWorkspaceSnapshot(workspace) {
     return { workspace, counts, recent_shift_work: rows };
   }
   if (workspace === 'finance') {
+    if (!(licenseState.license?.features || []).includes('finance')) throw new Error('AI-анализ финансов недоступен на текущем тарифе.');
     const receivedPayments = Number(db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END),0) total FROM payments").get().total || 0);
     const otherIncome = Number(db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM income_records').get().total || 0);
     const paid = Number(db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=1').get().total || 0);
