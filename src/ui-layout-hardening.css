@@ -2701,9 +2701,9 @@ input[type="checkbox"], input[type="radio"] {
 
 .dock-palette-section-label{padding:10px 10px 4px;color:#8a97a7;font-size:9px;font-weight:700;letter-spacing:.1em}
 
-/* Dock viewport fit: labels move to native title tooltips on compact desktop widths. */
-@media(max-width:1180px){
-  .skol-dock{width:calc(100vw - 28px)!important;max-width:calc(100vw - 28px)!important;box-sizing:border-box!important;justify-content:center!important;gap:2px!important;padding:6px 7px!important;overflow-x:hidden!important}
+/* Dock viewport fit: compact icon rail from standard laptop widths down. */
+@media(max-width:1360px){
+  .skol-dock{width:max-content!important;max-width:calc(100vw - 28px)!important;box-sizing:border-box!important;justify-content:center!important;gap:2px!important;padding:6px 7px!important;overflow-x:hidden!important}
   .skol-dock .dock-group{gap:1px!important}
   .skol-dock .dock-divider{margin:0 1px!important}
   .skol-dock .dock-item{flex:0 0 34px!important;width:34px!important;min-width:34px!important;max-width:34px!important;padding:0!important;overflow:hidden!important}
