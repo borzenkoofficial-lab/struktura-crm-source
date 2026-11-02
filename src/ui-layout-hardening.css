@@ -2698,3 +2698,5 @@ input[type="checkbox"], input[type="radio"] {
 .skol-dock .dock-icon{overflow:visible!important}
 .skol-dock .dock-badge{position:absolute;top:-5px;right:-6px;z-index:3;display:grid;place-items:center;min-width:15px;height:15px;padding:0 4px;border:2px solid rgba(246,249,252,.96);border-radius:999px;background:#e45f3d;color:#fff;font:700 8px/1 system-ui,sans-serif;font-style:normal;box-shadow:0 2px 5px rgba(30,45,60,.2)}
 .skol-dock .dock-badge[hidden]{display:none!important}
+
+.dock-palette-section-label{padding:10px 10px 4px;color:#8a97a7;font-size:9px;font-weight:700;letter-spacing:.1em}
