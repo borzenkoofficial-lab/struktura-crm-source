@@ -189,6 +189,22 @@ test('backup restore is exposed in the UI and safe preload bridge', () => {
   assert.match(main, /ipcMain\.handle\('backup:restore'/);
 });
 
+test('data and product utilities are grouped inside Settings, not in the Dock', () => {
+  const settingsStart = html.indexOf('id="view-settings"');
+  const settingsEnd = html.indexOf('</section>', settingsStart);
+  const settings = html.slice(settingsStart, settingsEnd);
+  for (const id of ['dataFolderBtn','backupBtn','restoreBackupBtn']) {
+    assert.ok(settings.includes('id="' + id + '"'), id + ' is available in Settings');
+  }
+  assert.ok(settings.includes('class="about-settings-details"'), 'product information is expandable inside Settings');
+  assert.ok(settings.includes('О продукте СКОЛ'));
+  const dockStart = html.indexOf('id="skolDock"');
+  const dockEnd = html.indexOf('</nav>', dockStart);
+  const dock = html.slice(dockStart, dockEnd);
+  for (const id of ['dataFolderBtn','backupBtn','restoreBackupBtn']) assert.ok(!dock.includes('id="' + id + '"'));
+  assert.match(html, /id="manageLicenseBtn"/, 'license management remains separate from the removed commercial tariff page');
+});
+
 test('backup restore validates SQLite structure and preserves an automatic rollback copy', () => {
   const backupUtils = fs.readFileSync(path.join(__dirname, '../src/backup-utils.cjs'), 'utf8');
   assert.match(main, /validateBackupDatabase\(candidate\)/);
@@ -971,7 +987,7 @@ test('dashboard contains only live business KPI slots, interactive rings and exp
 });
 
 test('navigation is grouped in a persistent bottom Dock with all active workspaces', () => {
-  const ids = [...html.matchAll(/\\sid="([^"]+)"/g)].map(match => match[1]);
+  const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(ids).size, ids.length, 'no duplicate HTML ids');
   assert.equal((html.match(/id="skolDock"/g) || []).length, 1);
   const dockStart = html.indexOf('id="skolDock"');
@@ -987,7 +1003,7 @@ test('navigation is grouped in a persistent bottom Dock with all active workspac
     assert.ok(dock.includes('data-view="' + view + '"'), view + ' remains reachable');
   }
   assert.doesNotMatch(html, /navMenuToggle|nav-primary|navGuideCard|navGuideReplay|id="view-plans"|id="view-about"/);
-  assert.match(renderer, /const skolDock = \\$\('skolDock'\)/);
+  assert.ok(renderer.includes("const skolDock = $('skolDock')"));
   assert.match(renderer, /skolDock\.addEventListener\('keydown'/);
   assert.match(renderer, /event\.target\.closest\('\[data-view\]'\)/);
   assert.match(layoutCss, /\.skol-dock\s*\{[\s\S]*?position:fixed/);
