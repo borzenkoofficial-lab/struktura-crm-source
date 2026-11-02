@@ -69,7 +69,7 @@ function parseJsonPayload(value) {
       const char = unfenced[i];
       if (quoted) {
         if (escaped) escaped = false;
-        else if (char === '\\\\') escaped = true;
+        else if (char === '\\') escaped = true;
         else if (char === '"') quoted = false;
         continue;
       }
