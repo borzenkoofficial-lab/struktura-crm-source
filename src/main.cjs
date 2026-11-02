@@ -206,7 +206,9 @@ function buildAiWorkspaceSnapshot(workspace) {
   if (workspace === 'prospects') {
     const rows = db.prepare('SELECT company_name,category,service,region,source_name,status,notes FROM prospects ORDER BY id DESC LIMIT 30').all()
       .map(row => ({ ...row, notes: redactAiText(row.notes, 400) }));
-    return { workspace, counts, prospects: rows };
+    const orders = db.prepare('SELECT title,source_name,source_type,service,region,signal_score,ai_score,ai_reason,ai_category,relevance,status,snippet FROM commercial_orders ORDER BY ai_score DESC,signal_score DESC,last_seen_at DESC LIMIT 30').all()
+      .map(row => ({ ...row, snippet: redactAiText(row.snippet, 500), ai_reason: redactAiText(row.ai_reason, 300) }));
+    return { workspace, counts, prospects: rows, commercial_orders: orders };
   }
   if (workspace === 'orders') {
     const rows = db.prepare('SELECT title,source_name,source_type,service,region,signal_score,ai_score,ai_reason,ai_category,relevance,status,snippet FROM commercial_orders ORDER BY ai_score DESC,signal_score DESC,last_seen_at DESC LIMIT 30').all()
