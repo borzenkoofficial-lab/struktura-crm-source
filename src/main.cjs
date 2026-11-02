@@ -902,6 +902,18 @@ ipcMain.handle('search:saveKey', (_event, input = {}) => {
   return getAiConfig();
 });
 ipcMain.handle('ai:test', async () => anyModelClient.testConnection({ apiKey: readSearchKey(), model: readAiModel() }));
+ipcMain.handle('ai:engineeringReview', async (_event, input = {}) => {
+  const description = clean(input.description, 5000);
+  if (!description) throw new Error('Сначала введи описание объекта и условий.');
+  const result = await askAiJson(
+    'Ты инженер-планировщик демонтажных и отделочных работ. Анализируй только входное описание. Не выдумывай объёмы, толщины, состав конструкций, нормы, цены и сроки. Отмечай риски несущих конструкций, инженерных сетей, опасных материалов, доступа, логистики и согласований. Верни JSON {"summary":"...","known_facts":["..."],"missing_data":["..."],"risks":["..."],"questions":["..."],"calculation_notes":["..."]}. Не выполняй расчёт и не меняй параметры формы.',
+    description,
+    { maxTokens: 1800, temperature: 0.1 }
+  );
+  const data = result.data || {};
+  const list = key => Array.isArray(data[key]) ? data[key].map(item => clean(item, 500)).filter(Boolean).slice(0, 12) : [];
+  return { model: result.model, summary: clean(data.summary, 1600), knownFacts: list('known_facts'), missingData: list('missing_data'), risks: list('risks'), questions: list('questions'), calculationNotes: list('calculation_notes') };
+});
 ipcMain.handle('ai:ask', async (_event, input = {}) => {
   const question = clean(input.question, 6000);
   if (!question) throw new Error('Напиши вопрос для ИИ.');
