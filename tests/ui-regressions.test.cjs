@@ -1148,7 +1148,7 @@ test('Windows CI includes a real Electron viewport smoke test with isolated prof
   const repoRoot = path.resolve(__dirname, '..');
   const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
   const e2e = fs.readFileSync(path.join(repoRoot, 'tests', 'electron-layout-smoke.cjs'), 'utf8');
-  const hook = fs.readFileSync(path.join(repoRoot, 'tests', 'electron-e2e-preload.cjs'), 'utf8');
+  const main = fs.readFileSync(path.join(repoRoot, 'src', 'main.cjs'), 'utf8');
   const workflow = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'build-windows.yml'), 'utf8');
 
   assert.equal(packageJson.scripts['test:ui'], 'node tests/electron-layout-smoke.cjs');
@@ -1166,9 +1166,10 @@ test('Windows CI includes a real Electron viewport smoke test with isolated prof
   assert.match(e2e, /page\.screenshot/);
   assert.match(e2e, /scrollWidth/);
   assert.match(e2e, /SKOL_UI_E2E_OUTPUT/);
-  assert.match(hook, /SKOL_UI_E2E/);
-  assert.match(hook, /app\.setPath\('userData'/);
-  assert.match(hook, /license-public-key\.pem/);
+  assert.match(main, /SKOL_UI_E2E_USER_DATA/);
+  assert.match(main, /app\.setPath\('userData'/);
+  assert.match(main, /license-public-key\.pem/);
+  assert.match(e2e, /SKOL_UI_E2E_PUBLIC_KEY_B64/);
   assert.match(workflow, /Rebuild native modules for Electron/);
   assert.match(workflow, /electron-builder install-app-deps --platform=win32 --arch=x64/);
   assert.match(workflow, /Install Playwright for Electron UI checks/);
