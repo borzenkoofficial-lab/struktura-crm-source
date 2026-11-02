@@ -2778,3 +2778,59 @@ input[type="checkbox"], input[type="radio"] {
   .skol-dock .dock-notifications-icon{width:32px!important;height:32px!important}
   .skol-dock .dock-notifications-label{font-size:8px!important;line-height:9px!important}
 }
+
+
+/* SKOL Dock — high-contrast tooltips and resolution-independent vector icons. */
+.skol-dock .dock-label{
+  color:#182536!important;
+  background:linear-gradient(180deg,#fff 0%,#f7f9fc 100%)!important;
+  border:1px solid rgba(32,49,69,.14)!important;
+  box-shadow:0 9px 24px rgba(16,29,45,.22),inset 0 1px 0 rgba(255,255,255,.96)!important;
+  text-shadow:none!important;
+  font-size:11px!important;
+  font-weight:700!important;
+  letter-spacing:.005em!important;
+}
+.skol-dock .dock-label i{
+  color:#fff!important;
+  background:#d94f32!important;
+  box-shadow:0 1px 3px rgba(30,42,56,.18)!important;
+}
+.skol-dock .dock-item:hover .dock-label,
+.skol-dock .dock-item:focus-visible .dock-label{
+  opacity:1!important;
+  visibility:visible!important;
+  color:#182536!important;
+  background:#fff!important;
+}
+.skol-dock .dock-icon{
+  overflow:visible!important;
+  -webkit-font-smoothing:antialiased;
+}
+.skol-dock .dock-icon svg{
+  width:24px!important;
+  height:24px!important;
+  min-width:24px!important;
+  min-height:24px!important;
+  stroke-width:1.9!important;
+  stroke-linecap:round!important;
+  stroke-linejoin:round!important;
+  shape-rendering:geometricPrecision!important;
+  vector-effect:non-scaling-stroke;
+  filter:drop-shadow(0 1px 1px rgba(12,24,39,.2))!important;
+}
+.skol-dock .dock-item:hover .dock-icon svg,
+.skol-dock .dock-item:focus-visible .dock-icon svg{
+  stroke-width:2!important;
+}
+.skol-dock .dock-notifications-icon svg{
+  width:24px!important;
+  height:24px!important;
+  shape-rendering:geometricPrecision!important;
+}
+@media(max-width:1360px){
+  .skol-dock .dock-icon svg{width:23px!important;height:23px!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .skol-dock .dock-label{transition:none!important}
+}
