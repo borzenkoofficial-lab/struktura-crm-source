@@ -142,8 +142,8 @@ async function askAiJson(system, user, { maxTokens = 2200, temperature = 0.1 } =
 }
 function redactAiText(value, max = 600) {
   return clean(value, max)
-    .replace(/[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}/g, '[email]')
-    .replace(/(?:\\+?\\d[\\d\\s().-]{7,}\\d)/g, '[phone]');
+    .replace(/[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, '[email]')
+    .replace(/(?:\+?\d[\d\s().-]{7,}\d)/g, '[phone]');
 }
 function buildAiWorkspaceSnapshot(workspace) {
   const allowed = new Set(['dashboard','leads','projects','production','finance','tasks','prospects','orders','quotes','engineering','reports','clients','settings','browser']);
@@ -1009,7 +1009,7 @@ ipcMain.handle('ai:ask', async (_event, input = {}) => {
   const workspace = clean(input.workspace, 40);
   if (workspace) {
     const snapshot = buildAiWorkspaceSnapshot(workspace);
-    context = [context, 'Сводка текущего раздела CRM (без телефонов и email): ' + JSON.stringify(snapshot)].filter(Boolean).join('\\n\\n');
+    context = [context, 'Сводка текущего раздела CRM (без телефонов и email): ' + JSON.stringify(snapshot)].filter(Boolean).join('\n\n');
   }
   if (input.includeBusinessContext === true) {
     const counts = {
