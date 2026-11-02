@@ -121,6 +121,9 @@ function normalizeOrderResult(item = {}, query = '', service = 'demolition', reg
     region: String(region || 'Москва и Московская область').slice(0, 120),
     signal_score: score,
     signal_labels: signals.map(signal => signal.label),
+    ai_score: Math.max(0, Math.min(100, Math.round(Number(item.ai_score) || 0))),
+    ai_reason: String(item.ai_reason || '').replace(/\\s+/g, ' ').trim().slice(0, 500),
+    ai_category: String(item.ai_category || '').replace(/\\s+/g, ' ').trim().slice(0, 160),
     relevance: score >= 30 && hasProcurementEvidence && hasServiceEvidence
       ? 'potential_order'
       : 'review'
