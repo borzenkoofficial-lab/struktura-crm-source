@@ -319,11 +319,12 @@
   </div>
   <span class="dock-divider" aria-hidden="true"></span>
   <div class="dock-group dock-system" aria-label="Система">
-    <button class="nav-item dock-item dock-notifications-trigger" id="dockNotificationsBtn" type="button" title="Уведомления" aria-label="Уведомления" aria-haspopup="dialog" aria-controls="dockNotificationsDialog">
-      <span class="dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><i class="dock-badge" id="dockNotificationBadge" hidden></i></span><span class="dock-label">Уведомления</span>
+    <button class="dock-notifications-trigger" id="dockNotificationsBtn" type="button" title="Уведомления" aria-label="Уведомления" aria-haspopup="dialog" aria-controls="dockNotificationsDialog">
+      <span class="dock-notifications-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><i class="dock-badge" id="dockNotificationBadge" hidden></i></span><span class="dock-notifications-label">Уведомления</span>
     </button>
     <button class="nav-item dock-item" data-view="settings" title="Настройки"><span class="dock-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 13.5 1.1.8-1.2 2.1-1.3-.5a7.8 7.8 0 0 1-1.5.9l-.2 1.4h-2.5l-.3-1.4a7.8 7.8 0 0 1-1.5-.9l-1.3.5-1.2-2.1 1.1-.8a7.2 7.2 0 0 1 0-1.8l-1.1-.8 1.2-2.1 1.3.5a7.8 7.8 0 0 1 1.5-.9l.3-1.4h2.5l.2 1.4a7.8 7.8 0 0 1 1.5.9l1.3-.5 1.2 2.1-1.1.8a7.2 7.2 0 0 1 0 1.8Z"/></svg></span><span class="dock-label">Настройки</span></button>
   </div>
+</nav>
 <dialog id="dockNotificationsDialog" class="dock-overlay-dialog dock-notifications-dialog" aria-labelledby="dockNotificationsTitle">
   <div class="dock-overlay-head"><div><span class="eyebrow">ЦЕНТР СОБЫТИЙ</span><h2 id="dockNotificationsTitle">Уведомления</h2><p id="dockNotificationsSummary">Проверка сроков, объектов и отчётов смен.</p></div><div class="dock-notifications-head-actions"><button type="button" class="button subtle compact" id="dockNotificationsRefresh">Обновить</button><button type="button" class="dock-overlay-close" data-dock-close="dockNotificationsDialog" aria-label="Закрыть">×</button></div></div>
   <div class="dock-notifications-filters" role="group" aria-label="Фильтр уведомлений"><button type="button" class="is-active" data-notification-filter="all">Все</button><button type="button" data-notification-filter="task">Задачи</button><button type="button" data-notification-filter="project">Сроки объектов</button><button type="button" data-notification-filter="shift-report">Отчёты смен</button></div>
