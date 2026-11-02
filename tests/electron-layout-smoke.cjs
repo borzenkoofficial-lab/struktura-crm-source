@@ -246,6 +246,10 @@ async function run() {
 
     for (const viewport of viewportMatrix) {
       console.log('[viewport] ' + viewport.name + ' started');
+      // Clear the pointer-driven magnification before measuring intrinsic layout.
+      // A transformed hovered icon may extend the scrollable overflow area by design.
+      await page.mouse.move(12, 12);
+      await page.waitForFunction(() => [...document.querySelectorAll('#skolDock .dock-item')].every(item => !item.style.getPropertyValue('--dock-scale')), null, { timeout: 3000 });
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.waitForFunction(expected => window.innerWidth === expected.width && window.innerHeight === expected.height, viewport, { timeout: 10000 });
       const dockBounds = await page.locator('#skolDock').evaluate(node => {
