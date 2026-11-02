@@ -236,6 +236,7 @@ function dockRenderPalette(query = '') {
   target._results = results;
 }
 let dockRecordSearchVersion = 0;
+let dockRecordSearchTimer = null;
 async function dockAppendRecordResults(query) {
   const term = String(query || '').trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
   const version = ++dockRecordSearchVersion;
@@ -322,12 +323,13 @@ if (skolDock) {
         const distance = Math.abs(event.clientX - (rect.left + rect.width / 2));
         const influence = Math.max(0, 1 - distance / 112);
         item.style.setProperty('--dock-scale', (1 + influence * .24).toFixed(3));
+        item.style.setProperty('--dock-lift', (-influence * 4.8).toFixed(2) + 'px');
       });
       skolDock.style.setProperty('--dock-pointer-x', (event.clientX - skolDock.getBoundingClientRect().left) + 'px');
     });
   });
   skolDock.addEventListener('pointerleave', () => {
-    skolDock.querySelectorAll('.dock-item').forEach(item => item.style.removeProperty('--dock-scale'));
+    skolDock.querySelectorAll('.dock-item').forEach(item => { item.style.removeProperty('--dock-scale'); item.style.removeProperty('--dock-lift'); });
     skolDock.style.removeProperty('--dock-pointer-x');
   });
 }
@@ -342,7 +344,8 @@ document.addEventListener('keydown', event => {
 $('dockPaletteSearch')?.addEventListener('input', event => {
   dockPaletteActiveIndex = 0;
   dockRenderPalette(event.target.value);
-  dockAppendRecordResults(event.target.value).catch(() => {});
+  clearTimeout(dockRecordSearchTimer);
+  dockRecordSearchTimer = setTimeout(() => dockAppendRecordResults(event.target.value).catch(() => {}), 220);
 });
 $('dockPaletteSearch')?.addEventListener('keydown', event => {
   const results = $('dockPaletteResults')?._results || [];
