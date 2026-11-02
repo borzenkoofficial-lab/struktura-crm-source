@@ -333,7 +333,8 @@ function dockRenderNotifications() {
   state.textContent = dockNotificationError ? 'Не удалось загрузить уведомления. Проверь соединение с локальной базой и повтори попытку.' : count === 0 ? 'Сейчас нет актуальных уведомлений.' : 'В этой категории событий нет.';
   list.innerHTML = filtered.map(item => {
     const type = item.kind === 'task' ? 'ЗАДАЧА' : item.kind === 'project' ? 'СРОК ОБЪЕКТА' : 'ОТЧЁТ СМЕНЫ';
-    return `<button type="button" class="dock-notification-item ${item.level === 'danger' ? 'is-danger' : ''}" data-notification-key="${esc(item.key)}"><span class="dock-notification-type">${type}</span><strong>${esc(item.title)}</strong><span>${esc(item.body)}</span><small>Открыть запись →</small></button>`;
+    const action = item.kind === 'task' ? 'Открыть задачу →' : item.kind === 'shift-report' ? 'Заполнить отчёт смены →' : 'Открыть объект →';
+    return `<button type="button" class="dock-notification-item ${item.level === 'danger' ? 'is-danger' : ''}" data-notification-key="${esc(item.key)}"><span class="dock-notification-type">${type}</span><strong>${esc(item.title)}</strong><span>${esc(item.body)}</span><small>${action}</small></button>`;
   }).join('');
 }
 async function dockRefreshNotifications() {
@@ -374,6 +375,9 @@ $('dockNotificationsDialog')?.addEventListener('click', event => {
       if (button) button.click();
       else toast('Задача найдена в уведомлении, но не отображается в текущем списке. Проверь фильтры.', true);
     }).catch(error => toast(error.message, true));
+  } else if (item.kind === 'shift-report') {
+    showView('production', { skipLoad: true });
+    openProductionShift(item.id).catch(error => toast(`Не удалось открыть отчёт смены: ${error.message}`, true));
   } else {
     selectedRecordIds.projects = item.id;
     showView('projects', { skipLoad: true });
