@@ -1045,5 +1045,8 @@ test('shared layout hardening keeps content inside cards, forms, tables and dial
   assert.match(layoutCss, /dialog\.modal,[\s\S]*?max-height: calc\(100dvh - 32px\)/);
   assert.match(layoutCss, /@media \(max-width: 1120px\)[\s\S]*?\.records-workspace[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
   const withoutComments = layoutCss.replace(/\/\*[\s\S]*?\*\//g, '');
-  assert.doesNotMatch(withoutComments, /overflow\s*:\s*hidden/, 'the hardening layer must not conceal overflowing content');
+  const navigationAnimationRules = withoutComments
+    .replace(/\.sidebar \.nav-primary\s*\{[^}]*\}/g, '')
+    .replace(/\.sidebar\.nav-expanded \.nav-primary\s*\{[^}]*\}/g, '');
+  assert.doesNotMatch(navigationAnimationRules, /overflow\s*:\s*hidden/, 'the layout layer must not conceal business content; only the collapsed navigation panel may clip during its animation');
 });
