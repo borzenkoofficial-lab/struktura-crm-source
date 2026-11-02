@@ -42,7 +42,10 @@ const { crawlSites } = require('./site-crawler.cjs');
 const { fetchOrderPage } = require('./order-page-fetch.cjs');
 const { fetchAndParseOrderPdf } = require('./order-pdf-fetch.cjs');
 const { fetchAndParseOrderTable } = require('./order-table-fetch.cjs');
-const { buildQueries, searchBrave } = require('./web-search.cjs');
+const { buildQueries } = require('./web-search.cjs');
+const { createAnyModelClient, DEFAULT_MODEL } = require('./ai-service.cjs');
+const { searchPublicWeb } = require('./public-web-search.cjs');
+const anyModelClient = createAnyModelClient();
 const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, leadSourceForOrderType } = require('./order-radar.cjs');
 const { parseCommercialOrdersCsv } = require('./order-import.cjs');
 const { extractOrderEvidence } = require('./order-evidence.cjs');
@@ -115,13 +118,76 @@ autoUpdater.on('error', error => publishUpdateStatus({ state: 'error', message: 
 const services = ['demolition', 'finishing', 'raised_floor'];
 const sources = ['avito', 'phone', 'telegram', 'recommendation', 'website', 'other'];
 function clean(value, max = 2000) { return String(value ?? '').trim().slice(0, max); }
-const searchKeyPath = () => path.join(app.getPath('userData'), 'brave-search-key.enc');
+const searchKeyPath = () => path.join(app.getPath('userData'), 'anymodel-api-key.enc');
 function hasSearchKey() { return fs.existsSync(searchKeyPath()); }
 function readSearchKey() {
   if (!hasSearchKey()) return '';
   if (!safeStorage.isEncryptionAvailable()) throw new Error('Защищённое хранение ключа недоступно в этой системе.');
   return safeStorage.decryptString(fs.readFileSync(searchKeyPath()));
 }
+
+function readAiModel() {
+  const model = clean(getSetting('ai_model', DEFAULT_MODEL), 120);
+  return /^[a-zA-Z0-9._:/-]{2,120}$/.test(model) ? model : DEFAULT_MODEL;
+}
+function getAiConfig() {
+  return { configured: hasSearchKey(), model: readAiModel(), provider: 'AnyModel', baseUrl: 'https://anymodel.org/v1' };
+}
+async function askAiJson(system, user, { maxTokens = 2200, temperature = 0.1 } = {}) {
+  const apiKey = readSearchKey();
+  if (!apiKey) throw new Error('Сначала настрой ИИ в разделе Настройки → ИИ.');
+  return anyModelClient.completeJson({ apiKey, model: readAiModel(), temperature, maxTokens, messages: [
+    { role: 'system', content: system }, { role: 'user', content: user }
+  ] });
+}
+async function buildAiSearchQueries({ service, region, kind, sourceType = 'all', seedQueries = [] }) {
+  const labels = { demolition: 'демонтаж коммерческих помещений', finishing: 'отделка и fit-out коммерческих объектов', raised_floor: 'монтаж и демонтаж фальшполов' };
+  try {
+    const result = await askAiJson(
+      'Ты специалист по B2B-лидогенерации строительного подрядчика в России. Составляй только поисковые запросы для реального веб-поиска. Не придумывай компании, URL и факты. Верни JSON {"queries":["..."]}.',
+      JSON.stringify({ task: kind === 'orders' ? 'найти реальные страницы с открытыми заказами, закупками или поиском подрядчика' : 'найти официальные сайты потенциальных корпоративных заказчиков и генподрядчиков', service: labels[service] || labels.demolition, region, sourceType, examples: seedQueries, count: 4 }),
+      { maxTokens: 700, temperature: 0.15 }
+    );
+    const queries = Array.isArray(result.data?.queries) ? result.data.queries.map(x => clean(x, 400)).filter(Boolean).slice(0, 6) : [];
+    return queries.length ? queries : seedQueries.slice(0, 4);
+  } catch (error) {
+    return seedQueries.slice(0, 4);
+  }
+}
+async function rankAiSearchResults(results, { kind, service, region }) {
+  const compact = results.slice(0, 40).map(item => ({ url: item.url, title: item.title, snippet: item.snippet }));
+  if (!compact.length) return { items: [], aiUsed: false, reason: 'Поисковые системы не вернули ссылок.' };
+  try {
+    const response = await askAiJson(
+      'Ты аналитик отдела продаж строительного подрядчика. Оценивай только предоставленные поисковые результаты. Не создавай URL и не дополняй отсутствующие контакты. Верни JSON {"items":[{"url":"точный URL из списка","company_name":"название","score":0-100,"reason":"краткая причина","category":"тип организации"}]}. Выбирай только релевантные записи, максимум 20.',
+      JSON.stringify({ kind, service, region, results: compact }),
+      { maxTokens: 2600, temperature: 0.1 }
+    );
+    const byUrl = new Map(compact.map(item => [item.url, item]));
+    const items = (Array.isArray(response.data?.items) ? response.data.items : []).flatMap(candidate => {
+      const source = byUrl.get(String(candidate?.url || ''));
+      if (!source) return [];
+      return [{ ...source, company_name: clean(candidate.company_name, 180) || source.title, score: Math.max(0, Math.min(100, Number(candidate.score) || 0)), reason: clean(candidate.reason, 500), category: clean(candidate.category, 160) }];
+    });
+    return { items: items.slice(0, 20), aiUsed: true, model: response.model };
+  } catch (error) {
+    return { items: compact.map(item => ({ ...item, company_name: item.title, score: 0, reason: 'ИИ-анализ недоступен; результат оставлен без оценки.' })), aiUsed: false, reason: clean(error.message, 240) };
+  }
+}
+async function runAiWebSearch({ kind, service, region, sourceType = 'all', seedQueries = [] }) {
+  const queries = await buildAiSearchQueries({ kind, service, region, sourceType, seedQueries });
+  const found = [], errors = [];
+  for (const query of queries) {
+    const result = await searchPublicWeb(query, { count: 10 });
+    found.push(...result.results);
+    errors.push(...result.errors.map(error => ({ query, error })));
+  }
+  const seen = new Set();
+  const unique = found.filter(item => { if (seen.has(item.url)) return false; seen.add(item.url); return true; });
+  const ranked = await rankAiSearchResults(unique, { kind, service, region });
+  return { queries, engineResults: unique, items: ranked.items, aiUsed: ranked.aiUsed, model: ranked.model || readAiModel(), errors, aiError: ranked.reason || '' };
+}
+
 function amount(value, { allowZero = false } = {}) {
   const n = Number(value ?? 0);
   if (!Number.isSafeInteger(Math.round(n)) || !Number.isFinite(n) || n < (allowZero ? 0 : 1)) throw new Error(allowZero ? 'Сумма должна быть неотрицательной.' : 'Сумма должна быть больше нуля.');
@@ -822,46 +888,56 @@ ipcMain.handle('tasks:complete', (_event, input = {}) => {
   return db.prepare('SELECT * FROM tasks WHERE id=?').get(id);
 });
 ipcMain.handle('prospects:list', () => db.prepare('SELECT * FROM prospects ORDER BY id DESC').all());
-ipcMain.handle('search:status', () => ({ provider: 'Brave Search API', configured: hasSearchKey() }));
+ipcMain.handle('search:status', () => getAiConfig());
 ipcMain.handle('search:saveKey', (_event, input = {}) => {
-  const key = clean(input.apiKey, 500);
-  if (!key) throw new Error('Вставь API-ключ Brave Search. Пустое поле не изменяет сохранённый ключ.');
-  if (key.length < 12 || /\s/.test(key)) throw new Error('Похоже, API-ключ введён некорректно.');
-  if (!safeStorage.isEncryptionAvailable()) throw new Error('Система не предоставляет защищённое хранение ключа. На этой машине ключ не сохранён.');
+  const key = clean(input.apiKey, 1000);
+  const model = clean(input.model || DEFAULT_MODEL, 120);
+  if (!key) throw new Error('Вставь ключ AnyModel. Пустое поле не изменяет сохранённый ключ.');
+  if (key.length < 12 || /\s/.test(key)) throw new Error('Похоже, ключ AnyModel введён некорректно.');
+  if (!/^[a-zA-Z0-9._:/-]{2,120}$/.test(model)) throw new Error('Некорректный идентификатор модели.');
+  if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows не предоставляет защищённое хранение ключа. Ключ не сохранён.');
   fs.mkdirSync(path.dirname(searchKeyPath()), { recursive: true });
   fs.writeFileSync(searchKeyPath(), safeStorage.encryptString(key), { mode: 0o600 });
-  return { configured: true };
+  setSetting('ai_model', model);
+  return getAiConfig();
+});
+ipcMain.handle('ai:test', async () => anyModelClient.testConnection({ apiKey: readSearchKey(), model: readAiModel() }));
+ipcMain.handle('ai:ask', async (_event, input = {}) => {
+  const question = clean(input.question, 6000);
+  if (!question) throw new Error('Напиши вопрос для ИИ.');
+  const context = clean(input.context, 12000);
+  const response = await anyModelClient.complete({ apiKey: readSearchKey(), model: readAiModel(), maxTokens: 2200, messages: [
+    { role: 'system', content: 'Ты встроенный помощник СКОЛ CRM для строительного подрядчика. Отделяй факты из контекста от предположений. Не выдумывай суммы, контакты, нормы, сроки и события. Если данных недостаточно — прямо скажи, чего не хватает. Не изменяй данные CRM и не выполняй финансовые или юридические действия.' },
+    { role: 'user', content: 'Контекст CRM (может быть пустым):\n' + context + '\n\nВопрос пользователя:\n' + question }
+  ]});
+  return { answer: response.content, model: response.model, usage: response.usage };
 });
 ipcMain.handle('search:run', async (_event, input = {}) => {
-  const apiKey = readSearchKey();
-  if (!apiKey) throw new Error('Сначала сохрани API-ключ Brave Search.');
+  if (!readSearchKey()) throw new Error('Сначала настрой ИИ в разделе Настройки → ИИ.');
   const service = services.includes(input.service) ? input.service : 'demolition';
   const region = clean(input.region, 120) || 'Москва и Московская область';
-  const queries = buildQueries(service, region);
-  const allResults = [], errors = [];
-  for (const query of queries) {
-    try { allResults.push(...(await searchBrave(query, apiKey, { count: 10 } )).map(item => ({ ...item, query }))); }
-    catch (error) { errors.push({ query, error: clean(error.message, 300) }); }
-  }
-  if (!allResults.length && errors.length) throw new Error(`Не удалось получить результаты. ${errors.map(e => e.error).join(' | ')}`);
-  const insert = db.prepare(`INSERT INTO prospects(company_name,category,service,region,phone,email,website,source_url,source_name,notes,status) VALUES (@company_name,@category,@service,@region,'','',@website,@source_url,'Brave Search API',@notes,'new')`);
+  const seed = buildQueries(service, region);
+  const report = await runAiWebSearch({ kind: 'company_prospects', service, region, seedQueries: seed });
+  const insert = db.prepare(`INSERT INTO prospects(company_name,category,service,region,phone,email,website,source_url,source_name,notes,status) VALUES (@company_name,@category,@service,@region,'','',@website,@source_url,@source_name,@notes,'new')`);
   const duplicateKeys = new Set();
   for (const row of db.prepare('SELECT company_name,region,phone,email,website,source_url FROM prospects').all()) for (const key of prospectDuplicateKeys(row)) duplicateKeys.add(key);
   let imported = 0, skipped = 0;
   const tx = db.transaction(items => {
     for (const item of items) {
-      const row = { company_name: item.company_name, category: 'Компания из поисковой выдачи — проверить', service, region, website: item.website, source_url: item.source_url };
+      const website = new URL(item.url).origin + '/';
+      const row = { company_name: item.company_name, category: item.category || 'Потенциальный корпоративный заказчик — проверить', service, region, website, source_url: item.url };
       const keys = prospectDuplicateKeys(row);
       if (keys.some(key => duplicateKeys.has(key))) { skipped++; continue; }
-      const notes = [`Поисковый запрос: ${item.query}`, item.snippet ? `Фрагмент выдачи: ${item.snippet}` : '', 'Контакты и соответствие услуге не проверены. Проверь сайт перед обращением.'].filter(Boolean).join('\n').slice(0, 2000);
-      insert.run({ ...row, notes });
+      const notes = [`Поисковый запрос: ${item.query || 'сформирован ИИ'}`, item.snippet ? `Фрагмент выдачи: ${item.snippet}` : '', item.reason ? `Оценка ИИ: ${item.reason} (релевантность ${item.score}/100)` : '', 'Название и соответствие услуге требуют проверки на официальном сайте.'].filter(Boolean).join('\n').slice(0, 2000);
+      insert.run({ ...row, source_name: item.engine || 'Public web search', notes });
       for (const key of keys) duplicateKeys.add(key);
       imported++;
     }
-    db.prepare(`INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,details) VALUES (?,?,?,?,?)`).run('Brave Search API','web-search',imported,skipped,`Получено результатов: ${items.length}; поисковых запросов: ${queries.length}; ошибок запросов: ${errors.length}.`);
+    db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,details) VALUES (?,?,?,?,?)').run('AI public web search','web-search',imported,skipped,`Получено ссылок: ${report.engineResults.length}; отобрано ИИ: ${report.items.length}; запросов: ${report.queries.length}; ошибок: ${report.errors.length}.`);
   });
-  tx(allResults);
-  return { queries, received: allResults.length, imported, skipped, errors };
+  tx(report.items);
+  if (!report.engineResults.length) throw new Error('Публичные поисковые системы не вернули выдачу. ' + report.errors.map(x => x.error).join(' | '));
+  return { queries: report.queries, received: report.engineResults.length, imported, skipped, errors: report.errors, aiUsed: report.aiUsed, model: report.model, aiError: report.aiError };
 });
 ipcMain.handle('orders:list', (_event,input={})=>{
  const status=['new','opened','relevant','rejected'].includes(input.status)?input.status:'';
