@@ -398,7 +398,6 @@ dialog.modal > form {
   #view-finance .finance-grid,
   #view-production .production-stats,
   #view-prospects .order-radar-metrics,
-  .pricing-grid,
   .about-principles-grid {
     grid-template-columns: minmax(0, 1fr);
   }
