@@ -46,7 +46,7 @@ const { buildQueries } = require('./web-search.cjs');
 const { createAnyModelClient, DEFAULT_MODEL } = require('./ai-service.cjs');
 const { searchPublicWeb } = require('./public-web-search.cjs');
 const anyModelClient = createAnyModelClient();
-const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, leadSourceForOrderType } = require('./order-radar.cjs');
+const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, orderRefreshAction, deduplicateOrders, leadSourceForOrderType } = require('./order-radar.cjs');
 const { parseCommercialOrdersCsv } = require('./order-import.cjs');
 const { extractOrderEvidence } = require('./order-evidence.cjs');
 const { assessCommercialOrder } = require('./order-pi.cjs');
@@ -118,9 +118,9 @@ autoUpdater.on('error', error => publishUpdateStatus({ state: 'error', message: 
 const services = ['demolition', 'finishing', 'raised_floor'];
 const sources = ['avito', 'phone', 'telegram', 'recommendation', 'website', 'other'];
 function clean(value, max = 2000) { return String(value ?? '').trim().slice(0, max); }
-const searchKeyPath = () => path.join(app.getPath('userData'), 'anymodel-api-key.enc');
-function hasSearchKey() { return fs.existsSync(searchKeyPath()); }
-function readSearchKey() {
+const aiKeyPath = () => path.join(app.getPath('userData'), 'anymodel-api-key.enc');
+function hasAiKey() { return fs.existsSync(searchKeyPath()); }
+function readAiKey() {
   if (!hasSearchKey()) return '';
   if (!safeStorage.isEncryptionAvailable()) throw new Error('Защищённое хранение ключа недоступно в этой системе.');
   return safeStorage.decryptString(fs.readFileSync(searchKeyPath()));
