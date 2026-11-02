@@ -2719,3 +2719,13 @@ input[type="checkbox"], input[type="radio"] {
   .skol-dock .dock-item{min-width:64px!important}
   .skol-dock .dock-label{padding-left:8px!important;padding-right:8px!important}
 }
+
+
+/* Dock fit on wide desktop: reclaim internal spacing without shrinking icon targets. */
+@media(min-width:1601px) and (max-width:2200px){
+  .skol-dock{gap:5px!important;padding-left:8px!important;padding-right:8px!important}
+  .skol-dock .dock-group{gap:3px!important}
+  .skol-dock .dock-divider{margin-left:2px!important;margin-right:2px!important}
+  .skol-dock .dock-item{min-width:60px!important}
+  .skol-dock .dock-label{padding-left:5px!important;padding-right:5px!important}
+}
