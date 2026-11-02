@@ -953,7 +953,7 @@ ipcMain.handle('search:run', async (_event, input = {}) => {
       const keys = prospectDuplicateKeys(row);
       if (keys.some(key => duplicateKeys.has(key))) { skipped++; continue; }
       const notes = [`Поисковый запрос: ${item.query || 'сформирован ИИ'}`, item.snippet ? `Фрагмент выдачи: ${item.snippet}` : '', item.reason ? `Оценка ИИ: ${item.reason} (релевантность ${item.score}/100)` : '', 'Название и соответствие услуге требуют проверки на официальном сайте.'].filter(Boolean).join('\n').slice(0, 2000);
-      insert.run({ ...row, source_name: item.engine || 'Public web search', notes });
+      insert.run({ ...row, source_name: new URL(item.url).hostname.replace(/^www\./i, ''), notes });
       for (const key of keys) duplicateKeys.add(key);
       imported++;
     }
@@ -1131,10 +1131,10 @@ ipcMain.handle('orders:search',async(_event,input={})=>{
  const seedQueries=buildOrderQueries(service,region,sourceType);
  const report=await runAiWebSearch({kind:'commercial_orders',service,region,sourceType,seedQueries});
  const queries=report.queries,found=report.engineResults,errors=report.errors;
- const unique=deduplicateOrders(report.items.map(item=>normalizeOrderResult({title:item.title,url:item.url,description:item.snippet},item.query||'',service,region)).filter(Boolean)).map(item=>({...item,...extractOrderEvidence(item.title+'\n'+item.snippet)}));
- const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status,customer_name,contact_name,phone,email,budget_rub,volume_value,volume_unit,deadline_text,procurement_number,work_address,fact_evidence_json)
- VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new',@customer_name,@contact_name,@phone,@email,@budget_rub,@volume_value,@volume_unit,@deadline_text,@procurement_number,@work_address,@fact_evidence_json)`);
- const update=db.prepare(`UPDATE commercial_orders SET title=@title,source_name=@source_name,source_type=@source_type,snippet=@snippet,search_query=@search_query,service=@service,region=@region,signal_score=@signal_score,signal_labels=@signal_labels,relevance=@relevance,
+ const unique=deduplicateOrders(report.items.map(item=>normalizeOrderResult({title:item.title,url:item.url,description:item.snippet,ai_score:item.score,ai_reason:item.reason,ai_category:item.category},item.query||'',service,region)).filter(Boolean)).map(item=>({...item,...extractOrderEvidence(item.title+'\n'+item.snippet)}));
+ const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,ai_score,ai_reason,ai_category,status,customer_name,contact_name,phone,email,budget_rub,volume_value,volume_unit,deadline_text,procurement_number,work_address,fact_evidence_json)
+ VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,@ai_score,@ai_reason,@ai_category,'new',@customer_name,@contact_name,@phone,@email,@budget_rub,@volume_value,@volume_unit,@deadline_text,@procurement_number,@work_address,@fact_evidence_json)`);
+ const update=db.prepare(`UPDATE commercial_orders SET title=@title,source_name=@source_name,source_type=@source_type,snippet=@snippet,search_query=@search_query,service=@service,region=@region,signal_score=@signal_score,signal_labels=@signal_labels,relevance=@relevance,ai_score=@ai_score,ai_reason=@ai_reason,ai_category=@ai_category,
  customer_name=CASE WHEN @customer_name<>'' THEN @customer_name ELSE customer_name END,
  contact_name=CASE WHEN @contact_name<>'' THEN @contact_name ELSE contact_name END,
  phone=CASE WHEN @phone<>'' THEN @phone ELSE phone END,
