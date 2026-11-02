@@ -21,7 +21,7 @@ const SERVICE_QUERIES = {
 };
 function buildQueries(service, region) {
   const topics = SERVICE_QUERIES[service] || SERVICE_QUERIES.demolition;
-  const safeRegion = String(region || 'Москва и Московская область').replace(/[\\r\\n]+/g, ' ').trim().slice(0, 120);
+  const safeRegion = String(region || 'Москва и Московская область').replace(/[\r\n]+/g, ' ').trim().slice(0, 120);
   return topics.map(topic => (topic + ' ' + safeRegion).trim());
 }
 function normalizeResult(item) {
@@ -29,13 +29,13 @@ function normalizeResult(item) {
   try { url = new URL(String(item.url || '')); } catch { return null; }
   if (!['http:', 'https:'].includes(url.protocol) || !url.hostname || url.username || url.password) return null;
   url.hash = '';
-  const title = String(item.title || '').replace(/\\s+/g, ' ').trim().slice(0, 180);
+  const title = String(item.title || '').replace(/\s+/g, ' ').trim().slice(0, 180);
   if (!title) return null;
   return {
-    company_name: title.replace(/\\s*[|–—-]\\s*(официальный сайт|главная|сайт компании).*$/i, '').trim().slice(0, 180) || title,
+    company_name: title.replace(/\s*[|–—-]\s*(официальный сайт|главная|сайт компании).*$/i, '').trim().slice(0, 180) || title,
     website: url.origin + '/',
     source_url: url.toString().slice(0, 500),
-    snippet: String(item.description || item.snippet || '').replace(/\\s+/g, ' ').trim().slice(0, 700)
+    snippet: String(item.description || item.snippet || '').replace(/\s+/g, ' ').trim().slice(0, 700)
   };
 }
 module.exports = { buildQueries, normalizeResult };
