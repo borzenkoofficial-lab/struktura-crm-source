@@ -114,6 +114,7 @@ function showView(name) {
   // Re-evaluate business signals when the user moves between CRM sections.
   if (name !== 'dashboard') refreshPiCoach().catch(() => {});
 }
+// Register primary navigation before the rest of renderer initialization.
 // Persistent bottom Dock navigation. All workspaces stay one click away.
 const skolDock = $('skolDock');
 if (skolDock) {
