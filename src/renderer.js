@@ -372,11 +372,16 @@ $('dockNotificationsDialog')?.addEventListener('click', event => {
     refreshTasks().then(() => {
       const button = [...document.querySelectorAll('[data-edit-task]')].find(node => Number(node.dataset.editTask) === item.id);
       if (button) button.click();
+      else toast('Задача найдена в уведомлении, но не отображается в текущем списке. Проверь фильтры.', true);
     }).catch(error => toast(error.message, true));
   } else {
     selectedRecordIds.projects = item.id;
     showView('projects');
-    refreshProjects().catch(error => toast(error.message, true));
+    refreshProjects().then(() => {
+      const button = [...document.querySelectorAll('[data-edit-project]')].find(node => Number(node.dataset.editProject) === item.id);
+      if (button) button.click();
+      else toast('Объект из уведомления не найден в списке. Проверь, не изменился ли его статус.', true);
+    }).catch(error => toast(error.message, true));
   }
 });
 
