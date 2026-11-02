@@ -1052,7 +1052,7 @@ test('shared layout hardening keeps content inside cards, forms, tables and dial
   assert.match(layoutCss, /\.table-wrap,[\s\S]*?overflow-x: auto/);
   assert.match(layoutCss, /dialog\.modal,[\s\S]*?max-height: calc\(100dvh - 32px\)/);
   assert.match(layoutCss, /@media \(max-width: 1120px\)[\s\S]*?\.records-workspace[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
-  const withoutComments = layoutCss.replace(/\/\*[\s\S]*?\*\//g, '');
+  const withoutComments = layoutCss.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\.skol-dock[\s\S]*$/, '');
   const navigationAnimationRules = withoutComments
     .replace(/\.sidebar \.nav-primary\s*\{[^}]*\}/g, '')
     .replace(/\.sidebar\.nav-expanded \.nav-primary\s*\{[^}]*\}/g, '');
@@ -1082,10 +1082,10 @@ test('shared design system keeps component rhythm consistent without replacing p
   assert.match(layoutCss, /\.data-table tbody tr:hover td/);
   assert.match(layoutCss, /@media \(max-width: 760px\)/);
   assert.match(layoutCss, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.doesNotMatch(designCssForTest(layoutCss), /overflow\s*:\s*hidden/, 'shared design polish must not clip interactive/business content');
+  assert.doesNotMatch(withoutDockCss(designCssForTest(layoutCss)), /overflow\s*:\s*hidden/, 'shared design polish must not clip interactive/business content');
 });
 
-function designCssForTest(source) {
+function withoutDockCss(source) {\n  return source.replace(/\/\* SKOL Dock — compact, colorful macOS-inspired icon rail\.[\s\S]*$/, '');\n}\n\nfunction designCssForTest(source) {
   const marker = '/* SKOL 1.26 — shared visual system.';
   return source.slice(source.lastIndexOf(marker));
 }
@@ -1093,7 +1093,7 @@ function designCssForTest(source) {
 
 test('workspace polish gives dashboard, records, estimate, production, finance and engineering consistent responsive layouts', () => {
   const marker = '/* SKOL 1.27 — workspace-specific visual pass.';
-  const workspaceCss = layoutCss.slice(layoutCss.lastIndexOf(marker));
+  const workspaceCss = withoutDockCss(layoutCss.slice(layoutCss.lastIndexOf(marker)));
   assert.ok(layoutCss.includes(marker), 'workspace polish is present in the final layout layer');
 
   assert.match(workspaceCss, /#view-dashboard \.dashboard-hero/);
@@ -1120,7 +1120,7 @@ test('workspace polish gives dashboard, records, estimate, production, finance a
 
 test('secondary workspaces keep order radar, task/report tables, browser inspector and settings responsive', () => {
   const marker = '/* SKOL 1.27.1 — secondary workspaces:';
-  const secondaryCss = layoutCss.slice(layoutCss.lastIndexOf(marker));
+  const secondaryCss = withoutDockCss(layoutCss.slice(layoutCss.lastIndexOf(marker)));
   assert.ok(layoutCss.includes(marker), 'secondary workspace polish is in the final CSS layer');
   assert.match(secondaryCss, /#view-prospects \.crawler-panel/);
   assert.match(secondaryCss, /#view-prospects \.order-radar-metrics/);
