@@ -175,17 +175,17 @@ async function run() {
     try {
       await page.waitForSelector('#licenseActivationScreen:not([hidden])', { timeout: 30000 });
     } catch (error) {
+      const electronWindowUrls = electronApp.windows().map(candidate => candidate.url());
       const diagnostics = await page.evaluate(() => ({
         title: document.title,
         url: location.href,
-        electronWindows: electronApp.windows().map(candidate => candidate.url()),
         readyState: document.readyState,
         bodyText: (document.body?.innerText || '').slice(0, 4000),
         licenseScreenExists: Boolean(document.getElementById('licenseActivationScreen')),
         licenseScreenHidden: document.getElementById('licenseActivationScreen')?.hidden,
         startupSplash: document.getElementById('startupSplash')?.className
       })).catch(e => ({ evaluationError: String(e) }));
-      console.error('[electron-ui] startup diagnostics', JSON.stringify({ diagnostics, pageErrors, rendererConsole, mainProcessErrors }, null, 2));
+      console.error('[electron-ui] startup diagnostics', JSON.stringify({ diagnostics, electronWindowUrls, pageErrors, rendererConsole, mainProcessErrors }, null, 2));
       throw error;
     }
 
