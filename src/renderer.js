@@ -235,6 +235,41 @@ function dockRenderPalette(query = '') {
   ).join('') : '<p class="dock-palette-empty">Ничего не найдено. Попробуй другое название.</p>';
   target._results = results;
 }
+let dockRecordSearchVersion = 0;
+async function dockAppendRecordResults(query) {
+  const term = String(query || '').trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+  const version = ++dockRecordSearchVersion;
+  const target = $('dockPaletteResults');
+  if (term.length < 2 || !window.crm) return;
+  const searchInputIds = { leads: 'leadSearch', clients: 'clientSearch', projects: 'projectSearch' };
+  const sources = [
+    { view: 'leads', label: 'Заявка', load: () => window.crm.listLeads(), title: item => item.title || item.name || '', detail: item => [item.status, item.phone, item.address].filter(Boolean).join(' · ') },
+    { view: 'clients', label: 'Клиент', load: () => window.crm.listClients(), title: item => item.name || item.company || '', detail: item => [item.phone, item.email].filter(Boolean).join(' · ') },
+    { view: 'projects', label: 'Объект', load: () => window.crm.listProjects(), title: item => item.title || item.name || '', detail: item => [item.address, item.status].filter(Boolean).join(' · ') }
+  ];
+  const settled = await Promise.allSettled(sources.map(source => source.load()));
+  if (version !== dockRecordSearchVersion || !dockPaletteDialog?.open) return;
+  const records = [];
+  settled.forEach((result, index) => {
+    if (result.status !== 'fulfilled' || !Array.isArray(result.value)) return;
+    const source = sources[index];
+    for (const item of result.value) {
+      const title = String(source.title(item) || '');
+      const detail = String(source.detail(item) || '');
+      if ((title + ' ' + detail).toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').includes(term)) {
+        records.push({ view: source.view, label: source.label, title, detail, query: title });
+      }
+      if (records.length >= 12) break;
+    }
+  });
+  if (version !== dockRecordSearchVersion) return;
+  const section = records.length ? '<div class="dock-palette-section-label">ЗАПИСИ CRM</div>' + records.slice(0, 10).map((record, index) =>
+    '<button type="button" role="option" data-dock-record-index="' + index + '">' +
+    '<span class="dock-command-glyph">⌕</span><span><strong>' + esc(record.title) + '</strong><small>' + esc(record.label + (record.detail ? ' · ' + record.detail : '')) + '</small></span><kbd>' + esc(record.label) + '</kbd></button>'
+  ).join('') : '';
+  target._records = records.slice(0, 10);
+  if (section) target.insertAdjacentHTML('beforeend', section);
+}
 function dockOpenPalette() {
   if (!dockPaletteDialog) return;
   if (dockContextMenu) dockContextMenu.hidden = true;
@@ -297,7 +332,11 @@ document.addEventListener('keydown', event => {
   }
   if (event.key === 'Escape' && dockContextMenu && !dockContextMenu.hidden) dockContextMenu.hidden = true;
 });
-$('dockPaletteSearch')?.addEventListener('input', event => { dockPaletteActiveIndex = 0; dockRenderPalette(event.target.value); });
+$('dockPaletteSearch')?.addEventListener('input', event => {
+  dockPaletteActiveIndex = 0;
+  dockRenderPalette(event.target.value);
+  dockAppendRecordResults(event.target.value).catch(() => {});
+});
 $('dockPaletteSearch')?.addEventListener('keydown', event => {
   const results = $('dockPaletteResults')?._results || [];
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -312,6 +351,19 @@ $('dockPaletteSearch')?.addEventListener('keydown', event => {
 $('dockPaletteResults')?.addEventListener('click', event => {
   const button = event.target.closest('[data-dock-command-index]');
   if (button) dockRunCommand($('dockPaletteResults')._results?.[Number(button.dataset.dockCommandIndex)]);
+});
+$('dockPaletteResults')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-dock-record-index]');
+  if (!button) return;
+  const record = $('dockPaletteResults')._records?.[Number(button.dataset.dockRecordIndex)];
+  if (!record) return;
+  showView(record.view);
+  const input = $(record.view === 'leads' ? 'leadSearch' : record.view === 'clients' ? 'clientSearch' : 'projectSearch');
+  if (input) {
+    input.value = record.query;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  dockPaletteDialog?.close();
 });
 dockContextMenu?.addEventListener('click', event => {
   const button = event.target.closest('[data-dock-context-action]');
