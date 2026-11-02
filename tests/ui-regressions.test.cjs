@@ -1085,7 +1085,11 @@ test('shared design system keeps component rhythm consistent without replacing p
   assert.doesNotMatch(withoutDockCss(designCssForTest(layoutCss)), /overflow\s*:\s*hidden/, 'shared design polish must not clip interactive/business content');
 });
 
-function withoutDockCss(source) {\n  return source.replace(/\/\* SKOL Dock — compact, colorful macOS-inspired icon rail\.[\s\S]*$/, '');\n}\n\nfunction designCssForTest(source) {
+function withoutDockCss(source) {
+  return source.replace(/\/\* SKOL Dock — compact, colorful macOS-inspired icon rail\.[\s\S]*$/, '');
+}
+
+function designCssForTest(source) {
   const marker = '/* SKOL 1.26 — shared visual system.';
   return source.slice(source.lastIndexOf(marker));
 }
