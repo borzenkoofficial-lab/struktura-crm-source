@@ -136,14 +136,11 @@ async function run() {
   const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519');
   const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
   const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' });
-  const preloadHook = path.join(__dirname, 'electron-e2e-preload.cjs');
-
   const childEnv = {
     ...process.env,
     SKOL_UI_E2E: '1',
     SKOL_UI_E2E_USER_DATA: userData,
-    SKOL_UI_E2E_PUBLIC_KEY_B64: Buffer.from(publicKeyPem, 'utf8').toString('base64'),
-    NODE_OPTIONS: '--require="' + preloadHook + '"'
+    SKOL_UI_E2E_PUBLIC_KEY_B64: Buffer.from(publicKeyPem, 'utf8').toString('base64')
   };
 
   let electronApp;
@@ -284,7 +281,27 @@ async function run() {
     throw error;
   } finally {
     if (electronApp) {
-      try { await electronApp.close(); } catch { /* Preserve the original test failure. */ }
+      const child = electronApp.process();
+      // Closing Electron can hang after an assertion fails. Bound the graceful close,
+      // then terminate the child before deleting its temporary profile.
+      try {
+        await Promise.race([
+          electronApp.close(),
+          new Promise(resolve => {
+            const timer = setTimeout(resolve, 10000);
+            timer.unref?.();
+          })
+        ]);
+      } catch { /* Preserve the original test failure. */ }
+      if (child && child.exitCode === null) {
+        try { child.kill(); } catch { /* The process may already be exiting. */ }
+        await new Promise(resolve => {
+          if (child.exitCode !== null) return resolve();
+          const timer = setTimeout(resolve, 5000);
+          timer.unref?.();
+          child.once('exit', () => { clearTimeout(timer); resolve(); });
+        });
+      }
     }
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }
