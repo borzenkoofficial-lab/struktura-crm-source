@@ -2399,9 +2399,6 @@ input[type="checkbox"], input[type="radio"] {
   #view-browser .browser-workspace {
     grid-template-columns: minmax(0, 1fr) 260px;
   }
-  #view-plans .pricing-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 @media (max-width: 760px) {
   #view-prospects > .section-head {
@@ -2457,7 +2454,6 @@ input[type="checkbox"], input[type="radio"] {
   #view-prospects .opportunity-radar .radar-metrics,
   #view-tasks .task-stats,
   #view-reports .report-stats,
-  #view-plans .pricing-grid,
   #view-settings .settings-card-body .form-row {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2474,12 +2470,6 @@ input[type="checkbox"], input[type="radio"] {
   }
   #view-browser .browser-page-title {
     max-width: 45%;
-  }
-  #view-plans .plans-hero {
-    align-items: flex-start;
-  }
-  #view-plans .plans-hero-mark {
-    display: none;
   }
 }
 
