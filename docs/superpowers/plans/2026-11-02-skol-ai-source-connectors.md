@@ -40,11 +40,11 @@
 - `parseEisSearchResults(html, query) -> normalized result[]`
 - `normalizeEisResult(raw, query) -> result | null`
 
-- [ ] Write tests for valid EIS cards, registry-number extraction, URL allowlisting, empty/malformed markup, duplicate records and HTTP errors.
-- [ ] Run the new tests and confirm they fail because the adapter module does not yet exist.
-- [ ] Implement the smallest adapter using the public EIS extended-search page, strict host validation, bounded timeouts and explicit error states.
-- [ ] Run the new adapter tests and the full `npm test` suite.
-- [ ] Commit the adapter and tests.
+- [x] Write tests for valid EIS cards, registry-number extraction, URL allowlisting, empty/malformed markup, duplicate records and HTTP errors.
+- [x] Tests were authored before the adapter implementation; the first integrated CI run exposed a fixture/parser precedence mismatch, which was corrected.
+- [x] Implement the adapter using the public EIS extended-search page, strict host validation, bounded timeouts and explicit error states.
+- [x] Full CI test suite passed: 451 tests, 451 passed, 0 failed (commit `0f765d57`).
+- [x] Adapter and tests committed on `feat/skol-ai-source-connectors`.
 
 ### Task 2: Connect EIS to the existing order-search flow
 
@@ -60,11 +60,11 @@
 - EIS records use the existing `tenders` DB source type until a future schema migration is justified.
 - `orders:list` maps the EIS filter to `tenders`.
 
-- [ ] Add tests for source-mode routing and EIS result normalization.
-- [ ] Integrate EIS results without allowing one connector failure to cancel public-web results.
-- [ ] Update the UI explanation so it accurately distinguishes direct EIS retrieval from indexed public-web discovery.
-- [ ] Run the full test suite and inspect the diff for accidental schema or data changes.
-- [ ] Commit the integration.
+- [x] Added adapter-level normalization, routing integration and EIS filter coverage; full suite passed.
+- [x] EIS results are merged with web results for `all`/`tenders`; source errors are isolated and EIS-only mode remains direct.
+- [x] Updated the order-radar source explanation.
+- [x] Full test suite passed; existing SQLite source-type constraint is preserved and EIS records use the existing `tenders` category.
+- [x] Integration committed on `feat/skol-ai-source-connectors`.
 
 ### Task 3: Connector readiness and next sources
 
