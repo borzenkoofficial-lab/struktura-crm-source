@@ -271,7 +271,7 @@ async function rankAiSearchResults(results, { kind, service, region }) {
 }
 async function runAiWebSearch({ kind, service, region, sourceType = 'all', seedQueries = [] }) {
   const plan = await buildAiSearchQueries({ kind, service, region, sourceType, seedQueries });
-  const queries = [...plan.queries];
+  const queries = sourceType === 'eis' ? [] : [...plan.queries];
   const found = [], errors = [];
   // The EIS is queried directly for its public procurement cards; it is not treated as a site: search.
   if (['eis', 'tenders', 'all'].includes(sourceType)) {
