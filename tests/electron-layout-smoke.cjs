@@ -229,14 +229,15 @@ async function run() {
       const items = Array.from(panel.querySelectorAll('.nav-item[data-view]'));
       return {
         toggleCenter: toggleRect.left + toggleRect.width / 2,
-        viewportCenter: window.innerWidth / 2,
+        shellCenter: shellRect.left + shellRect.width / 2,
+        viewportWidth: window.innerWidth,
         shellWidth: shellRect.width,
         navVisible: getComputedStyle(panel).visibility === 'visible',
         groupDirections: groups.map(group => getComputedStyle(group).flexDirection),
         itemCount: items.length
       };
     });
-    assert.ok(Math.abs(navLayout.toggleCenter - navLayout.viewportCenter) <= 4, 'top menu trigger must be horizontally centered: ' + JSON.stringify(navLayout));
+    assert.ok(Math.abs(navLayout.toggleCenter - navLayout.shellCenter) <= 2, 'top menu trigger must be horizontally centered within the navigation shell: ' + JSON.stringify(navLayout));
     assert.equal(navLayout.navVisible, true, 'top navigation panel must be visible after opening');
     assert.equal(navLayout.itemCount, 14, 'all 14 main workspaces must remain in the navigation');
     assert.ok(navLayout.groupDirections.every(value => value === 'row'), 'navigation groups must stay horizontal');
