@@ -2657,7 +2657,7 @@ input[type="checkbox"], input[type="radio"] {
 .skol-dock{position:fixed!important;isolation:isolate!important;--dock-pointer-x:50%}
 .skol-dock:after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;background:radial-gradient(115px circle at var(--dock-pointer-x,50%) 0%,rgba(255,255,255,.42),transparent 72%);opacity:.8;transition:opacity .18s ease}
 .skol-dock .dock-group,.skol-dock .dock-divider{position:relative;z-index:1}
-.skol-dock .dock-item{--dock-scale:1;transform:translateY(calc((var(--dock-scale) - 1)*-20px)) scale(var(--dock-scale))!important;transition:transform .16s cubic-bezier(.2,.8,.2,1),filter .18s ease!important}
+.skol-dock .dock-item{--dock-scale:1;transform:translateY(var(--dock-lift,0px)) scale(var(--dock-scale))!important;transition:transform .16s cubic-bezier(.2,.8,.2,1),filter .18s ease!important}
 .skol-dock .dock-item:hover,.skol-dock .dock-item:focus-visible{transform:translateY(-5px) scale(max(1.14,var(--dock-scale)))!important}
 .skol-dock .dock-item.active .dock-icon{box-shadow:0 0 0 2px rgba(255,255,255,.72),0 4px 10px rgba(25,42,62,.22),inset 0 1px 0 rgba(255,255,255,.55)!important}
 .skol-dock .dock-item .dock-label i{font-style:normal;border-radius:999px;padding:0 4px;color:#fff}
