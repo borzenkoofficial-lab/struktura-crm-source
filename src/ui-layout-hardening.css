@@ -2747,3 +2747,10 @@ input[type="checkbox"], input[type="radio"] {
 .dock-notification-item small{font-size:11px;color:var(--accent,#c7a18c);margin-top:3px}
 .dock-notifications-state{padding:24px 12px;text-align:center;color:var(--text-secondary);font-size:13px}
 @media(max-width:600px){.dock-notifications-dialog{padding:16px!important}.dock-notifications-head-actions{gap:5px}.dock-notifications-filters{gap:5px}.dock-notifications-filters button{padding:6px 9px;font-size:11px}}
+
+.skol-dock .dock-notifications-trigger{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;flex:0 0 auto;min-width:64px;padding:3px 8px;border:0;background:transparent;color:inherit;cursor:pointer;transition:transform .16s cubic-bezier(.2,.8,.2,1),filter .18s ease}
+.skol-dock .dock-notifications-icon{position:relative;display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:linear-gradient(145deg,#526c87,#26394f);color:#fff;box-shadow:0 4px 10px rgba(25,42,62,.18),inset 0 1px 0 rgba(255,255,255,.3)}
+.skol-dock .dock-notifications-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.skol-dock .dock-notifications-label{font-size:9px;line-height:1.1;white-space:nowrap;color:inherit}
+.skol-dock .dock-notifications-trigger:hover,.skol-dock .dock-notifications-trigger:focus-visible{transform:translateY(-5px) scale(1.08);outline:none}
+@media(max-width:1360px){.skol-dock .dock-notifications-trigger{flex:0 0 34px;width:34px;min-width:34px;max-width:34px;padding:0;overflow:visible}.skol-dock .dock-notifications-label{display:none}.skol-dock .dock-notifications-icon{width:32px;height:32px}}
