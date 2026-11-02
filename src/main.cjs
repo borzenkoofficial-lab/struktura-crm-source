@@ -274,7 +274,7 @@ async function runAiWebSearch({ kind, service, region, sourceType = 'all', seedQ
   const queries = sourceType === 'eis' ? [] : [...plan.queries];
   const found = [], errors = [];
   // The EIS is queried directly for its public procurement cards; it is not treated as a site: search.
-  if (['eis', 'tenders', 'all'].includes(sourceType)) {
+  if (kind === 'commercial_orders' && ['eis', 'tenders', 'all'].includes(sourceType)) {
     const serviceTerms = {
       demolition: 'демонтаж и разборка зданий и помещений',
       finishing: 'отделочные и ремонтные работы',
