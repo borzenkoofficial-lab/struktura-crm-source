@@ -9,6 +9,19 @@ const { skolWordmarkSvg } = require('./branding.cjs');
 const { validateBackupDatabase } = require('./backup-utils.cjs');
 const { findLegacyUserDataPath } = require('./user-data-path.cjs');
 app.setName('СКОЛ');
+// The real Electron UI test must never read or migrate a user's production profile.
+// This override is available only when the dedicated test runner explicitly opts in.
+if (process.env.SKOL_UI_E2E === '1') {
+  const e2eUserDataPath = process.env.SKOL_UI_E2E_USER_DATA;
+  const e2ePublicKey = process.env.SKOL_UI_E2E_PUBLIC_KEY_B64;
+  if (!e2eUserDataPath || !e2ePublicKey) {
+    throw new Error('SKOL_UI_E2E requires an isolated user-data path and a temporary public key.');
+  }
+  const isolatedUserDataPath = path.resolve(e2eUserDataPath);
+  fs.mkdirSync(isolatedUserDataPath, { recursive: true });
+  app.setPath('appData', path.dirname(isolatedUserDataPath));
+  app.setPath('userData', isolatedUserDataPath);
+}
 // Keep an existing current profile; fall back to legacy data only if the current profile has no database.
 const legacyDataCandidates = ['Struktura CRM', 'struktura-crm', 'struktura-crm-source'];
 const currentUserDataPath = app.getPath('userData');
@@ -216,7 +229,10 @@ app.whenReady().then(() => {
   // Remove Electron's legacy File/Edit/View/Window/Help menu; keep native Windows controls.
   Menu.setApplicationMenu(null);
   db = openDatabase(app.getPath('userData'));
-  const licensePublicKey = fs.readFileSync(path.join(__dirname, 'license-public-key.pem'), 'utf8');
+  const licensePublicKey = process.env.SKOL_UI_E2E === '1'
+    ? Buffer.from(process.env.SKOL_UI_E2E_PUBLIC_KEY_B64, 'base64').toString('utf8')
+    : fs.readFileSync(path.join(__dirname, 'license-public-key.pem'), 'utf8');
+  if (!licensePublicKey.includes('PUBLIC KEY')) throw new Error('License public key is invalid.');
   const licenseDeviceId = getDeviceId();
   licenseService = createLicenseService({
     getSetting,
