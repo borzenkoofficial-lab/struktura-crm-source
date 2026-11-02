@@ -47,7 +47,8 @@
   <div class="app-shell">
   <aside class="sidebar" aria-label="Навигация СКОЛ">
 <div class="brand"><div class="brand-mark"><img src="assets/skol-monogram.svg" alt="СКОЛ"></div><div class="brand-copy"><img class="brand-wordmark" src="assets/skol-wordmark.svg" alt="СКОЛ"><small>ДЕМОНТАЖ · ОТДЕЛКА</small></div></div>
-<nav class="nav-primary" aria-label="Навигация по разделам СКОЛ">
+<button class="nav-menu-toggle" id="navMenuToggle" type="button" aria-controls="nav-primary" aria-expanded="false" aria-label="Открыть меню разделов" title="Открыть меню разделов"><span>Разделы</span><i aria-hidden="true">⌄</i></button>
+<nav class="nav-primary" id="nav-primary" aria-label="Навигация по разделам СКОЛ" aria-hidden="true" inert>
 <div class="nav-menu-group">
 <span class="nav-menu-label">РАБОЧЕЕ ПРОСТРАНСТВО</span>
 <button class="nav-item active" data-view="dashboard" aria-current="page"><span>▦</span>Обзор</button><button class="nav-item" data-view="leads"><span>◉</span>Заявки <i id="leadNavCount">0</i></button><button class="nav-item" data-view="clients"><span>♙</span>Клиенты</button><button class="nav-item" data-view="projects"><span>▤</span>Объекты</button><button class="nav-item" data-view="production" data-feature="production"><span>◷</span>Производство</button><button class="nav-item" data-view="finance" data-feature="finance"><span>₽</span>Финансы</button>
