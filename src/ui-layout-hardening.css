@@ -2729,3 +2729,21 @@ input[type="checkbox"], input[type="radio"] {
   .skol-dock .dock-item{min-width:60px!important}
   .skol-dock .dock-label{padding-left:5px!important;padding-right:5px!important}
 }
+
+
+/* Dock notification inbox: compact, readable and consistent with the command overlays. */
+.dock-notifications-dialog{width:min(620px,calc(100vw - 32px));max-height:min(760px,calc(100vh - 40px));}
+.dock-notifications-head-actions{display:flex;align-items:center;gap:8px}
+.dock-notifications-filters{display:flex;flex-wrap:wrap;gap:7px;margin:4px 0 14px}
+.dock-notifications-filters button{border:1px solid var(--border,rgba(255,255,255,.12));background:transparent;color:var(--text-secondary);border-radius:999px;padding:7px 12px;font:inherit;font-size:12px;cursor:pointer}
+.dock-notifications-filters button.is-active{background:var(--surface-strong,rgba(255,255,255,.1));border-color:var(--accent,rgba(255,255,255,.3));color:var(--text-primary)}
+.dock-notifications-list{display:grid;gap:8px;max-height:min(520px,55vh);overflow:auto;padding:2px}
+.dock-notification-item{display:grid;gap:5px;text-align:left;width:100%;padding:13px 14px;border:1px solid var(--border,rgba(255,255,255,.12));border-radius:13px;background:var(--surface,rgba(255,255,255,.035));color:var(--text-primary);cursor:pointer;transition:border-color .18s ease,transform .18s ease,background .18s ease}
+.dock-notification-item:hover{transform:translateY(-1px);border-color:var(--accent,rgba(255,255,255,.35));background:var(--surface-strong,rgba(255,255,255,.075))}
+.dock-notification-item.is-danger{border-left:3px solid #c66a65}
+.dock-notification-type{font-size:9px;letter-spacing:.12em;color:var(--text-muted);font-weight:700}
+.dock-notification-item strong{font-size:13px;font-weight:650}
+.dock-notification-item>span:not(.dock-notification-type){font-size:12px;line-height:1.5;color:var(--text-secondary)}
+.dock-notification-item small{font-size:11px;color:var(--accent,#c7a18c);margin-top:3px}
+.dock-notifications-state{padding:24px 12px;text-align:center;color:var(--text-secondary);font-size:13px}
+@media(max-width:600px){.dock-notifications-dialog{padding:16px!important}.dock-notifications-head-actions{gap:5px}.dock-notifications-filters{gap:5px}.dock-notifications-filters button{padding:6px 9px;font-size:11px}}
