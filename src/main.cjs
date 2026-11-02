@@ -155,7 +155,7 @@ async function buildAiSearchQueries({ service, region, kind, sourceType = 'all',
   }
 }
 async function rankAiSearchResults(results, { kind, service, region }) {
-  const compact = results.slice(0, 40).map(item => ({ url: item.url, title: item.title, snippet: item.snippet }));
+  const compact = results.slice(0, 40).map(item => ({ url: item.url, title: item.title, snippet: item.snippet, engine: item.engine, query: item.query }));
   if (!compact.length) return { items: [], aiUsed: false, reason: 'Поисковые системы не вернули ссылок.' };
   try {
     const response = await askAiJson(
