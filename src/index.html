@@ -141,7 +141,7 @@
         <div class="eng-form-grid">
           <label class="wide">Название объекта<input id="engProjectName" maxlength="180" placeholder="Например, демонтаж офиса на Тверской"></label>
           <label class="wide">Описание работ и условий<textarea id="engWorkDescription" rows="3" maxlength="5000" placeholder="Например: демонтаж стяжки 850 м², толщина 70 мм, армированная, 5-й этаж, лифта нет, вынос вручную 40 м."></textarea><small>ПИ попробует заполнить параметры из текста. Перед расчётом проверь все распознанные поля.</small></label>
-          <div class="eng-actions wide"><button type="button" class="button subtle" id="engParseDescriptionBtn">Разобрать описание</button></div>
+          <div class="eng-actions wide"><button type="button" class="button subtle" id="engParseDescriptionBtn">Разобрать описание</button><button type="button" class="button subtle" id="engAiReviewBtn">✦ Проверить описание с ИИ</button></div><div class="eng-ai-review wide" id="engAiReviewResult" hidden aria-live="polite"></div>
           <label class="wide">Вид работ из каталога<select id="engWorkSelect"></select></label>
           <label>Объём работ, ед.<input id="engQuantity" type="number" min="0.01" step="0.1" value="100" required></label>
           <label>Производительность стартовой нормы, ед./чел.-8 ч<input id="engBaselineRate" type="number" min="0.01" step="0.1" value="8" required></label>
