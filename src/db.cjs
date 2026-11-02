@@ -159,6 +159,14 @@ CREATE TABLE IF NOT EXISTS commercial_order_analysis (
   estimated_margin_pct REAL NOT NULL,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS commercial_order_ai_reviews (
+  order_id INTEGER PRIMARY KEY REFERENCES commercial_orders(id) ON DELETE CASCADE,
+  model TEXT NOT NULL DEFAULT '',
+  review_json TEXT NOT NULL DEFAULT '{}',
+  source_signature TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 CREATE TABLE IF NOT EXISTS competitor_listings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   source_name TEXT NOT NULL,
