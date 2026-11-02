@@ -1102,10 +1102,12 @@ ipcMain.handle('orders:fetchTable', async (_event, input = {}) => {
   extractedFacts:taggedEvidence.length,bytes:table.bytes,sha256:table.sha256};
 });
 ipcMain.handle('orders:search',async(_event,input={})=>{
- const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');
- const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const sourceType=['all','web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';const queries=buildOrderQueries(service,region,sourceType);const found=[],errors=[];
- for(const query of queries){try{const results=await searchBrave(query,apiKey,{count:10});found.push(...results.map(x=>normalizeBraveOrderResult(x,query,service,region)).filter(Boolean))}catch(e){errors.push({query,error:clean(e.message,240)})}}
- const unique=deduplicateOrders(found).map(item=>({...item,...extractOrderEvidence(item.title+'\n'+item.snippet)}));
+ if(!readSearchKey())throw new Error('Сначала настрой ИИ в разделе Настройки → ИИ.');
+ const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const sourceType=['all','web','telegram','avito','tenders','eis'].includes(input.sourceType)?input.sourceType:'web';
+ const seedQueries=buildOrderQueries(service,region,sourceType);
+ const report=await runAiWebSearch({kind:'commercial_orders',service,region,sourceType,seedQueries});
+ const queries=report.queries,found=report.engineResults,errors=report.errors;
+ const unique=deduplicateOrders(report.items.map(item=>normalizeOrderResult({title:item.title,url:item.url,description:item.snippet},item.query||'',service,region)).filter(Boolean)).map(item=>({...item,...extractOrderEvidence(item.title+'\n'+item.snippet)}));
  const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status,customer_name,contact_name,phone,email,budget_rub,volume_value,volume_unit,deadline_text,procurement_number,work_address,fact_evidence_json)
  VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new',@customer_name,@contact_name,@phone,@email,@budget_rub,@volume_value,@volume_unit,@deadline_text,@procurement_number,@work_address,@fact_evidence_json)`);
  const update=db.prepare(`UPDATE commercial_orders SET title=@title,source_name=@source_name,source_type=@source_type,snippet=@snippet,search_query=@search_query,service=@service,region=@region,signal_score=@signal_score,signal_labels=@signal_labels,relevance=@relevance,
@@ -1132,11 +1134,11 @@ ipcMain.handle('orders:search',async(_event,input={})=>{
    update.run(values);refreshed++;
   }
   db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)')
-   .run('Brave Search API','commercial-order-radar',added,refreshed+protectedCount,errors.length,`Получено: ${found.length}; уникальных ссылок: ${unique.length}; добавлено: ${added}; обновлено: ${refreshed}; защищено от перезаписи: ${protectedCount}; запросов: ${queries.length}; ошибок: ${errors.length}`);
+   .run('AI public web search','commercial-order-radar',added,refreshed+protectedCount,errors.length,`Получено ссылок: ${found.length}; отобрано ИИ: ${unique.length}; добавлено: ${added}; обновлено: ${refreshed}; защищено от перезаписи: ${protectedCount}; запросов: ${queries.length}; ошибок: ${errors.length}`);
  });
  tx(unique);
- if(!unique.length&&errors.length===queries.length)throw new Error('Не удалось найти заказы. '+errors.map(x=>x.error).join(' | '));
- return {queries,received:found.length,unique:unique.length,added,refreshed,protected:protectedCount,errors};
+ if(!found.length)throw new Error('Публичные поисковые системы не вернули выдачу. '+errors.map(x=>x.error).join(' | '));
+ return {queries,received:found.length,unique:unique.length,added,refreshed,protected:protectedCount,errors,aiUsed:report.aiUsed,model:report.model,aiError:report.aiError};
 });
 ipcMain.handle('orders:saveAnalysis', (_event,input={}) => {
  const orderId=Number(input.order_id);
