@@ -1142,3 +1142,30 @@ test('secondary workspaces keep order radar, task/report tables, browser inspect
   assert.match(secondaryCss, /@media \(max-width: 520px\)/);
   assert.doesNotMatch(secondaryCss, /overflow\s*:\s*hidden/, 'secondary workspace polish must not clip text or controls');
 });
+
+
+test('Windows CI includes a real Electron viewport smoke test with isolated profile and screenshot artifacts', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const e2e = fs.readFileSync(path.join(root, 'tests', 'electron-layout-smoke.cjs'), 'utf8');
+  const hook = fs.readFileSync(path.join(root, 'tests', 'electron-e2e-preload.cjs'), 'utf8');
+  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'build-windows.yml'), 'utf8');
+
+  assert.equal(packageJson.scripts['test:ui'], 'node tests/electron-layout-smoke.cjs');
+  assert.match(e2e, /_electron/);
+  assert.match(e2e, /createLicenseToken/);
+  assert.match(e2e, /setViewportSize/);
+  assert.match(e2e, /1024/);
+  assert.match(e2e, /1280/);
+  assert.match(e2e, /1440/);
+  assert.match(e2e, /1920/);
+  assert.match(e2e, /page\.screenshot/);
+  assert.match(e2e, /scrollWidth/);
+  assert.match(e2e, /SKOL_UI_E2E_OUTPUT/);
+  assert.match(hook, /SKOL_UI_E2E/);
+  assert.match(hook, /app\.setPath\('userData'/);
+  assert.match(hook, /license-public-key\.pem/);
+  assert.match(workflow, /Install Playwright for Electron UI checks/);
+  assert.match(workflow, /Run Electron responsive layout checks/);
+  assert.match(workflow, /SKOL-Electron-UI-Screenshots/);
+  assert.match(workflow, /playwright@1\.64\.1/);
+});
