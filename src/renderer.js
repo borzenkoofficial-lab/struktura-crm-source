@@ -2172,7 +2172,7 @@ $('crawlWebsitesBtn').addEventListener('click', async () => {
   button.disabled = true; button.textContent = 'Ищем контакты…'; result.hidden = false; result.className = 'crawler-result'; result.textContent = 'Проверяем доступность сайтов и robots.txt. Большие сайты могут обрабатываться несколько минут.';
   try {
     const report = await window.crm.crawlProspectWebsites({ urls, service: $('crawlerService').value, region: $('crawlerRegion').value, maxPages: Number($('crawlerMaxPages').value) });
-    const lines = [`Найдено сайтов с контактами: ${report.discovered}`, `Добавлено в базу: ${report.imported}`, `Пропущено дублей: ${report.skipped}`, `Проверено HTML-страниц: ${report.pagesChecked}`, `Ошибок поиска: ${report.errors.length}`, `ИИ-анализ: ${report.aiUsed ? 'выполнен' : 'резервный режим'}`];
+    const lines = [`Найдено сайтов с контактами: ${report.discovered}`, `Добавлено в базу: ${report.imported}`, `Пропущено дублей: ${report.skipped}`, `Проверено HTML-страниц: ${report.pagesChecked}`, `Ошибок поиска: ${report.errors.length}`, `ИИ-план запросов: ${report.aiPlanUsed ? 'выполнен' : 'резервный режим'}`, `ИИ-ранжирование: ${report.aiUsed ? 'выполнено' : 'резервный режим'}`];
     if (report.errors.length) lines.push('', 'Первые ошибки:', ...report.errors.slice(0,5).map(e => `• ${e.url}: ${e.error}`));
     result.textContent = lines.join('\n'); await refreshProspects();
     toast(`Парсинг завершён. Добавлено компаний: ${report.imported}.`);
@@ -2237,7 +2237,7 @@ $('runOrderRadarBtn').addEventListener('click',async()=>{
  b.disabled=true;b.textContent='Ищем…';r.hidden=false;r.className='crawler-result';r.textContent='ИИ формирует поисковые запросы и проверяет найденные ссылки…';
  try{
   const report=await window.crm.searchCommercialOrders({service:$('orderRadarService').value,region:$('orderRadarRegion').value,sourceType});
-  const lines=[`Источник: ${sourceType}`,`Запросов: ${report.queries.length}`,`Результатов: ${report.received}`,`Уникальных ссылок: ${report.unique}`,`Новых карточек: ${report.added}`,`Обновлено: ${report.refreshed}`,`Защищено вручную отмеченных: ${report.protected||0}`,`Ошибок: ${report.errors.length}`];
+  const lines=[`Источник: ${sourceType}`,`Запросов: ${report.queries.length}`,`Результатов: ${report.received}`,`Уникальных ссылок: ${report.unique}`,`Новых карточек: ${report.added}`,`Обновлено: ${report.refreshed}`,`Защищено вручную отмеченных: ${report.protected||0}`,`Ошибок: ${report.errors.length}`, `ИИ-план запросов: ${report.aiPlanUsed ? 'выполнен' : 'резервный режим'}`, `ИИ-ранжирование: ${report.aiUsed ? 'выполнено' : 'резервный режим'}`];
   if(report.errors.length)lines.push('','Ошибки:',...report.errors.map(x=>`• ${x.query}: ${x.error}`));
   lines.push('','Результаты — кандидаты. Проверь актуальность и условия на исходном сайте.');
   r.textContent=lines.join('\n');await refreshCommercialOrders();toast(`Поиск завершён. Новых карточек: ${report.added}.`);
