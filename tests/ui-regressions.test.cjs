@@ -1003,7 +1003,7 @@ test('navigation is a horizontal slide-out top panel with a five-second idle clo
   assert.match(layoutCss, /\.sidebar \.nav-primary\s*\{[\s\S]*?flex-direction: row !important/);
   assert.match(layoutCss, /\.sidebar\.nav-expanded \.nav-primary\s*\{[\s\S]*?overflow-x: auto !important/);
   assert.match(layoutCss, /\.sidebar \.nav-menu-group\s*\{[\s\S]*?flex-direction: row !important/);
-  assert.match(layoutCss, /@media \(max-width: 700px\)[\s\S]*?\.sidebar \.nav-primary[\s\S]*?overflow-x: auto !important/);
+  assert.match(layoutCss, /@media \(max-width: 700px\)[\s\S]*?\.sidebar \.nav-primary\s*\{[\s\S]*?left: 8px !important/);
 });
 test('all five split workspaces keep a detail pane and table list in the current 1.25 interface', () => {
   for (const id of ['leadDetailPanel','clientDetailPanel','projectDetailPanel','paymentDetailPanel','expenseDetailPanel']) {
