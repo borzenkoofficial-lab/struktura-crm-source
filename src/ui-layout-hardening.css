@@ -2651,3 +2651,46 @@ input[type="checkbox"], input[type="radio"] {
 @media(prefers-reduced-transparency:reduce){
   .skol-dock{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;background:#e7edf4!important;border-color:#cbd5e0!important}
 }
+
+
+/* Dock interaction surfaces and personalization. */
+.skol-dock{position:fixed!important;isolation:isolate!important;--dock-pointer-x:50%}
+.skol-dock:after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;background:radial-gradient(115px circle at var(--dock-pointer-x,50%) 0%,rgba(255,255,255,.42),transparent 72%);opacity:.8;transition:opacity .18s ease}
+.skol-dock .dock-group,.skol-dock .dock-divider{position:relative;z-index:1}
+.skol-dock .dock-item{--dock-scale:1;transform:translateY(calc((1 - var(--dock-scale))*-20px)) scale(var(--dock-scale))!important;transition:transform .16s cubic-bezier(.2,.8,.2,1),filter .18s ease!important}
+.skol-dock .dock-item:hover,.skol-dock .dock-item:focus-visible{transform:translateY(-5px) scale(max(1.14,var(--dock-scale)))!important}
+.skol-dock .dock-item.active .dock-icon{box-shadow:0 0 0 2px rgba(255,255,255,.72),0 4px 10px rgba(25,42,62,.22),inset 0 1px 0 rgba(255,255,255,.55)!important}
+.skol-dock .dock-item .dock-label i{font-style:normal;border-radius:999px;padding:0 4px;color:#fff}
+.skol-dock .dock-group[hidden],.skol-dock .dock-divider[hidden]{display:none!important}
+.dock-overlay-dialog{width:min(560px,calc(100vw - 28px));max-width:560px;max-height:min(78vh,720px);padding:0;border:1px solid rgba(255,255,255,.7);border-radius:20px;background:rgba(248,250,253,.97);color:#263447;box-shadow:0 24px 80px rgba(12,25,40,.28);backdrop-filter:blur(24px)}
+.dock-overlay-dialog::backdrop{background:rgba(14,25,38,.34);backdrop-filter:blur(4px)}
+.dock-overlay-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:22px 24px 16px;border-bottom:1px solid #e4eaf0}
+.dock-overlay-head h2{margin:5px 0 0;font-size:21px;letter-spacing:-.035em}
+.dock-overlay-head p{margin:7px 0 0;color:#738196;font-size:12px;line-height:1.5}
+.dock-overlay-close{width:32px;height:32px;border:1px solid #e1e7ee;border-radius:10px;background:#fff;color:#526174;font-size:21px;cursor:pointer}
+.dock-palette-search{display:flex;align-items:center;gap:10px;margin:16px 20px 10px;padding:0 13px;height:48px;border:1px solid #dbe3ec;border-radius:12px;background:#fff;color:#7d8b9c}
+.dock-palette-search>span{font-size:22px}.dock-palette-search input{width:100%;border:0;outline:0;background:transparent;color:#263447;font:inherit;font-size:14px}
+.dock-overlay-dialog kbd{padding:3px 6px;border:1px solid #dce3eb;border-radius:5px;background:#f7f9fb;color:#738196;font-size:9px;white-space:nowrap}
+.dock-palette-results{display:grid;gap:4px;max-height:48vh;overflow:auto;padding:4px 14px 14px}
+.dock-palette-results>button{display:flex;align-items:center;gap:12px;width:100%;min-height:54px;padding:8px 10px;border:1px solid transparent;border-radius:11px;background:transparent;text-align:left;color:#29394d;cursor:pointer}
+.dock-palette-results>button:hover,.dock-palette-results>button[aria-selected=true]{border-color:#e1e8ef;background:#fff;box-shadow:0 3px 10px rgba(35,55,78,.06)}
+.dock-command-glyph{display:grid;place-items:center;flex:0 0 34px;height:34px;border-radius:10px;background:#eaf1f8;color:#3f6c98;font-size:18px}
+.dock-palette-results>button>span:nth-child(2){display:grid;gap:3px;min-width:0;flex:1}
+.dock-palette-results strong{font-size:12px}.dock-palette-results small{color:#8190a1;font-size:10px}
+.dock-palette-empty{padding:22px;text-align:center;color:#8290a0;font-size:12px}
+.dock-overlay-foot{display:flex;justify-content:center;gap:18px;padding:12px;border-top:1px solid #e7ecf1;color:#8793a2;font-size:9px}
+.dock-settings-list{display:grid;gap:14px;max-height:52vh;overflow:auto;padding:18px 22px}
+.dock-settings-group{display:grid;gap:6px}.dock-settings-group h3{margin:0 0 3px;color:#8793a2;font-size:10px;text-transform:uppercase;letter-spacing:.09em}
+.dock-settings-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:42px;padding:4px 7px;border:1px solid #e8edf2;border-radius:10px;background:rgba(255,255,255,.7)}
+.dock-settings-row>label{display:flex;align-items:center;gap:9px;min-width:0;color:#34445a;font-size:11px;cursor:pointer}
+.dock-settings-row input{accent-color:#d95e36}
+.dock-settings-icon{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:#eaf0f7;color:#526b87}
+.dock-settings-icon svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8}
+.dock-settings-order{display:flex;gap:4px}.dock-settings-order button{width:27px;height:27px;border:1px solid #e0e6ed;border-radius:7px;background:#fff;color:#62748a;cursor:pointer}.dock-settings-order button:disabled{opacity:.3;cursor:default}
+.dock-overlay-actions{display:flex;justify-content:space-between;gap:10px;padding:14px 22px 18px;border-top:1px solid #e6ebf0}
+.dock-context-menu{position:fixed;z-index:10000;display:grid;min-width:218px;padding:6px;border:1px solid rgba(255,255,255,.72);border-radius:13px;background:rgba(249,251,253,.97);box-shadow:0 14px 38px rgba(17,31,48,.22);backdrop-filter:blur(20px)}
+.dock-context-menu[hidden]{display:none}
+.dock-context-menu button{min-height:34px;padding:7px 10px;border:0;border-radius:8px;background:transparent;color:#35465b;text-align:left;font-size:11px;cursor:pointer}
+.dock-context-menu button:hover{background:#edf2f7;color:#c25432}
+@media(max-width:760px){.dock-overlay-foot{gap:8px;font-size:8px}.dock-overlay-head{padding:18px}.dock-settings-list{padding:14px}.dock-context-menu{min-width:200px}}
+@media(prefers-reduced-motion:reduce){.skol-dock .dock-item{transform:none!important}.skol-dock:after{display:none}}
