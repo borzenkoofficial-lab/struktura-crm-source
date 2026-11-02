@@ -91,6 +91,14 @@ test('uses safe defaults for unknown service and strips URL credentials', () => 
 });
 
 
+test('preserves AI relevance metadata separately from deterministic evidence signals', () => {
+  const order = normalizeOrderResult({ title: 'Демонтаж офиса · закупка', url: 'https://example.ru/order/1', description: 'Ищут подрядчика для демонтажа', ai_score: 87, ai_reason: 'Подходит по услуге и региону', ai_category: 'Тендер' }, 'демонтаж Москва', 'demolition', 'Москва');
+  assert.equal(order.ai_score, 87);
+  assert.equal(order.ai_reason, 'Подходит по услуге и региону');
+  assert.equal(order.ai_category, 'Тендер');
+  assert.equal(typeof order.signal_score, 'number');
+});
+
 test('protects manually reviewed statuses while allowing ordinary records to refresh', () => {
   assert.equal(orderRefreshAction(undefined), 'insert');
   assert.equal(orderRefreshAction('new'), 'update');
