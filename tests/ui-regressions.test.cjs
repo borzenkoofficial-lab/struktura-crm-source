@@ -1050,3 +1050,27 @@ test('shared layout hardening keeps content inside cards, forms, tables and dial
     .replace(/\.sidebar\.nav-expanded \.nav-primary\s*\{[^}]*\}/g, '');
   assert.doesNotMatch(navigationAnimationRules, /overflow\s*:\s*hidden/, 'the layout layer must not conceal business content; only the collapsed navigation panel may clip during its animation');
 });
+
+
+test('top menu has premium motion and an accessible interactive first-run guide', () => {
+  assert.match(html, /class="nav-menu-toggle"[^>]*id="navMenuToggle"/);
+  assert.match(html, /class="nav-menu-toggle-text">МЕНЮ<\/span>/);
+  assert.match(html, /id="navGuideReplay"/);
+  assert.match(html, /id="navGuideCard"[^>]*role="dialog"[^>]*aria-modal="true"/);
+  for (const id of ['navGuideBackdrop','navGuideTitle','navGuideText','navGuideProgress','navGuideSkip','navGuideBack','navGuideNext']) {
+    assert.equal((html.match(new RegExp('id="' + id + '"','g')) || []).length, 1, id + ' is unique');
+  }
+  assert.match(renderer, /NAV_GUIDE_STORAGE_KEY/);
+  assert.match(renderer, /function showNavGuideStep\(step\)/);
+  assert.match(renderer, /function maybeStartNavGuide\(\)/);
+  assert.match(renderer, /navGuideReplay\?\.addEventListener\('click', startNavGuide\)/);
+  assert.match(renderer, /event\.key !== 'Escape'/);
+  assert.match(renderer, /navGuideCard\?\.addEventListener\('keydown'/);
+  assert.match(renderer, /setTimeout\(\(\) => \{\s*if \(startupUnlocked\) maybeStartNavGuide\(\)/);
+  assert.match(layoutCss, /\.sidebar \.nav-menu-toggle\s*\{[\s\S]*?left: 50% !important/);
+  assert.match(layoutCss, /\.nav-guide-card\s*\{[\s\S]*?position:fixed/);
+  assert.match(layoutCss, /@keyframes skolNavJelly/);
+  assert.match(layoutCss, /@keyframes skolNavGuidePulse/);
+  assert.match(layoutCss, /\.sidebar \.nav-primary \.nav-item:hover[\s\S]*?animation:skolNavJelly/);
+  assert.match(layoutCss, /@media \(prefers-reduced-motion:reduce\)[\s\S]*?\.nav-guide-card/);
+});

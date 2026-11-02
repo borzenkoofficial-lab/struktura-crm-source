@@ -47,7 +47,12 @@
   <div class="app-shell">
   <aside class="sidebar" aria-label="Навигация СКОЛ">
 <div class="brand"><div class="brand-mark"><img src="assets/skol-monogram.svg" alt="СКОЛ"></div><div class="brand-copy"><img class="brand-wordmark" src="assets/skol-wordmark.svg" alt="СКОЛ"><small>ДЕМОНТАЖ · ОТДЕЛКА</small></div></div>
-<button class="nav-menu-toggle" id="navMenuToggle" type="button" aria-controls="nav-primary" aria-expanded="false" aria-label="Открыть меню разделов" title="Открыть меню разделов"><span>Разделы</span><i aria-hidden="true">⌄</i></button>
+<button class="nav-menu-toggle" id="navMenuToggle" type="button" aria-controls="nav-primary" aria-expanded="false" aria-label="Открыть меню разделов" title="Открыть меню разделов">
+  <span class="nav-menu-symbol" aria-hidden="true"><b></b><b></b><b></b></span>
+  <span class="nav-menu-toggle-text">МЕНЮ</span>
+  <i class="nav-menu-chevron" aria-hidden="true">⌄</i>
+</button>
+<button class="nav-guide-replay" id="navGuideReplay" type="button" aria-label="Показать обучение по меню" title="Как пользоваться меню">?</button>
 <nav class="nav-primary" id="nav-primary" aria-label="Навигация по разделам СКОЛ" aria-hidden="true" inert>
 <div class="nav-menu-group">
 <span class="nav-menu-label">РАБОЧЕЕ ПРОСТРАНСТВО</span>
@@ -62,6 +67,19 @@
 <button class="nav-item" data-view="settings"><span>⚙</span>Настройки</button><button class="nav-item" data-view="about"><span>✦</span>О продукте</button><button class="nav-item" id="dataFolderBtn"><span>▣</span>Папка данных</button><button class="nav-item" id="backupBtn"><span>↧</span>Создать резервную копию</button><button class="nav-item" id="restoreBackupBtn"><span>↥</span>Восстановить копию</button>
 </div>
 </nav>
+<div class="nav-guide-backdrop" id="navGuideBackdrop" hidden></div>
+<section class="nav-guide-card" id="navGuideCard" role="dialog" aria-modal="true" aria-labelledby="navGuideTitle" aria-describedby="navGuideText" data-step="1" hidden>
+  <div class="nav-guide-card-top"><span>СКОЛ / БЫСТРОЕ ОБУЧЕНИЕ</span><span id="navGuideProgress">01 / 02</span></div>
+  <h2 id="navGuideTitle">Главная кнопка навигации</h2>
+  <p id="navGuideText">Кнопка «МЕНЮ» открывает список всех разделов CRM. Нажмите её, чтобы увидеть рабочие пространства, инструменты и настройки.</p>
+  <div class="nav-guide-card-actions">
+    <button class="button subtle" id="navGuideSkip" type="button">Пропустить</button>
+    <div class="nav-guide-step-actions">
+      <button class="button subtle" id="navGuideBack" type="button" hidden>Назад</button>
+      <button class="button primary" id="navGuideNext" type="button">Показать меню <span aria-hidden="true">↗</span></button>
+    </div>
+  </div>
+</section>
 <div class="local-badge"><span></span><div><strong>Локальная база</strong><small>Данные на этом компьютере</small></div></div></aside>
 <main class="main"><header class="topbar"><div class="topbar-heading"><div><div class="eyebrow">ВАШ БИЗНЕС · В ОДНОМ МЕСТЕ</div><h1 id="pageTitle">Обзор бизнеса</h1></div></div><div class="top-actions"><div class="today" id="today"></div><button class="button subtle" id="openCommandPaletteBtn" type="button" title="Быстрый переход · Ctrl+K">⌕ Быстрый переход</button><button class="button subtle" id="openUpdatesBtn" type="button">↻ Обновления</button><button class="button primary" id="quickLead">＋ Новая заявка</button></div></header>
   <section class="view active" id="view-dashboard">

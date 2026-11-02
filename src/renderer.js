@@ -180,11 +180,116 @@ if (navMenuShell && navMenuToggle && navMenuPanel) {
     if (event.detail > 0) navMenuToggle.blur();
   });
   document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && navMenuShell.classList.contains('nav-expanded')) {
+    if (event.key !== 'Escape') return;
+    if (navGuideCard && !navGuideCard.hidden) {
+      closeNavGuide(true);
+      return;
+    }
+    if (navMenuShell.classList.contains('nav-expanded')) {
       setNavMenuOpen(false, { restoreFocus: true });
     }
   });
 }
+
+// Interactive first-run guide for the top navigation.
+const NAV_GUIDE_STORAGE_KEY = 'skol.navGuide.menu.v1';
+const navGuideBackdrop = $('navGuideBackdrop');
+const navGuideCard = $('navGuideCard');
+const navGuideTitle = $('navGuideTitle');
+const navGuideText = $('navGuideText');
+const navGuideProgress = $('navGuideProgress');
+const navGuideSkip = $('navGuideSkip');
+const navGuideBack = $('navGuideBack');
+const navGuideNext = $('navGuideNext');
+const navGuideReplay = $('navGuideReplay');
+let navGuideStep = 0;
+let navGuideReturnFocus = null;
+
+function showNavGuideStep(step) {
+  if (!navMenuShell || !navMenuToggle || !navMenuPanel || !navGuideBackdrop || !navGuideCard) return;
+  navGuideStep = step === 2 ? 2 : 1;
+  navMenuShell.classList.add('nav-guide-active');
+  navGuideBackdrop.hidden = false;
+  navGuideCard.hidden = false;
+  navGuideCard.dataset.step = String(navGuideStep);
+
+  if (navGuideStep === 1) {
+    setNavMenuOpen(false);
+    navMenuToggle.classList.add('nav-guide-highlight');
+    navMenuPanel.classList.remove('nav-guide-highlight');
+    navGuideTitle.textContent = 'Главная кнопка навигации';
+    navGuideText.textContent = 'Кнопка «МЕНЮ» по центру верхней панели открывает список всех разделов CRM. Нажмите «Показать меню» или саму выделенную кнопку, чтобы увидеть рабочие пространства, инструменты и настройки.';
+    navGuideProgress.textContent = '01 / 02';
+    navGuideBack.hidden = true;
+    navGuideNext.textContent = 'Показать меню ↗';
+  } else {
+    setNavMenuOpen(true);
+    navMenuToggle.classList.remove('nav-guide-highlight');
+    navMenuPanel.classList.add('nav-guide-highlight');
+    navGuideTitle.textContent = 'Выберите нужный раздел';
+    navGuideText.textContent = 'Пункты меню открывают соответствующие экраны: заявки, клиентов, объекты, производство, финансы и инструменты. Наведите курсор на пункт, чтобы увидеть плавную анимацию. После ухода курсора меню свернётся через 5 секунд.';
+    navGuideProgress.textContent = '02 / 02';
+    navGuideBack.hidden = false;
+    navGuideNext.textContent = 'Понятно';
+  }
+  navGuideNext?.focus();
+}
+
+function closeNavGuide(markComplete = true) {
+  if (!navGuideCard || navGuideCard.hidden) return;
+  navGuideCard.hidden = true;
+  if (navGuideBackdrop) navGuideBackdrop.hidden = true;
+  navMenuToggle?.classList.remove('nav-guide-highlight');
+  navMenuPanel?.classList.remove('nav-guide-highlight');
+  navMenuShell?.classList.remove('nav-guide-active');
+  setNavMenuOpen(false);
+  if (markComplete) {
+    try { localStorage.setItem(NAV_GUIDE_STORAGE_KEY, 'done'); } catch { /* The guide remains available through the ? button. */ }
+  }
+  const returnTarget = navGuideReturnFocus?.isConnected && navGuideReturnFocus !== document.body
+    ? navGuideReturnFocus
+    : navMenuToggle;
+  navGuideReturnFocus = null;
+  returnTarget?.focus();
+}
+
+function startNavGuide() {
+  if (!navGuideCard || !navGuideBackdrop) return;
+  navGuideReturnFocus = document.activeElement;
+  showNavGuideStep(1);
+}
+
+function maybeStartNavGuide() {
+  let completed = false;
+  try { completed = localStorage.getItem(NAV_GUIDE_STORAGE_KEY) === 'done'; } catch { completed = false; }
+  if (!completed && startupUnlocked) startNavGuide();
+}
+
+navGuideReplay?.addEventListener('click', startNavGuide);
+navMenuToggle?.addEventListener('click', () => {
+  if (navGuideCard && !navGuideCard.hidden && navGuideStep === 1) showNavGuideStep(2);
+});
+navGuideSkip?.addEventListener('click', () => closeNavGuide(true));
+navGuideNext?.addEventListener('click', () => {
+  if (navGuideStep === 1) showNavGuideStep(2);
+  else closeNavGuide(true);
+});
+navGuideBack?.addEventListener('click', () => showNavGuideStep(1));
+navGuideBackdrop?.addEventListener('click', () => closeNavGuide(true));
+navGuideCard?.addEventListener('keydown', event => {
+  if (event.key !== 'Tab') return;
+  const focusable = [navGuideSkip, navGuideBack, navGuideNext].filter(button => button && !button.hidden && !button.disabled);
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
 
 // Register primary navigation before the rest of renderer initialization. If a later widget
 // fails during setup, the workspace navigation remains usable and the error is observable.
@@ -2481,6 +2586,11 @@ initializeStartupGate()
       errorBox.append(heading, detail, retry); target.append(errorBox);
     }
   })
-  .finally(hideStartupSplash);
+  .finally(() => {
+    hideStartupSplash();
+    window.setTimeout(() => {
+      if (startupUnlocked) maybeStartNavGuide();
+    }, 650);
+  });
 // PI does not query business data until the startup PIN gate has been passed.
 setInterval(() => { if (startupUnlocked) refreshPiCoach().catch(() => {}); }, 5 * 60 * 1000);
