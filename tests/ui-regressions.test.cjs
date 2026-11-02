@@ -1166,6 +1166,8 @@ test('Windows CI includes a real Electron viewport smoke test with isolated prof
   assert.match(hook, /SKOL_UI_E2E/);
   assert.match(hook, /app\.setPath\('userData'/);
   assert.match(hook, /license-public-key\.pem/);
+  assert.match(workflow, /Rebuild native modules for Electron/);
+  assert.match(workflow, /electron-builder install-app-deps --platform=win32 --arch=x64/);
   assert.match(workflow, /Install Playwright for Electron UI checks/);
   assert.match(workflow, /Run Electron responsive layout checks/);
   assert.match(workflow, /SKOL-Electron-UI-Screenshots/);
