@@ -294,13 +294,13 @@
       const result = await window.crm.reviewEngineeringDescription({ description: $('engWorkDescription').value });
       const sections = [
         ['Краткий вывод', result.summary],
-        ['Что уже известно', (result.knownFacts || []).map(x => '• ' + x).join('\\n')],
-        ['Чего не хватает', (result.missingData || []).map(x => '• ' + x).join('\\n')],
-        ['Риски и ограничения', (result.risks || []).map(x => '• ' + x).join('\\n')],
-        ['Что уточнить у заказчика', (result.questions || []).map(x => '• ' + x).join('\\n')],
-        ['Примечания к расчёту', (result.calculationNotes || []).map(x => '• ' + x).join('\\n')]
+        ['Что уже известно', (result.knownFacts || []).map(x => '• ' + x).join('\n')],
+        ['Чего не хватает', (result.missingData || []).map(x => '• ' + x).join('\n')],
+        ['Риски и ограничения', (result.risks || []).map(x => '• ' + x).join('\n')],
+        ['Что уточнить у заказчика', (result.questions || []).map(x => '• ' + x).join('\n')],
+        ['Примечания к расчёту', (result.calculationNotes || []).map(x => '• ' + x).join('\n')]
       ].filter(([, value]) => value && String(value).trim());
-      output.textContent = sections.map(([title, value]) => title + '\\n' + value).join('\\n\\n') + (result.model ? '\\n\\nМодель: ' + result.model : '') + '\\n\\nИИ не менял параметры расчёта. Проверь вывод по объекту и проектной документации.';
+      output.textContent = sections.map(([title, value]) => title + '\n' + value).join('\n\n') + (result.model ? '\n\nМодель: ' + result.model : '') + '\n\nИИ не менял параметры расчёта. Проверь вывод по объекту и проектной документации.';
     } catch (error) { output.textContent = error.message || 'Не удалось проверить описание.'; }
     finally { button.disabled = false; button.textContent = '✦ Проверить описание с ИИ'; }
   });
