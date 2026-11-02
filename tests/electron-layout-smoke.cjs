@@ -208,6 +208,7 @@ async function run() {
       return {
         position: getComputedStyle(node).position,
         bottomGap: Math.round(window.innerHeight - rect.bottom),
+        height: Math.round(rect.height),
         left: Math.round(rect.left),
         right: Math.round(rect.right),
         itemCount: items.length,
@@ -221,17 +222,21 @@ async function run() {
     assert.ok(dockLayout.bottomGap >= 0 && dockLayout.bottomGap <= 20, 'Dock is attached to the bottom edge: ' + JSON.stringify(dockLayout));
     assert.equal(dockLayout.itemCount, 12, 'all 12 primary workspaces are present');
     assert.equal(dockLayout.groupCount, 4, 'workspaces are grouped into four logical groups');
-    assert.equal(dockLayout.labelCount, 12, 'every icon has a visible text capsule');
+    assert.equal(dockLayout.labelCount, 12, 'every icon retains an accessible label tooltip');
+    assert.ok(dockLayout.height <= 64, 'Dock remains compact and low-profile: ' + JSON.stringify(dockLayout));
     assert.equal(dockLayout.iconCount, 12, 'every destination has a vector icon');
     assert.ok(dockLayout.labels.includes('Создать резервную копию') === false, 'data utilities live in Settings, not in the Dock');
     await page.screenshot({ path: path.join(outputDir, 'dock-default.png'), animations: 'disabled' });
 
     const hoverTarget = dock.locator('.dock-item[data-view="projects"]');
     const beforeHover = await hoverTarget.boundingBox();
+    const label = hoverTarget.locator('.dock-label');
+    assert.equal(await label.evaluate(node => getComputedStyle(node).visibility), 'hidden', 'labels stay out of the way until hover');
     await hoverTarget.hover();
     await page.waitForTimeout(300);
     const afterHover = await hoverTarget.boundingBox();
     assert.ok(afterHover.width > beforeHover.width * 1.05, 'hover magnifies the dock icon and its hit target');
+    assert.equal(await label.evaluate(node => getComputedStyle(node).visibility), 'visible', 'hover reveals the destination label');
     await page.screenshot({ path: path.join(outputDir, 'dock-hover.png'), animations: 'disabled' });
     await page.keyboard.press('Tab');
     await page.keyboard.press('Escape');
