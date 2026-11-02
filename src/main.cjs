@@ -140,6 +140,87 @@ async function askAiJson(system, user, { maxTokens = 2200, temperature = 0.1 } =
     { role: 'system', content: system }, { role: 'user', content: user }
   ] });
 }
+function redactAiText(value, max = 600) {
+  return clean(value, max)
+    .replace(/[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}/g, '[email]')
+    .replace(/(?:\\+?\\d[\\d\\s().-]{7,}\\d)/g, '[phone]');
+}
+function buildAiWorkspaceSnapshot(workspace) {
+  const allowed = new Set(['dashboard','leads','projects','production','finance','tasks','prospects','orders','quotes','engineering','reports','clients']);
+  if (!allowed.has(workspace)) throw new Error('Для этого раздела пока нет AI-контекста.');
+  const counts = {
+    leads: db.prepare("SELECT COUNT(*) total FROM leads WHERE status NOT IN ('won','lost')").get().total,
+    projects: db.prepare("SELECT COUNT(*) total FROM projects WHERE status IN ('planned','active')").get().total,
+    tasks: db.prepare('SELECT COUNT(*) total FROM tasks WHERE is_done=0').get().total,
+    prospects: db.prepare("SELECT COUNT(*) total FROM prospects WHERE status NOT IN ('rejected','converted')").get().total,
+    orders: db.prepare("SELECT COUNT(*) total FROM commercial_orders WHERE status NOT IN ('rejected')").get().total
+  };
+  if (workspace === 'dashboard' || workspace === 'reports') {
+    const received = Number(db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END),0) total FROM payments").get().total || 0)
+      + Number(db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM income_records').get().total || 0);
+    const paid = Number(db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=1').get().total || 0);
+    return { workspace, counts, finance: { received_rub: received, paid_expenses_rub: paid, cash_balance_rub: received - paid } };
+  }
+  if (workspace === 'leads') {
+    const rows = db.prepare('SELECT id,title,service,source,status,budget_rub,notes,updated_at FROM leads ORDER BY id DESC LIMIT 30').all()
+      .map(row => ({ ...row, notes: redactAiText(row.notes, 500) }));
+    return { workspace, counts, recent_leads: rows };
+  }
+  if (workspace === 'projects') {
+    const rows = db.prepare(`SELECT p.id,p.title,p.service,p.status,p.contract_rub,p.start_date,p.end_date,p.planned_people,p.complexity_factor,
+      COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub,
+      COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub,
+      COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub
+      FROM projects p ORDER BY p.id DESC LIMIT 25`).all();
+    return { workspace, counts, projects: rows };
+  }
+  if (workspace === 'production') {
+    const rows = db.prepare(`SELECT ws.project_id,ws.shift_date,ws.complexity_factor,wsi.catalog_id,wsi.quantity_done,wsi.workers_count,wsi.hours,wsi.baseline_productivity
+      FROM work_shift_items wsi JOIN work_shifts ws ON ws.id=wsi.shift_id
+      ORDER BY ws.shift_date DESC,ws.id DESC LIMIT 40`).all();
+    return { workspace, counts, recent_shift_work: rows };
+  }
+  if (workspace === 'finance') {
+    const receivedPayments = Number(db.prepare("SELECT COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END),0) total FROM payments").get().total || 0);
+    const otherIncome = Number(db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM income_records').get().total || 0);
+    const paid = Number(db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=1').get().total || 0);
+    const planned = Number(db.prepare('SELECT COALESCE(SUM(amount_rub),0) total FROM expenses WHERE is_paid=0').get().total || 0);
+    const byProject = db.prepare(`SELECT p.title,p.contract_rub,
+      COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub,
+      COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub,
+      COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=0),0) planned_expenses_rub
+      FROM projects p WHERE p.status!='cancelled' ORDER BY p.id DESC LIMIT 25`).all();
+    return { workspace, totals: { received_rub: receivedPayments + otherIncome, paid_expenses_rub: paid, planned_expenses_rub: planned, cash_balance_rub: receivedPayments + otherIncome - paid }, projects: byProject };
+  }
+  if (workspace === 'tasks') {
+    const rows = db.prepare(`SELECT t.id,t.title,t.due_at,t.is_done,l.title lead_title,p.title project_title
+      FROM tasks t LEFT JOIN leads l ON l.id=t.lead_id LEFT JOIN projects p ON p.id=t.project_id
+      WHERE t.is_done=0 ORDER BY CASE WHEN t.due_at IS NULL OR t.due_at='' THEN 1 ELSE 0 END,t.due_at ASC,t.id DESC LIMIT 40`).all();
+    return { workspace, counts, open_tasks: rows };
+  }
+  if (workspace === 'prospects') {
+    const rows = db.prepare('SELECT company_name,category,service,region,source_name,status,notes FROM prospects ORDER BY id DESC LIMIT 30').all()
+      .map(row => ({ ...row, notes: redactAiText(row.notes, 400) }));
+    return { workspace, counts, prospects: rows };
+  }
+  if (workspace === 'orders') {
+    const rows = db.prepare('SELECT title,source_name,source_type,service,region,signal_score,ai_score,ai_reason,ai_category,relevance,status,snippet FROM commercial_orders ORDER BY ai_score DESC,signal_score DESC,last_seen_at DESC LIMIT 30').all()
+      .map(row => ({ ...row, snippet: redactAiText(row.snippet, 500), ai_reason: redactAiText(row.ai_reason, 300) }));
+    return { workspace, counts, commercial_orders: rows };
+  }
+  if (workspace === 'quotes') {
+    const rows = db.prepare('SELECT title,prepared_at,revenue_rub,cost_rub,profit_rub,margin_pct,discount_rub,lines_count FROM quote_history ORDER BY prepared_at DESC LIMIT 25').all();
+    return { workspace, recent_quotes: rows };
+  }
+  if (workspace === 'engineering') {
+    const rows = db.prepare('SELECT title,created_at,updated_at,operations_json,result_json FROM engineering_project_plans ORDER BY updated_at DESC LIMIT 12').all()
+      .map(row => ({ ...row, operations_json: String(row.operations_json || '').slice(0, 2500), result_json: String(row.result_json || '').slice(0, 2500) }));
+    return { workspace, engineering_plans: rows };
+  }
+  if (workspace === 'clients') return { workspace, client_count: db.prepare('SELECT COUNT(*) total FROM clients').get().total, note: 'Контактные данные клиентов в ИИ не передаются.' };
+  return { workspace, counts };
+}
+
 async function buildAiSearchQueries({ service, region, kind, sourceType = 'all', seedQueries = [] }) {
   const labels = { demolition: 'демонтаж коммерческих помещений', finishing: 'отделка и fit-out коммерческих объектов', raised_floor: 'монтаж и демонтаж фальшполов' };
   let aiPlanError = '';
@@ -925,6 +1006,11 @@ ipcMain.handle('ai:ask', async (_event, input = {}) => {
   const question = clean(input.question, 6000);
   if (!question) throw new Error('Напиши вопрос для ИИ.');
   let context = clean(input.context, 12000);
+  const workspace = clean(input.workspace, 40);
+  if (workspace) {
+    const snapshot = buildAiWorkspaceSnapshot(workspace);
+    context = [context, 'Сводка текущего раздела CRM (без телефонов и email): ' + JSON.stringify(snapshot)].filter(Boolean).join('\\n\\n');
+  }
   if (input.includeBusinessContext === true) {
     const counts = {
       leads: db.prepare('SELECT COUNT(*) AS total FROM leads').get().total,
@@ -938,7 +1024,7 @@ ipcMain.handle('ai:ask', async (_event, input = {}) => {
     context = [context, 'Сводка CRM — агрегированные количества без имён и контактов: ' + JSON.stringify(counts)].filter(Boolean).join('\n\n');
   }
   const response = await anyModelClient.complete({ apiKey: readAiKey(), model: readAiModel(), maxTokens: 2200, messages: [
-    { role: 'system', content: 'Ты встроенный помощник СКОЛ CRM для строительного подрядчика. Отделяй факты из контекста от предположений. Не выдумывай суммы, контакты, нормы, сроки и события. Если данных недостаточно — прямо скажи, чего не хватает. Не изменяй данные CRM и не выполняй финансовые или юридические действия.' },
+    { role: 'system', content: 'Ты встроенный аналитик СКОЛ CRM для строительного подрядчика. Анализируй только переданные данные текущего раздела. Отделяй факты от предположений; не выдумывай суммы, контакты, нормы, сроки, события или причины. Указывай конкретные записи/показатели, на которых основан вывод, выявляй риски и формируй приоритетные следующие действия. Если данных недостаточно — прямо скажи, чего не хватает. Не изменяй данные CRM и не выполняй финансовые или юридические действия.' },
     { role: 'user', content: 'Контекст CRM (может быть пустым):\n' + context + '\n\nВопрос пользователя:\n' + question }
   ]});
   return { answer: response.content, model: response.model, usage: response.usage };
