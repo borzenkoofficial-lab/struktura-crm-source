@@ -42,8 +42,8 @@ const { crawlSites } = require('./site-crawler.cjs');
 const { fetchOrderPage } = require('./order-page-fetch.cjs');
 const { fetchAndParseOrderPdf } = require('./order-pdf-fetch.cjs');
 const { fetchAndParseOrderTable } = require('./order-table-fetch.cjs');
-const { buildQueries, searchBrave } = require('./web-search.cjs');
-const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, normalizeBraveOrderResult, orderRefreshAction, deduplicateOrders, leadSourceForOrderType } = require('./order-radar.cjs');
+const { chatCompletion, webResearch, parseJsonPayload, DEFAULT_CHAT_MODEL, DEFAULT_SEARCH_MODEL } = require('./ai-service.cjs');
+const { buildManualOrderSearchUrl, normalizeOrderResult, orderRefreshAction, deduplicateOrders, classifyOrderSource, leadSourceForOrderType } = require('./order-radar.cjs');
 const { parseCommercialOrdersCsv } = require('./order-import.cjs');
 const { extractOrderEvidence } = require('./order-evidence.cjs');
 const { assessCommercialOrder } = require('./order-pi.cjs');
@@ -115,12 +115,51 @@ autoUpdater.on('error', error => publishUpdateStatus({ state: 'error', message: 
 const services = ['demolition', 'finishing', 'raised_floor'];
 const sources = ['avito', 'phone', 'telegram', 'recommendation', 'website', 'other'];
 function clean(value, max = 2000) { return String(value ?? '').trim().slice(0, max); }
-const searchKeyPath = () => path.join(app.getPath('userData'), 'brave-search-key.enc');
-function hasSearchKey() { return fs.existsSync(searchKeyPath()); }
-function readSearchKey() {
-  if (!hasSearchKey()) return '';
-  if (!safeStorage.isEncryptionAvailable()) throw new Error('Защищённое хранение ключа недоступно в этой системе.');
-  return safeStorage.decryptString(fs.readFileSync(searchKeyPath()));
+const aiKeyPath = () => path.join(app.getPath('userData'), 'anymodel-api-key.enc');
+function hasAiKey() { return fs.existsSync(aiKeyPath()); }
+function readAiApiKey() {
+  if (!hasAiKey()) return '';
+  if (!safeStorage.isEncryptionAvailable()) throw new Error('Защищённое хранение ключа AnyModel недоступно в этой системе.');
+  try { return safeStorage.decryptString(fs.readFileSync(aiKeyPath())); }
+  catch { throw new Error('Не удалось расшифровать ключ AnyModel. Сохрани ключ заново в настройках.'); }
+}
+function getAiConfig() {
+  return {
+    provider: 'AnyModel',
+    baseUrl: 'https://anymodel.org/v1',
+    configured: hasAiKey(),
+    chatModel: clean(getSetting('ai_chat_model', DEFAULT_CHAT_MODEL), 120) || DEFAULT_CHAT_MODEL,
+    searchModel: clean(getSetting('ai_search_model', DEFAULT_SEARCH_MODEL), 120) || DEFAULT_SEARCH_MODEL
+  };
+}
+function normalizeAiHttpUrl(value) {
+  try {
+    const url = new URL(String(value || '').trim());
+    const host = url.hostname.toLowerCase().replace(/^www\\./, '');
+    if (!['http:', 'https:'].includes(url.protocol) || !host || url.username || url.password ||
+      host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') ||
+      /^127\\./.test(host) || /^10\\./.test(host) || /^192\\.168\\./.test(host) ||
+      /^172\\.(1[6-9]|2[0-9]|3[01])\\./.test(host) || host === '::1' || host === '[::1]') return '';
+    url.hash = '';
+    for (const key of [...url.searchParams.keys()]) if (/^(utm_.+|fbclid|gclid|yclid|ysclid|_openstat|from)$/i.test(key)) url.searchParams.delete(key);
+    return url.toString().slice(0, 700);
+  } catch { return ''; }
+}
+function aiSourceKey(value) {
+  const safe = normalizeAiHttpUrl(value);
+  if (!safe) return '';
+  const url = new URL(safe);
+  return url.hostname.toLowerCase() + url.pathname.replace(/\\/+$/, '');
+}
+function hasAiCitation(sourceUrl, citations = []) {
+  const key = aiSourceKey(sourceUrl);
+  return Boolean(key && citations.some(item => aiSourceKey(item.url || item) === key));
+}
+function aiResultsFromText(text) {
+  const parsed = parseJsonPayload(text);
+  const rows = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.results) ? parsed.results : Array.isArray(parsed?.items) ? parsed.items : [];
+  if (!rows.length) throw new Error('ИИ не вернул подтверждённые результаты. Запрос не изменил базу CRM.');
+  return rows.slice(0, 30).filter(item => item && typeof item === 'object');
 }
 function amount(value, { allowZero = false } = {}) {
   const n = Number(value ?? 0);
@@ -822,46 +861,129 @@ ipcMain.handle('tasks:complete', (_event, input = {}) => {
   return db.prepare('SELECT * FROM tasks WHERE id=?').get(id);
 });
 ipcMain.handle('prospects:list', () => db.prepare('SELECT * FROM prospects ORDER BY id DESC').all());
-ipcMain.handle('search:status', () => ({ provider: 'Brave Search API', configured: hasSearchKey() }));
-ipcMain.handle('search:saveKey', (_event, input = {}) => {
-  const key = clean(input.apiKey, 500);
-  if (!key) throw new Error('Вставь API-ключ Brave Search. Пустое поле не изменяет сохранённый ключ.');
-  if (key.length < 12 || /\s/.test(key)) throw new Error('Похоже, API-ключ введён некорректно.');
-  if (!safeStorage.isEncryptionAvailable()) throw new Error('Система не предоставляет защищённое хранение ключа. На этой машине ключ не сохранён.');
-  fs.mkdirSync(path.dirname(searchKeyPath()), { recursive: true });
-  fs.writeFileSync(searchKeyPath(), safeStorage.encryptString(key), { mode: 0o600 });
-  return { configured: true };
+ipcMain.handle('search:status', () => getAiConfig());
+ipcMain.handle('ai:status', () => getAiConfig());
+ipcMain.handle('ai:saveConfig', (_event, input = {}) => {
+  const suppliedKey = clean(input.apiKey, 1000);
+  const chatModel = clean(input.chatModel, 120) || DEFAULT_CHAT_MODEL;
+  const searchModel = clean(input.searchModel, 120) || DEFAULT_SEARCH_MODEL;
+  // Validate IDs before persisting configuration.
+  chatCompletion({ apiKey: 'validation-only-placeholder-key', model: chatModel, prompt: 'validation' }).catch(() => {});
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,119}$/.test(chatModel) || !/^[a-zA-Z0-9][a-zA-Z0-9._:/-]{1,119}$/.test(searchModel)) {
+    throw new Error('Проверь идентификаторы моделей. Допустимы буквы, цифры, точка, подчёркивание, двоеточие, слеш и дефис.');
+  }
+  if (suppliedKey && (suppliedKey.length < 12 || /\\s/.test(suppliedKey))) throw new Error('Ключ AnyModel выглядит некорректным. Проверь его целиком.');
+  if (suppliedKey) {
+    if (!safeStorage.isEncryptionAvailable()) throw new Error('Система не предоставляет защищённое хранение ключа. Ключ не сохранён.');
+    fs.mkdirSync(path.dirname(aiKeyPath()), { recursive: true });
+    fs.writeFileSync(aiKeyPath(), safeStorage.encryptString(suppliedKey), { mode: 0o600 });
+  } else if (!hasAiKey()) {
+    throw new Error('Вставь API-ключ AnyModel. Пустое поле не изменяет сохранённый ключ.');
+  }
+  setSetting('ai_chat_model', chatModel);
+  setSetting('ai_search_model', searchModel);
+  return getAiConfig();
+});
+ipcMain.handle('ai:testConnection', async () => {
+  const apiKey = readAiApiKey();
+  if (!apiKey) throw new Error('Сначала сохрани API-ключ AnyModel в настройках.');
+  const config = getAiConfig();
+  const result = await chatCompletion({
+    apiKey, model: config.chatModel,
+    system: 'Ты проверяешь соединение. Ответь одним словом: СКОЛ.',
+    prompt: 'Проверка подключения.',
+    maxTokens: 32
+  });
+  return { connected: true, model: result.model, response: result.text };
+});
+ipcMain.handle('ai:piCoach', async (_event, input = {}) => {
+  const apiKey = readAiApiKey();
+  if (!apiKey) throw new Error('Сначала сохрани API-ключ AnyModel в настройках.');
+  const today = new Date().toISOString().slice(0, 10);
+  const snapshot = {
+    asOf: today,
+    leadsByStatusAndService: db.prepare('SELECT status,service,COUNT(*) count,COALESCE(SUM(budget_rub),0) budgetRub FROM leads GROUP BY status,service ORDER BY status,service').all(),
+    projectsByStatusAndService: db.prepare('SELECT status,service,COUNT(*) count,COALESCE(SUM(contract_rub),0) contractRub FROM projects GROUP BY status,service ORDER BY status,service').all(),
+    taskSummary: db.prepare(`SELECT COUNT(*) total,
+      SUM(CASE WHEN is_done=0 THEN 1 ELSE 0 END) open,
+      SUM(CASE WHEN is_done=0 AND due_at IS NOT NULL AND due_at<>'' AND due_at<? THEN 1 ELSE 0 END) overdue,
+      SUM(CASE WHEN is_done=0 AND due_at=? THEN 1 ELSE 0 END) dueToday,
+      SUM(CASE WHEN is_done=0 AND (due_at IS NULL OR due_at='') THEN 1 ELSE 0 END) unscheduled
+      FROM tasks`).get(today, today),
+    cashflow: db.prepare(`SELECT
+      COALESCE(SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END),0) receivedRub,
+      COALESCE(SUM(CASE WHEN payment_date>=date('now','-30 days') THEN CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END ELSE 0 END),0) receivedLast30DaysRub
+      FROM payments`).get(),
+    expenses: db.prepare(`SELECT
+      COALESCE(SUM(CASE WHEN is_paid=1 THEN amount_rub ELSE 0 END),0) paidRub,
+      COALESCE(SUM(CASE WHEN is_paid=0 THEN amount_rub ELSE 0 END),0) plannedRub,
+      COALESCE(SUM(CASE WHEN is_paid=0 AND expense_date<? THEN amount_rub ELSE 0 END),0) overduePlannedRub
+      FROM expenses`).get(today),
+    productionLast30Days: db.prepare(`SELECT p.service,COUNT(DISTINCT ws.id) shifts,
+      ROUND(COALESCE(AVG(ws.downtime_hours),0),2) averageDowntimeHours,
+      ROUND(COALESCE(SUM(ws.downtime_hours),0),2) totalDowntimeHours,
+      ROUND(COALESCE(AVG(ws.workers_count),0),1) averageCrew
+      FROM work_shifts ws JOIN projects p ON p.id=ws.project_id
+      WHERE ws.shift_date>=date('now','-30 days') GROUP BY p.service`).all(),
+    commercialOrdersByStatus: db.prepare('SELECT status,service,source_type,COUNT(*) count FROM commercial_orders GROUP BY status,service,source_type ORDER BY status,service,source_type').all()
+  };
+  const question = clean(input.question, 1400) || 'Сделай разбор текущего состояния бизнеса: выдели три приоритета на ближайшие семь дней, главные риски и конкретные действия.';
+  const result = await chatCompletion({
+    apiKey, model: getAiConfig().chatModel, maxTokens: 2200,
+    system: 'Ты — аналитик и операционный советник строительного подрядчика СКОЛ. Используй только переданные агрегированные данные. Не выдумывай факты, бюджеты, сроки и причинно-следственные связи. Денежные суммы цитируй ровно как в данных и помечай, что это записи CRM, а не банковские остатки. Если данных недостаточно, прямо скажи какие поля нужно заполнить. Отделяй факт, гипотезу и рекомендацию. Дай конкретный план действий на русском языке, без общих мотивационных фраз.',
+    prompt: 'Агрегированный снимок CRM (персональные данные и контакты намеренно исключены):\\n' + JSON.stringify(snapshot) + '\\n\\nЗапрос владельца: ' + question
+  });
+  return { answer: result.text, model: result.model, asOf: today, dataScope: 'Агрегированные данные CRM без имён, телефонов и email.' };
 });
 ipcMain.handle('search:run', async (_event, input = {}) => {
-  const apiKey = readSearchKey();
-  if (!apiKey) throw new Error('Сначала сохрани API-ключ Brave Search.');
+  const apiKey = readAiApiKey();
+  if (!apiKey) throw new Error('Сначала сохрани API-ключ AnyModel в настройках. Для поиска используется веб-инструмент модели.');
   const service = services.includes(input.service) ? input.service : 'demolition';
   const region = clean(input.region, 120) || 'Москва и Московская область';
-  const queries = buildQueries(service, region);
-  const allResults = [], errors = [];
-  for (const query of queries) {
-    try { allResults.push(...(await searchBrave(query, apiKey, { count: 10 } )).map(item => ({ ...item, query }))); }
-    catch (error) { errors.push({ query, error: clean(error.message, 300) }); }
-  }
-  if (!allResults.length && errors.length) throw new Error(`Не удалось получить результаты. ${errors.map(e => e.error).join(' | ')}`);
-  const insert = db.prepare(`INSERT INTO prospects(company_name,category,service,region,phone,email,website,source_url,source_name,notes,status) VALUES (@company_name,@category,@service,@region,'','',@website,@source_url,'Brave Search API',@notes,'new')`);
+  const serviceLabel = { demolition: 'демонтаж коммерческих помещений и подготовка объектов', finishing: 'отделка коммерческих помещений и fit-out', raised_floor: 'монтаж и демонтаж фальшполов и технических полов' }[service];
+  const task = 'Найди до 15 реально существующих компаний в регионе «' + region + '», которые могут быть заказчиками или партнёрами по направлению «' + serviceLabel + '». Ищи действующие компании, девелоперов, управляющие компании, генподрядчиков и владельцев коммерческой недвижимости. Не включай каталоги, рекламные агентства, агрегаторы без конкретной организации и вымышленные записи. Для каждой компании верни: company_name, website_url (официальный сайт, если найден), source_url (конкретная страница, подтверждающая существование/деятельность компании), category, summary, relevance_reason. Поля контактов не выдумывай. Все source_url должны сопровождаться веб-цитатами. Верни только JSON: {"results":[...]}';
+  const research = await webResearch({ apiKey, model: getAiConfig().searchModel, prompt: task });
+  const candidates = aiResultsFromText(research.text);
+  const citedRows = candidates.map(item => {
+    const sourceUrl = normalizeAiHttpUrl(item.source_url || item.url || '');
+    const website = normalizeAiHttpUrl(item.website_url || item.website || sourceUrl);
+    const companyName = clean(item.company_name || item.name, 180);
+    if (!companyName || !sourceUrl || !hasAiCitation(sourceUrl, research.citations)) return null;
+    return {
+      company_name: companyName, category: clean(item.category, 120) || 'Компания — проверить',
+      website: website || sourceUrl, source_url: sourceUrl,
+      summary: clean(item.summary || item.snippet, 700),
+      relevanceReason: clean(item.relevance_reason, 500)
+    };
+  }).filter(Boolean);
+  if (!citedRows.length) throw new Error('ИИ не вернул компаний с подтверждёнными веб-цитатами. Ничего не добавлено. Измени регион или повтори поиск.');
+  const insert = db.prepare(`INSERT INTO prospects(company_name,category,service,region,phone,email,website,source_url,source_name,notes,status)
+    VALUES (@company_name,@category,@service,@region,'','',@website,@source_url,'AnyModel AI Search',@notes,'new')`);
   const duplicateKeys = new Set();
-  for (const row of db.prepare('SELECT company_name,region,phone,email,website,source_url FROM prospects').all()) for (const key of prospectDuplicateKeys(row)) duplicateKeys.add(key);
+  for (const row of db.prepare('SELECT company_name,region,phone,email,website,source_url FROM prospects').all()) {
+    for (const key of prospectDuplicateKeys(row)) duplicateKeys.add(key);
+  }
   let imported = 0, skipped = 0;
   const tx = db.transaction(items => {
     for (const item of items) {
-      const row = { company_name: item.company_name, category: 'Компания из поисковой выдачи — проверить', service, region, website: item.website, source_url: item.source_url };
+      const row = { company_name: item.company_name, category: item.category, service, region, website: item.website, source_url: item.source_url };
       const keys = prospectDuplicateKeys(row);
       if (keys.some(key => duplicateKeys.has(key))) { skipped++; continue; }
-      const notes = [`Поисковый запрос: ${item.query}`, item.snippet ? `Фрагмент выдачи: ${item.snippet}` : '', 'Контакты и соответствие услуге не проверены. Проверь сайт перед обращением.'].filter(Boolean).join('\n').slice(0, 2000);
+      const notes = [
+        'Найдено через AnyModel AI Search с веб-поиском.',
+        item.summary ? 'Сводка источника: ' + item.summary : '',
+        item.relevanceReason ? 'Почему подходит: ' + item.relevanceReason : '',
+        'Контакты не подтверждены. Открой первоисточник и проверь организацию перед обращением.'
+      ].filter(Boolean).join('\\n').slice(0, 2000);
       insert.run({ ...row, notes });
       for (const key of keys) duplicateKeys.add(key);
       imported++;
     }
-    db.prepare(`INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,details) VALUES (?,?,?,?,?)`).run('Brave Search API','web-search',imported,skipped,`Получено результатов: ${items.length}; поисковых запросов: ${queries.length}; ошибок запросов: ${errors.length}.`);
+    db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,details) VALUES (?,?,?,?,?)')
+      .run('AnyModel AI Search', 'ai-company-search', imported, skipped, 'Кандидатов с подтверждёнными цитатами: ' + items.length + '; импортировано: ' + imported + '; дубликатов: ' + skipped + '.');
   });
-  tx(allResults);
-  return { queries, received: allResults.length, imported, skipped, errors };
+  tx(citedRows);
+  return { queries: ['ИИ веб-поиск: ' + serviceLabel + ' · ' + region], received: candidates.length, verified: citedRows.length, imported, skipped, errors: [] };
 });
 ipcMain.handle('orders:list', (_event,input={})=>{
  const status=['new','opened','relevant','rejected'].includes(input.status)?input.status:'';
@@ -1026,11 +1148,39 @@ ipcMain.handle('orders:fetchTable', async (_event, input = {}) => {
   extractedFacts:taggedEvidence.length,bytes:table.bytes,sha256:table.sha256};
 });
 ipcMain.handle('orders:search',async(_event,input={})=>{
- const apiKey=readSearchKey();if(!apiKey)throw new Error('Для автоматического поиска заказов нужен сохранённый API-ключ Brave Search. Без ключа можно пользоваться ручным поиском и добавлять ссылки.');
- const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const sourceType=['all','web','telegram','avito','tenders'].includes(input.sourceType)?input.sourceType:'web';const queries=buildOrderQueries(service,region,sourceType);const found=[],errors=[];
- for(const query of queries){try{const results=await searchBrave(query,apiKey,{count:10});found.push(...results.map(x=>normalizeBraveOrderResult(x,query,service,region)).filter(Boolean))}catch(e){errors.push({query,error:clean(e.message,240)})}}
- const unique=deduplicateOrders(found).map(item=>({...item,...extractOrderEvidence(item.title+'\n'+item.snippet)}));
- const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status,customer_name,contact_name,phone,email,budget_rub,volume_value,volume_unit,deadline_text,procurement_number,work_address,fact_evidence_json)
+ const apiKey=readAiApiKey();if(!apiKey)throw new Error('Сначала сохрани API-ключ AnyModel в настройках СКОЛ.');
+ const service=services.includes(input.service)?input.service:'demolition';
+ const region=clean(input.region,120)||'Москва и Московская область';
+ const sourceType=['all','web','telegram','avito','tenders','eis'].includes(input.sourceType)?input.sourceType:'web';
+ const serviceLabel={demolition:'демонтаж и разборка коммерческих помещений',finishing:'отделка и fit-out коммерческих объектов',raised_floor:'фальшполы и технические полы'}[service];
+ const sourceRules={
+  all:'Ищи по всему открытому вебу: коммерческие публикации, индексируемые публичные Telegram-страницы, Avito и тендерные площадки.',
+  web:'Ищи по открытым коммерческим сайтам и веб-публикациям.',
+  telegram:'Ищи только публичные страницы Telegram (t.me, telegram.me).',
+  avito:'Ищи только объявления Avito (avito.ru).',
+  tenders:'Ищи тендерные и коммерческие закупочные площадки, включая ЕИС, РТС-тендер, Росэлторг и B2B-Center.',
+  eis:'Ищи только официальные публикации ЕИС на zakupki.gov.ru по 44-ФЗ и 223-ФЗ.'
+ };
+ const task='Найди до 20 реальных и по возможности актуальных коммерческих заказов/закупок в регионе «'+region+'» по направлению «'+serviceLabel+'». Источники: '+sourceRules[sourceType]+'\n'+
+ 'Нужны публикации, где заказчик закупает работы, ищет подрядчика, проводит тендер или запрашивает коммерческое предложение. Исключай объявления исполнителей, вакансии, статьи, завершённые нерелевантные тендеры и рекламные страницы. Для каждой записи верни title, source_url (точная ссылка на конкретную страницу публикации), snippet (краткая выдержка только по тексту источника). Не выдумывай бюджет, объём, заказчика, контакты или срок. Если актуальность явно не подтверждена, укажи это в snippet. Все source_url должны иметь веб-цитаты. Верни только JSON: {"results":[...]}';
+ const research=await webResearch({apiKey,model:getAiConfig().searchModel,prompt:task,timeoutMs:120000});
+ const candidates=aiResultsFromText(research.text);
+ const found=candidates.map(item=>{
+  const sourceUrl=normalizeAiHttpUrl(item.source_url||item.url||'');
+  const title=clean(item.title||item.name,240);
+  const snippet=clean(item.snippet||item.description||item.summary,1200);
+  if(!sourceUrl||!title||!hasAiCitation(sourceUrl,research.citations))return null;
+  const inferredType=classifyOrderSource(sourceUrl);
+  if(sourceType==='avito'&&inferredType!=='avito')return null;
+  if(sourceType==='telegram'&&inferredType!=='telegram')return null;
+  if((sourceType==='tenders'||sourceType==='eis')&&inferredType!=='tenders')return null;
+  const normalized=normalizeOrderResult({title,url:sourceUrl,description:snippet},'AnyModel AI web research',service,region);
+  return normalized?{...normalized,source_url:sourceUrl,search_query:'AnyModel AI web research'}:null;
+ }).filter(Boolean);
+ if(!found.length)throw new Error('ИИ не вернул заказов с подтверждёнными ссылками для выбранного источника. Ничего не добавлено. Попробуй другой источник или регион.');
+ const unique=deduplicateOrders(found).map(item=>({...item,...extractOrderEvidence(item.title+'\\n'+item.snippet)}));
+ const errors=[];
+  const insert=db.prepare(`INSERT OR IGNORE INTO commercial_orders(title,source_url,source_name,source_type,snippet,search_query,service,region,signal_score,signal_labels,relevance,status,customer_name,contact_name,phone,email,budget_rub,volume_value,volume_unit,deadline_text,procurement_number,work_address,fact_evidence_json)
  VALUES (@title,@source_url,@source_name,@source_type,@snippet,@search_query,@service,@region,@signal_score,@signal_labels,@relevance,'new',@customer_name,@contact_name,@phone,@email,@budget_rub,@volume_value,@volume_unit,@deadline_text,@procurement_number,@work_address,@fact_evidence_json)`);
  const update=db.prepare(`UPDATE commercial_orders SET title=@title,source_name=@source_name,source_type=@source_type,snippet=@snippet,search_query=@search_query,service=@service,region=@region,signal_score=@signal_score,signal_labels=@signal_labels,relevance=@relevance,
  customer_name=CASE WHEN @customer_name<>'' THEN @customer_name ELSE customer_name END,
@@ -1056,7 +1206,7 @@ ipcMain.handle('orders:search',async(_event,input={})=>{
    update.run(values);refreshed++;
   }
   db.prepare('INSERT INTO import_jobs(source_name,file_name,imported_count,skipped_count,error_count,details) VALUES (?,?,?,?,?,?)')
-   .run('Brave Search API','commercial-order-radar',added,refreshed+protectedCount,errors.length,`Получено: ${found.length}; уникальных ссылок: ${unique.length}; добавлено: ${added}; обновлено: ${refreshed}; защищено от перезаписи: ${protectedCount}; запросов: ${queries.length}; ошибок: ${errors.length}`);
+   .run('AnyModel AI Search','ai-commercial-order-radar',added,refreshed+protectedCount,errors.length,`Получено: ${found.length}; уникальных ссылок: ${unique.length}; добавлено: ${added}; обновлено: ${refreshed}; защищено от перезаписи: ${protectedCount}; запросов: ${queries.length}; ошибок: ${errors.length}`);
  });
  tx(unique);
  if(!unique.length&&errors.length===queries.length)throw new Error('Не удалось найти заказы. '+errors.map(x=>x.error).join(' | '));
