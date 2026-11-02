@@ -46,7 +46,7 @@ test('startup animation is wired to initial dashboard readiness with a safety ti
   assert.match(html, /class="startup-mark"/);
   assert.match(html, /class="startup-progress"/);
   assert.match(renderer, /function hideStartupSplash\(\)/);
-  assert.match(renderer, /\.finally\(hideStartupSplash\)/);
+  assert.match(renderer, /\.finally\(\(\) => \{[\s\S]*?hideStartupSplash\(\);[\s\S]*?maybeStartNavGuide\(\);[\s\S]*?\}\)/, 'startup hides the splash and schedules first-run menu guidance');
   assert.match(renderer, /window\.setTimeout\(hideStartupSplash, 8000\)/);
   assert.match(renderer, /startupSplash\.classList\.add\('is-hidden'\)/);
 });
