@@ -2617,9 +2617,9 @@ input[type="checkbox"], input[type="radio"] {
 .skol-dock .dock-item[hidden]{display:none!important}
 @media(max-width:1180px){
   .main{padding-bottom:76px!important}
-  .skol-dock{gap:5px!important;padding:6px 8px!important}
-  .skol-dock .dock-group{gap:3px!important}
-  .skol-dock .dock-item{flex-basis:36px!important;width:36px!important;min-width:36px!important;max-width:36px!important;height:38px!important;min-height:38px!important}
+  .skol-dock{gap:4px!important;padding:6px 8px!important}
+  .skol-dock .dock-group{gap:2px!important}
+  .skol-dock .dock-item{flex-basis:35px!important;width:35px!important;min-width:35px!important;max-width:35px!important;height:38px!important;min-height:38px!important}
   .skol-dock .dock-icon{width:32px!important;height:32px!important}
 }
 @media(max-width:760px){
