@@ -76,6 +76,9 @@ test('returns parsed results from the public EIS search page', async () => {
   });
   assert.equal(requested.hostname, 'zakupki.gov.ru');
   assert.equal(requested.searchParams.get('searchString'), 'демонтаж Москва');
+  assert.equal(requested.searchParams.get('fz44'), 'on');
+  assert.equal(requested.searchParams.get('fz223'), 'on');
+  assert.equal(requested.searchParams.get('recordsPerPage'), '_50');
   assert.equal(report.status, 'ok');
   assert.equal(report.results.length, 1);
 });
