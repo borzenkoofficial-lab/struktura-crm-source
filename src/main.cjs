@@ -135,11 +135,11 @@ function getAiConfig() {
 function normalizeAiHttpUrl(value) {
   try {
     const url = new URL(String(value || '').trim());
-    const host = url.hostname.toLowerCase().replace(/^www\\./, '');
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
     if (!['http:', 'https:'].includes(url.protocol) || !host || url.username || url.password ||
       host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') ||
-      /^127\\./.test(host) || /^10\\./.test(host) || /^192\\.168\\./.test(host) ||
-      /^172\\.(1[6-9]|2[0-9]|3[01])\\./.test(host) || host === '::1' || host === '[::1]') return '';
+      /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) ||
+      /^172\.(1[6-9]|2[0-9]|3[01])\./.test(host) || host === '::1' || host === '[::1]') return '';
     url.hash = '';
     for (const key of [...url.searchParams.keys()]) if (/^(utm_.+|fbclid|gclid|yclid|ysclid|_openstat|from)$/i.test(key)) url.searchParams.delete(key);
     return url.toString().slice(0, 700);
@@ -149,7 +149,7 @@ function aiSourceKey(value) {
   const safe = normalizeAiHttpUrl(value);
   if (!safe) return '';
   const url = new URL(safe);
-  return url.hostname.toLowerCase().replace(/^www\\./, '') + url.pathname.replace(/\\/+$/, '');
+  return url.hostname.toLowerCase().replace(/^www\./, '') + url.pathname.replace(/\/+$/, '');
 }
 function hasAiCitation(sourceUrl, citations = []) {
   const key = aiSourceKey(sourceUrl);
@@ -1175,7 +1175,7 @@ ipcMain.handle('orders:search',async(_event,input={})=>{
   if(sourceType==='avito'&&inferredType!=='avito')return null;
   if(sourceType==='telegram'&&inferredType!=='telegram')return null;
   if(sourceType==='tenders'&&inferredType!=='tenders')return null;
-  if(sourceType==='eis'&&new URL(sourceUrl).hostname.toLowerCase().replace(/^www\\./,'')!=='zakupki.gov.ru')return null;
+  if(sourceType==='eis'&&new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./,'')!=='zakupki.gov.ru')return null;
   const normalized=normalizeOrderResult({title,url:sourceUrl,description:snippet},'AnyModel AI web research',service,region);
   return normalized?{...normalized,source_url:sourceUrl,search_query:'AnyModel AI web research'}:null;
  }).filter(Boolean);
