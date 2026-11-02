@@ -223,7 +223,10 @@ async function run() {
     assert.equal(dockLayout.itemCount, 12, 'all 12 primary workspaces are present');
     assert.equal(dockLayout.groupCount, 4, 'workspaces are grouped into four logical groups');
     assert.equal(dockLayout.labelCount, 12, 'every icon retains an accessible label tooltip');
-    assert.ok(dockLayout.height <= 64, 'Dock remains compact and low-profile: ' + JSON.stringify(dockLayout));
+    assert.ok(dockLayout.height >= 48 && dockLayout.height <= 60, 'Dock remains a low-profile 48–60px capsule: ' + JSON.stringify(dockLayout));
+    assert.ok(dockLayout.left >= 0 && dockLayout.right <= await page.evaluate(() => window.innerWidth), 'Dock stays fully inside the application viewport: ' + JSON.stringify(dockLayout));
+    const dockIconStyles = await dock.locator('.dock-icon').first().evaluate(node => ({ radius: getComputedStyle(node).borderRadius, background: getComputedStyle(node).backgroundImage }));
+    assert.match(dockIconStyles.background, /gradient/i, 'Dock icons use individual colorful gradient surfaces');
     assert.equal(dockLayout.iconCount, 12, 'every destination has a vector icon');
     assert.ok(dockLayout.labels.includes('Создать резервную копию') === false, 'data utilities live in Settings, not in the Dock');
     await page.screenshot({ path: path.join(outputDir, 'dock-default.png'), animations: 'disabled' });
@@ -245,6 +248,13 @@ async function run() {
       console.log('[viewport] ' + viewport.name + ' started');
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.waitForFunction(expected => window.innerWidth === expected.width && window.innerHeight === expected.height, viewport, { timeout: 10000 });
+      const dockBounds = await page.locator('#skolDock').evaluate(node => {
+        const rect = node.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height, scrollWidth: node.scrollWidth, clientWidth: node.clientWidth };
+      });
+      assert.ok(dockBounds.left >= -1 && dockBounds.right <= viewport.width + 1, 'Dock stays within ' + viewport.name + ': ' + JSON.stringify(dockBounds));
+      assert.ok(dockBounds.height <= 60, 'Dock does not grow vertically at ' + viewport.name + ': ' + JSON.stringify(dockBounds));
+      assert.ok(dockBounds.scrollWidth <= dockBounds.clientWidth + 1, 'All Dock destinations fit without horizontal clipping at ' + viewport.name + ': ' + JSON.stringify(dockBounds));
 
       for (const viewName of (viewport.views || viewNames)) {
         console.log('[view] ' + viewport.name + ' / ' + viewName + ' checking');
