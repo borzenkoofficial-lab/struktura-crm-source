@@ -935,7 +935,7 @@ ipcMain.handle('ai:ask', async (_event, input = {}) => {
       prospects: db.prepare("SELECT COUNT(*) AS total FROM prospects WHERE status NOT IN ('rejected','converted')").get().total,
       commercialOrders: db.prepare("SELECT COUNT(*) AS total FROM commercial_orders WHERE status NOT IN ('rejected')").get().total
     };
-    context = [context, 'Сводка CRM — агрегированные количества без имён и контактов: ' + JSON.stringify(counts)].filter(Boolean).join('\\n\\n');
+    context = [context, 'Сводка CRM — агрегированные количества без имён и контактов: ' + JSON.stringify(counts)].filter(Boolean).join('\n\n');
   }
   const response = await anyModelClient.complete({ apiKey: readAiKey(), model: readAiModel(), maxTokens: 2200, messages: [
     { role: 'system', content: 'Ты встроенный помощник СКОЛ CRM для строительного подрядчика. Отделяй факты из контекста от предположений. Не выдумывай суммы, контакты, нормы, сроки и события. Если данных недостаточно — прямо скажи, чего не хватает. Не изменяй данные CRM и не выполняй финансовые или юридические действия.' },
