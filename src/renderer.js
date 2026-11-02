@@ -114,13 +114,91 @@ function showView(name) {
   // Re-evaluate business signals when the user moves between CRM sections.
   if (name !== 'dashboard') refreshPiCoach().catch(() => {});
 }
+// Top navigation: one horizontal panel, opened by the chevron and closed
+// five seconds after the pointer and keyboard focus leave the navigation area.
+const NAV_MENU_AUTO_CLOSE_MS = 5000;
+const navMenuShell = document.querySelector('.sidebar');
+const navMenuToggle = $('navMenuToggle');
+const navMenuPanel = $('nav-primary');
+let navMenuCloseTimer = null;
+let navPointerInside = false;
+let navFocusInside = false;
+
+function cancelNavMenuClose() {
+  if (navMenuCloseTimer !== null) {
+    window.clearTimeout(navMenuCloseTimer);
+    navMenuCloseTimer = null;
+  }
+}
+
+function setNavMenuOpen(open, { restoreFocus = false } = {}) {
+  if (!navMenuShell || !navMenuToggle || !navMenuPanel) return;
+  cancelNavMenuClose();
+  navMenuShell.classList.toggle('nav-expanded', open);
+  navMenuToggle.setAttribute('aria-expanded', String(open));
+  navMenuToggle.setAttribute('aria-label', open ? 'Закрыть меню разделов' : 'Открыть меню разделов');
+  navMenuToggle.title = open ? 'Закрыть меню разделов' : 'Открыть меню разделов';
+  navMenuPanel.setAttribute('aria-hidden', String(!open));
+  navMenuPanel.inert = !open;
+  if (!open && (restoreFocus || navMenuPanel.contains(document.activeElement))) {
+    navMenuToggle.focus();
+  }
+}
+
+function scheduleNavMenuClose() {
+  cancelNavMenuClose();
+  if (!navMenuShell?.classList.contains('nav-expanded') || navPointerInside || navFocusInside) return;
+  navMenuCloseTimer = window.setTimeout(() => {
+    navMenuCloseTimer = null;
+    if (!navPointerInside && !navFocusInside) setNavMenuOpen(false);
+  }, NAV_MENU_AUTO_CLOSE_MS);
+}
+
+if (navMenuShell && navMenuToggle && navMenuPanel) {
+  navMenuShell.addEventListener('pointerenter', () => {
+    navPointerInside = true;
+    cancelNavMenuClose();
+  });
+  navMenuShell.addEventListener('pointerleave', () => {
+    navPointerInside = false;
+    scheduleNavMenuClose();
+  });
+  navMenuShell.addEventListener('focusin', () => {
+    navFocusInside = true;
+    cancelNavMenuClose();
+  });
+  navMenuShell.addEventListener('focusout', () => {
+    window.setTimeout(() => {
+      navFocusInside = navMenuShell.contains(document.activeElement);
+      scheduleNavMenuClose();
+    }, 0);
+  });
+  navMenuToggle.addEventListener('click', event => {
+    const shouldOpen = !navMenuShell.classList.contains('nav-expanded');
+    setNavMenuOpen(shouldOpen);
+    // A mouse click should not leave keyboard focus on the trigger and prevent auto-close.
+    if (event.detail > 0) navMenuToggle.blur();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && navMenuShell.classList.contains('nav-expanded')) {
+      setNavMenuOpen(false, { restoreFocus: true });
+    }
+  });
+}
+
 // Register primary navigation before the rest of renderer initialization. If a later widget
 // fails during setup, the workspace navigation remains usable and the error is observable.
 document.addEventListener('click', event => {
+  const menuButton = event.target.closest('#nav-primary button');
   const button = event.target.closest('[data-view]');
-  if (!button) return;
-  event.preventDefault();
-  showView(button.dataset.view);
+  if (button) {
+    event.preventDefault();
+    showView(button.dataset.view);
+  }
+  if (menuButton) {
+    setNavMenuOpen(false, { restoreFocus: event.detail === 0 });
+    if (event.detail > 0) navMenuToggle?.blur();
+  }
 }, true);
 window.addEventListener('error', event => {
   console.error('СКОЛ renderer error:', event.error || event.message);
