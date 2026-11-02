@@ -45,6 +45,7 @@ const { fetchAndParseOrderTable } = require('./order-table-fetch.cjs');
 const { buildQueries } = require('./web-search.cjs');
 const { createAnyModelClient, DEFAULT_MODEL } = require('./ai-service.cjs');
 const { searchPublicWeb } = require('./public-web-search.cjs');
+const { searchEisProcurements } = require('./eis-search.cjs');
 const anyModelClient = createAnyModelClient();
 const { buildOrderQueries, buildManualOrderSearchUrl, normalizeOrderResult, orderRefreshAction, deduplicateOrders, leadSourceForOrderType } = require('./order-radar.cjs');
 const { parseCommercialOrdersCsv } = require('./order-import.cjs');
@@ -270,15 +271,43 @@ async function rankAiSearchResults(results, { kind, service, region }) {
 }
 async function runAiWebSearch({ kind, service, region, sourceType = 'all', seedQueries = [] }) {
   const plan = await buildAiSearchQueries({ kind, service, region, sourceType, seedQueries });
-  const queries = plan.queries;
+  const queries = [...plan.queries];
   const found = [], errors = [];
-  for (const query of queries) {
-    const result = await searchPublicWeb(query, { count: 10 });
-    found.push(...result.results);
-    errors.push(...result.errors.map(error => ({ query, error })));
+  // The EIS is queried directly for its public procurement cards; it is not treated as a site: search.
+  if (['eis', 'tenders', 'all'].includes(sourceType)) {
+    const serviceTerms = {
+      demolition: 'демонтаж и разборка зданий и помещений',
+      finishing: 'отделочные и ремонтные работы',
+      raised_floor: 'фальшполы и технические полы'
+    };
+    const eisQuery = [serviceTerms[service] || serviceTerms.demolition, region].filter(Boolean).join(' ');
+    queries.push('ЕИС: ' + eisQuery);
+    const eisReport = await searchEisProcurements(eisQuery, { count: 25 });
+    found.push(...eisReport.results.map(item => ({
+      title: item.title,
+      url: item.url,
+      snippet: item.snippet,
+      engine: 'ЕИС',
+      query: eisQuery,
+      registryNumber: item.registryNumber
+    })));
+    if (eisReport.error) errors.push({ query: 'ЕИС', error: eisReport.error, status: eisReport.status });
+  }
+  // EIS-only mode stays on the dedicated connector. Other modes retain the existing public-web fallback.
+  if (sourceType !== 'eis') {
+    for (const query of plan.queries) {
+      const result = await searchPublicWeb(query, { count: 10 });
+      found.push(...result.results);
+      errors.push(...result.errors.map(error => ({ query, error })));
+    }
   }
   const seen = new Set();
-  const unique = found.filter(item => { if (seen.has(item.url)) return false; seen.add(item.url); return true; });
+  const unique = found.filter(item => {
+    const key = String(item.url || '').replace(/#.*$/, '');
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
   const ranked = await rankAiSearchResults(unique, { kind, service, region });
   return { queries, engineResults: unique, items: ranked.items, aiUsed: ranked.aiUsed, model: ranked.model || readAiModel(), errors, aiError: ranked.reason || '', aiPlanUsed: plan.aiPlanUsed, aiPlanError: plan.aiPlanError };
 }
@@ -1067,8 +1096,9 @@ ipcMain.handle('orders:list', (_event,input={})=>{
  const status=['new','opened','relevant','rejected'].includes(input.status)?input.status:'';
  const service=services.includes(input.service)?input.service:'';
  const sourceType=['web','telegram','avito','tenders','files'].includes(input.sourceType)?input.sourceType:'';
+ const eisOnly=input.sourceType==='eis';
  const terms=clean(input.search,180).toLowerCase();const where=[],params=[];
- if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}if(sourceType){where.push('source_type=?');params.push(sourceType)}
+ if(status){where.push('status=?');params.push(status)}if(service){where.push('service=?');params.push(service)}if(eisOnly){where.push("source_name IN ('zakupki.gov.ru','www.zakupki.gov.ru')")}else if(sourceType){where.push('source_type=?');params.push(sourceType)}
  if(terms){where.push('(LOWER(title) LIKE ? OR LOWER(snippet) LIKE ? OR LOWER(source_name) LIKE ? OR LOWER(source_page_title) LIKE ? OR LOWER(source_page_text) LIKE ?)');params.push('%'+terms+'%','%'+terms+'%','%'+terms+'%','%'+terms+'%','%'+terms+'%')}
  const rows=db.prepare(`SELECT commercial_orders.*, EXISTS(SELECT 1 FROM leads WHERE leads.commercial_order_id=commercial_orders.id) AS converted_to_lead FROM commercial_orders ${where.length?'WHERE '+where.join(' AND '):''} ORDER BY CASE status WHEN 'new' THEN 0 WHEN 'opened' THEN 1 WHEN 'relevant' THEN 2 ELSE 3 END,signal_score DESC,last_seen_at DESC`).all(...params);
  const analyses=new Map(db.prepare('SELECT * FROM commercial_order_analysis').all().map(item=>[Number(item.order_id),item]));
