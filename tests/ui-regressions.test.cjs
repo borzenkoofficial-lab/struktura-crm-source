@@ -971,32 +971,40 @@ test('dashboard contains only live business KPI slots, interactive rings and exp
   assert.ok(renderer.includes("metrics.finance.totalContract > 0 ? metrics.finance.collectionPercent : null"));
 });
 
-test('navigation is permanently visible, grouped, responsive and all fourteen screens have one destination', () => {
+test('navigation is a horizontal slide-out top panel with a five-second idle close', () => {
   const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
   const duplicateIds = [...new Set(ids.filter((id,index) => ids.indexOf(id) !== index))];
   assert.deepEqual(duplicateIds, [], 'no duplicate HTML ids');
   assert.equal((html.match(/class="nav-primary"/g) || []).length, 1);
-  assert.equal((html.match(/class="nav-more"/g) || []).length, 0, 'dropdown navigation is removed');
-  assert.doesNotMatch(html, /<details[^>]+nav-more|<summary[^>]+nav-more/, 'navigation has no disclosure control');
-  const navStart = html.indexOf('class="nav-primary"');
+  assert.equal((html.match(/id="navMenuToggle"/g) || []).length, 1, 'there is one arrow toggle');
+  assert.equal((html.match(/id="nav-primary"/g) || []).length, 1, 'the panel has a stable target id');
+  assert.match(html, /id="navMenuToggle"[^>]*aria-expanded="false"/, 'navigation starts collapsed');
+  assert.match(html, /id="nav-primary"[^>]*aria-hidden="true"[^>]*inert/, 'closed navigation is removed from keyboard navigation');
+  assert.equal((html.match(/class="nav-more"/g) || []).length, 0, 'the old dropdown is removed');
+  const navStart = html.indexOf('id="nav-primary"');
   const navEnd = html.indexOf('</nav>', navStart);
   const primary = html.slice(navStart, navEnd);
   assert.deepEqual([...primary.matchAll(/data-view="([^"]+)"/g)].map(match => match[1]),
     ['dashboard','leads','clients','projects','production','finance','engineering','prospects','tasks','reports','browser','plans','settings','about']);
-  assert.equal((primary.match(/class="nav-menu-group(?: nav-menu-system)?"/g) || []).length, 3, 'navigation is grouped by purpose');
+  assert.equal((primary.match(/class="nav-menu-group(?: nav-menu-system)?"/g) || []).length, 3, 'logical navigation groups remain');
   const views = [...html.matchAll(/id="view-([^"]+)"/g)].map(match => match[1]);
   assert.equal(views.length, 14);
   assert.equal(new Set(views).size, 14);
-  for (const view of views) assert.ok(primary.includes('data-view="' + view + '"'), view + ' remains reachable from persistent navigation');
+  for (const view of views) assert.ok(primary.includes('data-view="' + view + '"'), view + ' remains reachable from the top navigation');
   assert.ok(!html.includes('toggleSidebarBtn'), 'old vertical-sidebar toggle is removed');
   assert.ok(!renderer.includes('gruzli.sidebarCollapsed'), 'old brand-specific UI persistence key is removed');
-  assert.doesNotMatch(renderer, /nav-more|button\.closest\(['"]\.nav-more['"]\)/, 'no open/close dropdown handlers remain');
-  assert.match(css, /\.nav-primary\{[^}]*overflow-y:auto/, 'desktop navigation scrolls inside the sidebar');
-  assert.match(css, /@media\(max-width:700px\)[\s\S]*?\.nav-primary\{[^}]*overflow-x:auto/, 'mobile navigation is horizontally scrollable without a dropdown');
-  assert.match(css, /@media\(max-width:700px\)[\s\S]*?\.topbar\{[^}]*flex-wrap:wrap/, 'mobile page header wraps instead of pushing actions outside the viewport');
-  assert.ok(css.includes('.top-actions{display:flex;flex:1 1 100%;width:100%;min-width:0;flex-wrap:wrap;'), 'header actions can wrap on narrow screens');
+  assert.doesNotMatch(renderer, /nav-more|button\.closest\(['"]\.nav-more['"]\)/, 'old disclosure handlers are removed');
+  assert.match(renderer, /NAV_MENU_AUTO_CLOSE_MS\s*=\s*5000/, 'the idle close delay is exactly five seconds');
+  assert.ok(renderer.includes("navMenuToggle.addEventListener('click'"), 'the arrow toggles the panel');
+  assert.ok(renderer.includes("addEventListener('pointerenter'"), 'pointer entry cancels the close timer');
+  assert.ok(renderer.includes("addEventListener('pointerleave'"), 'pointer exit schedules the close timer');
+  assert.ok(renderer.includes("addEventListener('focusin'"), 'keyboard focus keeps navigation available');
+  assert.ok(renderer.includes("addEventListener('focusout'"), 'leaving keyboard focus schedules the close timer');
+  assert.match(layoutCss, /\.sidebar \.nav-primary\s*\{[\s\S]*?flex-direction: row !important/);
+  assert.match(layoutCss, /\.sidebar\.nav-expanded \.nav-primary\s*\{[\s\S]*?overflow-x: auto !important/);
+  assert.match(layoutCss, /\.sidebar \.nav-menu-group\s*\{[\s\S]*?flex-direction: row !important/);
+  assert.match(layoutCss, /@media \(max-width: 700px\)[\s\S]*?\.sidebar \.nav-primary[\s\S]*?overflow-x: auto !important/);
 });
-
 test('all five split workspaces keep a detail pane and table list in the current 1.25 interface', () => {
   for (const id of ['leadDetailPanel','clientDetailPanel','projectDetailPanel','paymentDetailPanel','expenseDetailPanel']) {
     assert.equal((html.match(new RegExp('id="' + id + '"','g')) || []).length, 1, id + ' appears once');
