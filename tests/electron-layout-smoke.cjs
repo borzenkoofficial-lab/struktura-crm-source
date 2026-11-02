@@ -146,6 +146,8 @@ async function run() {
   let electronApp;
   let page;
   const pageErrors = [];
+  const rendererConsole = [];
+  const mainProcessErrors = [];
   const geometry = [];
   const screenshots = [];
 
@@ -163,7 +165,24 @@ async function run() {
     page = await electronApp.firstWindow({ timeout: 60000 });
     page.setDefaultTimeout(15000);
     page.on('pageerror', error => pageErrors.push(String(error?.stack || error?.message || error)));
-    await page.waitForSelector('#licenseActivationScreen:not([hidden])', { timeout: 30000 });
+    page.on('console', message => rendererConsole.push(message.type() + ': ' + message.text()));
+    const electronProcess = electronApp.process();
+    electronProcess.stderr?.on('data', chunk => mainProcessErrors.push(String(chunk)));
+    try {
+      await page.waitForSelector('#licenseActivationScreen:not([hidden])', { timeout: 30000 });
+    } catch (error) {
+      const diagnostics = await page.evaluate(() => ({
+        title: document.title,
+        url: location.href,
+        readyState: document.readyState,
+        bodyText: (document.body?.innerText || '').slice(0, 4000),
+        licenseScreenExists: Boolean(document.getElementById('licenseActivationScreen')),
+        licenseScreenHidden: document.getElementById('licenseActivationScreen')?.hidden,
+        startupSplash: document.getElementById('startupSplash')?.className
+      })).catch(e => ({ evaluationError: String(e) }));
+      console.error('[electron-ui] startup diagnostics', JSON.stringify({ diagnostics, pageErrors, rendererConsole, mainProcessErrors }, null, 2));
+      throw error;
+    }
 
     const deviceId = (await page.locator('#licenseDeviceId').innerText()).trim();
     assert.match(deviceId, /^[a-f0-9]{64}$/i, 'temporary license activation must expose a valid device ID');
