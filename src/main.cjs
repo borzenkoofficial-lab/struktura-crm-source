@@ -167,6 +167,10 @@ function buildAiWorkspaceSnapshot(workspace) {
     return { workspace, counts, recent_leads: rows };
   }
   if (workspace === 'projects') {
+    if (!(licenseState.license?.features || []).includes('finance')) {
+      const rows = db.prepare('SELECT id,service,status,start_date,end_date,planned_people,complexity_factor FROM projects ORDER BY id DESC LIMIT 25').all();
+      return { workspace, counts, projects: rows, finance_details_available: false };
+    }
     const rows = db.prepare(`SELECT p.id,p.service,p.status,p.contract_rub,p.start_date,p.end_date,p.planned_people,p.complexity_factor,
       COALESCE((SELECT SUM(CASE WHEN payment_type='refund' THEN -amount_rub ELSE amount_rub END) FROM payments WHERE project_id=p.id),0) received_rub,
       COALESCE((SELECT SUM(amount_rub) FROM expenses WHERE project_id=p.id AND is_paid=1),0) paid_expenses_rub,
