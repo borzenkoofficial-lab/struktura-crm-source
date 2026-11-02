@@ -96,7 +96,7 @@ function dockRememberView(name) {
   dockRecentViews.unshift({ name, title });
   dockRecentViews.splice(5);
 }
-function showView(name) {
+function showView(name, options = {}) {
   const requestedView = $(`view-${name}`);
   const requiredFeature = requestedView?.dataset.feature;
   if (requiredFeature && !licenseFeatures.has(requiredFeature)) {
@@ -111,7 +111,7 @@ function showView(name) {
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
   if (name === 'settings') refreshPinSettings().catch(() => toast('Не удалось загрузить настройки безопасности. Попробуй открыть раздел ещё раз.', true));
   const view = $(`view-${name}`);
-  if (loaders[name] && view) {
+  if (loaders[name] && view && !options.skipLoad) {
     view.setAttribute('aria-busy', 'true');
     loaders[name]()
       .catch(error => {
@@ -367,7 +367,7 @@ $('dockNotificationsDialog')?.addEventListener('click', event => {
   if (!item) return;
   $('dockNotificationsDialog').close();
   if (item.kind === 'task') {
-    showView('tasks');
+    showView('tasks', { skipLoad: true });
     $('taskFilter').value = 'all';
     refreshTasks().then(() => {
       const button = [...document.querySelectorAll('[data-edit-task]')].find(node => Number(node.dataset.editTask) === item.id);
@@ -376,7 +376,7 @@ $('dockNotificationsDialog')?.addEventListener('click', event => {
     }).catch(error => toast(error.message, true));
   } else {
     selectedRecordIds.projects = item.id;
-    showView('projects');
+    showView('projects', { skipLoad: true });
     refreshProjects().then(() => {
       const button = [...document.querySelectorAll('[data-edit-project]')].find(node => Number(node.dataset.editProject) === item.id);
       if (button) button.click();
