@@ -2619,7 +2619,7 @@ input[type="checkbox"], input[type="radio"] {
   .main{padding-bottom:76px!important}
   .skol-dock{gap:2px!important;padding:6px 7px!important}
   .skol-dock .dock-group{gap:1px!important}
-  .skol-dock .dock-item{flex-basis:33px!important;width:33px!important;min-width:33px!important;max-width:33px!important;height:38px!important;min-height:38px!important}
+  .skol-dock .dock-item{flex-basis:35px!important;width:35px!important;min-width:35px!important;max-width:35px!important;height:38px!important;min-height:38px!important}
   .skol-dock .dock-icon{width:32px!important;height:32px!important}
 }
 @media(max-width:760px){
