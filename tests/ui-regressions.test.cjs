@@ -1082,7 +1082,7 @@ test('shared design system keeps component rhythm consistent without replacing p
   assert.match(layoutCss, /--skol-radius-panel:\s*20px/);
   assert.match(layoutCss, /--skol-elevation-1:/);
   assert.match(layoutCss, /--skol-elevation-2:/);
-  assert.match(layoutCss, /:where\(\.panel, \.records-panel, \.settings-card/);
+  assert.match(layoutCss, /:where\(\s*\.panel, \.records-panel, \.settings-card/);
   assert.match(layoutCss, /\.button\.compact, \.data-table \.button/);
   assert.match(layoutCss, /input:not\(\[type="checkbox"\]\):not\(\[type="radio"\]\)/);
   assert.match(layoutCss, /\.data-table tbody tr:hover td/);
