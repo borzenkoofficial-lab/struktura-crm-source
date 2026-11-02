@@ -119,11 +119,11 @@ const services = ['demolition', 'finishing', 'raised_floor'];
 const sources = ['avito', 'phone', 'telegram', 'recommendation', 'website', 'other'];
 function clean(value, max = 2000) { return String(value ?? '').trim().slice(0, max); }
 const aiKeyPath = () => path.join(app.getPath('userData'), 'anymodel-api-key.enc');
-function hasAiKey() { return fs.existsSync(searchKeyPath()); }
+function hasAiKey() { return fs.existsSync(aiKeyPath()); }
 function readAiKey() {
-  if (!hasSearchKey()) return '';
+  if (!hasAiKey()) return '';
   if (!safeStorage.isEncryptionAvailable()) throw new Error('Защищённое хранение ключа недоступно в этой системе.');
-  return safeStorage.decryptString(fs.readFileSync(searchKeyPath()));
+  return safeStorage.decryptString(fs.readFileSync(aiKeyPath()));
 }
 
 function readAiModel() {
@@ -131,10 +131,10 @@ function readAiModel() {
   return /^[a-zA-Z0-9._:/-]{2,120}$/.test(model) ? model : DEFAULT_MODEL;
 }
 function getAiConfig() {
-  return { configured: hasSearchKey(), model: readAiModel(), provider: 'AnyModel', baseUrl: 'https://anymodel.org/v1' };
+  return { configured: hasAiKey(), model: readAiModel(), provider: 'AnyModel', baseUrl: 'https://anymodel.org/v1' };
 }
 async function askAiJson(system, user, { maxTokens = 2200, temperature = 0.1 } = {}) {
-  const apiKey = readSearchKey();
+  const apiKey = readAiKey();
   if (!apiKey) throw new Error('Сначала настрой ИИ в разделе Настройки → ИИ.');
   return anyModelClient.completeJson({ apiKey, model: readAiModel(), temperature, maxTokens, messages: [
     { role: 'system', content: system }, { role: 'user', content: user }
@@ -896,12 +896,12 @@ ipcMain.handle('search:saveKey', (_event, input = {}) => {
   if (key.length < 12 || /\s/.test(key)) throw new Error('Похоже, ключ AnyModel введён некорректно.');
   if (!/^[a-zA-Z0-9._:/-]{2,120}$/.test(model)) throw new Error('Некорректный идентификатор модели.');
   if (!safeStorage.isEncryptionAvailable()) throw new Error('Windows не предоставляет защищённое хранение ключа. Ключ не сохранён.');
-  fs.mkdirSync(path.dirname(searchKeyPath()), { recursive: true });
-  fs.writeFileSync(searchKeyPath(), safeStorage.encryptString(key), { mode: 0o600 });
+  fs.mkdirSync(path.dirname(aiKeyPath()), { recursive: true });
+  fs.writeFileSync(aiKeyPath(), safeStorage.encryptString(key), { mode: 0o600 });
   setSetting('ai_model', model);
   return getAiConfig();
 });
-ipcMain.handle('ai:test', async () => anyModelClient.testConnection({ apiKey: readSearchKey(), model: readAiModel() }));
+ipcMain.handle('ai:test', async () => anyModelClient.testConnection({ apiKey: readAiKey(), model: readAiModel() }));
 ipcMain.handle('ai:engineeringReview', async (_event, input = {}) => {
   const description = clean(input.description, 5000);
   if (!description) throw new Error('Сначала введи описание объекта и условий.');
@@ -918,14 +918,14 @@ ipcMain.handle('ai:ask', async (_event, input = {}) => {
   const question = clean(input.question, 6000);
   if (!question) throw new Error('Напиши вопрос для ИИ.');
   const context = clean(input.context, 12000);
-  const response = await anyModelClient.complete({ apiKey: readSearchKey(), model: readAiModel(), maxTokens: 2200, messages: [
+  const response = await anyModelClient.complete({ apiKey: readAiKey(), model: readAiModel(), maxTokens: 2200, messages: [
     { role: 'system', content: 'Ты встроенный помощник СКОЛ CRM для строительного подрядчика. Отделяй факты из контекста от предположений. Не выдумывай суммы, контакты, нормы, сроки и события. Если данных недостаточно — прямо скажи, чего не хватает. Не изменяй данные CRM и не выполняй финансовые или юридические действия.' },
     { role: 'user', content: 'Контекст CRM (может быть пустым):\n' + context + '\n\nВопрос пользователя:\n' + question }
   ]});
   return { answer: response.content, model: response.model, usage: response.usage };
 });
 ipcMain.handle('search:run', async (_event, input = {}) => {
-  if (!readSearchKey()) throw new Error('Сначала настрой ИИ в разделе Настройки → ИИ.');
+  if (!readAiKey()) throw new Error('Сначала настрой ИИ в разделе Настройки → ИИ.');
   const service = services.includes(input.service) ? input.service : 'demolition';
   const region = clean(input.region, 120) || 'Москва и Московская область';
   const seed = buildQueries(service, region);
@@ -1114,7 +1114,7 @@ ipcMain.handle('orders:fetchTable', async (_event, input = {}) => {
   extractedFacts:taggedEvidence.length,bytes:table.bytes,sha256:table.sha256};
 });
 ipcMain.handle('orders:search',async(_event,input={})=>{
- if(!readSearchKey())throw new Error('Сначала настрой ИИ в разделе Настройки → ИИ.');
+ if(!readAiKey())throw new Error('Сначала настрой ИИ в разделе Настройки → ИИ.');
  const service=services.includes(input.service)?input.service:'demolition';const region=clean(input.region,120)||'Москва и Московская область';const sourceType=['all','web','telegram','avito','tenders','eis'].includes(input.sourceType)?input.sourceType:'web';
  const seedQueries=buildOrderQueries(service,region,sourceType);
  const report=await runAiWebSearch({kind:'commercial_orders',service,region,sourceType,seedQueries});
