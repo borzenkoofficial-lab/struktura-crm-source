@@ -2710,3 +2710,12 @@ input[type="checkbox"], input[type="radio"] {
   .skol-dock .dock-label{display:none!important}
   .skol-dock .dock-icon{width:32px!important;height:32px!important}
 }
+
+
+/* Dock: remove the last few pixels of horizontal overflow at common desktop widths. */
+@media(min-width:1361px) and (max-width:1600px){
+  .skol-dock{gap:7px!important;padding-left:10px!important;padding-right:10px!important}
+  .skol-dock .dock-group{gap:5px!important}
+  .skol-dock .dock-item{min-width:64px!important}
+  .skol-dock .dock-label{padding-left:8px!important;padding-right:8px!important}
+}
