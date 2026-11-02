@@ -1145,10 +1145,11 @@ test('secondary workspaces keep order radar, task/report tables, browser inspect
 
 
 test('Windows CI includes a real Electron viewport smoke test with isolated profile and screenshot artifacts', () => {
-  const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
-  const e2e = fs.readFileSync(path.join(root, 'tests', 'electron-layout-smoke.cjs'), 'utf8');
-  const hook = fs.readFileSync(path.join(root, 'tests', 'electron-e2e-preload.cjs'), 'utf8');
-  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'build-windows.yml'), 'utf8');
+  const repoRoot = path.resolve(__dirname, '..');
+  const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+  const e2e = fs.readFileSync(path.join(repoRoot, 'tests', 'electron-layout-smoke.cjs'), 'utf8');
+  const hook = fs.readFileSync(path.join(repoRoot, 'tests', 'electron-e2e-preload.cjs'), 'utf8');
+  const workflow = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'build-windows.yml'), 'utf8');
 
   assert.equal(packageJson.scripts['test:ui'], 'node tests/electron-layout-smoke.cjs');
   assert.match(e2e, /_electron/);

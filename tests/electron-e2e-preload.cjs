@@ -15,11 +15,10 @@ if (process.env.SKOL_UI_E2E === '1' && process.type === 'browser') {
   }
 
   fs.mkdirSync(userDataPath, { recursive: true });
-  app.setPath('userData', userDataPath);
-
   const tempAppData = path.dirname(userDataPath);
   fs.mkdirSync(tempAppData, { recursive: true });
   try { app.setPath('appData', tempAppData); } catch { /* The runner may lock this path; userData is still isolated. */ }
+  app.setPath('userData', userDataPath);
 
   const testPublicKey = Buffer.from(publicKeyBase64, 'base64').toString('utf8');
   if (!testPublicKey.includes('PUBLIC KEY')) throw new Error('Temporary E2E license public key is invalid.');

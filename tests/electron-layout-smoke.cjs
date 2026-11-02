@@ -178,6 +178,10 @@ async function run() {
       const splash = document.getElementById('startupSplash');
       return !splash || splash.classList.contains('is-hidden');
     }, null, { timeout: 15000 });
+    await page.waitForTimeout(750);
+    if (await page.locator('#navGuideCard').isVisible().catch(() => false)) {
+      await page.locator('#navGuideSkip').click();
+    }
 
     // Exercise the actual two-step guide and the centered top menu.
     await page.locator('#navGuideReplay').click();
