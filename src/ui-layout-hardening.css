@@ -1,0 +1,423 @@
+/* СКОЛ — shared layout hardening layer.
+   Geometry only: brand colours and existing page composition stay in the theme files. */
+
+:root {
+  --ui-layout-gap: clamp(10px, 1vw, 16px);
+  --ui-panel-padding: clamp(14px, 1.35vw, 20px);
+}
+
+html,
+body {
+  min-width: 0;
+  max-width: 100%;
+}
+
+body {
+  width: 100%;
+  line-height: 1.5;
+  overflow-wrap: normal;
+}
+
+.app-shell,
+.sidebar,
+.main,
+.view,
+.topbar,
+.topbar-heading,
+.top-actions {
+  min-width: 0;
+}
+
+.main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.view {
+  width: 100%;
+  max-width: 100%;
+}
+
+:where(
+  .panel,
+  .stat-card,
+  .finance-card,
+  .records-panel,
+  .record-detail-panel,
+  .settings-card,
+  .project-card,
+  .client-card,
+  .task-card,
+  .report-card,
+  .production-card,
+  .production-project-card,
+  .pricing-card,
+  .dashboard-finance-panel,
+  .dashboard-progress-section,
+  .dashboard-list-panel,
+  .dashboard-attention-panel,
+  .estimate-panel,
+  .estimate-pro-panel,
+  .eng-project-calendar,
+  .crawler-panel,
+  .opportunity-radar,
+  .order-radar-panel
+) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.view :where(
+  [class*="grid"],
+  [class*="layout"],
+  [class*="workspace"]
+) {
+  min-width: 0;
+}
+
+.view :where(
+  [class*="grid"],
+  [class*="layout"],
+  [class*="workspace"]
+) > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+:where(
+  .section-head,
+  .panel-head,
+  .dashboard-toolbar,
+  .dashboard-panel-heading,
+  .topbar-heading,
+  .top-actions,
+  .toolbar,
+  .button-row,
+  .row-actions,
+  .modal-head,
+  .modal-actions,
+  .crawler-footer,
+  .estimate-head-actions,
+  .eng-plan-history-item,
+  .eng-plan-history-actions
+) {
+  min-width: 0;
+}
+
+:where(
+  .top-actions,
+  .toolbar,
+  .button-row,
+  .row-actions,
+  .modal-actions,
+  .crawler-footer,
+  .estimate-head-actions,
+  .eng-plan-history-actions
+) {
+  flex-wrap: wrap;
+}
+
+:where(
+  .top-actions,
+  .toolbar,
+  .button-row,
+  .row-actions,
+  .modal-actions
+) > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.section-head h3,
+.panel-head h3,
+.dashboard-toolbar h3,
+.dashboard-panel-heading h3,
+.settings-page-heading h2,
+.pricing-card h3,
+.production-card h3,
+.production-project-card h3,
+.record-detail-panel h3,
+.estimate-pro-head h2 {
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.section-head p,
+.panel-head p,
+.dashboard-toolbar p,
+.dashboard-panel-heading p,
+.settings-page-heading p,
+.production-card p,
+.production-project-card p,
+.record-detail-panel p,
+.empty-state span,
+.notice,
+.inline-notice,
+.estimate-pro-body,
+.crawler-result {
+  min-width: 0;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* Keep complete amounts visible instead of clipping or replacing them with dots. */
+.stat-card > strong,
+.finance-card strong,
+.dashboard-kpi-card > strong,
+.dashboard-money-card > strong,
+.production-stats > article strong,
+.dashboard-ring-value,
+.pricing-price,
+.eng-stat strong {
+  display: block;
+  max-width: 100%;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  text-overflow: clip;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-top,
+.dashboard-kpi-card .stat-top,
+.dashboard-panel-heading,
+.panel-head,
+.section-head {
+  gap: 10px;
+}
+
+.stat-top > :first-child,
+.dashboard-kpi-card .stat-top > :first-child,
+.panel-head > div,
+.section-head > div,
+.dashboard-toolbar-copy,
+.dashboard-panel-heading > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.button {
+  max-width: 100%;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.modal-actions .button,
+.row-actions .button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Form controls must shrink with their grid column, not widen the whole page. */
+input,
+select,
+textarea,
+button {
+  box-sizing: border-box;
+}
+
+input,
+select,
+textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.form-row,
+.form-grid {
+  min-width: 0;
+}
+
+.form-row > *,
+.form-grid > *,
+.modal label,
+.settings-card-body label,
+.crawler-body label {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.modal input,
+.modal select,
+.modal textarea,
+.settings-card-body input,
+.settings-card-body select,
+.settings-card-body textarea,
+.crawler-body input,
+.crawler-body select,
+.crawler-body textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.modal label,
+.settings-card-body label,
+.crawler-body label {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* Horizontal scrolling belongs to the table wrapper, never to the app shell. */
+.table-wrap,
+.eng-calendar-table-wrap,
+.eng-order-plan-review-table,
+.order-document-lines-wrap {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+  max-width: 100%;
+  table-layout: auto;
+}
+
+.data-table th,
+.data-table td {
+  vertical-align: middle;
+  white-space: normal;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.data-table td small,
+.data-table td .table-sub,
+.table-sub {
+  display: block;
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.data-table .row-actions {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Dialogs stay inside the work area and scroll as a single surface. */
+dialog.modal,
+dialog.modal[open] {
+  box-sizing: border-box;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+dialog.modal > form {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.modal-head {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.modal-head h2 {
+  min-width: 0;
+  max-width: 100%;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1120px) {
+  #view-finance .finance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #view-production .production-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #view-prospects .order-radar-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .records-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 840px) {
+  .about-principles-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .section-head {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .section-head > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .record-detail-panel {
+    margin: 10px 0;
+    padding: 16px;
+  }
+
+  .form-row,
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  dialog.modal,
+  dialog.modal[open] {
+    max-width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+    max-height: calc(100dvh - 20px);
+  }
+
+  .modal-actions .button {
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 520px) {
+  #view-finance .finance-grid,
+  #view-production .production-stats,
+  #view-prospects .order-radar-metrics,
+  .pricing-grid,
+  .about-principles-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .records-list {
+    max-height: 60vh;
+  }
+
+  .top-actions > .button {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition: none !important;
+  }
+
+  .button:hover {
+    transform: none !important;
+  }
+}
