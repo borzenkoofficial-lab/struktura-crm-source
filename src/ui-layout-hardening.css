@@ -2859,3 +2859,16 @@ input[type="checkbox"], input[type="radio"] {
 .ai-order-relevance strong{font-size:12px;color:#27496c}
 .ai-order-relevance span{font-weight:700;color:#647b94}
 .ai-order-relevance p{margin:0;color:#52677e;overflow-wrap:anywhere}
+
+
+/* Workspace-level AI review. */
+.ai-workspace-dialog{width:min(760px,calc(100vw - 28px));max-width:none;max-height:min(84vh,860px);padding:22px;overflow:auto;border:1px solid rgba(185,199,215,.72);border-radius:20px;background:linear-gradient(155deg,#fff 0%,#f7f9fc 100%);box-shadow:0 28px 90px rgba(24,39,58,.28)}
+.ai-workspace-dialog::backdrop{background:rgba(19,30,45,.48);backdrop-filter:blur(5px)}
+.ai-workspace-dialog .modal-head{align-items:flex-start;gap:18px}
+.ai-workspace-dialog .modal-head h2{margin:5px 0 7px;font-size:22px;letter-spacing:-.5px}
+.ai-workspace-dialog .production-modal-intro{max-width:570px;line-height:1.55}
+.ai-workspace-status{margin:12px 0;padding:10px 12px;border:1px solid #dce5ef;border-radius:10px;background:#f4f7fb;color:#5a6d82;font-size:12px}
+.ai-workspace-result{min-height:180px;max-height:54vh;overflow:auto;padding:17px;border:1px solid #e0e7ef;border-radius:13px;background:#fff;color:#26384d;font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.ai-workspace-footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:12px;color:#718196;font-size:10px}
+.ai-workspace-trigger{white-space:nowrap}
+@media(max-width:760px){.ai-workspace-dialog{padding:16px}.ai-workspace-dialog .modal-head h2{font-size:18px}.ai-workspace-result{max-height:58vh;padding:13px}.ai-workspace-trigger{font-size:11px;padding:8px 10px}}
