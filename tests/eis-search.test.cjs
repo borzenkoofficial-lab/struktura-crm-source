@@ -23,6 +23,19 @@ test('parses EIS procurement cards and preserves registry number and evidence UR
   assert.equal(rows[0].source, 'eis');
 });
 
+test('extracts the procurement object from the real EIS body-value field', () => {
+  const number = '0777700000126000001';
+  const html = `<div class="row no-gutters registry-entry__form mr-0">
+    <div class="registry-entry__header-mid__number"><a href="/epz/order/notice/ea20/view/common-info.html?regNumber=${number}">Извещение № ${number}</a></div>
+    <div class="registry-entry__body-block"><div class="registry-entry__body-value">Выполнение работ по демонтажу и ремонту помещений</div></div>
+    <div class="price-block__value">1 250 000 руб.</div>
+  </div>`;
+  const rows = parseEisSearchResults(html, 'демонтаж Москва');
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].title, 'Выполнение работ по демонтажу и ремонту помещений');
+  assert.equal(rows[0].registryNumber, number);
+});
+
 test('normalizes only safe official EIS URLs and rejects external or malformed records', () => {
   assert.equal(normalizeEisResult({ title: 'Закупка', url: 'https://evil.example/epz/order?regNumber=123' }, 'x'), null);
   assert.equal(normalizeEisResult({ title: 'Закупка', url: 'javascript:alert(1)' }, 'x'), null);
