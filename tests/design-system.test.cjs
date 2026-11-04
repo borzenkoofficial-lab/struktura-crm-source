@@ -114,3 +114,18 @@ test('record tables use sticky semantic headers and visible selection/focus stat
   assert.ok(css.includes('tr.record-row:focus-visible'));
   assert.ok(css.includes('prefers-reduced-motion'));
 });
+
+test('finance payment and expense records support keyboard selection with current-item semantics', () => {
+  assert.ok(renderer.includes('data-finance-kind="payment"'));
+  assert.ok(renderer.includes('data-finance-kind="expense"'));
+  assert.ok(renderer.includes('tabindex="0" aria-current='));
+  assert.ok(renderer.includes("selectFinanceRecord(row.dataset.financeKind, row.dataset.financeId)"));
+  assert.ok(renderer.includes("row.setAttribute('aria-current', selected ? 'true' : 'false')"));
+});
+
+test('finance dashboard surfaces use responsive semantic token layouts', () => {
+  for (const selector of ['#view-finance .finance-grid', '#view-finance .income-period-grid', '#view-finance .finance-forecast-grid', '#view-finance .finance-alert']) {
+    assert.ok(css.includes(selector), 'missing finance visual system selector ' + selector);
+  }
+  assert.ok(css.includes('@media (max-width: 700px)'));
+});
