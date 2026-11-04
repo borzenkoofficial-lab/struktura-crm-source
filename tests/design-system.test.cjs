@@ -158,3 +158,19 @@ test('prospects workspace presents search tools, evidence and commercial orders 
   assert.ok(renderer.includes('source_page_text'));
   assert.ok(renderer.includes('fact_evidence'));
 });
+
+test('reports use semantic KPI cards and an evidence note without altering report data', () => {
+  assert.ok(css.includes('#view-reports .report-stats'));
+  assert.ok(css.includes('#view-reports .report-data-note'));
+  assert.ok(html.includes('id="sourceReport"'));
+  assert.ok(renderer.includes('window.crm.reportsSummary()'));
+});
+
+test('settings cards and local data actions have a responsive administration layout', () => {
+  for (const selector of ['#view-settings .settings-page-grid', '#view-settings .settings-card-body', '#view-settings .settings-data-actions', '#view-settings .about-settings-details']) {
+    assert.ok(css.includes(selector), 'missing settings layout selector ' + selector);
+  }
+  assert.ok(css.includes('@media (max-width: 820px)'));
+  assert.ok(html.includes('id="backupBtn"'));
+  assert.ok(html.includes('id="restoreBackupBtn"'));
+});
