@@ -149,3 +149,12 @@ test('engineering workspace separates inputs, assumptions and calculated output'
   assert.ok(html.includes('id="engWarnings"'));
   assert.ok(html.includes('id="engProjectCalendar"'));
 });
+
+test('prospects workspace presents search tools, evidence and commercial orders as one responsive research system', () => {
+  for (const selector of ['#view-prospects .crawler-panel', '#view-prospects .order-radar-metrics', '#view-prospects .commercial-order-card', '#view-prospects .commercial-order-actions', '#view-prospects .radar-item']) {
+    assert.ok(css.includes(selector), 'missing prospects workspace selector ' + selector);
+  }
+  assert.ok(html.includes('id="commercialOrdersList"'));
+  assert.ok(renderer.includes('source_page_text'));
+  assert.ok(renderer.includes('fact_evidence'));
+});
