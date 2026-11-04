@@ -3276,3 +3276,49 @@ html[data-theme="dark"] #view-projects #projectSearch {
     height: 84px;
   }
 }
+
+
+/* Complete dark/light structural parity for dashboard components whose former
+   geometry lived only in theme-salesforce-light.css. */
+#view-dashboard .dashboard-kicker { display: block; }
+#view-dashboard .dashboard-refresh { min-height: 37px; }
+#view-dashboard .dashboard-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+#view-dashboard .dashboard-panel-heading > div { min-width: 0; }
+#view-dashboard .dashboard-cashflow-chart { min-height: 110px; }
+#view-dashboard .dashboard-chart-bars {
+  height: 78px;
+  padding: 0 8px;
+}
+#view-dashboard .dashboard-chart-bar {
+  display: block;
+  width: min(22px, 36%);
+  height: 2%;
+  min-height: 2px;
+}
+#view-dashboard .dashboard-ring-value { position: absolute; }
+#view-dashboard .dashboard-ring-detail { min-height: 28px; }
+#view-dashboard .dashboard-list-panel { overflow: hidden; }
+#view-dashboard .dashboard-live-indicator::before {
+  width: 6px;
+  height: 6px;
+}
+@media (max-width: 620px) {
+  #view-dashboard .dashboard-chart-bars {
+    height: 64px;
+    padding: 0 4px;
+  }
+}
+#view-settings .settings-card input,
+#view-settings .settings-card select,
+#view-settings .settings-card textarea {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
