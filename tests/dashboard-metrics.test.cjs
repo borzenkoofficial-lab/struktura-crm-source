@@ -196,3 +196,15 @@ test('invalid or missing numeric fields are safely treated as zero, not NaN', ()
   assert.equal(metrics.finance.totalContract, 1000);
   assert.equal(metrics.counts.plannedPeople, 5);
 });
+
+
+test('cashflow chart supports six and twelve months from actual payment, income and paid expense rows', () => {
+ const input=fixture();
+ const six=computeDashboardMetrics(input,'month',NOW,6);
+ const twelve=computeDashboardMetrics(input,'month',NOW,12);
+ assert.equal(six.cashflow.length,6);
+ assert.equal(twelve.cashflow.length,12);
+ assert.equal(twelve.cashflow.at(-1).key,'2026-11');
+ assert.equal(twelve.cashflow.at(-1).income,150);
+ assert.equal(twelve.cashflow.at(-1).expenses,40);
+});

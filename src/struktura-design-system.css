@@ -2351,3 +2351,21 @@ html[data-theme="dark"] #view-prospects .domain-query strong {
 .dashboard-customize-foot{align-items:center;flex-wrap:wrap;border-top:1px solid var(--st-line);padding-top:16px}
 @media(max-width:900px){.dashboard-widget-grid>.dashboard-size-half,.dashboard-widget-grid>.dashboard-size-wide{grid-column:1/-1}}
 @media(prefers-reduced-motion:reduce){.dashboard-horizontal-track i{transition:none}}
+
+/* Dashboard chart controls and personal KPI selection */
+.dashboard-chart-controls{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap}
+.dashboard-chart-range,.dashboard-chart-legend{display:flex;align-items:center;gap:5px}
+.dashboard-chart-range button,.dashboard-chart-legend button{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border:1px solid var(--st-line);border-radius:8px;background:var(--st-surface-raised);color:var(--st-muted);font:600 11px inherit;cursor:pointer;transition:background var(--st-fast),color var(--st-fast),border-color var(--st-fast)}
+.dashboard-chart-range button[aria-pressed="true"],.dashboard-chart-legend button[aria-pressed="true"]{border-color:color-mix(in srgb,var(--st-accent) 55%,var(--st-line));background:color-mix(in srgb,var(--st-accent) 10%,var(--st-surface));color:var(--st-ink)}
+.dashboard-chart-legend button i{width:7px;height:7px;border-radius:50%;background:var(--st-positive)}
+.dashboard-chart-legend button i.expense{background:var(--st-danger)}
+.dashboard-chart-bar[hidden]{display:none!important}
+.dashboard-kpi-preferences{display:grid;gap:12px;border-top:1px solid var(--st-line);padding-top:18px}
+.dashboard-kpi-preferences>div:first-child{display:grid;gap:4px}
+.dashboard-kpi-preferences strong{font-size:13px;color:var(--st-ink)}
+.dashboard-kpi-preferences small{font-size:11px;color:var(--st-muted)}
+.dashboard-kpi-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.dashboard-kpi-options label{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid var(--st-line);border-radius:10px;color:var(--st-ink-soft);font-size:12px;cursor:pointer}
+.dashboard-kpi-options input{accent-color:var(--st-accent)}
+.dashboard-kpi-card[hidden]{display:none!important}
+@media(max-width:700px){.dashboard-chart-heading{align-items:flex-start;flex-direction:column}.dashboard-chart-controls{justify-content:flex-start;width:100%}.dashboard-kpi-options{grid-template-columns:1fr}}

@@ -53,10 +53,10 @@
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
   }
 
-  function buildCashflowChart({ payments, incomeRecords, expenses }, now) {
+  function buildCashflowChart({ payments, incomeRecords, expenses }, now, monthsCount = 6) {
     if (!Array.isArray(payments) || !Array.isArray(incomeRecords) || !Array.isArray(expenses)) return [];
     const months = [];
-    for (let offset = 5; offset >= 0; offset -= 1) {
+    for (let offset = Math.max(1, Math.min(12, Number(monthsCount) || 6)) - 1; offset >= 0; offset -= 1) {
       const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
       const key = monthKey(date);
       const paymentTotal = sum(payments.filter(row => String(row.payment_date || '').startsWith(key)),
@@ -73,7 +73,7 @@
     return months;
   }
 
-  function computeDashboardMetrics(input = {}, period = 'month', now = new Date()) {
+  function computeDashboardMetrics(input = {}, period = 'month', now = new Date(), chartMonths = 6) {
     const summary = input.summary || {};
     const leads = Array.isArray(input.leads) ? input.leads : [];
     const clients = Array.isArray(input.clients) ? input.clients : null;
@@ -169,9 +169,9 @@
         projectsAvailable: Array.isArray(input.projects),
         productionAvailable
       },
-      cashflow: input.financeEnabled ? buildCashflowChart({ payments, incomeRecords, expenses }, now) : []
+      cashflow: input.financeEnabled ? buildCashflowChart({ payments, incomeRecords, expenses }, now, chartMonths) : []
     };
   }
 
-  return { number, sum, getPeriodRange, isInRange, getTaskBucket, percent, computeDashboardMetrics };
+  return { number, sum, getPeriodRange, isInRange, getTaskBucket, percent, buildCashflowChart, computeDashboardMetrics };
 });

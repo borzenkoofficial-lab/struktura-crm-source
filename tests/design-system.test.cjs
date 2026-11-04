@@ -228,3 +228,14 @@ test('dashboard business charts are derived from actual CRM lead and project sta
   assert.ok(html.includes('id="dashboardPipelineChart"'));
   assert.ok(html.includes('id="dashboardPortfolioChart"'));
 });
+
+
+test('dashboard personalisation includes KPI card preferences and cashflow chart controls', () => {
+ assert.ok(html.includes('id="dashboardKpiPreferences"'));
+ assert.ok(html.includes('data-cashflow-months="12"'));
+ assert.ok(html.includes('data-cashflow-series="income"'));
+ assert.ok(renderer.includes('dashboardApplyKpiPreferences'));
+ assert.ok(renderer.includes('dashboardCashflowMonths = 6'));
+ assert.ok(renderer.includes('dashboardCashflowVisibility'));
+ assert.ok(css.includes('.dashboard-kpi-options'));
+});

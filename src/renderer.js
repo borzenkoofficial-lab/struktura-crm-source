@@ -954,10 +954,10 @@ let dashboardEditMode = false;
 function dashboardLoadLayout() {
  try {
   const saved=JSON.parse(localStorage.getItem(DASHBOARD_LAYOUT_KEY)||'null');
-  if(!saved||saved.version!==1) return {version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{}};
+  if(!saved||saved.version!==1) return {version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']}};
   const order=[...(Array.isArray(saved.order)?saved.order.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)):[]),...DASHBOARD_DEFAULT_ORDER.filter(id=>!saved.order?.includes(id))];
-  return {version:1,order,hidden:Array.isArray(saved.hidden)?saved.hidden.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)):[],sizes:saved.sizes&&typeof saved.sizes==='object'?saved.sizes:{}};
- } catch { return {version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{}}; }
+  return {version:1,order,hidden:Array.isArray(saved.hidden)?saved.hidden.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)):[],sizes:saved.sizes&&typeof saved.sizes==='object'?saved.sizes:{},preferences:{kpis:Array.isArray(saved.preferences?.kpis)?saved.preferences.kpis.filter(id=>['leads','projects','clients','people'].includes(id)):['leads','projects','clients','people']}};
+ } catch { return {version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']}}; }
 }
 function dashboardSaveLayout() {
  try { localStorage.setItem(DASHBOARD_LAYOUT_KEY,JSON.stringify(dashboardLayout)); }
@@ -969,6 +969,11 @@ function dashboardRenderCatalog() {
   const enabled=!dashboardLayout.hidden.includes(item.id);
   return '<label class="dashboard-widget-option"><input type="checkbox" data-dashboard-widget-toggle="'+item.id+'"'+(enabled?' checked':'')+'><span><strong>'+esc(item.title)+'</strong><small>'+esc(item.description)+'</small></span><em>'+(enabled?'На экране':'Скрыт')+'</em></label>';
  }).join('');
+ const kpiTarget=$('dashboardKpiPreferences');
+ if(kpiTarget) {
+  const options=[['leads','Активные заявки'],['projects','Активные объекты'],['clients','Клиенты в базе'],['people','Людей запланировано']];
+  kpiTarget.innerHTML=options.map(([id,label])=>'<label><input type="checkbox" data-dashboard-kpi="'+id+'"'+(dashboardLayout.preferences.kpis.includes(id)?' checked':'')+'><span>'+label+'</span></label>').join('');
+ }
 }
 function dashboardRenderEditControls() {
  const grid=$('dashboardWidgetGrid'); if(!grid)return;
@@ -992,7 +997,7 @@ function dashboardApplyLayout() {
   const size=['half','wide','full'].includes(dashboardLayout.sizes[id])?dashboardLayout.sizes[id]:fallback;
   widget.classList.add('dashboard-size-'+size);
  }
- dashboardRenderCatalog(); dashboardRenderEditControls();
+ dashboardRenderCatalog(); dashboardRenderEditControls(); dashboardApplyKpiPreferences();
 }
 function dashboardOpenCustomizer() {
  dashboardEditMode=true; dashboardRenderEditControls(); dashboardRenderCatalog();
@@ -1017,18 +1022,46 @@ function dashboardRenderBusinessCharts(snapshot) {
  dashboardRenderStatusChart('dashboardPipelineChart',leadStatuses.map(([key,label])=>({label,value:leads.filter(item=>item.status===key).length})),'Пока нет заявок для построения воронки.');
  dashboardRenderStatusChart('dashboardPortfolioChart',projectStatuses.map(([key,label])=>({label,value:projects.filter(item=>item.status===key).length})),'Пока нет объектов для анализа портфеля.');
 }
+function dashboardApplyKpiPreferences() {
+ const ids={leads:'statLeads',projects:'statProjects',clients:'dashboardClientsCount',people:'dashboardPeopleCount'};
+ for(const [key,id] of Object.entries(ids)) { const node=$(id)?.closest('.dashboard-kpi-card'); if(node) node.hidden=!dashboardLayout.preferences.kpis.includes(key); }
+}
 function dashboardInitCustomizer() {
  dashboardLayout=dashboardLoadLayout(); dashboardApplyLayout();
  $('dashboardCustomizeBtn')?.addEventListener('click',dashboardOpenCustomizer);
  $('dashboardCustomizeClose')?.addEventListener('click',dashboardCloseCustomizer);
  $('dashboardCustomizeDone')?.addEventListener('click',dashboardCloseCustomizer);
- $('dashboardLayoutReset')?.addEventListener('click',()=>{dashboardLayout={version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{}};dashboardSaveLayout();dashboardApplyLayout();});
+ $('dashboardLayoutReset')?.addEventListener('click',()=>{dashboardLayout={version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']}};dashboardSaveLayout();dashboardApplyLayout();});
  $('dashboardWidgetCatalog')?.addEventListener('change',event=>{
   const input=event.target.closest('[data-dashboard-widget-toggle]');if(!input)return;
   const id=input.dataset.dashboardWidgetToggle;
   dashboardLayout.hidden=input.checked?dashboardLayout.hidden.filter(item=>item!==id):[...new Set([...dashboardLayout.hidden,id])];
   dashboardSaveLayout();dashboardApplyLayout();
  });
+ $('dashboardKpiPreferences')?.addEventListener('change',event=>{
+  const input=event.target.closest('[data-dashboard-kpi]');if(!input)return;
+  const id=input.dataset.dashboardKpi;
+  dashboardLayout.preferences.kpis=input.checked?[...new Set([...dashboardLayout.preferences.kpis,id])]:dashboardLayout.preferences.kpis.filter(item=>item!==id);
+  dashboardApplyKpiPreferences();dashboardSaveLayout();
+ });
+ document.querySelectorAll('[data-cashflow-months]').forEach(button=>button.addEventListener('click',()=>{
+  const next=Number(button.dataset.cashflowMonths);
+  if(![6,12].includes(next)||next===dashboardCashflowMonths)return;
+  dashboardCashflowMonths=next;
+  document.querySelectorAll('[data-cashflow-months]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+  if(dashboardSnapshot) {
+   const data=window.SKOLDashboardMetrics.computeDashboardMetrics({...dashboardSnapshot,financeEnabled:licenseFeatures.has('finance'),productionEnabled:licenseFeatures.has('production')},dashboardPeriod,new Date(),dashboardCashflowMonths);
+   renderDashboardCashflowChart(data.cashflow,data.finance.complete);
+  }
+  const title=$('dashboardCashflowTitle');if(title)title.textContent='Динамика за '+dashboardCashflowMonths+' месяцев';
+ }));
+ document.querySelectorAll('[data-cashflow-series]').forEach(button=>button.addEventListener('click',()=>{
+  const key=button.dataset.cashflowSeries;
+  dashboardCashflowVisibility[key]=!dashboardCashflowVisibility[key];
+  button.setAttribute('aria-pressed',String(dashboardCashflowVisibility[key]));
+  const selector=key==='income'?'[data-chart-income]':'[data-chart-expense]';
+  $('dashboardCashflowChart')?.querySelectorAll(selector).forEach(bar=>bar.hidden=!dashboardCashflowVisibility[key]);
+ }));
  $('dashboardWidgetGrid')?.addEventListener('click',event=>{
   const widget=event.target.closest('[data-dashboard-widget]');if(!widget||!dashboardEditMode)return;
   if(event.target.closest('.dashboard-hide-button')) {
@@ -1059,6 +1092,8 @@ function dashboardInitCustomizer() {
 }
 dashboardInitCustomizer();
 
+let dashboardCashflowMonths = 6;
+const dashboardCashflowVisibility = {income:true,expenses:true};
 let dashboardPeriod = 'month';
 let dashboardSnapshot = null;
 let dashboardRefreshPromise = null;
@@ -1082,7 +1117,7 @@ function renderDashboardCashflowChart(cashflow, complete) {
     target.innerHTML = '<div class="dashboard-chart-empty">Финансовая история загружена не полностью. Обнови обзор.</div>';
     return;
   }
-  const values = Array.isArray(cashflow) ? cashflow : [];
+  const values = (Array.isArray(cashflow) ? cashflow : []).slice(-dashboardCashflowMonths);
   if (!values.length || !values.some(item => Number(item.income) || Number(item.expenses))) {
     target.innerHTML = '<div class="dashboard-chart-empty">За последние 6 месяцев ещё нет финансовых записей.</div>';
     return;
@@ -1098,6 +1133,8 @@ function renderDashboardCashflowChart(cashflow, complete) {
     if (incomeBar) incomeBar.style.height = `${item.income > 0 ? Math.max(5, item.income / max * 100) : 2}%`;
     if (expenseBar) expenseBar.style.height = `${item.expenses > 0 ? Math.max(5, item.expenses / max * 100) : 2}%`;
   }
+  target.querySelectorAll('[data-chart-income]').forEach(bar => { bar.hidden = !dashboardCashflowVisibility.income; });
+  target.querySelectorAll('[data-chart-expense]').forEach(bar => { bar.hidden = !dashboardCashflowVisibility.expenses; });
 }
 
 function renderDashboardAttention(attention = {}) {
@@ -1123,7 +1160,7 @@ function renderDashboardSnapshot(snapshot) {
     ...snapshot,
     financeEnabled: licenseFeatures.has('finance'),
     productionEnabled: licenseFeatures.has('production')
-  }, dashboardPeriod, new Date());
+  }, dashboardPeriod, new Date(), dashboardCashflowMonths);
   const leads = snapshot.leads || [];
   const projects = snapshot.projects || [];
   $('statLeads').textContent = String(metrics.counts.activeLeads);
