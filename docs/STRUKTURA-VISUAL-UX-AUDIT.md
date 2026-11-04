@@ -85,3 +85,21 @@ Additional findings:
 ## Validation gate
 
 This branch is intentionally separate from main. It must pass the repository unit suite and the Windows Electron responsive UI job. The installed app still needs visual verification on Windows at the target resolutions and DPI settings. Do not merge based on static CSS inspection alone.
+
+## Visual evidence added to the audit
+
+The latest available real-Electron screenshots from the successful Windows run 1270 (2026-11-02) reveal overlay defects not covered by the current geometry assertions:
+
+- At 1024×768, the automatically opened PI coach covers the dashboard KPI cards and obscures the Settings PIN form.
+- At 1440×900, the PI coach overlaps the dashboard KPI row.
+- The fixed Dock covers lower dashboard content because the main workspace has insufficient bottom safe-area padding.
+- The PI avatar is rendered as a cartoon face with orbit/spark effects; this conflicts with the technical-premium enterprise direction.
+- The dashboard hero leaves a large low-information area on the right while the floating coach consumes another part of the working canvas.
+
+These are real screenshot observations, not inferred issues. The current geometry smoke test checks container bounds and horizontal overflow, but it does not assert that fixed overlays avoid covering important controls.
+
+## Additional changes in progress
+
+- PI insights no longer open a floating panel automatically during routine background refresh. They remain available through the PI control; an explicit forced refresh can still open the panel.
+- The PI control is being restyled as a compact technical signal mark instead of a character mascot.
+- The workspace receives bottom safe-area padding so the fixed Dock does not sit on top of the final content.
