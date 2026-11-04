@@ -375,6 +375,21 @@ async function run() {
     assert.notEqual(dockIconStyles.borderColor, 'rgba(0, 0, 0, 0)', 'Dock icons retain a visible token border');
     assert.ok(dockIconStyles.width >= 40 && dockIconStyles.height >= 40, 'Dock icons remain large enough for crisp vector rendering: ' + JSON.stringify(dockIconStyles));
     assert.equal(dockIconStyles.filter, 'none', 'Dock vector glyphs are not softened by filters');
+    const dockSurface = await dock.evaluate(node => {
+      const style = getComputedStyle(node);
+      return { backgroundColor: style.backgroundColor, backdropFilter: style.backdropFilter, borderColor: style.borderColor, textRendering: getComputedStyle(document.documentElement).textRendering };
+    });
+    assert.equal(dockSurface.backdropFilter, 'none', 'Dock uses a crisp opaque surface instead of blur haze');
+    assert.notEqual(dockSurface.backgroundColor, 'rgba(0, 0, 0, 0)', 'Dock surface remains fully defined');
+    assert.equal(dockSurface.textRendering, 'geometricprecision', 'UI typography enables geometric text rendering');
+    const dockGlyphs = await dock.locator('.dock-icon').evaluateAll(nodes => nodes.map(node => {
+      const rect = node.getBoundingClientRect();
+      const svg = node.querySelector('svg');
+      const iconRect = svg?.getBoundingClientRect();
+      return { width: rect.width, height: rect.height, svgWidth: iconRect?.width || 0, svgHeight: iconRect?.height || 0, filter: svg ? getComputedStyle(svg).filter : 'missing' };
+    }));
+    assert.equal(dockGlyphs.length, 12, 'all primary destinations render an icon');
+    assert.ok(dockGlyphs.every(icon => icon.width >= 40 && icon.height >= 40 && icon.svgWidth >= 20 && icon.svgHeight >= 20 && icon.filter === 'none'), 'every dock icon is large, vector-based and filter-free: ' + JSON.stringify(dockGlyphs));
     assert.equal(dockLayout.iconCount, 12, 'every destination has a vector icon');
     assert.ok(dockLayout.labels.includes('Создать резервную копию') === false, 'data utilities live in Settings, not in the Dock');
     await page.screenshot({ path: path.join(outputDir, 'dock-default.png'), animations: 'disabled' });
