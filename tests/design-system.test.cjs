@@ -174,3 +174,13 @@ test('settings cards and local data actions have a responsive administration lay
   assert.ok(html.includes('id="backupBtn"'));
   assert.ok(html.includes('id="restoreBackupBtn"'));
 });
+
+test('tasks and integrated browser use responsive, theme-aware work surfaces', () => {
+  for (const selector of ['#view-tasks .task-stats', '#view-tasks .table-panel', '#view-browser .browser-toolbar', '#view-browser .browser-workspace', '#view-browser .browser-inspector']) {
+    assert.ok(css.includes(selector), 'missing workspace selector ' + selector);
+  }
+  assert.ok(html.includes('id="tasksTable"'));
+  assert.ok(html.includes('id="browserAddressForm"'));
+  assert.ok(html.includes('id="browserInspectorContent"'));
+  assert.ok(css.includes('@media (max-width: 1100px)'));
+});
