@@ -428,6 +428,39 @@ async function run() {
         const rect = node.getBoundingClientRect();
         return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height, scrollWidth: node.scrollWidth, clientWidth: node.clientWidth };
       });
+      const dockDiagnostics = viewport.width >= 1800 ? await page.locator('#skolDock').evaluate(node => {
+        const describe = element => {
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return {
+            tag: element.tagName,
+            className: typeof element.className === 'string' ? element.className : '',
+            id: element.id || '',
+            left: Number(rect.left.toFixed(2)),
+            right: Number(rect.right.toFixed(2)),
+            width: Number(rect.width.toFixed(2)),
+            scrollWidth: element.scrollWidth,
+            clientWidth: element.clientWidth,
+            display: style.display,
+            flex: style.flex,
+            flexBasis: style.flexBasis,
+            gap: style.gap,
+            boxSizing: style.boxSizing,
+            padding: style.padding,
+            margin: style.margin,
+            minWidth: style.minWidth,
+            widthStyle: style.width
+          };
+        };
+        return {
+          dock: describe(node),
+          children: [...node.children].map(child => ({
+            ...describe(child),
+            children: [...child.children].map(describe)
+          }))
+        };
+      }) : null;
+      if (dockDiagnostics) console.log('[dock-geometry] ' + JSON.stringify(dockDiagnostics));
       assert.ok(dockBounds.left >= -1 && dockBounds.right <= viewport.width + 1, 'Dock stays within ' + viewport.name + ': ' + JSON.stringify(dockBounds));
       assert.ok(dockBounds.height <= 60, 'Dock does not grow vertically at ' + viewport.name + ': ' + JSON.stringify(dockBounds));
       assert.ok(dockBounds.scrollWidth <= dockBounds.clientWidth + 1, 'All Dock destinations fit without horizontal clipping at ' + viewport.name + ': ' + JSON.stringify(dockBounds));
