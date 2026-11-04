@@ -2387,3 +2387,18 @@ html[data-theme="dark"] #view-prospects .domain-query strong {
 .dashboard-density-compact .dashboard-ring-card{padding:10px}
 .dashboard-density-compact .dashboard-widget-grid .panel{padding:12px}
 @media(max-width:700px){.dashboard-preset-actions button,.dashboard-density-actions button{flex:1}}
+
+/* Named personal dashboard workspaces */
+.dashboard-saved-workspaces{display:grid;gap:12px;padding:16px 0;border-bottom:1px solid var(--st-line)}
+.dashboard-saved-workspaces-heading{display:grid;gap:4px}
+.dashboard-saved-workspaces-heading strong{font-size:13px;color:var(--st-ink)}
+.dashboard-saved-workspaces-heading small{font-size:11px;line-height:1.5;color:var(--st-muted)}
+.dashboard-saved-workspaces-controls{display:grid;grid-template-columns:minmax(150px,1fr) auto;gap:8px}
+.dashboard-saved-workspaces-controls input,.dashboard-saved-workspaces-controls select{min-width:0;width:100%;min-height:38px;padding:8px 10px;border:1px solid var(--st-line);border-radius:9px;background:var(--st-surface-raised);color:var(--st-ink);font:inherit;font-size:12px}
+.dashboard-saved-workspaces-controls select{grid-column:1/2}
+.dashboard-saved-workspaces-controls #dashboardWorkspaceSave{grid-column:2;grid-row:1}
+.dashboard-saved-workspaces-controls #dashboardWorkspaceLoad,.dashboard-saved-workspaces-controls #dashboardWorkspaceDelete{grid-row:2}
+.dashboard-saved-workspaces-controls #dashboardWorkspaceLoad{grid-column:1}
+.dashboard-saved-workspaces-controls #dashboardWorkspaceDelete{grid-column:2}
+.dashboard-saved-workspaces-controls button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:560px){.dashboard-saved-workspaces-controls{grid-template-columns:1fr}.dashboard-saved-workspaces-controls input,.dashboard-saved-workspaces-controls select,.dashboard-saved-workspaces-controls #dashboardWorkspaceSave,.dashboard-saved-workspaces-controls #dashboardWorkspaceLoad,.dashboard-saved-workspaces-controls #dashboardWorkspaceDelete{grid-column:1;grid-row:auto}}
