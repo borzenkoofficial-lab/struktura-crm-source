@@ -258,3 +258,12 @@ test('dashboard exposes persistent workspace presets and information density con
  assert.ok(renderer.includes("dashboardLayout.density=button.dataset.dashboardDensity"));
  assert.ok(css.includes('.dashboard-density-compact'));
 });
+
+test('precision pass keeps dense data tables and form controls readable', () => {
+  assert.match(css, /\.data-table\s*\{[^}]*font-size:\s*13px\s*!important/s);
+  assert.match(css, /\.data-table thead th\s*\{[^}]*font-size:\s*10px\s*!important/s);
+  assert.match(css, /\.data-table tbody td\s*\{[^}]*line-height:\s*1\.5\s*!important/s);
+  assert.match(css, /min-height:\s*40px/);
+  assert.match(css, /min-height:\s*96px/);
+  assert.ok(css.includes('font-variant-numeric: tabular-nums'));
+});
