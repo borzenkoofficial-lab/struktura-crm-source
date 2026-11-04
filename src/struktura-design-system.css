@@ -470,3 +470,46 @@ html[data-theme="dark"] .app-footer {
 @media (prefers-reduced-motion: reduce) {
   .pi-coach-avatar, .pi-coach-popover { animation: none !important; transition: none !important; }
 }
+
+/* Desktop workspace viewport: the Dock owns its own reserved bottom rail. */
+html, body { height: 100%; }
+body { overflow: hidden; }
+.app-shell {
+  height: calc(100vh - 76px) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+.main {
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-bottom: 28px !important;
+}
+.topbar {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 50 !important;
+  background: var(--st-bg) !important;
+}
+.pi-companion {
+  right: 20px !important;
+  bottom: 14px !important;
+}
+.pi-coach-avatar {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 12px !important;
+}
+.pi-avatar-mark {
+  width: 27px;
+  height: 27px;
+  border-radius: 8px;
+  font-size: 9px;
+}
+@media (max-width: 760px) {
+  .app-shell { height: calc(100vh - 74px) !important; }
+  .pi-companion { right: 10px !important; bottom: 12px !important; }
+}
