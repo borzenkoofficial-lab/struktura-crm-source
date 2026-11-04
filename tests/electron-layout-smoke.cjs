@@ -348,6 +348,7 @@ async function run() {
         position: getComputedStyle(node).position,
         bottomGap: Math.round(window.innerHeight - rect.bottom),
         height: Math.round(rect.height),
+        width: Math.round(rect.width),
         left: Math.round(rect.left),
         right: Math.round(rect.right),
         itemCount: items.length,
@@ -362,15 +363,18 @@ async function run() {
     assert.equal(dockLayout.itemCount, 12, 'all 12 primary workspaces are present');
     assert.equal(dockLayout.groupCount, 4, 'workspaces are grouped into four logical groups');
     assert.equal(dockLayout.labelCount, 12, 'every icon retains an accessible label tooltip');
-    assert.ok(dockLayout.height >= 48 && dockLayout.height <= 60, 'Dock remains a low-profile 48–60px capsule: ' + JSON.stringify(dockLayout));
+    assert.ok(dockLayout.height >= 64 && dockLayout.height <= 82, 'Dock uses a stable 64–82px precision capsule: ' + JSON.stringify(dockLayout));
+    assert.ok(dockLayout.width >= 620, 'Dock has enough horizontal room for legible navigation targets: ' + JSON.stringify(dockLayout));
     assert.ok(dockLayout.left >= 0 && dockLayout.right <= await page.evaluate(() => window.innerWidth), 'Dock stays fully inside the application viewport: ' + JSON.stringify(dockLayout));
     const dockIconStyles = await dock.locator('.dock-icon').first().evaluate(node => {
       const style = getComputedStyle(node);
-      return { radius: style.borderRadius, background: style.backgroundImage, backgroundColor: style.backgroundColor, color: style.color, borderColor: style.borderColor };
+      return { radius: style.borderRadius, background: style.backgroundImage, backgroundColor: style.backgroundColor, color: style.color, borderColor: style.borderColor, width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height, filter: style.filter };
     });
     assert.equal(dockIconStyles.background, 'none', 'Dock icons use controlled semantic surfaces, not decorative gradients');
     assert.notEqual(dockIconStyles.backgroundColor, 'rgba(0, 0, 0, 0)', 'Dock icons retain a visible semantic surface');
     assert.notEqual(dockIconStyles.borderColor, 'rgba(0, 0, 0, 0)', 'Dock icons retain a visible token border');
+    assert.ok(dockIconStyles.width >= 40 && dockIconStyles.height >= 40, 'Dock icons remain large enough for crisp vector rendering: ' + JSON.stringify(dockIconStyles));
+    assert.equal(dockIconStyles.filter, 'none', 'Dock vector glyphs are not softened by filters');
     assert.equal(dockLayout.iconCount, 12, 'every destination has a vector icon');
     assert.ok(dockLayout.labels.includes('Создать резервную копию') === false, 'data utilities live in Settings, not in the Dock');
     await page.screenshot({ path: path.join(outputDir, 'dock-default.png'), animations: 'disabled' });
