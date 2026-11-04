@@ -1,4 +1,30 @@
 const $ = (id) => document.getElementById(id);
+const STRUKTURA_THEME_KEY = 'struktura-source-theme-v1';
+let strukturaTheme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+function applyStrukturaTheme(theme, persist = true) {
+  strukturaTheme = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = strukturaTheme;
+  document.documentElement.style.colorScheme = strukturaTheme;
+  const button = $('themeToggleBtn');
+  if (button) {
+    const nextTheme = strukturaTheme === 'dark' ? 'light' : 'dark';
+    const label = button.querySelector('.theme-toggle-label');
+    const glyph = button.querySelector('.theme-toggle-glyph');
+    if (label) label.textContent = nextTheme === 'light' ? 'Светлая тема' : 'Тёмная тема';
+    if (glyph) glyph.textContent = nextTheme === 'light' ? '☼' : '◐';
+    button.setAttribute('aria-label', nextTheme === 'light' ? 'Включить светлую тему' : 'Включить тёмную тему');
+    button.setAttribute('aria-pressed', String(strukturaTheme === 'light'));
+  }
+  if (persist) {
+    try { localStorage.setItem(STRUKTURA_THEME_KEY, strukturaTheme); }
+    catch (error) { console.warn('Theme preference could not be saved:', error); }
+  }
+}
+applyStrukturaTheme(strukturaTheme, false);
+$('themeToggleBtn')?.addEventListener('click', () => {
+  applyStrukturaTheme(strukturaTheme === 'dark' ? 'light' : 'dark');
+});
+
 const serviceLabels = { demolition: 'Демонтаж', finishing: 'Отделочные работы', raised_floor: 'Фальшполы' };
 const sourceLabels = { avito: 'Авито', phone: 'Телефон', telegram: 'Telegram', recommendation: 'Рекомендация', website: 'Сайт', other: 'Другое' };
 const statusLabels = { new: 'Новая', contacted: 'Связались', measurement: 'Замер', estimate: 'Смета', negotiation: 'Переговоры', won: 'Выиграна', lost: 'Отказ' };
