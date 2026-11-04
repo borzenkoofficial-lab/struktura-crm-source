@@ -208,3 +208,23 @@ test('dark theme styles the Brave API status and manual search query tiles', () 
   assert.ok(css.includes('html[data-theme="dark"] #view-prospects .domain-query strong'));
   assert.ok(smoke.includes('.domain-query,.search-api-status'));
 });
+
+
+test('dashboard workspace exposes persistent widget catalogue, ordering and resize controls', () => {
+  assert.ok(html.includes('id="dashboardWidgetGrid"'));
+  assert.ok(html.includes('id="dashboardCustomizeDialog"'));
+  assert.ok(html.includes('id="dashboardWidgetCatalog"'));
+  for (const id of ['kpis','attention','finance','pipeline','portfolio','progress','recent']) assert.ok(html.includes('data-dashboard-widget="' + id + '"'), 'missing dashboard widget ' + id);
+  assert.ok(renderer.includes("const DASHBOARD_LAYOUT_KEY = 'struktura-dashboard-layout-v1'"));
+  assert.ok(renderer.includes('dashboardApplyLayout'));
+  assert.ok(renderer.includes('dashboard-size-half'));
+  assert.ok(renderer.includes('dashboardLayoutReset'));
+  assert.ok(renderer.includes('dashboardSaveLayout'));
+});
+test('dashboard business charts are derived from actual CRM lead and project statuses', () => {
+  assert.ok(renderer.includes('dashboardRenderBusinessCharts(snapshot)'));
+  assert.ok(renderer.includes("dashboardRenderStatusChart('dashboardPipelineChart'"));
+  assert.ok(renderer.includes("dashboardRenderStatusChart('dashboardPortfolioChart'"));
+  assert.ok(html.includes('id="dashboardPipelineChart"'));
+  assert.ok(html.includes('id="dashboardPortfolioChart"'));
+});

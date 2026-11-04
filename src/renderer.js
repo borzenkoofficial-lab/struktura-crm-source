@@ -937,6 +937,128 @@ $('piCoachActionBtn').addEventListener('click', () => {
 });
 if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = () => {};
 
+
+const DASHBOARD_LAYOUT_KEY = 'struktura-dashboard-layout-v1';
+const DASHBOARD_WIDGETS = [
+ {id:'kpis',title:'Ключевые показатели',description:'Заявки, объекты, клиенты и команда',size:'full'},
+ {id:'attention',title:'Требует внимания и ПИ',description:'Операционные сигналы и производство',size:'wide'},
+ {id:'finance',title:'Денежный поток',description:'Поступления, расходы и динамика',size:'full'},
+ {id:'pipeline',title:'Воронка продаж',description:'Заявки по текущим статусам',size:'half'},
+ {id:'portfolio',title:'Портфель объектов',description:'Объекты по стадиям выполнения',size:'half'},
+ {id:'progress',title:'Шкалы выполнения',description:'Прогресс объектов, задач, работ и оплат',size:'full'},
+ {id:'recent',title:'Последние записи',description:'Свежие заявки и объекты',size:'full'}
+];
+const DASHBOARD_DEFAULT_ORDER = DASHBOARD_WIDGETS.map(item=>item.id);
+let dashboardLayout = null;
+let dashboardEditMode = false;
+function dashboardLoadLayout() {
+ try {
+  const saved=JSON.parse(localStorage.getItem(DASHBOARD_LAYOUT_KEY)||'null');
+  if(!saved||saved.version!==1) return {version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{}};
+  const order=[...(Array.isArray(saved.order)?saved.order.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)):[]),...DASHBOARD_DEFAULT_ORDER.filter(id=>!saved.order?.includes(id))];
+  return {version:1,order,hidden:Array.isArray(saved.hidden)?saved.hidden.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)):[],sizes:saved.sizes&&typeof saved.sizes==='object'?saved.sizes:{}};
+ } catch { return {version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{}}; }
+}
+function dashboardSaveLayout() {
+ try { localStorage.setItem(DASHBOARD_LAYOUT_KEY,JSON.stringify(dashboardLayout)); }
+ catch(error) { toast('Не удалось сохранить компоновку: '+error.message,true); }
+}
+function dashboardRenderCatalog() {
+ const target=$('dashboardWidgetCatalog'); if(!target)return;
+ target.innerHTML=DASHBOARD_WIDGETS.map(item=>{
+  const enabled=!dashboardLayout.hidden.includes(item.id);
+  return '<label class="dashboard-widget-option"><input type="checkbox" data-dashboard-widget-toggle="'+item.id+'"'+(enabled?' checked':'')+'><span><strong>'+esc(item.title)+'</strong><small>'+esc(item.description)+'</small></span><em>'+(enabled?'На экране':'Скрыт')+'</em></label>';
+ }).join('');
+}
+function dashboardRenderEditControls() {
+ const grid=$('dashboardWidgetGrid'); if(!grid)return;
+ for(const widget of grid.querySelectorAll('[data-dashboard-widget]')) {
+  let tools=widget.querySelector('.dashboard-widget-tools');
+  if(!tools) {
+   tools=document.createElement('div'); tools.className='dashboard-widget-tools';
+   tools.innerHTML='<button type="button" class="dashboard-drag-handle" draggable="true" aria-label="Перетащить блок" title="Перетащить блок">⠿</button><button type="button" class="dashboard-size-button">Размер</button><button type="button" class="dashboard-hide-button">Скрыть</button>';
+   widget.prepend(tools);
+  }
+  tools.hidden=!dashboardEditMode; widget.classList.toggle('dashboard-widget-editing',dashboardEditMode);
+ }
+}
+function dashboardApplyLayout() {
+ const grid=$('dashboardWidgetGrid'); if(!grid)return;
+ for(const id of dashboardLayout.order) {
+  const widget=grid.querySelector('[data-dashboard-widget="'+id+'"]'); if(!widget)continue;
+  grid.append(widget); widget.hidden=dashboardLayout.hidden.includes(id);
+  widget.classList.remove('dashboard-size-half','dashboard-size-wide','dashboard-size-full');
+  const fallback=DASHBOARD_WIDGETS.find(item=>item.id===id)?.size||'full';
+  const size=['half','wide','full'].includes(dashboardLayout.sizes[id])?dashboardLayout.sizes[id]:fallback;
+  widget.classList.add('dashboard-size-'+size);
+ }
+ dashboardRenderCatalog(); dashboardRenderEditControls();
+}
+function dashboardOpenCustomizer() {
+ dashboardEditMode=true; dashboardRenderEditControls(); dashboardRenderCatalog();
+ const dialog=$('dashboardCustomizeDialog'); if(dialog&&!dialog.open)dialog.showModal();
+}
+function dashboardCloseCustomizer() {
+ dashboardEditMode=false; dashboardRenderEditControls();
+ const dialog=$('dashboardCustomizeDialog'); if(dialog?.open)dialog.close();
+}
+function dashboardRenderStatusChart(targetId,rows,emptyText) {
+ const target=$(targetId); if(!target)return;
+ const values=rows.filter(item=>item.value>0);
+ if(!values.length){target.innerHTML='<div class="dashboard-chart-empty">'+esc(emptyText)+'</div>';return;}
+ const max=Math.max(...values.map(item=>item.value),1);
+ target.innerHTML=values.map(item=>'<div class="dashboard-horizontal-row"><div class="dashboard-horizontal-label"><span>'+esc(item.label)+'</span><strong>'+item.value+'</strong></div><div class="dashboard-horizontal-track"><i style="width:'+(item.value/max*100).toFixed(1)+'%"></i></div></div>').join('');
+}
+function dashboardRenderBusinessCharts(snapshot) {
+ const leads=Array.isArray(snapshot.leads)?snapshot.leads:[];
+ const projects=Array.isArray(snapshot.projects)?snapshot.projects:[];
+ const leadStatuses=[['new','Новые'],['contacted','Связались'],['measurement','Замер'],['estimate','Смета'],['negotiation','Переговоры'],['won','Выиграны'],['lost','Отказ']];
+ const projectStatuses=[['planned','Запланированы'],['active','В работе'],['completed','Завершены'],['cancelled','Отменены']];
+ dashboardRenderStatusChart('dashboardPipelineChart',leadStatuses.map(([key,label])=>({label,value:leads.filter(item=>item.status===key).length})),'Пока нет заявок для построения воронки.');
+ dashboardRenderStatusChart('dashboardPortfolioChart',projectStatuses.map(([key,label])=>({label,value:projects.filter(item=>item.status===key).length})),'Пока нет объектов для анализа портфеля.');
+}
+function dashboardInitCustomizer() {
+ dashboardLayout=dashboardLoadLayout(); dashboardApplyLayout();
+ $('dashboardCustomizeBtn')?.addEventListener('click',dashboardOpenCustomizer);
+ $('dashboardCustomizeClose')?.addEventListener('click',dashboardCloseCustomizer);
+ $('dashboardCustomizeDone')?.addEventListener('click',dashboardCloseCustomizer);
+ $('dashboardLayoutReset')?.addEventListener('click',()=>{dashboardLayout={version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{}};dashboardSaveLayout();dashboardApplyLayout();});
+ $('dashboardWidgetCatalog')?.addEventListener('change',event=>{
+  const input=event.target.closest('[data-dashboard-widget-toggle]');if(!input)return;
+  const id=input.dataset.dashboardWidgetToggle;
+  dashboardLayout.hidden=input.checked?dashboardLayout.hidden.filter(item=>item!==id):[...new Set([...dashboardLayout.hidden,id])];
+  dashboardSaveLayout();dashboardApplyLayout();
+ });
+ $('dashboardWidgetGrid')?.addEventListener('click',event=>{
+  const widget=event.target.closest('[data-dashboard-widget]');if(!widget||!dashboardEditMode)return;
+  if(event.target.closest('.dashboard-hide-button')) {
+   dashboardLayout.hidden=[...new Set([...dashboardLayout.hidden,widget.dataset.dashboardWidget])];
+   dashboardSaveLayout();dashboardApplyLayout();
+  } else if(event.target.closest('.dashboard-size-button')) {
+   const id=widget.dataset.dashboardWidget;const sizes=['half','wide','full'];
+   const current=dashboardLayout.sizes[id]||DASHBOARD_WIDGETS.find(item=>item.id===id)?.size||'full';
+   dashboardLayout.sizes[id]=sizes[(sizes.indexOf(current)+1)%sizes.length];dashboardSaveLayout();dashboardApplyLayout();
+  }
+ });
+ let dragged=null;
+ $('dashboardWidgetGrid')?.addEventListener('dragstart',event=>{
+  const handle=event.target.closest('.dashboard-drag-handle');
+  if(!dashboardEditMode||!handle){event.preventDefault();return;}
+  dragged=handle.closest('[data-dashboard-widget]');event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',dragged.dataset.dashboardWidget);dragged.classList.add('is-dragging');
+ });
+ $('dashboardWidgetGrid')?.addEventListener('dragover',event=>{
+  if(!dragged)return;event.preventDefault();const target=event.target.closest('[data-dashboard-widget]');
+  if(target&&target!==dragged){const rect=target.getBoundingClientRect();target.parentElement.insertBefore(dragged,event.clientY>rect.top+rect.height/2?target.nextSibling:target);}
+ });
+ $('dashboardWidgetGrid')?.addEventListener('drop',event=>{
+  if(!dragged)return;event.preventDefault();
+  dashboardLayout.order=[...$('dashboardWidgetGrid').querySelectorAll('[data-dashboard-widget]')].map(item=>item.dataset.dashboardWidget);
+  dashboardSaveLayout();dragged.classList.remove('is-dragging');dragged=null;
+ });
+ $('dashboardWidgetGrid')?.addEventListener('dragend',()=>{dragged?.classList.remove('is-dragging');dragged=null;});
+}
+dashboardInitCustomizer();
+
 let dashboardPeriod = 'month';
 let dashboardSnapshot = null;
 let dashboardRefreshPromise = null;
@@ -1063,6 +1185,7 @@ function renderDashboardSnapshot(snapshot) {
   }
   renderDashboardCashflowChart(metrics.cashflow, metrics.finance.complete);
   renderDashboardAttention(metrics.attention);
+  dashboardRenderBusinessCharts(snapshot);
 
   $('recentLeads').innerHTML = leads.length
     ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Статус</th><th>Бюджет</th><th></th></tr></thead><tbody>${leads.slice(0,5).map(lead=>`<tr><td><strong>${esc(lead.title)}</strong><small class="table-sub">${esc(serviceLabels[lead.service] || lead.service)} · ${esc(sourceLabels[lead.source] || lead.source)}</small></td><td><span class="pill ${esc(lead.status)}">${esc(statusLabels[lead.status] || lead.status)}</span></td><td>${fmt(lead.budget_rub)}</td><td><button type="button" class="button subtle compact" data-goto="leads">Открыть</button></td></tr>`).join('')}</tbody></table>`
