@@ -295,20 +295,21 @@ function contrastRatio(foreground, background) {
 }
 
 function themeToken(theme, token) {
-  const section = theme === 'dark'
-    ? css.match(/:root\\s*\\{([^}]*)\\}/)
-    : css.match(/html\\[data-theme="light"\\]\\s*\\{([^}]*)\\}/);
-  assert.ok(section, 'theme token section exists: ' + theme);
-  const escapedToken = token.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
-  const match = section[1].match(new RegExp(escapedToken + ':\\\\s*(#[0-9a-fA-F]{6})'));
-  assert.ok(match, 'theme token exists: ' + token);
-  return match[1];
+  const lines = css.split('\n');
+  const heading = theme === 'dark' ? ':root {' : 'html[data-theme="light"] {';
+  const start = lines.findIndex(line => line.trim() === heading);
+  assert.ok(start >= 0, 'theme token section exists: ' + theme);
+  const tokenLine = lines.slice(start + 1).find(line => line.trim().startsWith(token + ':'));
+  assert.ok(tokenLine, 'theme token exists: ' + token);
+  const match = tokenLine.match(/#[0-9a-fA-F]{6}/);
+  assert.ok(match, 'theme token is a hex color: ' + token);
+  return match[0];
 }
 
 test('muted and dim text meet WCAG AA contrast on their theme surfaces', () => {
   const themes = [
     { selector: 'dark', background: '#10151c', surface: '#1a2430' },
-    { selector: 'html\\[data-theme="light"\\]', background: '#f1f3f1', surface: '#ffffff' }
+    { selector: 'light', background: '#f1f3f1', surface: '#ffffff' }
   ];
   for (const theme of themes) {
     for (const token of ['--st-muted', '--st-dim']) {
