@@ -1171,11 +1171,11 @@ test('Windows CI includes a real Electron viewport smoke test with isolated prof
 
   assert.equal(packageJson.scripts['test:ui'], 'node tests/electron-layout-smoke.cjs');
   assert.match(e2e, /_electron/);
-  assert.match(e2e, /executablePath:\\s*process\\.env\\.SKOL_UI_E2E_EXECUTABLE\\s*\\|\\|\\s*electronExecutable/);
-  assert.match(e2e, /args: process\\.env\\.SKOL_UI_E2E_EXECUTABLE \\? \\[\\] : \\[root\\]/);
+  assert.ok(e2e.includes('executablePath: process.env.SKOL_UI_E2E_EXECUTABLE || electronExecutable'));
+  assert.ok(e2e.includes('args: process.env.SKOL_UI_E2E_EXECUTABLE ? [] : [root]'));
   assert.match(e2e, /createLicenseToken/);
-  assert.match(e2e, /win\\.setContentSize/);
-  assert.match(e2e, /nativeWindowViewportMatrix/);
+  assert.ok(e2e.includes('win.setContentSize'));
+  assert.ok(e2e.includes('nativeWindowViewportMatrix'));
   assert.match(e2e, /console\.log\('\[view\] '/);
   assert.match(e2e, /checkedPairs: geometry\.map/);
   assert.ok(e2e.includes("views: ['dashboard', 'projects', 'production', 'finance', 'engineering']"));
