@@ -112,6 +112,18 @@ async function collectGeometry(page, viewport, viewName) {
     const piPopoverHidden = !popoverElement || popoverElement.hidden;
     const piAvatarOverlapsDock = intersects(avatarBounds, dockBounds);
     const piAvatarOverlapsWorkspace = intersects(avatarBounds, mainBounds);
+    const darkSurfaceSelector = '.records-list,.finance-card,.income-period-card,.finance-forecast-grid article,.eng-hero,.eng-stat,.eng-card,.settings-card,.dashboard-hero,.dashboard-money-card,.dashboard-ring-card,.browser-inspector';
+    const themeSurfaceLeaks = Array.from(active?.querySelectorAll(darkSurfaceSelector) || [])
+      .filter(visible)
+      .filter(element => {
+        const style = getComputedStyle(element);
+        const rgb = style.backgroundColor.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/i);
+        const solidWhite = rgb && Number(rgb[1]) > 242 && Number(rgb[2]) > 242 && Number(rgb[3]) > 242;
+        const whiteGradient = style.backgroundImage !== 'none' && /#fff|white|rgb\\(255/i.test(style.backgroundImage);
+        return Boolean(solidWhite || whiteGradient);
+      })
+      .map(element => ({ selector: element.id || element.className || element.tagName, background: getComputedStyle(element).backgroundColor }))
+      .slice(0, 20);
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight },
       document: { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth, bodyScrollWidth: document.body.scrollWidth },
@@ -123,6 +135,7 @@ async function collectGeometry(page, viewport, viewName) {
       piPopoverHidden,
       piAvatarOverlapsDock,
       piAvatarOverlapsWorkspace,
+      themeSurfaceLeaks,
       outside,
       clippedText,
       overlappingActions
@@ -140,6 +153,7 @@ async function collectGeometry(page, viewport, viewName) {
   assert.equal(metrics.piPopoverHidden, true, viewName + ': PI insights must not auto-open a blocking popover');
   assert.equal(metrics.piAvatarOverlapsDock, false, viewName + ': PI control must not overlap the Dock');
   assert.equal(metrics.piAvatarOverlapsWorkspace, false, viewName + ': PI control must stay in the reserved bottom rail');
+  assert.equal(metrics.themeSurfaceLeaks.length, 0, viewName + ': key enterprise surfaces must not remain white in dark mode: ' + JSON.stringify(metrics.themeSurfaceLeaks));
   return metrics;
 }
 
