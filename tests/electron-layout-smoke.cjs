@@ -117,9 +117,9 @@ async function collectGeometry(page, viewport, viewName) {
       .filter(visible)
       .filter(element => {
         const style = getComputedStyle(element);
-        const rgb = style.backgroundColor.match(/rgba?\\((\\d+),\\s*(\\d+),\\s*(\\d+)/i);
+        const rgb = style.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
         const solidWhite = rgb && Number(rgb[1]) > 242 && Number(rgb[2]) > 242 && Number(rgb[3]) > 242;
-        const whiteGradient = style.backgroundImage !== 'none' && /#fff|white|rgb\\(255/i.test(style.backgroundImage);
+        const whiteGradient = style.backgroundImage !== 'none' && /#fff|white|rgb\(255/i.test(style.backgroundImage);
         return Boolean(solidWhite || whiteGradient);
       })
       .map(element => ({ selector: element.id || element.className || element.tagName, background: getComputedStyle(element).backgroundColor }))
