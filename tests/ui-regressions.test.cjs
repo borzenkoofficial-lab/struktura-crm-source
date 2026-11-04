@@ -1026,12 +1026,14 @@ test('all five split workspaces keep a detail pane and table list in the current
   assert.ok(renderer.includes("renderFinanceDetailPanel('expense', selectedExpense)"));
 });
 
-test('Salesforce light layout loads after base CSS and the reusable metrics module loads before renderer', () => {
+test('Salesforce themes load after base CSS and theme bootstrap runs before body paint', () => {
   const baseStyles = html.indexOf('href="styles.css"');
   const darkThemeStyles = html.indexOf('href="theme-salesforce.css"');
   const lightThemeStyles = html.indexOf('href="theme-salesforce-light.css"');
+  const themeBoot = html.indexOf('theme-boot.js');
   assert.ok(baseStyles >= 0 && darkThemeStyles > baseStyles, 'dark theme stylesheet follows base CSS');
   assert.ok(lightThemeStyles > darkThemeStyles, 'light theme stylesheet follows dark theme stylesheet');
+  assert.ok(themeBoot > lightThemeStyles && themeBoot < html.indexOf('<body>'), 'theme bootstrap follows both themes and precedes body paint');
   assert.ok(html.includes('<script src="dashboard-metrics.js"></script><script src="renderer.js"></script>'));
   const css = fs.readFileSync(path.join(__dirname, '../src/theme-salesforce-light.css'), 'utf8');
   for (const selector of ['.dashboard-kpis','.dashboard-finance-metrics','.dashboard-rings-grid','.dashboard-attention-list','.nav-more-menu']) assert.ok(css.includes(selector));
