@@ -289,6 +289,35 @@ async function run() {
     await page.waitForFunction(() => !document.getElementById('leadDialog').open);
     await openView(page, 'dashboard');
 
+    // Exercise the real dashboard workspace presets and saved layout in Electron.
+    await page.locator('#dashboardCustomizeBtn').click();
+    const dashboardDialog = page.locator('#dashboardCustomizeDialog');
+    assert.equal(await dashboardDialog.evaluate(node => node.open), true, 'dashboard customizer opens as a native dialog');
+    await page.screenshot({ path: path.join(outputDir, 'dashboard-customizer.png'), animations: 'disabled' });
+
+    await dashboardDialog.locator('[data-dashboard-preset="sales"]').click();
+    const salesLayout = await page.locator('#dashboardWidgetGrid').evaluate(grid => ({
+      order: [...grid.querySelectorAll('[data-dashboard-widget]')].map(node => node.dataset.dashboardWidget),
+      hidden: [...grid.querySelectorAll('[data-dashboard-widget][hidden]')].map(node => node.dataset.dashboardWidget)
+    }));
+    assert.deepEqual(salesLayout.order, ['kpis', 'pipeline', 'attention', 'progress', 'portfolio', 'recent', 'finance'], 'sales preset orders real dashboard widgets');
+    assert.deepEqual(salesLayout.hidden, ['finance'], 'sales preset hides the finance widget');
+
+    await dashboardDialog.locator('[data-dashboard-preset="finance"]').click();
+    const financeLayout = await page.locator('#dashboardWidgetGrid').evaluate(grid => ({
+      order: [...grid.querySelectorAll('[data-dashboard-widget]')].map(node => node.dataset.dashboardWidget),
+      hidden: [...grid.querySelectorAll('[data-dashboard-widget][hidden]')].map(node => node.dataset.dashboardWidget)
+    }));
+    assert.deepEqual(financeLayout.order, ['finance', 'kpis', 'portfolio', 'progress', 'pipeline', 'attention', 'recent'], 'finance preset orders real dashboard widgets');
+    assert.deepEqual(financeLayout.hidden.sort(), ['attention', 'pipeline'], 'finance preset hides sales and attention widgets');
+
+    await dashboardDialog.locator('[data-dashboard-preset="overview"]').click();
+    const persistedDashboardLayout = await page.evaluate(() => JSON.parse(localStorage.getItem('struktura-dashboard-layout-v1') || 'null'));
+    assert.equal(persistedDashboardLayout?.preset, 'overview', 'workspace preset is persisted locally');
+    assert.deepEqual(persistedDashboardLayout?.hidden, [], 'overview restores all dashboard widgets');
+    await dashboardDialog.locator('#dashboardCustomizeDone').click();
+    await page.waitForFunction(() => !document.getElementById('dashboardCustomizeDialog').open);
+
     // Exercise the persistent macOS-inspired Dock on the real Electron window.
     const dock = page.locator('#skolDock');
     await dock.waitFor({ state: 'visible' });
