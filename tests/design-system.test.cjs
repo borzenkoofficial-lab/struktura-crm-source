@@ -21,7 +21,7 @@ test('theme switch is accessible and persistent', () => {
   assert.ok(renderer.includes("skol-theme-preference-v1"));
   assert.ok(renderer.includes("button.setAttribute('aria-pressed'"));
   assert.ok(renderer.includes("$('themeToggleBtn')?.addEventListener('click'"));
-  assert.ok(renderer.includes("strukturaTheme === 'dark' ? 'light' : 'dark'"));
+  assert.ok(renderer.includes("appTheme === 'dark' ? 'light' : 'dark'"));
 });
 
 test('design system defines semantic dark and light tokens and reduced motion', () => {
@@ -31,6 +31,8 @@ test('design system defines semantic dark and light tokens and reduced motion', 
   assert.ok(css.includes('html[data-theme="dark"]'));
   assert.ok(css.includes('html[data-theme="light"]'));
   assert.ok(css.includes('prefers-reduced-motion: reduce'));
+  assert.ok(css.includes('.dashboard-hero.welcome'));
+  assert.ok(css.includes('.data-table thead th'));
 });
 
 test('existing page routes and feature code remain in place', () => {
