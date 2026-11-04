@@ -149,7 +149,7 @@ html[data-theme="dark"] .production-project-card,
 html[data-theme="dark"] .crawler-panel,
 html[data-theme="dark"] .opportunity-radar,
 html[data-theme="dark"] .order-radar-panel {
-  background-color: var(--st-surface) !important;
+  background: var(--st-surface) !important;
   color: var(--st-ink) !important;
   box-shadow: var(--st-shadow-panel);
 }
@@ -167,7 +167,7 @@ html[data-theme="light"] .production-project-card,
 html[data-theme="light"] .crawler-panel,
 html[data-theme="light"] .opportunity-radar,
 html[data-theme="light"] .order-radar-panel {
-  background-color: var(--st-surface) !important;
+  background: var(--st-surface) !important;
   color: var(--st-ink) !important;
   box-shadow: var(--st-shadow-panel);
 }
@@ -294,7 +294,7 @@ html[data-theme="dark"] :where(
   .production-plan-panel, .production-shift-panel, .estimate-summary,
   .estimate-line-card, .eng-project-calendar, .eng-history-panel
 ) {
-  background-color: var(--st-surface) !important;
+  background: var(--st-surface) !important;
   border-color: var(--st-line) !important;
   color: var(--st-ink) !important;
 }
@@ -609,4 +609,102 @@ body { overflow: hidden; }
   .dashboard-hero .welcome h2 { font-size: 28px !important; }
   .dashboard-hero .dashboard-hero-side { display: none; }
   .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+/* Dark theme must replace legacy light gradients, not merely their base color. */
+html[data-theme="dark"] .dashboard-hero.welcome {
+  background: linear-gradient(135deg, #202d39 0%, #17232e 62%, #121c26 100%) !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] .dashboard-hero .welcome-tag {
+  background: rgba(11, 19, 27, .58) !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] .dashboard-hero .welcome h2 { color: var(--st-ink) !important; }
+html[data-theme="dark"] .dashboard-hero .welcome p { color: var(--st-ink-soft) !important; }
+html[data-theme="dark"] .dashboard-hero .hero-secondary {
+  background: #263542 !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] .dashboard-hero .dashboard-hero-orbit { border-color: rgba(184, 227, 74, .16) !important; }
+html[data-theme="dark"] .dashboard-hero .dashboard-hero-emblem {
+  background: #1a2832 !important;
+  border-color: rgba(184, 227, 74, .2) !important;
+  box-shadow: 0 16px 40px rgba(0,0,0,.24) !important;
+}
+html[data-theme="dark"] .dashboard-hero .dashboard-hero-caption { color: #71818c !important; }
+
+html[data-theme="dark"] .top-actions .button:not(.primary):not(.hero-primary) {
+  background: var(--st-surface) !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] .dashboard-period-control,
+html[data-theme="dark"] .dashboard-period-control button,
+html[data-theme="dark"] .dashboard-refresh {
+  background: var(--st-surface) !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] .dashboard-period-control button[aria-pressed="true"] {
+  background: rgba(184, 227, 74, .14) !important;
+  color: var(--st-accent) !important;
+  border-color: rgba(184, 227, 74, .25) !important;
+}
+html[data-theme="dark"] .dashboard-kpi-card .stat-top > span:first-child,
+html[data-theme="dark"] .dashboard-kpi-card small,
+html[data-theme="dark"] .dashboard-money-card span,
+html[data-theme="dark"] .dashboard-money-card small,
+html[data-theme="dark"] .dashboard-ring-title,
+html[data-theme="dark"] .dashboard-ring-detail {
+  color: var(--st-muted) !important;
+}
+html[data-theme="dark"] .dashboard-money-card,
+html[data-theme="dark"] .dashboard-ring-card {
+  background: var(--st-surface-raised) !important;
+  border-color: var(--st-line) !important;
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] .dashboard-money-card strong,
+html[data-theme="dark"] .dashboard-ring-card .dashboard-ring-value {
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] .dashboard-ring-card:hover,
+html[data-theme="dark"] .dashboard-money-card:hover {
+  background: #253342 !important;
+}
+html[data-theme="dark"] .dashboard-ring-track { stroke: #344451 !important; }
+
+html[data-theme="dark"] .settings-page-heading h2,
+html[data-theme="dark"] #view-settings .settings-card .panel-head h3 {
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] .settings-page-heading p,
+html[data-theme="dark"] #view-settings .settings-card .panel-head p,
+html[data-theme="dark"] #view-settings .settings-card-description,
+html[data-theme="dark"] #view-settings .notification-settings-note {
+  color: var(--st-muted) !important;
+}
+html[data-theme="dark"] #view-settings .settings-card-body {
+  background: transparent !important;
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] #view-settings .settings-card label {
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] #view-settings .pin-settings-badge {
+  background: #263542 !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] #view-settings .notification-settings-note {
+  background: var(--st-surface-muted) !important;
+  border-color: var(--st-line) !important;
+}
+html[data-theme="dark"] #view-settings .settings-about-card .about-settings-details > summary {
+  color: var(--st-ink) !important;
+  border-color: var(--st-line) !important;
 }
