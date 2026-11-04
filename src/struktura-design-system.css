@@ -2678,3 +2678,88 @@ dialog :where(input,select,textarea) {
   .data-table tbody td { padding: 11px !important; }
   .view :where(input:not([type="checkbox"]):not([type="radio"]),select) { min-height: 42px; }
 }
+
+/* Dialog system: align native modal surfaces with the active workspace theme. */
+dialog.modal,
+dialog.dock-overlay-dialog,
+dialog.dashboard-customize-dialog {
+  max-width: min(920px, calc(100vw - 32px));
+  max-height: min(88vh, 820px);
+  overflow: auto;
+  padding: 0;
+  border: 1px solid var(--st-line-strong);
+  border-radius: var(--st-radius-xl);
+  background: var(--st-surface);
+  color: var(--st-ink);
+  box-shadow: var(--st-shadow-float);
+  scrollbar-gutter: stable;
+}
+dialog.modal::backdrop,
+dialog.dock-overlay-dialog::backdrop,
+dialog.dashboard-customize-dialog::backdrop {
+  background: rgba(5, 10, 15, .64);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+dialog.modal :where(.modal-head,.modal-actions) {
+  border-color: var(--st-line) !important;
+}
+dialog.modal .modal-head {
+  padding: 22px 24px 16px;
+  margin: 0 0 18px;
+}
+dialog.modal .modal-head h2 { color: var(--st-ink) !important; }
+dialog.modal form { padding: 22px 24px 24px; }
+dialog.modal label {
+  color: var(--st-ink-soft) !important;
+  font-size: 12px !important;
+  line-height: 1.4;
+}
+dialog.modal :where(input,select,textarea) {
+  border-color: var(--st-line-strong) !important;
+  background: var(--st-surface-muted) !important;
+  color: var(--st-ink) !important;
+}
+dialog.modal :where(input,select,textarea)::placeholder {
+  color: var(--st-muted) !important;
+  opacity: .9;
+}
+dialog.modal .close-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--st-line);
+  background: var(--st-surface-muted) !important;
+  color: var(--st-ink-soft) !important;
+}
+dialog.modal .modal-actions { padding-top: 16px; }
+dialog.modal :where(button,.button):focus-visible,
+dialog.dock-overlay-dialog :where(button,input):focus-visible {
+  outline: 2px solid var(--st-accent) !important;
+  outline-offset: 3px !important;
+}
+html[data-theme="light"] dialog.modal::backdrop,
+html[data-theme="light"] dialog.dock-overlay-dialog::backdrop,
+html[data-theme="light"] dialog.dashboard-customize-dialog::backdrop {
+  background: rgba(20, 31, 28, .42);
+}
+@media (max-width: 640px) {
+  dialog.modal,
+  dialog.dock-overlay-dialog,
+  dialog.dashboard-customize-dialog {
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    max-height: 90vh;
+    border-radius: 16px;
+  }
+  dialog.modal form { padding: 18px; }
+  dialog.modal .modal-head { padding: 18px 18px 14px; }
+  dialog.modal .modal-actions { flex-wrap: wrap; }
+  dialog.modal .modal-actions > * { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog.modal[open],
+  dialog.dock-overlay-dialog[open],
+  dialog.dashboard-customize-dialog[open] { animation: none !important; }
+}
