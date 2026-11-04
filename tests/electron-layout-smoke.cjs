@@ -240,9 +240,13 @@ async function run() {
     const themeButton = page.locator('#themeToggleBtn');
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark', 'new isolated profiles start in the dark theme');
     const darkBackground = await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor);
+    assert.equal(await page.locator('#theme-dark-stylesheet').evaluate(node => node.disabled), false, 'dark colourway stylesheet is enabled');
+    assert.equal(await page.locator('#theme-light-stylesheet').evaluate(node => node.disabled), true, 'light colourway stylesheet is disabled');
     await themeButton.click();
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
     const lightBackground = await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor);
+    assert.equal(await page.locator('#theme-dark-stylesheet').evaluate(node => node.disabled), true, 'dark colourway stylesheet is disabled');
+    assert.equal(await page.locator('#theme-light-stylesheet').evaluate(node => node.disabled), false, 'light colourway stylesheet is enabled');
     assert.notEqual(lightBackground, darkBackground, 'light and dark themes must change the actual application surface');
     assert.equal(await themeButton.getAttribute('aria-pressed'), 'true', 'light theme state is exposed accessibly');
     assert.equal(await page.evaluate(() => localStorage.getItem('skol-theme-preference-v1')), 'light', 'theme choice persists in the local profile');
