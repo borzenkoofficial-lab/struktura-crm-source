@@ -17,7 +17,7 @@ test('theme bootstrap runs before styles to prevent first-paint theme flash', ()
 
 test('theme switch is accessible and persistent', () => {
   assert.ok(html.includes('id="themeToggleBtn"'));
-  assert.ok(renderer.includes("struktura-source-theme-v1"));
+  assert.ok(renderer.includes("skol-theme-preference-v1"));
   assert.ok(renderer.includes("button.setAttribute('aria-pressed'"));
   assert.ok(renderer.includes("$('themeToggleBtn')?.addEventListener('click'"));
   assert.ok(renderer.includes("strukturaTheme === 'dark' ? 'light' : 'dark'"));
