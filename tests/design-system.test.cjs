@@ -193,3 +193,11 @@ test('only the unified Dock command palette handles Ctrl+K and the command butto
   assert.ok(html.includes('id="dockPaletteDialog"'));
   assert.ok(html.includes('id="dockPaletteSearch"'));
 });
+
+test('dark theme covers legacy PI summary, order evidence cards and inline notices', () => {
+  for (const selector of ['.pi-home-summary', '.pi-alert', '.pi-no-alerts', '.pi-order-summary', '.commercial-order-card', '.notice.inline-notice']) {
+    assert.ok(css.includes('html[data-theme="dark"]') && css.includes(selector), 'missing dark-theme parity for ' + selector);
+  }
+  assert.ok(smoke.includes('.pi-home-summary,.pi-alert,.pi-no-alerts,.pi-order-summary'));
+  assert.ok(smoke.includes('.commercial-order-card,.notice.inline-notice'));
+});
