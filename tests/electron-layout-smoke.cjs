@@ -407,6 +407,7 @@ async function run() {
     const beforeHover = await hoverTarget.boundingBox();
     const label = hoverTarget.locator('.dock-label');
     assert.equal(await label.evaluate(node => getComputedStyle(node).visibility), 'hidden', 'labels stay out of the way until hover');
+    assert.equal(await label.evaluate(node => getComputedStyle(node).display), 'none', 'hidden tooltip labels do not extend Dock scrollable width');
     await hoverTarget.hover();
     await page.waitForTimeout(300);
     const afterHover = await hoverTarget.boundingBox();
