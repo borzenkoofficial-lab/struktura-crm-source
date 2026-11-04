@@ -112,7 +112,7 @@ async function collectGeometry(page, viewport, viewName) {
     const piPopoverHidden = !popoverElement || popoverElement.hidden;
     const piAvatarOverlapsDock = intersects(avatarBounds, dockBounds);
     const piAvatarOverlapsWorkspace = intersects(avatarBounds, mainBounds);
-    const darkSurfaceSelector = '.records-panel,.records-workspace,.records-list,.finance-card,.income-period-card,.finance-forecast-grid article,.eng-hero,.eng-stat,.eng-card,.settings-card,.dashboard-hero,.dashboard-money-card,.dashboard-ring-card,.browser-inspector';
+    const darkSurfaceSelector = '.records-panel,.records-workspace,.records-list,.table-panel,.finance-card,.income-period-card,.finance-forecast-grid article,.finance-insights,.eng-hero,.eng-stat,.eng-card,.settings-card,.dashboard-hero,.dashboard-money-card,.dashboard-ring-card,.browser-inspector,.crawler-panel,.opportunity-radar,.commercial-order-card,.production-stats article,.production-project-card,.pi-production-panel,.report-stats .stat-card';
     const themeSurfaceLeaks = Array.from(active?.querySelectorAll(darkSurfaceSelector) || [])
       .filter(visible)
       .filter(element => {
