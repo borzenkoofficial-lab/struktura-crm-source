@@ -38,3 +38,11 @@ test('existing page routes and feature code remain in place', () => {
   }
   assert.ok(renderer.includes('function showView(name, options = {})'));
 });
+
+test('PI companion does not automatically cover workspaces and uses a technical mark', () => {
+  assert.ok(renderer.includes('if (unseen && options.force === true && canAutoOpen)'));
+  assert.ok(!renderer.includes('unseen.severity === \'danger\' || unseen.priority >= 88'));
+  assert.ok(html.includes('class="pi-avatar-mark"'));
+  assert.ok(!html.includes('class="pi-avatar-face"'));
+  assert.ok(css.includes('.main { padding-bottom: 104px !important; }'));
+});
