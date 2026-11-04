@@ -124,7 +124,7 @@ async function collectGeometry(page, viewport, viewName) {
     const dashboardRecentGrid = recentGrid ? {
       display: recentGridStyle.display,
       gridTemplateColumns: recentGridStyle.gridTemplateColumns,
-      columnCount: recentGridStyle.gridTemplateColumns.split(/\\s+/).filter(Boolean).length,
+      columnCount: recentGridStyle.gridTemplateColumns.split(/\s+/).filter(Boolean).length,
       cards: [...recentGrid.children].map(rect),
       surfaces: [...recentGrid.querySelectorAll('.table-wrap')].map(element => getComputedStyle(element).backgroundColor)
     } : null;
@@ -133,7 +133,7 @@ async function collectGeometry(page, viewport, viewName) {
         const element = active.querySelector(selector);
         return element ? getComputedStyle(element) : null;
       };
-      const columns = value => value ? value.gridTemplateColumns.split(/\\s+/).filter(Boolean).length : 0;
+      const columns = value => value ? value.gridTemplateColumns.split(/\s+/).filter(Boolean).length : 0;
       const toolbar = style('.dashboard-toolbar');
       const toolbarActions = style('.dashboard-toolbar-actions');
       const kpis = style('.dashboard-kpis');
