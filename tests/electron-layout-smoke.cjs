@@ -48,12 +48,21 @@ function safeFileName(value) {
 async function openView(page, name) {
   const item = page.locator('#skolDock .dock-item[data-view="' + name + '"]');
   await item.scrollIntoViewIfNeeded();
+  const workspaceViewport = page.locator('.main');
+  const previousScrollTop = await workspaceViewport.evaluate(element => {
+    const maxScroll = Math.max(0, element.scrollHeight - element.clientHeight);
+    element.scrollTop = maxScroll;
+    return Math.round(element.scrollTop);
+  });
   await item.click();
 
   await page.waitForFunction(viewName => {
     const view = document.getElementById('view-' + viewName);
     return Boolean(view && view.classList.contains('active') && !view.hasAttribute('aria-busy'));
   }, name, { timeout: 20000 });
+
+  const currentScrollTop = await workspaceViewport.evaluate(element => Math.round(element.scrollTop));
+  assert.equal(currentScrollTop, 0, name + ': navigation must reset the shared workspace scroll position (previous=' + previousScrollTop + ')');
 
   const loadErrors = await page.locator('#view-' + name + ' .section-load-error').count();
   assert.equal(loadErrors, 0, 'Раздел ' + name + ' должен загрузиться без ошибки');
@@ -108,7 +117,17 @@ async function collectGeometry(page, viewport, viewName) {
     const avatarElement = document.querySelector('#piCoachAvatarBtn');
     const popoverElement = document.querySelector('#piCoachPopover');
     const mainBounds = mainElement ? rect(mainElement) : null;
+    const mainScrollTop = mainElement ? Math.round(mainElement.scrollTop * 10) / 10 : null;
     const dockBounds = dockElement ? rect(dockElement) : null;
+    const recentGrid = active?.querySelector('.dashboard-widget-recent .dashboard-lists-grid');
+    const recentGridStyle = recentGrid ? getComputedStyle(recentGrid) : null;
+    const dashboardRecentGrid = recentGrid ? {
+      display: recentGridStyle.display,
+      gridTemplateColumns: recentGridStyle.gridTemplateColumns,
+      columnCount: recentGridStyle.gridTemplateColumns.split(' ').filter(Boolean).length,
+      cards: [...recentGrid.children].map(rect),
+      surfaces: [...recentGrid.querySelectorAll('.table-wrap')].map(element => getComputedStyle(element).backgroundColor)
+    } : null;
     const avatarBounds = avatarElement ? rect(avatarElement) : null;
     const intersects = (a, b) => Boolean(a && b && Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1);
     const piPopoverHidden = !popoverElement || popoverElement.hidden;
@@ -127,11 +146,22 @@ async function collectGeometry(page, viewport, viewName) {
       .map(element => ({ selector: element.id || element.className || element.tagName, background: getComputedStyle(element).backgroundColor }))
       .slice(0, 20);
     return {
-      viewport: { width: window.innerWidth, height: window.innerHeight },
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        devicePixelRatio: window.devicePixelRatio,
+        outerWidth: window.outerWidth,
+        outerHeight: window.outerHeight,
+        screenWidth: window.screen.width,
+        screenHeight: window.screen.height,
+        visualViewportScale: window.visualViewport?.scale ?? null
+      },
       document: { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth, bodyScrollWidth: document.body.scrollWidth },
       activeView: active?.id || null,
       activeBounds,
       mainBounds,
+      mainScrollTop,
+      dashboardRecentGrid,
       dockBounds,
       avatarBounds,
       piPopoverHidden,
@@ -148,6 +178,21 @@ async function collectGeometry(page, viewport, viewName) {
   assert.ok(metrics.document.scrollWidth <= viewport.width + 1, viewName + ': document must not scroll horizontally: ' + JSON.stringify(metrics.document));
   assert.ok(metrics.document.bodyScrollWidth <= viewport.width + 1, viewName + ': body must not overflow horizontally: ' + JSON.stringify(metrics.document));
   assert.ok(metrics.activeBounds && metrics.activeBounds.left >= -1 && metrics.activeBounds.right <= viewport.width + 1, viewName + ': active workspace must remain inside the window');
+  assert.ok(metrics.mainScrollTop !== null && metrics.mainScrollTop <= 1, viewName + ': every workspace must begin at the top after navigation: ' + metrics.mainScrollTop);
+  if (viewName === 'dashboard') {
+    const expectedColumns = viewport.width > 1100 ? 2 : 1;
+    assert.ok(metrics.dashboardRecentGrid, 'dashboard recent-records grid must exist');
+    assert.equal(metrics.dashboardRecentGrid.display, 'grid', 'dashboard recent-records wrapper must use CSS Grid in the active theme');
+    assert.equal(metrics.dashboardRecentGrid.columnCount, expectedColumns, 'dashboard recent-records grid must use the expected responsive column count: ' + JSON.stringify(metrics.dashboardRecentGrid));
+    if (expectedColumns === 2) {
+      assert.ok(Math.abs(metrics.dashboardRecentGrid.cards[0].top - metrics.dashboardRecentGrid.cards[1].top) <= 1, 'dashboard recent cards must share the same row on wide screens');
+    }
+    const lightSurfaces = metrics.dashboardRecentGrid.surfaces.filter(value => {
+      const channels = value.match(/\\d+/g)?.slice(0, 3).map(Number) || [];
+      return channels.length === 3 && channels.every(channel => channel > 242);
+    });
+    assert.equal(lightSurfaces.length, 0, 'dashboard recent panels must not retain light surfaces in dark mode: ' + JSON.stringify(metrics.dashboardRecentGrid.surfaces));
+  }
   assert.equal(metrics.outside.length, 0, viewName + ': primary containers must remain inside the viewport: ' + JSON.stringify(metrics.outside));
   assert.equal(metrics.clippedText.length, 0, viewName + ': important labels must not be clipped: ' + JSON.stringify(metrics.clippedText));
   assert.equal(metrics.overlappingActions.length, 0, viewName + ': adjacent action buttons must not overlap: ' + JSON.stringify(metrics.overlappingActions));
@@ -193,6 +238,25 @@ async function run() {
       timeout: 60000
     });
 
+    const nativeWindowDiagnostics = await electronApp.evaluate(({ app, BrowserWindow, screen }) => {
+      const win = BrowserWindow.getAllWindows()[0];
+      const bounds = win.getBounds();
+      const display = screen.getDisplayMatching(bounds);
+      return {
+        version: app.getVersion(),
+        windowBounds: bounds,
+        contentBounds: win.getContentBounds(),
+        contentSize: win.getContentSize(),
+        zoomFactor: win.webContents.getZoomFactor(),
+        zoomLevel: win.webContents.getZoomLevel(),
+        display: {
+          bounds: display.bounds,
+          workArea: display.workArea,
+          scaleFactor: display.scaleFactor,
+          size: display.size
+        }
+      };
+    });
     const actualUserData = await electronApp.evaluate(({ app }) => app.getPath('userData'));
     assert.equal(path.resolve(actualUserData), path.resolve(userData), 'Electron must use an isolated temporary profile');
 
@@ -486,6 +550,7 @@ async function run() {
       status: 'passed',
       electronVersion: await electronApp.evaluate(({ app }) => process.versions.electron),
       chromiumVersion: await electronApp.evaluate(() => process.versions.chrome || process.versions.chromium || 'unknown'),
+      nativeWindowDiagnostics,
       viewports: viewportMatrix,
       viewsChecked: [...new Set(geometry.map(item => item.view))],
       checkedPairs: geometry.map(item => ({ viewport: item.viewport, view: item.view })),
