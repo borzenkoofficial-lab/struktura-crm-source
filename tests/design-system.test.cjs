@@ -184,3 +184,12 @@ test('tasks and integrated browser use responsive, theme-aware work surfaces', (
   assert.ok(html.includes('id="browserInspectorContent"'));
   assert.ok(css.includes('@media (max-width: 1100px)'));
 });
+
+test('only the unified Dock command palette handles Ctrl+K and the command button', () => {
+  assert.ok(!html.includes('commandPaletteDialog'));
+  assert.ok(!renderer.includes('commandPaletteDialog'));
+  assert.ok(renderer.includes("$('openCommandPaletteBtn')?.addEventListener('click', dockOpenPalette)"));
+  assert.ok(renderer.includes("event.key.toLowerCase() === 'k'"));
+  assert.ok(html.includes('id="dockPaletteDialog"'));
+  assert.ok(html.includes('id="dockPaletteSearch"'));
+});
