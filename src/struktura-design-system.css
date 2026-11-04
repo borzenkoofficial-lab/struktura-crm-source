@@ -513,3 +513,99 @@ body { overflow: hidden; }
   .app-shell { height: calc(100vh - 74px) !important; }
   .pi-companion { right: 10px !important; bottom: 12px !important; }
 }
+
+/* Dashboard: reduce hero waste and prioritize live operational signals. */
+.dashboard-hero.welcome {
+  min-height: 178px !important;
+  padding: 23px clamp(20px, 2.4vw, 32px) !important;
+  border-radius: var(--st-radius-xl) !important;
+  box-shadow: var(--st-shadow-panel) !important;
+}
+.dashboard-hero .welcome-copy { max-width: min(62%, 680px); }
+.dashboard-hero .welcome h2 {
+  font-size: clamp(29px, 3vw, 38px) !important;
+  line-height: 1.06 !important;
+  letter-spacing: -.045em !important;
+  margin: 11px 0 8px !important;
+}
+.dashboard-hero .welcome p {
+  max-width: 500px;
+  line-height: 1.55;
+}
+.dashboard-hero .welcome-actions { margin-top: 16px; }
+.dashboard-hero .dashboard-hero-side {
+  transform: scale(.86);
+  transform-origin: center right;
+  opacity: .62;
+}
+.dashboard-toolbar { margin-top: 22px !important; }
+.dashboard-kpis { gap: 12px !important; }
+.dashboard-kpi-card {
+  min-height: 108px;
+  padding: 16px 17px !important;
+  border-radius: var(--st-radius-md) !important;
+}
+.dashboard-kpi-card > strong {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.035em;
+}
+.dashboard-finance-panel, .dashboard-progress-section,
+.dashboard-list-panel, .dashboard-attention-panel {
+  border-radius: var(--st-radius-lg) !important;
+}
+.dashboard-lists-grid { gap: 14px !important; }
+
+/* Dense enterprise data tables: stable rhythm, sticky headings and readable rows. */
+.data-table {
+  width: 100%;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  font-size: 12px !important;
+}
+.data-table thead th {
+  padding: 11px 13px !important;
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  letter-spacing: .065em !important;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.data-table tbody td {
+  padding: 11px 13px !important;
+  line-height: 1.45 !important;
+  vertical-align: middle;
+}
+.records-workspace {
+  grid-template-columns: minmax(0, 1.12fr) minmax(300px, .88fr) !important;
+  gap: 14px !important;
+  align-items: start;
+}
+.records-list { min-width: 0; }
+.record-detail-panel {
+  position: sticky;
+  top: 82px;
+  max-height: calc(100vh - 112px);
+  overflow: auto;
+  border-radius: var(--st-radius-lg) !important;
+}
+.table-wrap {
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+@media (max-width: 920px) {
+  .dashboard-hero .welcome-copy { max-width: 100%; }
+  .dashboard-hero .dashboard-hero-side { opacity: .28; transform: scale(.72); }
+  .records-workspace {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .record-detail-panel {
+    position: static;
+    max-height: none;
+  }
+}
+@media (max-width: 560px) {
+  .dashboard-hero.welcome { min-height: 0 !important; padding: 20px !important; }
+  .dashboard-hero .welcome h2 { font-size: 28px !important; }
+  .dashboard-hero .dashboard-hero-side { display: none; }
+  .dashboard-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
