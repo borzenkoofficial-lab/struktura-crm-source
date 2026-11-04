@@ -2593,3 +2593,20 @@ html[data-theme="light"] #skolDock .dock-label { background:#24312f !important; 
 @media(prefers-reduced-transparency:reduce) {
   #skolDock.skol-dock { -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
 }
+
+/* High-density desktop scaling: preserve readable physical type sizes on QHD/4K displays. */
+@media(min-width:1800px) {
+  body { font-size:15px; }
+  .main { max-width:1900px !important; }
+  .view :where(small,.muted,.eyebrow,.field-hint) { font-size:12px; }
+  .view :where(.stat-top,.dashboard-horizontal-label,.dashboard-kpi-card small,.dashboard-panel-heading p) { font-size:12px; }
+  .view :where(.section-head p,.panel-head p) { font-size:12px; }
+}
+@media(min-width:2800px) {
+  body { font-size:16px; }
+  .main { max-width:2200px !important; }
+  .view :where(small,.muted,.eyebrow,.field-hint) { font-size:13px; }
+  .view :where(.stat-top,.dashboard-horizontal-label,.dashboard-kpi-card small,.dashboard-panel-heading p) { font-size:13px; }
+  .view :where(.section-head p,.panel-head p) { font-size:13px; }
+  .topbar h1 { font-size:34px !important; }
+}
