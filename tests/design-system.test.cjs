@@ -97,3 +97,20 @@ test('dashboard chart motion respects reduced-motion preferences', () => {
   assert.ok(css.includes('@media (prefers-reduced-motion: reduce)'));
   assert.ok(css.includes('#view-dashboard .dashboard-ring-progress'));
 });
+
+test('lead, client and project rows are keyboard-selectable and expose selection state', () => {
+  for (const kind of ['lead', 'client', 'project']) {
+    assert.ok(renderer.includes('data-record-kind="' + kind + '"'));
+  }
+  assert.ok(renderer.includes('tabindex="0" aria-selected='));
+  assert.ok(renderer.includes("document.addEventListener('keydown', event => {"));
+  assert.ok(renderer.includes("row.setAttribute('aria-selected', String(selected))"));
+});
+
+test('record tables use sticky semantic headers and visible selection/focus states', () => {
+  assert.ok(css.includes('.records-list .data-table thead th'));
+  assert.ok(css.includes('position: sticky'));
+  assert.ok(css.includes('tr.record-row.is-selected'));
+  assert.ok(css.includes('tr.record-row:focus-visible'));
+  assert.ok(css.includes('prefers-reduced-motion'));
+});
