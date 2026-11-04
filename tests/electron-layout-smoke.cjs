@@ -269,12 +269,14 @@ async function run() {
 
     // Exercise the global command palette through its real keyboard shortcut.
     await page.keyboard.press('Control+k');
-    const commandDialog = page.locator('#commandPaletteDialog');
+    const commandDialog = page.locator('#dockPaletteDialog');
     await commandDialog.waitFor({ state: 'visible' });
-    await page.locator('#commandPaletteSearch').fill('Финансы');
-    const financeCommand = page.locator('.command-item[data-command-view="finance"]');
+    await page.locator('#dockPaletteSearch').fill('Финансы');
+    const financeCommand = page.locator('#dockPaletteResults [data-dock-command-index]');
     await financeCommand.waitFor({ state: 'visible' });
-    await financeCommand.click();
+    assert.match(await financeCommand.innerText(), /Финансы/, 'command search returns the finance destination');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => !document.getElementById('dockPaletteDialog').open);
     await page.waitForSelector('#view-finance.active', { timeout: 15000 });
 
     // Opening and cancelling a lead dialog must not write a record.
