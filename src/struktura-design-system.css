@@ -1050,3 +1050,132 @@ html[data-theme="dark"] #view-engineering .eng-card .eng-help {
 @media (prefers-reduced-motion: reduce) {
   .records-list .data-table tbody tr.record-row { transition: none !important; }
 }
+
+/* Finance workspace: separate cash position, period income and forecast signals. */
+#view-finance .finance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0 22px;
+}
+#view-finance .finance-card {
+  min-width: 0;
+  padding: 19px 20px;
+  border: 1px solid var(--st-line) !important;
+  border-radius: var(--st-radius-lg) !important;
+  background: var(--st-surface) !important;
+  box-shadow: var(--st-shadow-panel) !important;
+}
+#view-finance .finance-card span,
+#view-finance .income-period-card span,
+#view-finance .finance-forecast-grid article span {
+  color: var(--st-muted) !important;
+  font-size: 11px;
+  line-height: 1.45;
+}
+#view-finance .finance-card strong,
+#view-finance .income-period-card strong,
+#view-finance .finance-forecast-grid article strong {
+  display: block;
+  margin-top: 11px;
+  color: var(--st-ink) !important;
+  font-size: clamp(22px, 2vw, 29px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.035em;
+  overflow-wrap: anywhere;
+}
+#view-finance .income-period-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+#view-finance .income-period-card {
+  min-width: 0;
+  padding: 17px 19px;
+  border: 1px solid var(--st-line) !important;
+  border-radius: var(--st-radius-md) !important;
+  background: var(--st-surface-raised) !important;
+}
+#view-finance .income-period-card small,
+#view-finance .finance-forecast-grid article small {
+  display: block;
+  margin-top: 7px;
+  color: var(--st-muted) !important;
+  font-size: 10px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+#view-finance .income-classification-note {
+  padding: 12px 15px;
+  border: 1px solid var(--st-line) !important;
+  border-left: 3px solid var(--st-accent) !important;
+  border-radius: var(--st-radius-sm);
+  background: var(--st-surface-muted) !important;
+  color: var(--st-ink-soft) !important;
+  font-size: 10px;
+  line-height: 1.6;
+}
+#view-finance .finance-insights {
+  margin: 16px 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--st-line) !important;
+  border-radius: var(--st-radius-lg) !important;
+  background: var(--st-surface) !important;
+}
+#view-finance .finance-insights > .panel-head {
+  padding: 17px 20px;
+  border-bottom: 1px solid var(--st-line);
+}
+#view-finance .finance-forecast-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  padding: 15px 18px;
+}
+#view-finance .finance-forecast-grid article {
+  min-width: 0;
+  padding: 10px 13px;
+  border-right: 1px solid var(--st-line) !important;
+  background: transparent !important;
+}
+#view-finance .finance-forecast-grid article:last-child { border-right: 0; }
+#view-finance .finance-alert-list { display: grid; gap: 8px; padding: 0 18px 14px; }
+#view-finance .finance-alert {
+  display: grid;
+  gap: 4px;
+  padding: 11px 13px;
+  border: 1px solid var(--st-line) !important;
+  border-left: 3px solid var(--st-info) !important;
+  border-radius: var(--st-radius-sm);
+  background: var(--st-surface-muted) !important;
+  color: var(--st-ink-soft) !important;
+}
+#view-finance .finance-alert.danger { border-left-color: var(--st-danger) !important; }
+#view-finance .finance-alert.warning { border-left-color: var(--st-warning) !important; }
+#view-finance .finance-alert strong { color: var(--st-ink) !important; font-size: 11px; }
+#view-finance .finance-alert span { color: var(--st-muted) !important; font-size: 10px; line-height: 1.5; }
+#view-finance .finance-records-panel { margin-bottom: 14px; }
+#view-finance .table-panel,
+#view-finance .finance-records-panel {
+  overflow: hidden;
+  border: 1px solid var(--st-line) !important;
+  border-radius: var(--st-radius-lg) !important;
+  background: var(--st-surface) !important;
+}
+#view-finance .table-panel .data-table thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--st-surface-raised) !important;
+}
+@media (max-width: 1000px) {
+  #view-finance .finance-forecast-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #view-finance .finance-forecast-grid article:nth-child(2) { border-right: 0 !important; }
+}
+@media (max-width: 700px) {
+  #view-finance .finance-grid,
+  #view-finance .income-period-grid,
+  #view-finance .finance-forecast-grid { grid-template-columns: minmax(0, 1fr); }
+  #view-finance .finance-forecast-grid article { border-right: 0 !important; border-bottom: 1px solid var(--st-line) !important; }
+  #view-finance .finance-forecast-grid article:last-child { border-bottom: 0 !important; }
+}
