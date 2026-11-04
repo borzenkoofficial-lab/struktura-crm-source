@@ -76,9 +76,9 @@ test('dark theme fixes legacy split panes, settings fields and Dock icon system'
 });
 
 test('dashboard places actionable attention signals before finance and historical progress', () => {
-  const attention = html.indexOf('class="dashboard-lists-grid dashboard-bottom-grid"');
-  const finance = html.indexOf('class="dashboard-finance-panel"');
-  const progress = html.indexOf('class="dashboard-progress-section"');
+  const attention = html.indexOf('data-dashboard-widget="attention"');
+  const finance = html.indexOf('data-dashboard-widget="finance"');
+  const progress = html.indexOf('data-dashboard-widget="progress"');
   assert.ok(attention > 0 && attention < finance && finance < progress);
   assert.ok(html.includes('id="dashboardAttention"'));
   assert.ok(html.includes('id="piHomeSummary"'));
