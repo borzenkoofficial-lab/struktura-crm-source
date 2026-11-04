@@ -1319,7 +1319,7 @@ function selectFinanceRecord(kind, id) {
   const key = kind === 'payment' ? 'payments' : 'expenses';
   financeSelectedIds[key] = record.id;
   const targetId = kind === 'payment' ? 'paymentsTable' : 'expensesTable';
-  $(targetId)?.querySelectorAll('tr[data-finance-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.financeId) === String(record.id)));
+  $(targetId)?.querySelectorAll('tr[data-finance-kind]').forEach(row => { const selected = String(row.dataset.financeId) === String(record.id); row.classList.toggle('is-selected', selected); row.setAttribute('aria-current', selected ? 'true' : 'false'); });
   renderFinanceDetailPanel(kind, record);
 }
 document.addEventListener('click', event => {
@@ -1327,6 +1327,14 @@ document.addEventListener('click', event => {
   if (!row || event.target.closest('button, select, input, textarea, a')) return;
   selectFinanceRecord(row.dataset.financeKind, row.dataset.financeId);
 });
+document.addEventListener('keydown', event => {
+  if (!['Enter', ' '].includes(event.key) || event.defaultPrevented) return;
+  const row = event.target.closest?.('tr[data-finance-kind][data-finance-id]');
+  if (!row || event.target !== row) return;
+  event.preventDefault();
+  selectFinanceRecord(row.dataset.financeKind, row.dataset.financeId);
+});
+
 async function refreshFinance() {
   const [summary, payments, expenses, insights, incomeRecords] = await Promise.all([window.crm.summary(), window.crm.listPayments(), window.crm.listExpenses(), window.crm.financeInsights(), window.crm.listIncomeRecords()]);
   renderFinanceInsights(insights);
@@ -1343,14 +1351,14 @@ async function refreshFinance() {
   financeRecordCaches.payments = payments;
   const selectedPayment = payments.find(item => String(item.id) === String(financeSelectedIds.payments)) || payments[0] || null;
   financeSelectedIds.payments = selectedPayment?.id ?? null;
-  $('paymentsTable').innerHTML = payments.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Операция</th><th>Сумма</th><th>Способ</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${payments.map(p => `<tr class="record-row${String(p.id) === String(financeSelectedIds.payments) ? ' is-selected' : ''}" data-finance-kind="payment" data-finance-id="${p.id}"><td>${esc(p.payment_date)}</td><td>${esc(p.project_title)}</td><td>${p.payment_type === 'refund' ? '<span class="pill lost">Возврат</span>' : '<span class="pill won">Поступление</span>'}</td><td>${p.payment_type === 'refund' ? '−' : '+'}${fmt(p.amount_rub)}</td><td>${esc(({cash:'Наличные',bank:'На счёт',transfer:'Перевод',other:'Другое'})[p.method] || p.method)}</td><td>${esc(p.note || '—')}</td><td><button type="button" class="button subtle compact" data-edit-payment="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Платежей пока нет','Добавь объект, затем записывай авансы и окончательные расчёты.');
-  $('paymentsTable').querySelectorAll('tr[data-finance-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.financeId) === String(financeSelectedIds.payments)));
+  $('paymentsTable').innerHTML = payments.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Операция</th><th>Сумма</th><th>Способ</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${payments.map(p => `<tr class="record-row${String(p.id) === String(financeSelectedIds.payments) ? ' is-selected' : ''}" data-finance-kind="payment" data-finance-id="${p.id}" tabindex="0" aria-current="${String(p.id) === String(financeSelectedIds.payments)}" aria-label="Открыть финансовую карточку платежа: ${esc(p.project_title || "без объекта")}"><td>${esc(p.payment_date)}</td><td>${esc(p.project_title)}</td><td>${p.payment_type === 'refund' ? '<span class="pill lost">Возврат</span>' : '<span class="pill won">Поступление</span>'}</td><td>${p.payment_type === 'refund' ? '−' : '+'}${fmt(p.amount_rub)}</td><td>${esc(({cash:'Наличные',bank:'На счёт',transfer:'Перевод',other:'Другое'})[p.method] || p.method)}</td><td>${esc(p.note || '—')}</td><td><button type="button" class="button subtle compact" data-edit-payment="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Платежей пока нет','Добавь объект, затем записывай авансы и окончательные расчёты.');
+  $('paymentsTable').querySelectorAll('tr[data-finance-kind]').forEach(row => { const selected = String(row.dataset.financeId) === String(financeSelectedIds.payments); row.classList.toggle('is-selected', selected); row.setAttribute('aria-current', selected ? 'true' : 'false'); });
   renderFinanceDetailPanel('payment', selectedPayment);
   financeRecordCaches.expenses = expenses;
   const selectedExpense = expenses.find(item => String(item.id) === String(financeSelectedIds.expenses)) || expenses[0] || null;
   financeSelectedIds.expenses = selectedExpense?.id ?? null;
-  $('expensesTable').innerHTML = expenses.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Расход</th><th>Объект</th><th>Категория</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${expenses.map(e => `<tr class="record-row${String(e.id) === String(financeSelectedIds.expenses) ? ' is-selected' : ''}" data-finance-kind="expense" data-finance-id="${e.id}"><td>${esc(e.expense_date)}</td><td>${esc(e.description)}</td><td>${esc(e.project_title || 'Общий')}</td><td>${esc(expenseLabels[e.category] || e.category)}</td><td>${fmt(e.amount_rub)}</td><td><span class="pill ${e.is_paid ? 'won' : 'estimate'}">${e.is_paid ? 'Оплачено' : 'Запланировано'}</span></td><td><button type="button" class="button subtle compact" data-edit-expense="${e.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Расходов пока нет','Записывай материалы, рабочих, транспорт и другие расходы.');
-  $('expensesTable').querySelectorAll('tr[data-finance-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.financeId) === String(financeSelectedIds.expenses)));
+  $('expensesTable').innerHTML = expenses.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Расход</th><th>Объект</th><th>Категория</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${expenses.map(e => `<tr class="record-row${String(e.id) === String(financeSelectedIds.expenses) ? ' is-selected' : ''}" data-finance-kind="expense" data-finance-id="${e.id}" tabindex="0" aria-current="${String(e.id) === String(financeSelectedIds.expenses)}" aria-label="Открыть финансовую карточку расхода: ${esc(e.description)}"><td>${esc(e.expense_date)}</td><td>${esc(e.description)}</td><td>${esc(e.project_title || 'Общий')}</td><td>${esc(expenseLabels[e.category] || e.category)}</td><td>${fmt(e.amount_rub)}</td><td><span class="pill ${e.is_paid ? 'won' : 'estimate'}">${e.is_paid ? 'Оплачено' : 'Запланировано'}</span></td><td><button type="button" class="button subtle compact" data-edit-expense="${e.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Расходов пока нет','Записывай материалы, рабочих, транспорт и другие расходы.');
+  $('expensesTable').querySelectorAll('tr[data-finance-kind]').forEach(row => { const selected = String(row.dataset.financeId) === String(financeSelectedIds.expenses); row.classList.toggle('is-selected', selected); row.setAttribute('aria-current', selected ? 'true' : 'false'); });
   renderFinanceDetailPanel('expense', selectedExpense);
   await refreshProjects();
 }
