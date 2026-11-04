@@ -74,3 +74,26 @@ test('dark theme fixes legacy split panes, settings fields and Dock icon system'
   assert.ok(css.includes('#skolDock .dock-item.active .dock-icon'));
   assert.ok(smoke.includes('.records-panel,.records-workspace,.records-list'));
 });
+
+test('dashboard places actionable attention signals before finance and historical progress', () => {
+  const attention = html.indexOf('class="dashboard-lists-grid dashboard-bottom-grid"');
+  const finance = html.indexOf('class="dashboard-finance-panel"');
+  const progress = html.indexOf('class="dashboard-progress-section"');
+  assert.ok(attention > 0 && attention < finance && finance < progress);
+  assert.ok(html.includes('id="dashboardAttention"'));
+  assert.ok(html.includes('id="piHomeSummary"'));
+});
+
+test('dashboard refresh exposes an accessible pending state and always restores the control', () => {
+  assert.ok(renderer.includes("dashboardView?.setAttribute('aria-busy', 'true')"));
+  assert.ok(renderer.includes("refreshButton.setAttribute('aria-busy', 'true')"));
+  assert.ok(renderer.includes("refreshButton.disabled = false"));
+  assert.ok(renderer.includes("dashboardView?.removeAttribute('aria-busy')"));
+  assert.ok(css.includes('#view-dashboard .dashboard-refresh-glyph'));
+});
+
+test('dashboard chart motion respects reduced-motion preferences', () => {
+  assert.ok(css.includes('@keyframes st-dashboard-bar-enter'));
+  assert.ok(css.includes('@media (prefers-reduced-motion: reduce)'));
+  assert.ok(css.includes('#view-dashboard .dashboard-ring-progress'));
+});
