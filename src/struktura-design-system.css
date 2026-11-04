@@ -838,3 +838,80 @@ html[data-theme="dark"] #view-browser .inspector-empty p {
   color: var(--st-muted) !important;
 }
 /* The browser page itself remains a white web-content canvas by design. */
+
+/* Final dark-theme parity fixes found in the real Electron screenshots. */
+html[data-theme="dark"] .records-workspace,
+html[data-theme="dark"] .records-panel,
+html[data-theme="dark"] .records-list {
+  background: var(--st-surface) !important;
+}
+html[data-theme="dark"] .record-detail-panel :where(h3, h4, strong, .record-detail-title) {
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] .record-detail-panel :where(p, small, .record-detail-kicker, .record-detail-label, .record-detail-line span) {
+  color: var(--st-muted) !important;
+}
+html[data-theme="dark"] .record-detail-panel :where(.record-metric, .record-detail-line) {
+  border-color: var(--st-line) !important;
+}
+html[data-theme="dark"] .button:not(.primary):not(.hero-primary):not(.about-button-light) {
+  background: var(--st-surface-raised) !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] .button.danger {
+  background: rgba(220, 90, 100, .14) !important;
+  border-color: rgba(220, 90, 100, .32) !important;
+  color: #f09a9e !important;
+}
+html[data-theme="dark"] #view-settings .settings-page-heading h2 {
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] #view-settings .settings-page-heading .eyebrow,
+html[data-theme="dark"] #view-settings .settings-page-heading p {
+  color: var(--st-muted) !important;
+}
+html[data-theme="dark"] #view-settings input,
+html[data-theme="dark"] #view-settings select,
+html[data-theme="dark"] #view-settings textarea {
+  background: #111a23 !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] #view-engineering .eng-card label,
+html[data-theme="dark"] #view-engineering .eng-form-grid label,
+html[data-theme="dark"] #view-engineering .eng-card .eng-field-label {
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] #view-engineering .eng-card small,
+html[data-theme="dark"] #view-engineering .eng-card .eng-help {
+  color: var(--st-muted) !important;
+}
+
+/* The Dock is a coherent technical instrument, not a row of unrelated app icons. */
+#skolDock {
+  padding-inline: 15px !important;
+}
+#skolDock .dock-icon {
+  background: var(--st-surface-raised) !important;
+  border: 1px solid var(--st-line-strong) !important;
+  color: var(--st-muted) !important;
+  box-shadow: none !important;
+}
+#skolDock .dock-icon svg,
+#skolDock .dock-icon svg * {
+  stroke: currentColor !important;
+  fill: none !important;
+}
+#skolDock .dock-item.active .dock-icon {
+  background: var(--st-accent) !important;
+  border-color: var(--st-accent) !important;
+  color: var(--st-accent-ink) !important;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--st-accent) 22%, transparent) !important;
+}
+#skolDock .dock-item:hover .dock-icon,
+#skolDock .dock-item:focus-visible .dock-icon {
+  background: var(--st-surface) !important;
+  border-color: var(--st-accent) !important;
+  color: var(--st-accent) !important;
+}
