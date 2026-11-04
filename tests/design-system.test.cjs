@@ -294,21 +294,20 @@ function contrastRatio(foreground, background) {
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
 
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
-}
-
-function themeToken(selector, token) {
-  const section = css.match(new RegExp(escapeRegExp(selector) + '\\\\s*\\\\{([^}]*)\\\\}'));
-  assert.ok(section, 'theme token section exists: ' + selector);
-  const match = section[1].match(new RegExp(escapeRegExp(token) + ':\\\\s*(#[0-9a-fA-F]{6})'));
+function themeToken(theme, token) {
+  const section = theme === 'dark'
+    ? css.match(/:root\\s*\\{([^}]*)\\}/)
+    : css.match(/html\\[data-theme="light"\\]\\s*\\{([^}]*)\\}/);
+  assert.ok(section, 'theme token section exists: ' + theme);
+  const escapedToken = token.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+  const match = section[1].match(new RegExp(escapedToken + ':\\\\s*(#[0-9a-fA-F]{6})'));
   assert.ok(match, 'theme token exists: ' + token);
   return match[1];
 }
 
 test('muted and dim text meet WCAG AA contrast on their theme surfaces', () => {
   const themes = [
-    { selector: ':root', background: '#10151c', surface: '#1a2430' },
+    { selector: 'dark', background: '#10151c', surface: '#1a2430' },
     { selector: 'html\\[data-theme="light"\\]', background: '#f1f3f1', surface: '#ffffff' }
   ];
   for (const theme of themes) {
