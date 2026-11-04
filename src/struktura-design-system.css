@@ -2996,3 +2996,12 @@ html[data-theme="dark"] #view-projects #projectSearch {
   border-color: var(--st-line-strong) !important;
   color: var(--st-ink) !important;
 }
+
+/* Keep the production-intelligence action readable when the dashboard columns narrow. */
+#view-dashboard .pi-home-panel > .panel-head {
+  flex-wrap: wrap;
+}
+#view-dashboard .pi-home-panel > .panel-head > button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
