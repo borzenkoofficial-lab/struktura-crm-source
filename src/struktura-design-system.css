@@ -2266,3 +2266,42 @@ html[data-theme="dark"] #view-engineering .eng-card .eng-help {
   #view-browser .browser-icon-btn,
   #view-browser .browser-home-btn { transition: none !important; }
 }
+
+
+/* Final dark-surface parity: legacy PI summaries and order evidence were still using light-theme fills. */
+html[data-theme="dark"] :where(
+  .pi-home-summary, .pi-alert, .pi-no-alerts, .pi-order-summary,
+  .commercial-order-card, .order-source-page, .order-source-documents,
+  .order-evidence-details, .pi-order-details, .notice, .notice.inline-notice
+) {
+  background: var(--st-surface-raised) !important;
+  border-color: var(--st-line) !important;
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] :where(
+  .pi-home-summary, .pi-order-summary, .commercial-order-card,
+  .order-source-page, .order-source-documents, .order-evidence-details,
+  .pi-order-details, .notice, .notice.inline-notice
+) :where(strong, b, h3, h4, summary) {
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] .pi-alert {
+  border-left-color: var(--st-warning) !important;
+}
+html[data-theme="dark"] .pi-alert.danger {
+  border-color: color-mix(in srgb, var(--st-danger) 38%, var(--st-line)) !important;
+  background: color-mix(in srgb, var(--st-danger) 10%, var(--st-surface)) !important;
+}
+html[data-theme="dark"] .pi-alert :where(strong, span),
+html[data-theme="dark"] .pi-no-alerts {
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] .commercial-order-title-line > strong,
+html[data-theme="dark"] .commercial-order-main > p,
+html[data-theme="dark"] .commercial-order-main > small {
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] #view-prospects .notice.inline-notice {
+  background: var(--st-surface-muted) !important;
+  color: var(--st-muted) !important;
+}
