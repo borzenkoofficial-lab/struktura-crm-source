@@ -2777,19 +2777,13 @@ html[data-theme="light"] dialog.dashboard-customize-dialog::backdrop {
   }
 }
 
-/* Keep the wide-screen Dock inside its measured scroll box without shrinking icon hit targets. */
-#skolDock.skol-dock { gap: 5px !important; }
+/* Wide-screen Dock: reclaim measured intrinsic overflow through inter-group spacing,
+   not by clipping destinations or reducing the interactive hit areas. */
+#skolDock.skol-dock { gap: 3px !important; }
 #skolDock .dock-group { gap: 0 !important; }
 #skolDock .dock-divider {
   flex: 0 0 1px !important;
   margin-inline: 1px !important;
-}
-/* The system cluster's notification control is the only fixed-width outlier at 1920px. Keep its hit area comfortably above 44px while reclaiming the measured 2px overflow. */
-#skolDock .dock-notifications-trigger {
-  flex: 0 0 66px !important;
-  width: 66px !important;
-  min-width: 66px !important;
-  max-width: 66px !important;
 }
 
 
