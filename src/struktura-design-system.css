@@ -989,3 +989,64 @@ html[data-theme="dark"] #view-engineering .eng-card .eng-help {
   #view-dashboard .dashboard-chart-bar { animation: none !important; transform: none !important; }
   #view-dashboard .dashboard-ring-progress { transition: none !important; }
 }
+
+/* Data workspaces: dense tables, clear selection and keyboard-visible focus. */
+.records-list {
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+.records-list .data-table { border-collapse: separate; border-spacing: 0; }
+.records-list .data-table thead th {
+  position: sticky; top: 0; z-index: 3;
+  background: var(--st-surface-raised) !important;
+  color: var(--st-muted) !important;
+  border-bottom: 1px solid var(--st-line-strong) !important;
+  box-shadow: 0 1px 0 var(--st-line);
+  white-space: nowrap;
+}
+.records-list .data-table tbody tr.record-row {
+  cursor: pointer; outline: none;
+  transition: background-color var(--st-fast) var(--st-ease), box-shadow var(--st-fast) var(--st-ease);
+}
+.records-list .data-table tbody tr.record-row > td {
+  border-bottom: 1px solid var(--st-line) !important;
+  color: var(--st-ink-soft);
+}
+.records-list .data-table tbody tr.record-row:hover { background: var(--st-surface-raised) !important; }
+.records-list .data-table tbody tr.record-row.is-selected {
+  background: color-mix(in srgb, var(--st-accent) 10%, var(--st-surface)) !important;
+  box-shadow: inset 3px 0 0 var(--st-accent);
+}
+.records-list .data-table tbody tr.record-row:focus-visible {
+  outline: 2px solid var(--st-accent) !important; outline-offset: -2px;
+}
+.records-list .data-table tbody tr.record-row.is-selected > td { color: var(--st-ink) !important; }
+.records-list .data-table tbody tr.record-row .table-sub { color: var(--st-muted) !important; }
+.record-detail-panel {
+  background: var(--st-surface) !important;
+  border-color: var(--st-line) !important;
+  color: var(--st-ink) !important;
+}
+.record-detail-panel .record-detail-head { border-bottom-color: var(--st-line) !important; }
+.record-detail-panel .record-metric,
+.record-detail-panel .record-detail-line {
+  background: var(--st-surface-raised) !important;
+  border-color: var(--st-line) !important;
+}
+.record-detail-panel .record-metric span,
+.record-detail-panel .record-detail-line span,
+.record-detail-panel .record-detail-kicker { color: var(--st-muted) !important; }
+.record-detail-panel .record-metric strong,
+.record-detail-panel .record-detail-line strong,
+.record-detail-panel .record-detail-title { color: var(--st-ink) !important; }
+.record-detail-panel .record-notes {
+  border-top-color: var(--st-line) !important; color: var(--st-ink-soft) !important;
+}
+@media (max-width: 900px) {
+  .records-workspace { grid-template-columns: minmax(0, 1fr) !important; }
+  .records-list { max-height: min(440px, 54vh); }
+  .record-detail-panel { margin: 10px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .records-list .data-table tbody tr.record-row { transition: none !important; }
+}
