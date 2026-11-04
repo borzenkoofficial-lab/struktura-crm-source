@@ -337,3 +337,12 @@ test('legacy calculator, production and PI surfaces have dark-theme coverage', (
   assert.ok(css.includes('.estimate-lines-table th'));
   assert.ok(css.includes('.estimate-lines-table td'));
 });
+
+
+test('settings workspace balances security, reminders and licensing without desktop dead space', () => {
+  assert.ok(css.includes('#view-settings .settings-page-grid > .settings-card:first-child'));
+  assert.ok(css.includes('grid-row: 1 / span 2'));
+  assert.ok(css.includes('#view-settings .settings-page-grid > .settings-card:nth-child(2)'));
+  assert.ok(css.includes('#view-settings .settings-page-grid > .settings-card:nth-child(3)'));
+  assert.ok(css.includes('@media (max-width: 760px)'));
+});
