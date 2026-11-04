@@ -363,7 +363,7 @@ async function run() {
     assert.equal(dockLayout.itemCount, 12, 'all 12 primary workspaces are present');
     assert.equal(dockLayout.groupCount, 4, 'workspaces are grouped into four logical groups');
     assert.equal(dockLayout.labelCount, 12, 'every icon retains an accessible label tooltip');
-    assert.ok(dockLayout.height >= 64 && dockLayout.height <= 82, 'Dock uses a stable 64–82px precision capsule: ' + JSON.stringify(dockLayout));
+    assert.ok(dockLayout.height >= 54 && dockLayout.height <= 64, 'Dock uses a stable 54–64px precision capsule: ' + JSON.stringify(dockLayout));
     assert.ok(dockLayout.width >= 620, 'Dock has enough horizontal room for legible navigation targets: ' + JSON.stringify(dockLayout));
     assert.ok(dockLayout.left >= 0 && dockLayout.right <= await page.evaluate(() => window.innerWidth), 'Dock stays fully inside the application viewport: ' + JSON.stringify(dockLayout));
     const dockIconStyles = await dock.locator('.dock-icon').first().evaluate(node => {
