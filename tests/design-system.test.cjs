@@ -67,3 +67,10 @@ test('dark theme explicitly covers legacy light surfaces in core workspaces', ()
   ]) assert.ok(css.includes(selector), 'missing dark surface override: ' + selector);
   assert.ok(smoke.includes('themeSurfaceLeaks'));
 });
+
+test('dark theme fixes legacy split panes, settings fields and Dock icon system', () => {
+  assert.ok(css.includes('html[data-theme="dark"] .records-workspace'));
+  assert.ok(css.includes('html[data-theme="dark"] #view-settings input'));
+  assert.ok(css.includes('#skolDock .dock-item.active .dock-icon'));
+  assert.ok(smoke.includes('.records-panel,.records-workspace,.records-list'));
+});
