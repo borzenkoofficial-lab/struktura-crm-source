@@ -481,6 +481,7 @@ body { overflow: hidden; }
 }
 .main {
   height: 100% !important;
+  min-height: 0 !important;
   max-height: 100% !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
