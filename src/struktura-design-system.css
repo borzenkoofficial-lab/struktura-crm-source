@@ -2776,3 +2776,7 @@ html[data-theme="light"] dialog.dashboard-customize-dialog::backdrop {
     padding-inline: 4px !important;
   }
 }
+
+/* Prevent sub-pixel flex accumulation from clipping Dock content on wide Windows viewports. */
+#skolDock .dock-group { gap: 2px !important; }
+#skolDock .dock-divider { flex: 0 0 1px !important; }
