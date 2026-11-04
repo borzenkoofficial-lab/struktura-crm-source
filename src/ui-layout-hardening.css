@@ -2834,3 +2834,25 @@ input[type="checkbox"], input[type="radio"] {
 @media(prefers-reduced-motion:reduce){
   .skol-dock .dock-label{transition:none!important}
 }
+
+
+/* Dashboard recent-records layout belongs to the shared geometry layer,
+   not to a colourway stylesheet that is disabled in the dark theme. */
+#view-dashboard .dashboard-widget-recent .dashboard-lists-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 15px;
+}
+
+@media (max-width: 1100px) {
+  #view-dashboard .dashboard-widget-recent .dashboard-lists-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The dark theme must not inherit the legacy light table surface here. */
+html[data-theme="dark"] #view-dashboard .dashboard-list-panel .table-wrap {
+  background: var(--st-surface) !important;
+  color: var(--st-ink) !important;
+}
