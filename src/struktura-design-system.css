@@ -2892,3 +2892,107 @@ html[data-theme="dark"] .estimate-duration-controls select {
     grid-row: auto !important;
   }
 }
+
+
+/* Estimate PRO uses legacy ID-scoped light surfaces; override them at equal specificity. */
+html[data-theme="dark"] #view-projects .estimate-pro-panel,
+html[data-theme="dark"] #view-projects .estimate-duration-panel,
+html[data-theme="dark"] #view-projects .estimate-calibration-panel,
+html[data-theme="dark"] #view-projects .estimate-actual-panel,
+html[data-theme="dark"] #view-projects .estimate-subpanel,
+html[data-theme="dark"] #view-projects .estimate-advisor {
+  background: var(--st-surface) !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink) !important;
+  box-shadow: var(--st-shadow-panel) !important;
+}
+html[data-theme="dark"] #view-projects .estimate-pro-head {
+  background: var(--st-surface-raised) !important;
+  border-color: var(--st-line) !important;
+}
+html[data-theme="dark"] #view-projects :where(
+  .estimate-add-row, .estimate-table-wrap, .estimate-catalog-panel,
+  .estimate-payroll-preview, .estimate-pro-results > div,
+  .estimate-actual-results > div
+) {
+  background: var(--st-surface-raised) !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] #view-projects .estimate-pro-results > div.estimate-price {
+  background: color-mix(in srgb, var(--st-surface-raised) 86%, #d66f4c 14%) !important;
+  border-color: color-mix(in srgb, var(--st-line-strong) 65%, #d66f4c 35%) !important;
+}
+html[data-theme="dark"] #view-projects .notice.inline-notice,
+html[data-theme="dark"] #view-projects .estimate-risk-note,
+html[data-theme="dark"] #view-projects .estimate-risk-alert {
+  background: var(--st-surface-raised) !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] #view-projects .estimate-risk-alert.danger {
+  background: color-mix(in srgb, var(--st-surface-raised) 86%, #d64b52 14%) !important;
+}
+html[data-theme="dark"] #view-projects .estimate-risk-alert.warning {
+  background: color-mix(in srgb, var(--st-surface-raised) 88%, #d39a3f 12%) !important;
+}
+html[data-theme="dark"] #view-projects :where(
+  .estimate-pro-head h3, .object-block-title strong,
+  .estimate-subhead h4, .estimate-catalog-head h4,
+  .estimate-pro-results strong, .estimate-actual-results strong,
+  .estimate-payroll-preview strong, .estimate-advice strong
+) {
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] #view-projects :where(
+  .estimate-pro-head p, .estimate-pro-head .eyebrow,
+  .object-block-title small, .estimate-subhead p,
+  .estimate-catalog-head p, .estimate-pro-results span,
+  .estimate-pro-results small, .estimate-actual-results span,
+  .estimate-hint, .estimate-footer small
+) {
+  color: var(--st-muted) !important;
+}
+html[data-theme="dark"] #view-projects .object-block-title {
+  border-color: var(--st-line) !important;
+}
+html[data-theme="dark"] #view-projects .object-block-title > span:first-child {
+  background: color-mix(in srgb, var(--st-accent) 12%, var(--st-surface)) !important;
+  border-color: color-mix(in srgb, var(--st-accent) 28%, var(--st-line)) !important;
+  color: var(--st-accent) !important;
+}
+html[data-theme="dark"] #view-projects .estimate-meta-grid label,
+html[data-theme="dark"] #view-projects .estimate-add-row label,
+html[data-theme="dark"] #view-projects .estimate-input-grid label,
+html[data-theme="dark"] #view-projects .estimate-actual-inputs label,
+html[data-theme="dark"] #view-projects .estimate-calibration-grid label,
+html[data-theme="dark"] #view-projects .estimate-duration-controls label {
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] #view-projects :where(
+  .estimate-meta-grid input, .estimate-meta-grid select,
+  .estimate-add-row select, .estimate-input-grid input,
+  .estimate-input-grid select, .estimate-actual-inputs input,
+  .estimate-calibration-grid input, .estimate-calibration-grid select,
+  .estimate-duration-controls input, .estimate-duration-controls select,
+  .estimate-lines-table input
+) {
+  background: var(--st-surface-muted) !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] #view-projects .estimate-lines-table th {
+  background: var(--st-surface-muted) !important;
+  color: var(--st-muted) !important;
+  border-color: var(--st-line) !important;
+}
+html[data-theme="dark"] #view-projects .estimate-lines-table td {
+  background: var(--st-surface) !important;
+  color: var(--st-ink-soft) !important;
+  border-color: var(--st-line) !important;
+}
+html[data-theme="dark"] #view-projects #projectSearch {
+  background: var(--st-surface-muted) !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink) !important;
+}
