@@ -147,5 +147,5 @@ test('engineering workspace separates inputs, assumptions and calculated output'
   assert.ok(css.includes('@media (max-width: 1180px)'));
   assert.ok(html.includes('id="engCalculateBtn"'));
   assert.ok(html.includes('id="engWarnings"'));
-  assert.ok(html.includes('id="engProjectPlanCalendar"') === false || html.includes('id="engProjectCalendar"'));
+  assert.ok(html.includes('id="engProjectCalendar"'));
 });
