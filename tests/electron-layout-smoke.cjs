@@ -140,6 +140,7 @@ async function collectGeometry(page, viewport, viewName) {
       const finance = style('.dashboard-finance-metrics');
       const chart = style('.dashboard-cashflow-chart');
       const chartBars = style('.dashboard-chart-bars');
+      const chartEmpty = style('.dashboard-chart-empty');
       const rings = style('.dashboard-rings-grid');
       const ringValue = style('.dashboard-ring-value');
       const panelHeading = style('.dashboard-panel-heading');
@@ -154,6 +155,7 @@ async function collectGeometry(page, viewport, viewName) {
         chartDisplay: chart?.display || null,
         chartColumns: columns(chart),
         chartBarsHeight: chartBars ? Number.parseFloat(chartBars.height) : 0,
+        chartEmptyDisplay: chartEmpty?.display || null,
         ringsDisplay: rings?.display || null,
         ringsColumns: columns(rings),
         ringValuePosition: ringValue?.position || null,
@@ -226,7 +228,11 @@ async function collectGeometry(page, viewport, viewName) {
     assert.equal(metrics.dashboardLayout.financeColumns, expectedFinanceColumns, 'dashboard finance metrics retain responsive columns: ' + JSON.stringify(metrics.dashboardLayout));
     assert.equal(metrics.dashboardLayout.chartDisplay, 'grid', 'dashboard cashflow chart retains CSS Grid in every theme');
     assert.equal(metrics.dashboardLayout.chartColumns, 6, 'dashboard cashflow chart retains six month columns');
-    assert.ok(metrics.dashboardLayout.chartBarsHeight >= (viewport.width <= 620 ? 64 : 78), 'dashboard chart bars retain measurable height: ' + JSON.stringify(metrics.dashboardLayout));
+    if (metrics.dashboardLayout.chartBarsHeight > 0) {
+      assert.ok(metrics.dashboardLayout.chartBarsHeight >= (viewport.width <= 620 ? 64 : 78), 'dashboard chart bars retain measurable height: ' + JSON.stringify(metrics.dashboardLayout));
+    } else {
+      assert.equal(metrics.dashboardLayout.chartEmptyDisplay, 'grid', 'empty dashboard cashflow state remains a centred grid item');
+    }
     assert.equal(metrics.dashboardLayout.ringsDisplay, 'grid', 'dashboard progress rings retain CSS Grid in every theme');
     assert.ok(metrics.dashboardLayout.ringsColumns >= 2, 'dashboard progress rings retain a visible multi-column layout');
     assert.equal(metrics.dashboardLayout.ringValuePosition, 'absolute', 'dashboard ring values remain centred over the SVG ring');
