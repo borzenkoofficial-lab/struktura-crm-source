@@ -285,7 +285,7 @@ async function run() {
     const leadDialog = page.locator('#leadDialog');
     await leadDialog.waitFor({ state: 'visible' });
     assert.equal(await leadDialog.evaluate(node => node.open), true, 'new lead dialog opens from the workspace');
-    await leadDialog.locator('[data-close="leadDialog"]').click();
+    await leadDialog.getByRole('button', { name: 'Отмена' }).click();
     await page.waitForFunction(() => !document.getElementById('leadDialog').open);
     await openView(page, 'dashboard');
 
