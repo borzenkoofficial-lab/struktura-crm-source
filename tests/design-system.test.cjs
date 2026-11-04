@@ -199,5 +199,6 @@ test('dark theme covers legacy PI summary, order evidence cards and inline notic
     assert.ok(css.includes('html[data-theme="dark"]') && css.includes(selector), 'missing dark-theme parity for ' + selector);
   }
   assert.ok(smoke.includes('.pi-home-summary,.pi-alert,.pi-no-alerts,.pi-order-summary'));
-  assert.ok(smoke.includes('.commercial-order-card,.notice.inline-notice'));
+  assert.ok(smoke.includes('.commercial-order-card'));
+  assert.ok(smoke.includes('.notice.inline-notice'));
 });
