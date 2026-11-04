@@ -103,3 +103,13 @@ These are real screenshot observations, not inferred issues. The current geometr
 - PI insights no longer open a floating panel automatically during routine background refresh. They remain available through the PI control; an explicit forced refresh can still open the panel.
 - The PI control is being restyled as a compact technical signal mark instead of a character mascot.
 - The workspace receives bottom safe-area padding so the fixed Dock does not sit on top of the final content.
+
+## Dock and overlay collision correction
+
+The desktop shell now reserves a dedicated bottom rail for the fixed Dock. The main workspace becomes the bounded scroll viewport, with a sticky page header; this prevents the Dock from covering the workspace content. The PI action remains in the reserved rail beside (not on top of) the Dock, and its expanded insight panel remains user-invoked.
+
+The real Electron geometry test now checks:
+- main workspace bottom edge versus Dock top edge;
+- PI popover remains collapsed during routine data refresh;
+- PI avatar does not intersect either Dock or workspace;
+- these assertions run for each workspace and viewport in the existing 1024×768, 1280×800, 1440×900 and 1920×1080 matrix.
