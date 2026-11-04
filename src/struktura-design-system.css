@@ -2858,3 +2858,37 @@ html[data-theme="dark"] .estimate-duration-controls select {
   border-color: var(--st-line-strong) !important;
   color: var(--st-ink) !important;
 }
+
+
+/* Settings workspace: place security beside the two compact operational cards. */
+#view-settings .settings-page-grid {
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr) !important;
+  align-items: stretch !important;
+  gap: 14px !important;
+}
+#view-settings .settings-page-grid > .settings-card:first-child {
+  grid-column: 1 !important;
+  grid-row: 1 / span 2 !important;
+}
+#view-settings .settings-page-grid > .settings-card:nth-child(2) {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+}
+#view-settings .settings-page-grid > .settings-card:nth-child(3) {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+}
+#view-settings .settings-card-body {
+  align-content: start;
+}
+@media (max-width: 760px) {
+  #view-settings .settings-page-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  #view-settings .settings-page-grid > .settings-card:first-child,
+  #view-settings .settings-page-grid > .settings-card:nth-child(2),
+  #view-settings .settings-page-grid > .settings-card:nth-child(3) {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+  }
+}
