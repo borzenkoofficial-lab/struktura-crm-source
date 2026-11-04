@@ -2473,7 +2473,7 @@ html[data-theme="light"] #skolDock.skol-dock {
   box-shadow: 0 14px 34px rgba(26,43,37,.16), inset 0 1px 0 rgba(255,255,255,.96) !important;
 }
 #skolDock .dock-brand { display: none !important; }
-#skolDock .dock-group { align-items:center !important; gap:4px !important; }
+#skolDock .dock-group { align-items:center !important; gap:3px !important; }
 #skolDock .dock-divider {
   height: 34px !important;
   margin: 0 2px !important;
