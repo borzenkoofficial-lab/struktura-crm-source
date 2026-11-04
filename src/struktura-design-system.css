@@ -1,0 +1,280 @@
+/* STRUKTURA SOURCE — technical premium design system
+   Foundation layer: semantic tokens, predictable surfaces and restrained motion.
+   Page-specific layouts and existing business workflows remain intact. */
+
+:root {
+  color-scheme: dark;
+  --st-bg: #10151c;
+  --st-shell: #141c25;
+  --st-surface: #1a2430;
+  --st-surface-raised: #202c39;
+  --st-surface-muted: #17212b;
+  --st-line: rgba(220, 231, 241, .105);
+  --st-line-strong: rgba(220, 231, 241, .18);
+  --st-ink: #edf2f5;
+  --st-ink-soft: #c2ccd4;
+  --st-muted: #8997a5;
+  --st-dim: #687785;
+  --st-accent: #b8e34a;
+  --st-accent-ink: #17220a;
+  --st-positive: #63c89a;
+  --st-warning: #e9b765;
+  --st-danger: #e77e83;
+  --st-info: #79b8e8;
+  --st-radius-sm: 9px;
+  --st-radius-md: 13px;
+  --st-radius-lg: 18px;
+  --st-radius-xl: 23px;
+  --st-shadow-panel: 0 14px 38px rgba(0, 0, 0, .16);
+  --st-shadow-float: 0 22px 56px rgba(0, 0, 0, .26);
+  --st-ease: cubic-bezier(.2, .75, .25, 1);
+  --st-fast: 140ms;
+  --st-normal: 220ms;
+  --st-slow: 360ms;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  background: var(--st-bg);
+  color: var(--st-ink);
+}
+html[data-theme="light"] {
+  color-scheme: light;
+  --st-bg: #f1f3f1;
+  --st-shell: #f8faf8;
+  --st-surface: #ffffff;
+  --st-surface-raised: #f7f9f7;
+  --st-surface-muted: #edf1ee;
+  --st-line: rgba(30, 45, 43, .105);
+  --st-line-strong: rgba(30, 45, 43, .18);
+  --st-ink: #202b2a;
+  --st-ink-soft: #43524f;
+  --st-muted: #687873;
+  --st-dim: #83918b;
+  --st-accent: #a4d52f;
+  --st-accent-ink: #202b10;
+  --st-positive: #25845b;
+  --st-warning: #a66b19;
+  --st-danger: #b64e56;
+  --st-info: #397cae;
+  --st-shadow-panel: 0 12px 32px rgba(28, 45, 39, .055);
+  --st-shadow-float: 0 20px 48px rgba(28, 45, 39, .12);
+}
+html[data-theme="dark"] body,
+html[data-theme="dark"] .app-shell {
+  background: var(--st-bg) !important;
+  color: var(--st-ink) !important;
+}
+html[data-theme="light"] body,
+html[data-theme="light"] .app-shell {
+  background: var(--st-bg) !important;
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] .app-shell {
+  background-image: radial-gradient(ellipse at 50% -34%, rgba(66, 91, 112, .19), transparent 58%) !important;
+}
+html[data-theme="light"] .app-shell {
+  background-image: linear-gradient(180deg, #f8faf8 0%, #eff2ef 100%) !important;
+}
+
+/* Shared application chrome */
+#skolDock {
+  border: 1px solid var(--st-line-strong) !important;
+  background: color-mix(in srgb, var(--st-shell) 92%, transparent) !important;
+  box-shadow: var(--st-shadow-float) !important;
+  backdrop-filter: blur(18px) saturate(125%);
+}
+html[data-theme="dark"] #skolDock { color: var(--st-ink); }
+html[data-theme="light"] #skolDock {
+  background: rgba(255,255,255,.94) !important;
+  border-color: rgba(36, 54, 48, .12) !important;
+  box-shadow: 0 15px 38px rgba(30,45,38,.13) !important;
+}
+#skolDock .dock-item {
+  transition: transform var(--st-normal) var(--st-ease), background var(--st-normal) var(--st-ease), color var(--st-normal) var(--st-ease), box-shadow var(--st-normal) var(--st-ease) !important;
+}
+#skolDock .dock-item:focus-visible,
+#skolDock button:focus-visible,
+.topbar button:focus-visible {
+  outline: 2px solid var(--st-accent) !important;
+  outline-offset: 3px !important;
+}
+.topbar {
+  border-bottom: 1px solid var(--st-line) !important;
+}
+.topbar h1 { color: var(--st-ink) !important; }
+.topbar .eyebrow, .today { color: var(--st-muted) !important; }
+#themeToggleBtn {
+  min-width: 112px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-color: var(--st-line-strong) !important;
+  background: var(--st-surface) !important;
+  color: var(--st-ink-soft) !important;
+}
+#themeToggleBtn:hover {
+  border-color: color-mix(in srgb, var(--st-accent) 55%, var(--st-line)) !important;
+  color: var(--st-ink) !important;
+}
+#themeToggleBtn .theme-toggle-glyph {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+/* Semantic surfaces */
+.panel, .records-panel, .record-detail-panel, .settings-card,
+.dashboard-finance-panel, .dashboard-progress-section,
+.dashboard-list-panel, .dashboard-attention-panel,
+.eng-card, .eng-stat, .production-card, .production-project-card,
+.pricing-card, .crawler-panel, .opportunity-radar, .order-radar-panel {
+  border-color: var(--st-line) !important;
+}
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .records-panel,
+html[data-theme="dark"] .record-detail-panel,
+html[data-theme="dark"] .settings-card,
+html[data-theme="dark"] .dashboard-finance-panel,
+html[data-theme="dark"] .dashboard-progress-section,
+html[data-theme="dark"] .dashboard-list-panel,
+html[data-theme="dark"] .dashboard-attention-panel,
+html[data-theme="dark"] .eng-card,
+html[data-theme="dark"] .production-card,
+html[data-theme="dark"] .production-project-card,
+html[data-theme="dark"] .crawler-panel,
+html[data-theme="dark"] .opportunity-radar,
+html[data-theme="dark"] .order-radar-panel {
+  background-color: var(--st-surface) !important;
+  color: var(--st-ink) !important;
+  box-shadow: var(--st-shadow-panel);
+}
+html[data-theme="light"] .panel,
+html[data-theme="light"] .records-panel,
+html[data-theme="light"] .record-detail-panel,
+html[data-theme="light"] .settings-card,
+html[data-theme="light"] .dashboard-finance-panel,
+html[data-theme="light"] .dashboard-progress-section,
+html[data-theme="light"] .dashboard-list-panel,
+html[data-theme="light"] .dashboard-attention-panel,
+html[data-theme="light"] .eng-card,
+html[data-theme="light"] .production-card,
+html[data-theme="light"] .production-project-card,
+html[data-theme="light"] .crawler-panel,
+html[data-theme="light"] .opportunity-radar,
+html[data-theme="light"] .order-radar-panel {
+  background-color: var(--st-surface) !important;
+  color: var(--st-ink) !important;
+  box-shadow: var(--st-shadow-panel);
+}
+.panel-head h3, .section-head h3, .dashboard-panel-heading h3,
+.dashboard-toolbar h3, .record-detail-panel h3,
+.settings-page-heading h2, .eng-card-head h3 {
+  color: var(--st-ink) !important;
+}
+.panel-head p, .section-head p, .dashboard-panel-heading p,
+.dashboard-toolbar p, .record-detail-panel p, .empty-state span {
+  color: var(--st-muted) !important;
+}
+.button, input, select, textarea {
+  border-radius: var(--st-radius-sm);
+}
+.button {
+  transition: transform var(--st-fast) var(--st-ease),
+    background-color var(--st-fast) var(--st-ease),
+    border-color var(--st-fast) var(--st-ease),
+    box-shadow var(--st-fast) var(--st-ease),
+    color var(--st-fast) var(--st-ease) !important;
+}
+.button:active { transform: translateY(0) scale(.985); }
+.button.primary, .button.hero-primary {
+  background: var(--st-accent) !important;
+  border-color: var(--st-accent) !important;
+  color: var(--st-accent-ink) !important;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--st-accent) 17%, transparent) !important;
+}
+input, select, textarea {
+  border-color: var(--st-line-strong) !important;
+}
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea {
+  background: #111a23 !important;
+  color: var(--st-ink) !important;
+}
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea {
+  background: #fff !important;
+  color: var(--st-ink) !important;
+}
+input::placeholder, textarea::placeholder { color: var(--st-dim) !important; }
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--st-surface-muted) !important;
+  color: var(--st-muted) !important;
+}
+html[data-theme="dark"] .data-table td { border-bottom-color: var(--st-line) !important; color: var(--st-ink-soft); }
+html[data-theme="light"] .data-table td { border-bottom-color: var(--st-line) !important; color: var(--st-ink-soft); }
+html[data-theme="dark"] .data-table tbody tr:hover td { background: #253342 !important; }
+html[data-theme="light"] .data-table tbody tr:hover td { background: #f0f5e6 !important; }
+html[data-theme="dark"] .data-table tbody tr.is-selected td { background: #2b3a43 !important; color: var(--st-ink) !important; }
+html[data-theme="light"] .data-table tbody tr.is-selected td { background: #eaf3d8 !important; color: var(--st-ink) !important; }
+
+/* Signature: drafting-grid details, only on the working canvas. */
+.view.active {
+  animation: st-view-enter var(--st-slow) var(--st-ease) both !important;
+}
+@keyframes st-view-enter {
+  from { opacity: 0; transform: translate3d(0, 7px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+.view.active::before {
+  content: "";
+  display: block;
+  width: 38px;
+  height: 1px;
+  margin: 0 0 12px;
+  background: linear-gradient(90deg, var(--st-accent), transparent);
+  opacity: .72;
+}
+.dashboard-kpi-card, .dashboard-ring-card, .dashboard-money-card,
+.records-list .data-table tbody tr, .dock-item {
+  transition: transform var(--st-normal) var(--st-ease),
+    background-color var(--st-normal) var(--st-ease),
+    border-color var(--st-normal) var(--st-ease),
+    box-shadow var(--st-normal) var(--st-ease) !important;
+}
+.dashboard-kpi-card:hover, .dashboard-ring-card:hover, .dashboard-money-card:hover {
+  transform: translateY(-2px);
+}
+.toast { border: 1px solid var(--st-line-strong); box-shadow: var(--st-shadow-float); }
+dialog::backdrop { background: rgba(5, 10, 15, .58); backdrop-filter: blur(4px); }
+dialog[open] { animation: st-dialog-in var(--st-normal) var(--st-ease) both; }
+@keyframes st-dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (max-width: 980px) {
+  .topbar { align-items: flex-start; flex-wrap: wrap; }
+  .top-actions { gap: 7px; }
+  #themeToggleBtn { min-width: 40px; padding-inline: 10px; }
+  #themeToggleBtn .theme-toggle-label { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .view.active, dialog[open] { animation: none !important; }
+  .view.active::before { display: none; }
+  .button, .dashboard-kpi-card, .dashboard-ring-card,
+  .dashboard-money-card, .records-list .data-table tbody tr,
+  .dock-item { transition: none !important; }
+  .button:hover, .dashboard-kpi-card:hover,
+  .dashboard-ring-card:hover, .dashboard-money-card:hover {
+    transform: none !important;
+  }
+}
