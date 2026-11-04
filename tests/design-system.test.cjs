@@ -8,6 +8,7 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const renderer = fs.readFileSync(path.join(root, 'renderer.js'), 'utf8');
 const boot = fs.readFileSync(path.join(root, 'theme-boot.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'struktura-design-system.css'), 'utf8');
+const smoke = fs.readFileSync(path.join(__dirname, 'electron-layout-smoke.cjs'), 'utf8');
 
 test('theme bootstrap runs before styles to prevent first-paint theme flash', () => {
   assert.ok(html.indexOf('theme-boot.js') < html.indexOf('styles.css'));
@@ -45,4 +46,11 @@ test('PI companion does not automatically cover workspaces and uses a technical 
   assert.ok(html.includes('class="pi-avatar-mark"'));
   assert.ok(!html.includes('class="pi-avatar-face"'));
   assert.ok(css.includes('.main { padding-bottom: 104px !important; }'));
+});
+
+test('real Electron geometry smoke guards the Dock rail and PI companion against overlap', () => {
+  assert.ok(smoke.includes('metrics.mainBounds.bottom <= metrics.dockBounds.top + 1'));
+  assert.ok(smoke.includes('metrics.piPopoverHidden'));
+  assert.ok(smoke.includes('metrics.piAvatarOverlapsDock'));
+  assert.ok(smoke.includes('metrics.piAvatarOverlapsWorkspace'));
 });
