@@ -2622,3 +2622,59 @@ html[data-theme="light"] #skolDock .dock-label { background:#24312f !important; 
   #skolDock.skol-dock { min-height:54px !important; padding:3px 7px !important; }
   #skolDock .dock-item { height:44px !important; min-height:44px !important; }
 }
+
+/* Readability refinement: data density stays high without sacrificing legibility. */
+.data-table {
+  font-size: 13px !important;
+  font-variant-numeric: tabular-nums;
+}
+.data-table thead th {
+  padding: 12px 14px !important;
+  font-size: 10px !important;
+  letter-spacing: .075em !important;
+}
+.data-table tbody td {
+  padding: 12px 14px !important;
+  line-height: 1.5 !important;
+}
+.form-field label,
+.form-field > label,
+.field-label {
+  display: inline-block;
+  margin-bottom: 7px;
+  color: var(--st-ink-soft);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+.view :where(input:not([type="checkbox"]):not([type="radio"]),select) {
+  min-height: 40px;
+  padding-inline: 12px;
+}
+.view textarea {
+  min-height: 96px;
+  padding: 11px 12px;
+  resize: vertical;
+}
+.view :where(button,.button) {
+  min-height: 38px;
+}
+dialog[open] {
+  color: var(--st-ink);
+  border: 1px solid var(--st-line-strong);
+  border-radius: var(--st-radius-xl);
+  box-shadow: var(--st-shadow-float);
+}
+dialog :where(input,select,textarea) {
+  max-width: 100%;
+}
+@media (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .view :where(.panel,.settings-card,.project-card,.client-card):hover {
+    border-color: color-mix(in srgb, var(--st-accent) 25%, var(--st-line)) !important;
+  }
+}
+@media (max-width: 760px) {
+  .data-table thead th { padding: 10px 11px !important; }
+  .data-table tbody td { padding: 11px !important; }
+  .view :where(input:not([type="checkbox"]):not([type="radio"]),select) { min-height: 42px; }
+}
