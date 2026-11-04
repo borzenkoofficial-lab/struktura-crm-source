@@ -124,10 +124,37 @@ async function collectGeometry(page, viewport, viewName) {
     const dashboardRecentGrid = recentGrid ? {
       display: recentGridStyle.display,
       gridTemplateColumns: recentGridStyle.gridTemplateColumns,
-      columnCount: recentGridStyle.gridTemplateColumns.split(' ').filter(Boolean).length,
+      columnCount: recentGridStyle.gridTemplateColumns.split(/\\s+/).filter(Boolean).length,
       cards: [...recentGrid.children].map(rect),
       surfaces: [...recentGrid.querySelectorAll('.table-wrap')].map(element => getComputedStyle(element).backgroundColor)
     } : null;
+    const dashboardLayout = active?.id === 'view-dashboard' ? (() => {
+      const style = selector => {
+        const element = active.querySelector(selector);
+        return element ? getComputedStyle(element) : null;
+      };
+      const columns = value => value ? value.gridTemplateColumns.split(/\\s+/).filter(Boolean).length : 0;
+      const toolbar = style('.dashboard-toolbar');
+      const toolbarActions = style('.dashboard-toolbar-actions');
+      const kpis = style('.dashboard-kpis');
+      const finance = style('.dashboard-finance-metrics');
+      const chart = style('.dashboard-cashflow-chart');
+      const rings = style('.dashboard-rings-grid');
+      const attention = style('.dashboard-attention-list');
+      return {
+        toolbarDisplay: toolbar?.display || null,
+        toolbarActionsDisplay: toolbarActions?.display || null,
+        kpiDisplay: kpis?.display || null,
+        kpiColumns: columns(kpis),
+        financeDisplay: finance?.display || null,
+        financeColumns: columns(finance),
+        chartDisplay: chart?.display || null,
+        chartColumns: columns(chart),
+        ringsDisplay: rings?.display || null,
+        ringsColumns: columns(rings),
+        attentionDisplay: attention?.display || null
+      };
+    })() : null;
     const avatarBounds = avatarElement ? rect(avatarElement) : null;
     const intersects = (a, b) => Boolean(a && b && Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1);
     const piPopoverHidden = !popoverElement || popoverElement.hidden;
@@ -162,6 +189,7 @@ async function collectGeometry(page, viewport, viewName) {
       mainBounds,
       mainScrollTop,
       dashboardRecentGrid,
+      dashboardLayout,
       dockBounds,
       avatarBounds,
       piPopoverHidden,
@@ -180,7 +208,21 @@ async function collectGeometry(page, viewport, viewName) {
   assert.ok(metrics.activeBounds && metrics.activeBounds.left >= -1 && metrics.activeBounds.right <= viewport.width + 1, viewName + ': active workspace must remain inside the window');
   assert.ok(metrics.mainScrollTop !== null && metrics.mainScrollTop <= 1, viewName + ': every workspace must begin at the top after navigation: ' + metrics.mainScrollTop);
   if (viewName === 'dashboard') {
-    const expectedColumns = viewport.width > 1100 ? 2 : 1;
+    const expectedColumns = viewport.width > 840 ? 2 : 1;
+    const expectedKpiColumns = viewport.width <= 1180 ? 2 : 4;
+    const expectedFinanceColumns = viewport.width <= 620 ? 1 : 3;
+    assert.ok(metrics.dashboardLayout, 'dashboard must expose its shared layout geometry');
+    assert.equal(metrics.dashboardLayout.toolbarDisplay, 'flex', 'dashboard toolbar remains a flex row/column in every theme');
+    assert.equal(metrics.dashboardLayout.toolbarActionsDisplay, 'flex', 'dashboard period and action controls retain flex layout');
+    assert.equal(metrics.dashboardLayout.kpiDisplay, 'grid', 'dashboard KPI cards retain CSS Grid in every theme');
+    assert.equal(metrics.dashboardLayout.kpiColumns, expectedKpiColumns, 'dashboard KPI column count follows its responsive breakpoint: ' + JSON.stringify(metrics.dashboardLayout));
+    assert.equal(metrics.dashboardLayout.financeDisplay, 'grid', 'dashboard finance metrics retain CSS Grid in every theme');
+    assert.equal(metrics.dashboardLayout.financeColumns, expectedFinanceColumns, 'dashboard finance metrics retain responsive columns: ' + JSON.stringify(metrics.dashboardLayout));
+    assert.equal(metrics.dashboardLayout.chartDisplay, 'grid', 'dashboard cashflow chart retains CSS Grid in every theme');
+    assert.equal(metrics.dashboardLayout.chartColumns, 6, 'dashboard cashflow chart retains six month columns');
+    assert.equal(metrics.dashboardLayout.ringsDisplay, 'grid', 'dashboard progress rings retain CSS Grid in every theme');
+    assert.ok(metrics.dashboardLayout.ringsColumns >= 2, 'dashboard progress rings retain a visible multi-column layout');
+    assert.equal(metrics.dashboardLayout.attentionDisplay, 'flex', 'dashboard attention list retains its vertical flex layout');
     assert.ok(metrics.dashboardRecentGrid, 'dashboard recent-records grid must exist');
     assert.equal(metrics.dashboardRecentGrid.display, 'grid', 'dashboard recent-records wrapper must use CSS Grid in the active theme');
     assert.equal(metrics.dashboardRecentGrid.columnCount, expectedColumns, 'dashboard recent-records grid must use the expected responsive column count: ' + JSON.stringify(metrics.dashboardRecentGrid));
