@@ -102,9 +102,9 @@ test('lead, client and project rows are keyboard-selectable and expose selection
   for (const kind of ['lead', 'client', 'project']) {
     assert.ok(renderer.includes('data-record-kind="' + kind + '"'));
   }
-  assert.ok(renderer.includes('tabindex="0" aria-selected='));
+  assert.ok(renderer.includes('tabindex="0" aria-current='));
   assert.ok(renderer.includes("document.addEventListener('keydown', event => {"));
-  assert.ok(renderer.includes("row.setAttribute('aria-selected', String(selected))"));
+  assert.ok(renderer.includes("row.setAttribute('aria-current', String(selected))"));
 });
 
 test('record tables use sticky semantic headers and visible selection/focus states', () => {
