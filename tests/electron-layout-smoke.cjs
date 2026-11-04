@@ -315,6 +315,26 @@ async function run() {
     const persistedDashboardLayout = await page.evaluate(() => JSON.parse(localStorage.getItem('struktura-dashboard-layout-v1') || 'null'));
     assert.equal(persistedDashboardLayout?.preset, 'overview', 'workspace preset is persisted locally');
     assert.deepEqual(persistedDashboardLayout?.hidden, [], 'overview restores all dashboard widgets');
+
+    // Save, alter and restore a named custom workspace in the real Electron renderer.
+    await dashboardDialog.locator('#dashboardWorkspaceName').fill('Ежедневный контроль');
+    await dashboardDialog.locator('#dashboardWorkspaceSave').click();
+    const savedWorkspaceRecords = await page.evaluate(() => JSON.parse(localStorage.getItem('struktura-dashboard-workspaces-v1') || '[]'));
+    assert.equal(savedWorkspaceRecords.length, 1, 'named workspace is persisted locally');
+    assert.equal(savedWorkspaceRecords[0].name, 'Ежедневный контроль', 'saved workspace retains its user-defined name');
+    await dashboardDialog.locator('[data-dashboard-preset="sales"]').click();
+    await dashboardDialog.locator('#dashboardWorkspaceSelect').selectOption({ label: 'Ежедневный контроль' });
+    await dashboardDialog.locator('#dashboardWorkspaceLoad').click();
+    const restoredNamedLayout = await page.locator('#dashboardWidgetGrid').evaluate(grid => ({
+      order: [...grid.querySelectorAll('[data-dashboard-widget]')].map(node => node.dataset.dashboardWidget),
+      hidden: [...grid.querySelectorAll('[data-dashboard-widget][hidden]')].map(node => node.dataset.dashboardWidget)
+    }));
+    assert.deepEqual(restoredNamedLayout.order, ['kpis', 'attention', 'finance', 'pipeline', 'portfolio', 'progress', 'recent'], 'named workspace restores its saved widget order');
+    assert.deepEqual(restoredNamedLayout.hidden, [], 'named workspace restores its saved visibility');
+    await dashboardDialog.locator('#dashboardWorkspaceDelete').click();
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('struktura-dashboard-workspaces-v1') || '[]').length), 0, 'named workspace can be deleted');
+    assert.equal(await dashboardDialog.locator('#dashboardWorkspaceLoad').isDisabled(), true, 'load action is disabled when no saved workspace is selected');
+
     await dashboardDialog.locator('#dashboardCustomizeDone').click();
     await page.waitForFunction(() => !document.getElementById('dashboardCustomizeDialog').open);
 
