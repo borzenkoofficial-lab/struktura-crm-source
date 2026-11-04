@@ -294,10 +294,14 @@ function contrastRatio(foreground, background) {
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+}
+
 function themeToken(selector, token) {
-  const section = css.match(new RegExp(selector + String.raw`\\s*\\{([\\s\\S]*?)\\}`));
+  const section = css.match(new RegExp(escapeRegExp(selector) + '\\\\s*\\\\{([^}]*)\\\\}'));
   assert.ok(section, 'theme token section exists: ' + selector);
-  const match = section[1].match(new RegExp(token + String.raw`:\\s*(#[0-9a-fA-F]{6})`));
+  const match = section[1].match(new RegExp(escapeRegExp(token) + ':\\\\s*(#[0-9a-fA-F]{6})'));
   assert.ok(match, 'theme token exists: ' + token);
   return match[1];
 }
