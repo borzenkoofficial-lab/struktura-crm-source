@@ -282,3 +282,36 @@ test('Windows installer validation runs for test-branch pushes as well as pull r
   assert.ok(workflow.includes("github.event_name == 'push' && startsWith(github.ref, 'refs/heads/test/')"));
   assert.ok(workflow.includes("github.event_name == 'pull_request'"));
 });
+
+function luminance(hex) {
+  const channels = hex.replace('#', '').match(/.{2}/g).map(value => parseInt(value, 16) / 255);
+  const linear = channels.map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+function contrastRatio(foreground, background) {
+  const values = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+  return (values[0] + 0.05) / (values[1] + 0.05);
+}
+
+function themeToken(selector, token) {
+  const section = css.match(new RegExp(selector + String.raw`\\s*\\{([\\s\\S]*?)\\}`));
+  assert.ok(section, 'theme token section exists: ' + selector);
+  const match = section[1].match(new RegExp(token + String.raw`:\\s*(#[0-9a-fA-F]{6})`));
+  assert.ok(match, 'theme token exists: ' + token);
+  return match[1];
+}
+
+test('muted and dim text meet WCAG AA contrast on their theme surfaces', () => {
+  const themes = [
+    { selector: ':root', background: '#10151c', surface: '#1a2430' },
+    { selector: 'html\\[data-theme="light"\\]', background: '#f1f3f1', surface: '#ffffff' }
+  ];
+  for (const theme of themes) {
+    for (const token of ['--st-muted', '--st-dim']) {
+      const color = themeToken(theme.selector, token);
+      assert.ok(contrastRatio(color, theme.background) >= 4.5, token + ' must meet 4.5:1 on theme background');
+      assert.ok(contrastRatio(color, theme.surface) >= 4.5, token + ' must meet 4.5:1 on theme surface');
+    }
+  }
+});
