@@ -2369,3 +2369,21 @@ html[data-theme="dark"] #view-prospects .domain-query strong {
 .dashboard-kpi-options input{accent-color:var(--st-accent)}
 .dashboard-kpi-card[hidden]{display:none!important}
 @media(max-width:700px){.dashboard-chart-heading{align-items:flex-start;flex-direction:column}.dashboard-chart-controls{justify-content:flex-start;width:100%}.dashboard-kpi-options{grid-template-columns:1fr}}
+
+/* Dashboard workspace presets and information density */
+.dashboard-workspace-presets,.dashboard-density-setting{display:grid;gap:10px;padding:14px 0;border-bottom:1px solid var(--st-line)}
+.dashboard-workspace-presets>div:first-child,.dashboard-density-setting>div:first-child{display:grid;gap:4px}
+.dashboard-workspace-presets strong,.dashboard-density-setting strong{font-size:13px;color:var(--st-ink)}
+.dashboard-workspace-presets small,.dashboard-density-setting small{font-size:11px;color:var(--st-muted)}
+.dashboard-preset-actions,.dashboard-density-actions{display:flex;gap:7px;flex-wrap:wrap}
+.dashboard-preset-actions button,.dashboard-density-actions button{padding:8px 12px;border:1px solid var(--st-line);border-radius:9px;background:var(--st-surface-raised);color:var(--st-muted);font:inherit;font-size:12px;cursor:pointer}
+.dashboard-preset-actions button[aria-pressed="true"],.dashboard-density-actions button[aria-pressed="true"]{border-color:var(--st-accent);background:color-mix(in srgb,var(--st-accent) 10%,var(--st-surface));color:var(--st-ink)}
+.dashboard-density-compact{gap:9px}
+.dashboard-density-compact .dashboard-chart-widget,.dashboard-density-compact .dashboard-progress-section,.dashboard-density-compact .dashboard-bottom-grid{padding:12px}
+.dashboard-density-compact .dashboard-widget-grid{gap:9px}
+.dashboard-density-compact .dashboard-horizontal-chart{gap:7px;margin-top:11px}
+.dashboard-density-compact .dashboard-horizontal-track{height:6px}
+.dashboard-density-compact .dashboard-panel-heading{margin-bottom:10px}
+.dashboard-density-compact .dashboard-ring-card{padding:10px}
+.dashboard-density-compact .dashboard-widget-grid .panel{padding:12px}
+@media(max-width:700px){.dashboard-preset-actions button,.dashboard-density-actions button{flex:1}}

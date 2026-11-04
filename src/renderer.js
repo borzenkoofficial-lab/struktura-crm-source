@@ -954,10 +954,10 @@ let dashboardEditMode = false;
 function dashboardLoadLayout() {
  try {
   const saved=JSON.parse(localStorage.getItem(DASHBOARD_LAYOUT_KEY)||'null');
-  if(!saved||saved.version!==1) return {version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']}};
+  if(!saved||saved.version!==1) return {version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']},density:'comfortable',preset:'overview'};
   const order=[...(Array.isArray(saved.order)?saved.order.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)):[]),...DASHBOARD_DEFAULT_ORDER.filter(id=>!saved.order?.includes(id))];
-  return {version:1,order,hidden:Array.isArray(saved.hidden)?saved.hidden.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)):[],sizes:saved.sizes&&typeof saved.sizes==='object'?saved.sizes:{},preferences:{kpis:Array.isArray(saved.preferences?.kpis)?saved.preferences.kpis.filter(id=>['leads','projects','clients','people'].includes(id)):['leads','projects','clients','people']}};
- } catch { return {version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']}}; }
+  return {version:1,order,hidden:Array.isArray(saved.hidden)?saved.hidden.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)):[],sizes:saved.sizes&&typeof saved.sizes==='object'?saved.sizes:{},preferences:{kpis:Array.isArray(saved.preferences?.kpis)?saved.preferences.kpis.filter(id=>['leads','projects','clients','people'].includes(id)):['leads','projects','clients','people']},density:saved.density==='compact'?'compact':'comfortable',preset:['overview','sales','finance'].includes(saved.preset)?saved.preset:'overview'};
+ } catch { return {version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']},density:'comfortable',preset:'overview'}; }
 }
 function dashboardSaveLayout() {
  try { localStorage.setItem(DASHBOARD_LAYOUT_KEY,JSON.stringify(dashboardLayout)); }
@@ -989,6 +989,9 @@ function dashboardRenderEditControls() {
 }
 function dashboardApplyLayout() {
  const grid=$('dashboardWidgetGrid'); if(!grid)return;
+ grid.classList.toggle('dashboard-density-compact',dashboardLayout.density==='compact');
+ document.querySelectorAll('[data-dashboard-density]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.dashboardDensity===dashboardLayout.density)));
+ document.querySelectorAll('[data-dashboard-preset]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.dashboardPreset===dashboardLayout.preset)));
  for(const id of dashboardLayout.order) {
   const widget=grid.querySelector('[data-dashboard-widget="'+id+'"]'); if(!widget)continue;
   grid.append(widget); widget.hidden=dashboardLayout.hidden.includes(id);
@@ -1031,13 +1034,30 @@ function dashboardInitCustomizer() {
  $('dashboardCustomizeBtn')?.addEventListener('click',dashboardOpenCustomizer);
  $('dashboardCustomizeClose')?.addEventListener('click',dashboardCloseCustomizer);
  $('dashboardCustomizeDone')?.addEventListener('click',dashboardCloseCustomizer);
- $('dashboardLayoutReset')?.addEventListener('click',()=>{dashboardLayout={version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']}};dashboardSaveLayout();dashboardApplyLayout();});
+ $('dashboardLayoutReset')?.addEventListener('click',()=>{dashboardLayout={version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']},density:'comfortable',preset:'overview'};dashboardSaveLayout();dashboardApplyLayout();});
  $('dashboardWidgetCatalog')?.addEventListener('change',event=>{
   const input=event.target.closest('[data-dashboard-widget-toggle]');if(!input)return;
   const id=input.dataset.dashboardWidgetToggle;
   dashboardLayout.hidden=input.checked?dashboardLayout.hidden.filter(item=>item!==id):[...new Set([...dashboardLayout.hidden,id])];
   dashboardSaveLayout();dashboardApplyLayout();
  });
+ document.querySelectorAll('[data-dashboard-preset]').forEach(button=>button.addEventListener('click',()=>{
+  const preset=button.dataset.dashboardPreset;
+  const presets={
+   overview:{order:[...DASHBOARD_DEFAULT_ORDER],hidden:[]},
+   sales:{order:['kpis','pipeline','attention','progress','projects','tasks','cashflow'],hidden:['cashflow']},
+   finance:{order:['cashflow','kpis','projects','progress','pipeline','attention','tasks'],hidden:['pipeline','attention']}
+  };
+  const config=presets[preset];if(!config)return;
+  dashboardLayout.preset=preset;
+  dashboardLayout.order=[...config.order,...DASHBOARD_DEFAULT_ORDER.filter(id=>!config.order.includes(id))];
+  dashboardLayout.hidden=[...config.hidden];
+  dashboardSaveLayout();dashboardApplyLayout();
+ }));
+ document.querySelectorAll('[data-dashboard-density]').forEach(button=>button.addEventListener('click',()=>{
+  dashboardLayout.density=button.dataset.dashboardDensity==='compact'?'compact':'comfortable';
+  dashboardSaveLayout();dashboardApplyLayout();
+ }));
  $('dashboardKpiPreferences')?.addEventListener('change',event=>{
   const input=event.target.closest('[data-dashboard-kpi]');if(!input)return;
   const id=input.dataset.dashboardKpi;
@@ -1069,7 +1089,7 @@ function dashboardInitCustomizer() {
    dashboardSaveLayout();dashboardApplyLayout();
   } else if(event.target.closest('.dashboard-move-up')) {
    const previous=widget.previousElementSibling;
-   if(previous){widget.parentElement.insertBefore(widget,previous);dashboardLayout.order=[...$('dashboardWidgetGrid').querySelectorAll('[data-dashboard-widget]')].map(item=>item.dataset.dashboardWidget);dashboardSaveLayout();}
+   if(previous){widget.parentElement.insertBefore(widget,previous);dashboardLayout.order=[...$('dashboardWidgetGrid').querySelectorAll('[data-dashboard-widget]')].map(item=>item.dataset.dashboardWidget);dashboardLayout.preset='';dashboardSaveLayout();}
   } else if(event.target.closest('.dashboard-move-down')) {
    const next=widget.nextElementSibling;
    if(next){widget.parentElement.insertBefore(next,widget);dashboardLayout.order=[...$('dashboardWidgetGrid').querySelectorAll('[data-dashboard-widget]')].map(item=>item.dataset.dashboardWidget);dashboardSaveLayout();}

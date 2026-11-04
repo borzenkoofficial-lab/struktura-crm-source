@@ -247,3 +247,14 @@ test('dashboard widgets can be reordered without drag and drop using accessible 
  assert.ok(renderer.includes('dashboardLayout.order='));
  assert.ok(renderer.includes('aria-label="Переместить блок выше"'));
 });
+
+
+test('dashboard exposes persistent workspace presets and information density controls', () => {
+ assert.ok(html.includes('data-dashboard-preset="overview"'));
+ assert.ok(html.includes('data-dashboard-preset="sales"'));
+ assert.ok(html.includes('data-dashboard-preset="finance"'));
+ assert.ok(html.includes('data-dashboard-density="compact"'));
+ assert.ok(renderer.includes("dashboardLayout.preset=preset"));
+ assert.ok(renderer.includes("dashboardLayout.density=button.dataset.dashboardDensity"));
+ assert.ok(css.includes('.dashboard-density-compact'));
+});
