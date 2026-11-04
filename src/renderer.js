@@ -1074,6 +1074,17 @@ function renderDashboardSnapshot(snapshot) {
 }
 async function refreshDashboard() {
   if (dashboardRefreshPromise) return dashboardRefreshPromise;
+  const dashboardView = $('view-dashboard');
+  const refreshButton = $('refreshBtn');
+  const originalRefreshMarkup = refreshButton?.innerHTML;
+  const dataStatus = $('dashboardDataStatus');
+  dashboardView?.setAttribute('aria-busy', 'true');
+  if (refreshButton) {
+    refreshButton.disabled = true;
+    refreshButton.setAttribute('aria-busy', 'true');
+    refreshButton.innerHTML = '<span class="dashboard-refresh-glyph" aria-hidden="true">↻</span> Обновляем';
+  }
+  if (dataStatus) dataStatus.textContent = 'Сверяем записи локальной базы…';
   dashboardRefreshPromise = (async () => {
     const loaders = {
       summary: () => window.crm.summary(),
@@ -1112,8 +1123,20 @@ async function refreshDashboard() {
     refreshPiCoach().catch(() => {});
     return snapshot;
   })();
-  try { return await dashboardRefreshPromise; }
-  finally { dashboardRefreshPromise = null; }
+  try {
+    return await dashboardRefreshPromise;
+  } catch (error) {
+    if (dataStatus) dataStatus.textContent = 'Не удалось обновить обзор. Проверь локальную базу и повтори попытку.';
+    throw error;
+  } finally {
+    dashboardRefreshPromise = null;
+    dashboardView?.removeAttribute('aria-busy');
+    if (refreshButton) {
+      refreshButton.disabled = false;
+      refreshButton.removeAttribute('aria-busy');
+      refreshButton.innerHTML = originalRefreshMarkup || '↻ Обновить';
+    }
+  }
 }
 const recordCaches = { leads: [], clients: [], projects: [] };
 const selectedRecordIds = { leads: null, clients: null, projects: null };
