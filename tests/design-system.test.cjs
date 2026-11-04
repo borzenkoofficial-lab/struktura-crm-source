@@ -56,3 +56,14 @@ test('real Electron geometry smoke guards the Dock rail and PI companion against
   assert.ok(smoke.includes('metrics.piAvatarOverlapsDock'));
   assert.ok(smoke.includes('metrics.piAvatarOverlapsWorkspace'));
 });
+
+test('dark theme explicitly covers legacy light surfaces in core workspaces', () => {
+  for (const selector of [
+    'html[data-theme="dark"] #view-leads .records-panel',
+    'html[data-theme="dark"] #view-engineering .eng-card',
+    'html[data-theme="dark"] #view-finance .finance-card',
+    'html[data-theme="dark"] #view-settings .settings-card',
+    'html[data-theme="dark"] #view-browser .browser-inspector'
+  ]) assert.ok(css.includes(selector), 'missing dark surface override: ' + selector);
+  assert.ok(smoke.includes('themeSurfaceLeaks'));
+});
