@@ -3023,3 +3023,256 @@ html[data-theme="dark"] #view-projects #projectSearch {
     display: inline-flex !important;
   }
 }
+
+
+/* Shared dashboard geometry.
+   The dashboard's layout must not disappear when the light colourway stylesheet
+   is disabled. Colour tokens stay theme-owned; these rules own structure only. */
+#view-dashboard .dashboard-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 22px 1px 13px;
+}
+#view-dashboard .dashboard-toolbar-copy { min-width: 0; }
+#view-dashboard .dashboard-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+#view-dashboard .dashboard-period-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+}
+#view-dashboard .dashboard-period-control button {
+  min-height: 31px;
+  padding: 6px 12px;
+}
+#view-dashboard .dashboard-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 11px;
+}
+#view-dashboard .dashboard-kpi-card {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+#view-dashboard .dashboard-finance-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+#view-dashboard .dashboard-money-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+#view-dashboard .dashboard-chart-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+#view-dashboard .dashboard-chart-heading > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+#view-dashboard .dashboard-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+#view-dashboard .dashboard-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+#view-dashboard .dashboard-cashflow-chart {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 9px;
+  min-width: 0;
+}
+#view-dashboard .dashboard-chart-column {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+#view-dashboard .dashboard-chart-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+#view-dashboard .dashboard-chart-empty {
+  display: grid;
+  grid-column: 1 / -1;
+  min-height: 88px;
+  place-items: center;
+}
+#view-dashboard .dashboard-rings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+#view-dashboard .dashboard-ring-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+#view-dashboard .dashboard-ring {
+  position: relative;
+  display: grid;
+  flex: 0 0 112px;
+  width: 112px;
+  height: 112px;
+  place-items: center;
+}
+#view-dashboard .dashboard-ring svg {
+  display: block;
+  width: 112px;
+  height: 112px;
+  overflow: visible;
+}
+#view-dashboard .dashboard-widget-recent .dashboard-lists-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 15px;
+}
+#view-dashboard .dashboard-attention-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+#view-dashboard .dashboard-attention-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+#view-dashboard .dashboard-attention-icon {
+  display: grid;
+  flex: 0 0 29px;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+}
+#view-dashboard .dashboard-attention-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+#view-dashboard .dashboard-attention-empty {
+  display: flex;
+  min-height: 120px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+#view-dashboard .dashboard-live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+#view-dashboard .pi-home-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1180px) {
+  #view-dashboard .dashboard-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #view-dashboard .dashboard-rings-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 840px) {
+  #view-dashboard .dashboard-widget-recent .dashboard-lists-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #view-dashboard .dashboard-rings-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 620px) {
+  #view-dashboard .dashboard-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  #view-dashboard .dashboard-toolbar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  #view-dashboard .dashboard-period-control {
+    max-width: calc(100% - 95px);
+  }
+  #view-dashboard .dashboard-period-control button {
+    padding: 6px 9px;
+  }
+  #view-dashboard .dashboard-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  #view-dashboard .dashboard-finance-metrics {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+  #view-dashboard .dashboard-money-card { min-height: 82px; }
+  #view-dashboard .dashboard-chart-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  #view-dashboard .dashboard-cashflow-chart {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  #view-dashboard .dashboard-rings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+  #view-dashboard .dashboard-ring {
+    flex-basis: 94px;
+    width: 94px;
+    height: 94px;
+  }
+  #view-dashboard .dashboard-ring svg {
+    width: 94px;
+    height: 94px;
+  }
+  #view-dashboard .dashboard-widget-recent .dashboard-lists-grid { gap: 10px; }
+  #view-dashboard .dashboard-live-indicator { white-space: normal; }
+}
+@media (max-width: 380px) {
+  #view-dashboard .dashboard-rings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #view-dashboard .dashboard-ring,
+  #view-dashboard .dashboard-ring svg {
+    width: 84px;
+    height: 84px;
+  }
+}
