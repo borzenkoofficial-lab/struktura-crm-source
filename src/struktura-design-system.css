@@ -2764,3 +2764,15 @@ html[data-theme="light"] dialog.dashboard-customize-dialog::backdrop {
   dialog.dock-overlay-dialog[open],
   dialog.dashboard-customize-dialog[open] { animation: none !important; }
 }
+
+/* Notification action shares the Dock row; size it by its border box at desktop widths. */
+@media (min-width:1361px) and (max-width:1600px) {
+  #skolDock .dock-notifications-trigger {
+    box-sizing: border-box !important;
+    flex: 0 0 68px !important;
+    width: 68px !important;
+    min-width: 68px !important;
+    max-width: 68px !important;
+    padding-inline: 4px !important;
+  }
+}
