@@ -2305,3 +2305,12 @@ html[data-theme="dark"] #view-prospects .notice.inline-notice {
   background: var(--st-surface-muted) !important;
   color: var(--st-muted) !important;
 }
+
+html[data-theme="dark"] #view-prospects :where(.search-api-status, .domain-query) {
+  border-color: var(--st-line) !important;
+  background: var(--st-surface-muted) !important;
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] #view-prospects .domain-query strong {
+  color: var(--st-ink) !important;
+}
