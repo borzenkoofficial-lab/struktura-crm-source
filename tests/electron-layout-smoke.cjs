@@ -289,8 +289,8 @@ async function run() {
 
   try {
     electronApp = await electron.launch({
-      executablePath: electronExecutable,
-      args: [root],
+      executablePath: process.env.SKOL_UI_E2E_EXECUTABLE || electronExecutable,
+      args: process.env.SKOL_UI_E2E_EXECUTABLE ? [] : [root],
       env: childEnv,
       timeout: 60000
     });
