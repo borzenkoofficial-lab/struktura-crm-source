@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const KEY = 'struktura-source-theme-v1';
+  const KEY = 'skol-theme-preference-v1';
   let theme = 'dark';
   try {
     const saved = window.localStorage.getItem(KEY);
