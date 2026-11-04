@@ -346,3 +346,13 @@ test('settings workspace balances security, reminders and licensing without desk
   assert.ok(css.includes('#view-settings .settings-page-grid > .settings-card:nth-child(3)'));
   assert.ok(css.includes('@media (max-width: 760px)'));
 });
+
+
+test('only the active Salesforce colourway stylesheet is enabled', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.html'), 'utf8');
+  const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer.js'), 'utf8');
+  assert.match(html, /id="theme-dark-stylesheet"[^>]*href="theme-salesforce\\.css"/);
+  assert.match(html, /id="theme-light-stylesheet"[^>]*href="theme-salesforce-light\\.css"/);
+  assert.match(renderer, /darkStylesheet\\.disabled = appTheme !== 'dark'/);
+  assert.match(renderer, /lightStylesheet\\.disabled = appTheme !== 'light'/);
+});
