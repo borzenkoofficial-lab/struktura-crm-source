@@ -1,28 +1,28 @@
 const $ = (id) => document.getElementById(id);
-const STRUKTURA_THEME_KEY = 'struktura-source-theme-v1';
-let strukturaTheme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
-function applyStrukturaTheme(theme, persist = true) {
-  strukturaTheme = theme === 'light' ? 'light' : 'dark';
-  document.documentElement.dataset.theme = strukturaTheme;
-  document.documentElement.style.colorScheme = strukturaTheme;
+const APP_THEME_KEY = 'skol-theme-preference-v1';
+let appTheme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+function applyAppTheme(theme, persist = true) {
+  appTheme = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = appTheme;
+  document.documentElement.style.colorScheme = appTheme;
   const button = $('themeToggleBtn');
   if (button) {
-    const nextTheme = strukturaTheme === 'dark' ? 'light' : 'dark';
+    const nextTheme = appTheme === 'dark' ? 'light' : 'dark';
     const label = button.querySelector('.theme-toggle-label');
     const glyph = button.querySelector('.theme-toggle-glyph');
     if (label) label.textContent = nextTheme === 'light' ? 'Светлая тема' : 'Тёмная тема';
     if (glyph) glyph.textContent = nextTheme === 'light' ? '☼' : '◐';
     button.setAttribute('aria-label', nextTheme === 'light' ? 'Включить светлую тему' : 'Включить тёмную тему');
-    button.setAttribute('aria-pressed', String(strukturaTheme === 'light'));
+    button.setAttribute('aria-pressed', String(appTheme === 'light'));
   }
   if (persist) {
-    try { localStorage.setItem(STRUKTURA_THEME_KEY, strukturaTheme); }
+    try { localStorage.setItem(APP_THEME_KEY, appTheme); }
     catch (error) { console.warn('Theme preference could not be saved:', error); }
   }
 }
-applyStrukturaTheme(strukturaTheme, false);
+applyAppTheme(appTheme, false);
 $('themeToggleBtn')?.addEventListener('click', () => {
-  applyStrukturaTheme(strukturaTheme === 'dark' ? 'light' : 'dark');
+  applyAppTheme(appTheme === 'dark' ? 'light' : 'dark');
 });
 
 const serviceLabels = { demolition: 'Демонтаж', finishing: 'Отделочные работы', raised_floor: 'Фальшполы' };
