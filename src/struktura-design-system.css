@@ -3010,3 +3010,16 @@ html[data-theme="dark"] #view-projects #projectSearch {
   flex: 0 0 auto;
   white-space: nowrap;
 }
+
+
+/* Hidden Dock tooltips must not participate in the rail's scrollable width.
+   They are exposed on hover/focus, preserving the existing tooltip interaction. */
+@media (min-width: 761px) {
+  #skolDock .dock-label {
+    display: none !important;
+  }
+  #skolDock .dock-item:hover .dock-label,
+  #skolDock .dock-item:focus-visible .dock-label {
+    display: inline-flex !important;
+  }
+}
