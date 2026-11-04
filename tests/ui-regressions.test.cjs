@@ -1027,9 +1027,11 @@ test('all five split workspaces keep a detail pane and table list in the current
 });
 
 test('Salesforce light layout loads after base CSS and the reusable metrics module loads before renderer', () => {
-  const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\.css)">/g)].map(match => match[1]);
-  assert.ok(links.indexOf('theme-salesforce.css') > links.indexOf('styles.css'));
-  assert.ok(links.indexOf('theme-salesforce-light.css') > links.indexOf('theme-salesforce.css'));
+  const baseStyles = html.indexOf('href="styles.css"');
+  const darkThemeStyles = html.indexOf('href="theme-salesforce.css"');
+  const lightThemeStyles = html.indexOf('href="theme-salesforce-light.css"');
+  assert.ok(baseStyles >= 0 && darkThemeStyles > baseStyles, 'dark theme stylesheet follows base CSS');
+  assert.ok(lightThemeStyles > darkThemeStyles, 'light theme stylesheet follows dark theme stylesheet');
   assert.ok(html.includes('<script src="dashboard-metrics.js"></script><script src="renderer.js"></script>'));
   const css = fs.readFileSync(path.join(__dirname, '../src/theme-salesforce-light.css'), 'utf8');
   for (const selector of ['.dashboard-kpis','.dashboard-finance-metrics','.dashboard-rings-grid','.dashboard-attention-list','.nav-more-menu']) assert.ok(css.includes(selector));
