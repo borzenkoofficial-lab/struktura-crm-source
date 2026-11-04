@@ -267,3 +267,18 @@ test('precision pass keeps dense data tables and form controls readable', () => 
   assert.match(css, /min-height:\s*96px/);
   assert.ok(css.includes('font-variant-numeric: tabular-nums'));
 });
+
+test('native dialogs share theme-aware surfaces, readable fields and compact mobile geometry', () => {
+  assert.ok(css.includes('dialog.modal,'));
+  assert.ok(css.includes('dialog.modal::backdrop'));
+  assert.ok(css.includes('dialog.modal :where(input,select,textarea)'));
+  assert.ok(css.includes('html[data-theme="light"] dialog.modal::backdrop'));
+  assert.ok(css.includes('@media (max-width: 640px)'));
+  assert.ok(html.includes('<dialog id="leadDialog"'));
+});
+
+test('Windows installer validation runs for test-branch pushes as well as pull requests', () => {
+  const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'build-windows.yml'), 'utf8');
+  assert.ok(workflow.includes("github.event_name == 'push' && startsWith(github.ref, 'refs/heads/test/')"));
+  assert.ok(workflow.includes("github.event_name == 'pull_request'"));
+});
