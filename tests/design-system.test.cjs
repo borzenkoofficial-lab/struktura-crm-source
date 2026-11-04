@@ -129,3 +129,13 @@ test('finance dashboard surfaces use responsive semantic token layouts', () => {
   }
   assert.ok(css.includes('@media (max-width: 700px)'));
 });
+
+test('production workspace uses a responsive plan/fact hierarchy and reduced-motion progress', () => {
+  for (const selector of ['#view-production .production-stats', '#view-production .production-project-grid', '#view-production .production-model-note', '#view-production #productionHistory .data-table thead th']) {
+    assert.ok(css.includes(selector), 'missing production layout selector ' + selector);
+  }
+  assert.ok(css.includes('@keyframes st-production-progress-enter'));
+  assert.ok(css.includes('@media (prefers-reduced-motion: reduce)'));
+  assert.ok(html.includes('id="productionProjectCards"'));
+  assert.ok(renderer.includes('forecast.teamShiftsRemaining'));
+});
