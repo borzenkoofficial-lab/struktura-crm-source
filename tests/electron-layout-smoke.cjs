@@ -247,6 +247,42 @@ async function run() {
     await themeButton.click();
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
     assert.equal(await themeButton.getAttribute('aria-pressed'), 'false', 'dark theme state is exposed accessibly');
+
+    // Exercise dashboard period controls and the new refresh pending/recovery state.
+    const weekPeriod = page.locator('[data-dashboard-period="week"]');
+    const monthPeriod = page.locator('[data-dashboard-period="month"]');
+    await weekPeriod.click();
+    assert.equal(await weekPeriod.getAttribute('aria-pressed'), 'true', 'dashboard period selection is exposed accessibly');
+    await monthPeriod.click();
+    assert.equal(await monthPeriod.getAttribute('aria-pressed'), 'true', 'dashboard period can be restored');
+    const refreshButton = page.locator('#refreshBtn');
+    await refreshButton.click();
+    await page.waitForFunction(() => {
+      const button = document.getElementById('refreshBtn');
+      const view = document.getElementById('view-dashboard');
+      return Boolean(button && !button.disabled && !button.hasAttribute('aria-busy') && view && !view.hasAttribute('aria-busy'));
+    }, null, { timeout: 20000 });
+
+    // Exercise the global command palette through its real keyboard shortcut.
+    await page.keyboard.press('Control+k');
+    const commandDialog = page.locator('#commandPaletteDialog');
+    await commandDialog.waitFor({ state: 'visible' });
+    await page.locator('#commandPaletteSearch').fill('Финансы');
+    const financeCommand = page.locator('.command-item[data-command-view="finance"]');
+    await financeCommand.waitFor({ state: 'visible' });
+    await financeCommand.click();
+    await page.waitForSelector('#view-finance.active', { timeout: 15000 });
+
+    // Opening and cancelling a lead dialog must not write a record.
+    await openView(page, 'leads');
+    await page.locator('#addLeadBtn').click();
+    const leadDialog = page.locator('#leadDialog');
+    await leadDialog.waitFor({ state: 'visible' });
+    assert.equal(await leadDialog.evaluate(node => node.open), true, 'new lead dialog opens from the workspace');
+    await leadDialog.locator('[data-close="leadDialog"]').click();
+    await page.waitForFunction(() => !document.getElementById('leadDialog').open);
+    await openView(page, 'dashboard');
+
     // Exercise the persistent macOS-inspired Dock on the real Electron window.
     const dock = page.locator('#skolDock');
     await dock.waitFor({ state: 'visible' });
