@@ -14,7 +14,7 @@
   --st-ink: #edf2f5;
   --st-ink-soft: #c2ccd4;
   --st-muted: #8997a5;
-  --st-dim: #687785;
+  --st-dim: #7f8d9b;
   --st-accent: #b8e34a;
   --st-accent-ink: #17220a;
   --st-positive: #63c89a;
@@ -49,8 +49,8 @@ html[data-theme="light"] {
   --st-line-strong: rgba(30, 45, 43, .18);
   --st-ink: #202b2a;
   --st-ink-soft: #43524f;
-  --st-muted: #687873;
-  --st-dim: #83918b;
+  --st-muted: #5e6d67;
+  --st-dim: #5e6d67;
   --st-accent: #a4d52f;
   --st-accent-ink: #202b10;
   --st-positive: #25845b;
