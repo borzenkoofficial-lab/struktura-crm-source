@@ -1045,8 +1045,8 @@ function dashboardInitCustomizer() {
   const preset=button.dataset.dashboardPreset;
   const presets={
    overview:{order:[...DASHBOARD_DEFAULT_ORDER],hidden:[]},
-   sales:{order:['kpis','pipeline','attention','progress','projects','tasks','cashflow'],hidden:['cashflow']},
-   finance:{order:['cashflow','kpis','projects','progress','pipeline','attention','tasks'],hidden:['pipeline','attention']}
+   sales:{order:['kpis','pipeline','attention','progress','portfolio','recent','finance'],hidden:['finance']},
+   finance:{order:['finance','kpis','portfolio','progress','pipeline','attention','recent'],hidden:['pipeline','attention']}
   };
   const config=presets[preset];if(!config)return;
   dashboardLayout.preset=preset;
