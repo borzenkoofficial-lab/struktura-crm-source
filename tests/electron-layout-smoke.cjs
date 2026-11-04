@@ -256,6 +256,10 @@ async function run() {
     await monthPeriod.click();
     assert.equal(await monthPeriod.getAttribute('aria-pressed'), 'true', 'dashboard period can be restored');
     const refreshButton = page.locator('#refreshBtn');
+    await page.waitForFunction(() => {
+      const button = document.getElementById('refreshBtn');
+      return Boolean(button && !button.disabled);
+    }, null, { timeout: 20000 });
     await refreshButton.click();
     await page.waitForFunction(() => {
       const button = document.getElementById('refreshBtn');
