@@ -708,3 +708,133 @@ html[data-theme="dark"] #view-settings .settings-about-card .about-settings-deta
   color: var(--st-ink) !important;
   border-color: var(--st-line) !important;
 }
+
+/* Module-specific dark surfaces. Several legacy views use ID-scoped light gradients,
+   so these overrides intentionally match the view scope and replace the full background. */
+html[data-theme="dark"] #view-leads .records-panel,
+html[data-theme="dark"] #view-clients .records-panel,
+html[data-theme="dark"] #view-projects .records-panel,
+html[data-theme="dark"] #view-finance .finance-records-panel,
+html[data-theme="dark"] #view-finance .table-panel {
+  background: var(--st-surface) !important;
+  border-color: var(--st-line) !important;
+}
+html[data-theme="dark"] #leadsTable,
+html[data-theme="dark"] #clientsTable,
+html[data-theme="dark"] #projectsTable,
+html[data-theme="dark"] #paymentsTable,
+html[data-theme="dark"] #expensesTable,
+html[data-theme="dark"] .records-list,
+html[data-theme="dark"] .table-panel .table-wrap {
+  background: var(--st-surface) !important;
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] .records-list .empty-state,
+html[data-theme="dark"] .records-list .empty-state strong,
+html[data-theme="dark"] .records-list .empty-state span {
+  color: var(--st-muted) !important;
+}
+html[data-theme="dark"] #view-projects .object-list-head h4 { color: var(--st-ink) !important; }
+html[data-theme="dark"] #view-projects .object-list-head p { color: var(--st-muted) !important; }
+
+html[data-theme="dark"] #view-engineering .eng-hero,
+html[data-theme="dark"] #view-engineering .eng-stat,
+html[data-theme="dark"] #view-engineering .eng-card {
+  background: var(--st-surface) !important;
+  border-color: var(--st-line) !important;
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] #view-engineering .eng-hero h2,
+html[data-theme="dark"] #view-engineering .eng-card h3,
+html[data-theme="dark"] #view-engineering .eng-stat strong,
+html[data-theme="dark"] #view-engineering .eng-card-head strong {
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] #view-engineering .eng-hero p,
+html[data-theme="dark"] #view-engineering .eng-stat span,
+html[data-theme="dark"] #view-engineering .eng-stat small,
+html[data-theme="dark"] #view-engineering .eng-card p,
+html[data-theme="dark"] #view-engineering .eng-note {
+  color: var(--st-muted) !important;
+}
+html[data-theme="dark"] #view-engineering .eng-card-head {
+  background: var(--st-surface-muted) !important;
+  border-bottom-color: var(--st-line) !important;
+}
+html[data-theme="dark"] #view-engineering .eng-note {
+  background: var(--st-surface-muted) !important;
+  border-color: var(--st-line) !important;
+}
+
+html[data-theme="dark"] #view-finance .finance-card,
+html[data-theme="dark"] #view-finance .income-period-card,
+html[data-theme="dark"] #view-finance .finance-forecast-grid article,
+html[data-theme="dark"] #view-finance .finance-insights {
+  background: var(--st-surface) !important;
+  border-color: var(--st-line) !important;
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] #view-finance .finance-card span,
+html[data-theme="dark"] #view-finance .income-period-card span,
+html[data-theme="dark"] #view-finance .income-period-card small,
+html[data-theme="dark"] #view-finance .finance-forecast-grid article span,
+html[data-theme="dark"] #view-finance .finance-forecast-grid article small {
+  color: var(--st-muted) !important;
+}
+html[data-theme="dark"] #view-finance .finance-card strong,
+html[data-theme="dark"] #view-finance .income-period-card strong,
+html[data-theme="dark"] #view-finance .finance-forecast-grid article strong {
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] #view-finance .income-classification-note,
+html[data-theme="dark"] #view-finance .notice.inline-notice {
+  background: var(--st-surface-muted) !important;
+  border-color: var(--st-line) !important;
+  color: var(--st-ink-soft) !important;
+}
+
+html[data-theme="dark"] #view-settings .settings-card {
+  background: var(--st-surface) !important;
+  border-color: var(--st-line) !important;
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] #view-settings .settings-card-body {
+  background: transparent !important;
+  border-color: var(--st-line) !important;
+}
+html[data-theme="dark"] #view-settings .settings-card .panel-head {
+  background: transparent !important;
+  border-bottom-color: var(--st-line) !important;
+}
+html[data-theme="dark"] #view-settings .settings-card label,
+html[data-theme="dark"] #view-settings .settings-card .pin-lock-status {
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] #view-settings .settings-card .notification-settings-note {
+  background: var(--st-surface-muted) !important;
+  border-color: var(--st-line) !important;
+}
+
+html[data-theme="dark"] #view-browser .browser-shell,
+html[data-theme="dark"] #view-browser .browser-toolbar,
+html[data-theme="dark"] #view-browser .browser-statusline,
+html[data-theme="dark"] #view-browser .browser-inspector {
+  background: var(--st-surface) !important;
+  border-color: var(--st-line) !important;
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] #view-browser .browser-icon-btn,
+html[data-theme="dark"] #view-browser .browser-home-btn {
+  background: var(--st-surface-raised) !important;
+  border-color: var(--st-line) !important;
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] #view-browser .inspector-heading strong,
+html[data-theme="dark"] #view-browser .inspector-empty strong {
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] #view-browser .inspector-heading small,
+html[data-theme="dark"] #view-browser .inspector-empty p {
+  color: var(--st-muted) !important;
+}
+/* The browser page itself remains a white web-content canvas by design. */
