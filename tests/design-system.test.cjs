@@ -10,8 +10,11 @@ const boot = fs.readFileSync(path.join(root, 'theme-boot.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'struktura-design-system.css'), 'utf8');
 const smoke = fs.readFileSync(path.join(__dirname, 'electron-layout-smoke.cjs'), 'utf8');
 
-test('theme bootstrap runs before styles to prevent first-paint theme flash', () => {
-  assert.ok(html.indexOf('theme-boot.js') < html.indexOf('styles.css'));
+test('theme bootstrap runs synchronously after theme stylesheets and before body paint', () => {
+  assert.ok(html.indexOf('styles.css') < html.indexOf('theme-boot.js'));
+  assert.ok(html.indexOf('theme-salesforce.css') < html.indexOf('theme-boot.js'));
+  assert.ok(html.indexOf('theme-salesforce-light.css') < html.indexOf('theme-boot.js'));
+  assert.ok(html.indexOf('theme-boot.js') < html.indexOf('<body>'));
   assert.ok(boot.includes('localStorage.getItem(KEY)'));
   assert.ok(boot.includes('document.documentElement.dataset.theme = theme'));
 });
