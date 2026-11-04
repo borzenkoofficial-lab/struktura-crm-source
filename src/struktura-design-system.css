@@ -516,7 +516,7 @@ body { overflow: hidden; }
 }
 
 /* Dashboard: reduce hero waste and prioritize live operational signals. */
-.dashboard-hero.welcome {
+#view-dashboard .dashboard-hero.welcome {
   min-height: 178px !important;
   padding: 23px clamp(20px, 2.4vw, 32px) !important;
   border-radius: var(--st-radius-xl) !important;
@@ -612,30 +612,30 @@ body { overflow: hidden; }
 }
 
 /* Dark theme must replace legacy light gradients, not merely their base color. */
-html[data-theme="dark"] .dashboard-hero.welcome {
+html[data-theme="dark"] #view-dashboard .dashboard-hero.welcome {
   background: linear-gradient(135deg, #202d39 0%, #17232e 62%, #121c26 100%) !important;
   border-color: var(--st-line-strong) !important;
   color: var(--st-ink) !important;
 }
-html[data-theme="dark"] .dashboard-hero .welcome-tag {
+html[data-theme="dark"] #view-dashboard .dashboard-hero .welcome-tag {
   background: rgba(11, 19, 27, .58) !important;
   border-color: var(--st-line-strong) !important;
   color: var(--st-ink-soft) !important;
 }
-html[data-theme="dark"] .dashboard-hero .welcome h2 { color: var(--st-ink) !important; }
-html[data-theme="dark"] .dashboard-hero .welcome p { color: var(--st-ink-soft) !important; }
-html[data-theme="dark"] .dashboard-hero .hero-secondary {
+html[data-theme="dark"] #view-dashboard .dashboard-hero h2 { color: var(--st-ink) !important; }
+html[data-theme="dark"] #view-dashboard .dashboard-hero p { color: var(--st-ink-soft) !important; }
+html[data-theme="dark"] #view-dashboard .dashboard-hero .hero-secondary {
   background: #263542 !important;
   border-color: var(--st-line-strong) !important;
   color: var(--st-ink) !important;
 }
-html[data-theme="dark"] .dashboard-hero .dashboard-hero-orbit { border-color: rgba(184, 227, 74, .16) !important; }
-html[data-theme="dark"] .dashboard-hero .dashboard-hero-emblem {
+html[data-theme="dark"] #view-dashboard .dashboard-hero .dashboard-hero-orbit { border-color: rgba(184, 227, 74, .16) !important; }
+html[data-theme="dark"] #view-dashboard .dashboard-hero .dashboard-hero-emblem {
   background: #1a2832 !important;
   border-color: rgba(184, 227, 74, .2) !important;
   box-shadow: 0 16px 40px rgba(0,0,0,.24) !important;
 }
-html[data-theme="dark"] .dashboard-hero .dashboard-hero-caption { color: #71818c !important; }
+html[data-theme="dark"] #view-dashboard .dashboard-hero .dashboard-hero-caption { color: #71818c !important; }
 
 html[data-theme="dark"] .top-actions .button:not(.primary):not(.hero-primary) {
   background: var(--st-surface) !important;
