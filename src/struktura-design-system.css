@@ -2780,3 +2780,81 @@ html[data-theme="light"] dialog.dashboard-customize-dialog::backdrop {
 /* Prevent sub-pixel flex accumulation from clipping Dock content on wide Windows viewports. */
 #skolDock .dock-group { gap: 2px !important; }
 #skolDock .dock-divider { flex: 0 0 1px !important; }
+
+
+/* Legacy calculator, production and PI sub-surfaces: remove bright islands in dark workspaces. */
+html[data-theme="dark"] :where(
+  .estimate-subpanel, .estimate-actual-panel, .estimate-advisor,
+  .estimate-calibration-panel, .estimate-table-wrap, .estimate-duration-table,
+  .estimate-line-card, .estimate-summary, .estimate-payroll-preview,
+  .estimate-results > div, .estimate-calibration-result > div,
+  .estimate-advice, .estimate-risk-alert, .estimate-duration-results article,
+  .production-stats article, .production-forecast, .production-history-panel,
+  .production-plan-panel, .production-shift-panel,
+  .pi-explainer, .pi-mockup, .pi-mockup-metrics > div, .pi-mockup-alert,
+  .pi-alert, .notification-settings-modal .checkbox-line
+) {
+  background: var(--st-surface-raised) !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] :where(
+  .estimate-subpanel h2, .estimate-subpanel h3, .estimate-subpanel h4,
+  .estimate-actual-panel h2, .estimate-actual-panel h3,
+  .estimate-advisor h3, .estimate-calibration-panel h3,
+  .estimate-line-card strong, .estimate-summary strong,
+  .estimate-payroll-preview strong, .estimate-results strong,
+  .estimate-calibration-result strong, .estimate-advice strong,
+  .estimate-risk-alert strong, .production-stats strong,
+  .production-forecast strong, .production-project-card strong,
+  .production-history-panel strong, .production-plan-panel strong,
+  .production-shift-panel strong, .pi-explainer strong,
+  .pi-mockup strong, .pi-mockup-alert strong, .pi-alert strong
+) {
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] :where(
+  .estimate-subpanel small, .estimate-subpanel label, .estimate-subpanel p,
+  .estimate-actual-panel small, .estimate-advisor small,
+  .estimate-calibration-panel small, .estimate-results small,
+  .estimate-calibration-result small, .estimate-advice span,
+  .estimate-risk-alert span, .production-forecast small,
+  .production-history-panel small, .production-plan-panel small,
+  .production-shift-panel small, .pi-explainer small,
+  .pi-mockup small, .pi-mockup-alert small, .pi-alert span
+) {
+  color: var(--st-muted) !important;
+}
+html[data-theme="dark"] .estimate-risk-alert.danger,
+html[data-theme="dark"] .pi-alert.danger {
+  background: color-mix(in srgb, var(--st-surface-raised) 88%, #d64b52 12%) !important;
+}
+html[data-theme="dark"] .estimate-risk-alert.warning,
+html[data-theme="dark"] .pi-alert:not(.danger) {
+  background: color-mix(in srgb, var(--st-surface-raised) 90%, #d39a3f 10%) !important;
+}
+html[data-theme="dark"] .estimate-table-wrap,
+html[data-theme="dark"] .estimate-duration-table {
+  overflow: auto;
+}
+html[data-theme="dark"] .estimate-lines-table th {
+  background: var(--st-surface-muted) !important;
+  color: var(--st-muted) !important;
+  border-color: var(--st-line) !important;
+}
+html[data-theme="dark"] .estimate-lines-table td {
+  color: var(--st-ink-soft) !important;
+  border-color: var(--st-line) !important;
+}
+html[data-theme="dark"] .estimate-lines-table input,
+html[data-theme="dark"] .estimate-meta-grid input,
+html[data-theme="dark"] .estimate-meta-grid select,
+html[data-theme="dark"] .estimate-add-row select,
+html[data-theme="dark"] .estimate-input-grid input,
+html[data-theme="dark"] .estimate-input-grid select,
+html[data-theme="dark"] .estimate-duration-controls input,
+html[data-theme="dark"] .estimate-duration-controls select {
+  background: var(--st-surface-muted) !important;
+  border-color: var(--st-line-strong) !important;
+  color: var(--st-ink) !important;
+}
