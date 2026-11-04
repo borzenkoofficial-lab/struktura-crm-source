@@ -139,3 +139,13 @@ test('production workspace uses a responsive plan/fact hierarchy and reduced-mot
   assert.ok(html.includes('id="productionProjectCards"'));
   assert.ok(renderer.includes('forecast.teamShiftsRemaining'));
 });
+
+test('engineering workspace separates inputs, assumptions and calculated output', () => {
+  for (const selector of ['#view-engineering .eng-hero', '#view-engineering .eng-stat-grid', '#view-engineering .eng-layout', '#view-engineering .eng-form-grid', '#view-engineering .eng-note']) {
+    assert.ok(css.includes(selector), 'missing engineering layout selector ' + selector);
+  }
+  assert.ok(css.includes('@media (max-width: 1180px)'));
+  assert.ok(html.includes('id="engCalculateBtn"'));
+  assert.ok(html.includes('id="engWarnings"'));
+  assert.ok(html.includes('id="engProjectPlanCalendar"') === false || html.includes('id="engProjectCalendar"'));
+});
