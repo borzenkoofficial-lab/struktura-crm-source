@@ -277,10 +277,13 @@ test('native dialogs share theme-aware surfaces, readable fields and compact mob
   assert.ok(html.includes('<dialog id="leadDialog"'));
 });
 
-test('Windows installer validation runs for test-branch pushes as well as pull requests', () => {
+test('Windows Electron layout validation is not skipped by packaging-only dispatch controls', () => {
   const workflow = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'build-windows.yml'), 'utf8');
-  assert.ok(workflow.includes("github.event_name == 'push' && startsWith(github.ref, 'refs/heads/test/')"));
-  assert.ok(workflow.includes("github.event_name == 'pull_request'"));
+  const windowsJob = workflow.split('  build-windows:')[1] || '';
+  assert.ok(windowsJob.includes('runs-on: windows-latest'));
+  assert.doesNotMatch(windowsJob.split('    steps:')[0], /^    if:/m, 'Windows UI validation job stays enabled for PR and push runs');
+  assert.ok(windowsJob.includes('Run Electron responsive layout checks'));
+  assert.ok(windowsJob.includes("github.event_name != 'workflow_dispatch' || inputs.build_installer"), 'only packaging steps are gated for manual runs');
 });
 
 function luminance(hex) {
@@ -318,4 +321,19 @@ test('muted and dim text meet WCAG AA contrast on their theme surfaces', () => {
       assert.ok(contrastRatio(color, theme.surface) >= 4.5, token + ' must meet 4.5:1 on theme surface');
     }
   }
+});
+
+
+test('legacy calculator, production and PI surfaces have dark-theme coverage', () => {
+  for (const selector of [
+    '.estimate-subpanel', '.estimate-calibration-panel', '.estimate-risk-alert',
+    '.production-stats article', '.production-forecast', '.production-history-panel',
+    '.pi-explainer', '.pi-mockup', '.notification-settings-modal .checkbox-line'
+  ]) {
+    assert.ok(css.includes(selector), 'dark-theme coverage includes ' + selector);
+  }
+  assert.ok(css.includes('html[data-theme="dark"] :where('));
+  assert.ok(css.includes('background: var(--st-surface-raised) !important;'));
+  assert.ok(css.includes('.estimate-lines-table th'));
+  assert.ok(css.includes('.estimate-lines-table td'));
 });
