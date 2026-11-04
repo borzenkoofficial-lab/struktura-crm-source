@@ -101,11 +101,28 @@ async function collectGeometry(page, viewport, viewName) {
     }
 
     const activeBounds = active ? rect(active) : null;
+    const mainElement = document.querySelector('.main');
+    const dockElement = document.querySelector('#skolDock');
+    const avatarElement = document.querySelector('#piCoachAvatarBtn');
+    const popoverElement = document.querySelector('#piCoachPopover');
+    const mainBounds = mainElement ? rect(mainElement) : null;
+    const dockBounds = dockElement ? rect(dockElement) : null;
+    const avatarBounds = avatarElement ? rect(avatarElement) : null;
+    const intersects = (a, b) => Boolean(a && b && Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1);
+    const piPopoverHidden = !popoverElement || popoverElement.hidden;
+    const piAvatarOverlapsDock = intersects(avatarBounds, dockBounds);
+    const piAvatarOverlapsWorkspace = intersects(avatarBounds, mainBounds);
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight },
       document: { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth, bodyScrollWidth: document.body.scrollWidth },
       activeView: active?.id || null,
       activeBounds,
+      mainBounds,
+      dockBounds,
+      avatarBounds,
+      piPopoverHidden,
+      piAvatarOverlapsDock,
+      piAvatarOverlapsWorkspace,
       outside,
       clippedText,
       overlappingActions
@@ -119,6 +136,10 @@ async function collectGeometry(page, viewport, viewName) {
   assert.equal(metrics.outside.length, 0, viewName + ': primary containers must remain inside the viewport: ' + JSON.stringify(metrics.outside));
   assert.equal(metrics.clippedText.length, 0, viewName + ': important labels must not be clipped: ' + JSON.stringify(metrics.clippedText));
   assert.equal(metrics.overlappingActions.length, 0, viewName + ': adjacent action buttons must not overlap: ' + JSON.stringify(metrics.overlappingActions));
+  assert.ok(metrics.mainBounds && metrics.dockBounds && metrics.mainBounds.bottom <= metrics.dockBounds.top + 1, viewName + ': workspace scroll viewport must end before the fixed Dock: ' + JSON.stringify({ main: metrics.mainBounds, dock: metrics.dockBounds }));
+  assert.equal(metrics.piPopoverHidden, true, viewName + ': PI insights must not auto-open a blocking popover');
+  assert.equal(metrics.piAvatarOverlapsDock, false, viewName + ': PI control must not overlap the Dock');
+  assert.equal(metrics.piAvatarOverlapsWorkspace, false, viewName + ': PI control must stay in the reserved bottom rail');
   return metrics;
 }
 
