@@ -351,8 +351,8 @@ test('settings workspace balances security, reminders and licensing without desk
 test('only the active Salesforce colourway stylesheet is enabled', () => {
   const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.html'), 'utf8');
   const renderer = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer.js'), 'utf8');
-  assert.match(html, /id="theme-dark-stylesheet"[^>]*href="theme-salesforce\\.css"/);
-  assert.match(html, /id="theme-light-stylesheet"[^>]*href="theme-salesforce-light\\.css"/);
-  assert.match(renderer, /darkStylesheet\\.disabled = appTheme !== 'dark'/);
-  assert.match(renderer, /lightStylesheet\\.disabled = appTheme !== 'light'/);
+  assert.ok(html.includes('id="theme-dark-stylesheet" rel="stylesheet" href="theme-salesforce.css"'));
+  assert.ok(html.includes('id="theme-light-stylesheet" rel="stylesheet" href="theme-salesforce-light.css"'));
+  assert.ok(renderer.includes("darkStylesheet.disabled = appTheme !== 'dark'"));
+  assert.ok(renderer.includes("lightStylesheet.disabled = appTheme !== 'light'"));
 });
