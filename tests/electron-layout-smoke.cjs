@@ -19,7 +19,9 @@ const viewportMatrix = [
   { name: '1024x768', width: 1024, height: 768, views: viewNames, screenshots: ['dashboard', 'leads', 'finance', 'engineering', 'settings'] },
   { name: '1280x800', width: 1280, height: 800, views: ['dashboard', 'projects', 'production', 'finance', 'engineering'], screenshots: ['dashboard', 'projects', 'production'] },
   { name: '1440x900', width: 1440, height: 900, views: viewNames, screenshots: ['dashboard', 'prospects', 'tasks', 'reports', 'browser'] },
-  { name: '1920x1080', width: 1920, height: 1080, views: viewNames, screenshots: ['dashboard', 'projects', 'settings'] }
+  { name: '1920x1080', width: 1920, height: 1080, views: viewNames, screenshots: ['dashboard', 'projects', 'settings'] },
+  { name: '2560x1440', width: 2560, height: 1440, views: ['dashboard', 'projects', 'finance', 'settings'], screenshots: ['dashboard', 'finance', 'settings'] },
+  { name: '3840x2160', width: 3840, height: 2160, views: ['dashboard', 'projects', 'finance', 'settings'], screenshots: ['dashboard', 'finance', 'settings'] }
 ];
 
 function makeTestLicense(deviceId, privateKeyPem) {
@@ -349,6 +351,8 @@ async function run() {
         bottomGap: Math.round(window.innerHeight - rect.bottom),
         height: Math.round(rect.height),
         width: Math.round(rect.width),
+        scrollWidth: node.scrollWidth,
+        clientWidth: node.clientWidth,
         left: Math.round(rect.left),
         right: Math.round(rect.right),
         itemCount: items.length,
@@ -365,6 +369,7 @@ async function run() {
     assert.equal(dockLayout.labelCount, 12, 'every icon retains an accessible label tooltip');
     assert.ok(dockLayout.height >= 54 && dockLayout.height <= 64, 'Dock uses a stable 54–64px precision capsule: ' + JSON.stringify(dockLayout));
     assert.ok(dockLayout.width >= 620, 'Dock has enough horizontal room for legible navigation targets: ' + JSON.stringify(dockLayout));
+    assert.ok(dockLayout.scrollWidth <= dockLayout.clientWidth + 1, 'Dock contents must not create internal horizontal overflow: ' + JSON.stringify(dockLayout));
     assert.ok(dockLayout.left >= 0 && dockLayout.right <= await page.evaluate(() => window.innerWidth), 'Dock stays fully inside the application viewport: ' + JSON.stringify(dockLayout));
     const dockIconStyles = await dock.locator('.dock-icon').first().evaluate(node => {
       const style = getComputedStyle(node);
