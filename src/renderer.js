@@ -981,7 +981,7 @@ function dashboardRenderEditControls() {
   let tools=widget.querySelector('.dashboard-widget-tools');
   if(!tools) {
    tools=document.createElement('div'); tools.className='dashboard-widget-tools';
-   tools.innerHTML='<button type="button" class="dashboard-drag-handle" draggable="true" aria-label="Перетащить блок" title="Перетащить блок">⠿</button><button type="button" class="dashboard-size-button">Размер</button><button type="button" class="dashboard-hide-button">Скрыть</button>';
+   tools.innerHTML='<button type="button" class="dashboard-drag-handle" draggable="true" aria-label="Перетащить блок" title="Перетащить блок">⠿</button><button type="button" class="dashboard-move-up" aria-label="Переместить блок выше" title="Выше">↑</button><button type="button" class="dashboard-move-down" aria-label="Переместить блок ниже" title="Ниже">↓</button><button type="button" class="dashboard-size-button">Размер</button><button type="button" class="dashboard-hide-button">Скрыть</button>';
    widget.prepend(tools);
   }
   tools.hidden=!dashboardEditMode; widget.classList.toggle('dashboard-widget-editing',dashboardEditMode);
@@ -1067,6 +1067,12 @@ function dashboardInitCustomizer() {
   if(event.target.closest('.dashboard-hide-button')) {
    dashboardLayout.hidden=[...new Set([...dashboardLayout.hidden,widget.dataset.dashboardWidget])];
    dashboardSaveLayout();dashboardApplyLayout();
+  } else if(event.target.closest('.dashboard-move-up')) {
+   const previous=widget.previousElementSibling;
+   if(previous){widget.parentElement.insertBefore(widget,previous);dashboardLayout.order=[...$('dashboardWidgetGrid').querySelectorAll('[data-dashboard-widget]')].map(item=>item.dataset.dashboardWidget);dashboardSaveLayout();}
+  } else if(event.target.closest('.dashboard-move-down')) {
+   const next=widget.nextElementSibling;
+   if(next){widget.parentElement.insertBefore(next,widget);dashboardLayout.order=[...$('dashboardWidgetGrid').querySelectorAll('[data-dashboard-widget]')].map(item=>item.dataset.dashboardWidget);dashboardSaveLayout();}
   } else if(event.target.closest('.dashboard-size-button')) {
    const id=widget.dataset.dashboardWidget;const sizes=['half','wide','full'];
    const current=dashboardLayout.sizes[id]||DASHBOARD_WIDGETS.find(item=>item.id===id)?.size||'full';

@@ -2355,7 +2355,7 @@ html[data-theme="dark"] #view-prospects .domain-query strong {
 /* Dashboard chart controls and personal KPI selection */
 .dashboard-chart-controls{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap}
 .dashboard-chart-range,.dashboard-chart-legend{display:flex;align-items:center;gap:5px}
-.dashboard-chart-range button,.dashboard-chart-legend button{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border:1px solid var(--st-line);border-radius:8px;background:var(--st-surface-raised);color:var(--st-muted);font:600 11px inherit;cursor:pointer;transition:background var(--st-fast),color var(--st-fast),border-color var(--st-fast)}
+.dashboard-chart-range button,.dashboard-chart-legend button{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border:1px solid var(--st-line);border-radius:8px;background:var(--st-surface-raised);color:var(--st-muted);font:inherit;font-size:11px;font-weight:600;cursor:pointer;transition:background var(--st-fast),color var(--st-fast),border-color var(--st-fast)}
 .dashboard-chart-range button[aria-pressed="true"],.dashboard-chart-legend button[aria-pressed="true"]{border-color:color-mix(in srgb,var(--st-accent) 55%,var(--st-line));background:color-mix(in srgb,var(--st-accent) 10%,var(--st-surface));color:var(--st-ink)}
 .dashboard-chart-legend button i{width:7px;height:7px;border-radius:50%;background:var(--st-positive)}
 .dashboard-chart-legend button i.expense{background:var(--st-danger)}

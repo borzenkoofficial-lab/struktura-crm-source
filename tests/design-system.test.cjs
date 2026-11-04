@@ -239,3 +239,11 @@ test('dashboard personalisation includes KPI card preferences and cashflow chart
  assert.ok(renderer.includes('dashboardCashflowVisibility'));
  assert.ok(css.includes('.dashboard-kpi-options'));
 });
+
+
+test('dashboard widgets can be reordered without drag and drop using accessible move controls', () => {
+ assert.ok(renderer.includes('dashboard-move-up'));
+ assert.ok(renderer.includes('dashboard-move-down'));
+ assert.ok(renderer.includes('dashboardLayout.order='));
+ assert.ok(renderer.includes('aria-label="Переместить блок выше"'));
+});
