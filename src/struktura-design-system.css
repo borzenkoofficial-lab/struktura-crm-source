@@ -915,3 +915,77 @@ html[data-theme="dark"] #view-engineering .eng-card .eng-help {
   border-color: var(--st-accent) !important;
   color: var(--st-accent) !important;
 }
+
+/* Dashboard workspace: operational signals precede financial and historical detail. */
+#view-dashboard .dashboard-bottom-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+  align-items: stretch;
+  gap: 14px;
+  margin: 14px 0 2px;
+}
+#view-dashboard .dashboard-attention-panel,
+#view-dashboard .pi-home-panel {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--st-line) !important;
+  border-radius: var(--st-radius-lg) !important;
+  background: var(--st-surface) !important;
+  box-shadow: var(--st-shadow-panel) !important;
+}
+#view-dashboard .dashboard-attention-panel .panel-head,
+#view-dashboard .pi-home-panel .panel-head {
+  min-height: 76px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--st-line);
+}
+#view-dashboard .dashboard-attention-item {
+  min-height: 56px;
+  border-bottom-color: var(--st-line) !important;
+  border-radius: 8px;
+  transition: background-color var(--st-fast) var(--st-ease), padding var(--st-fast) var(--st-ease);
+}
+#view-dashboard .dashboard-attention-item:hover,
+#view-dashboard .dashboard-attention-item:focus-visible {
+  padding-inline: 9px;
+  background: var(--st-surface-raised) !important;
+}
+#view-dashboard .dashboard-attention-copy strong { color: var(--st-ink) !important; }
+#view-dashboard .dashboard-attention-copy small,
+#view-dashboard .dashboard-attention-empty,
+#view-dashboard .dashboard-attention-empty span { color: var(--st-muted) !important; }
+#view-dashboard .dashboard-attention-item > b { color: var(--st-ink) !important; }
+#view-dashboard .dashboard-live-indicator { color: var(--st-muted) !important; }
+#view-dashboard .pi-home-summary { color: var(--st-ink-soft) !important; }
+#view-dashboard .pi-home-actions { border-top-color: var(--st-line) !important; }
+#view-dashboard .notification-status { color: var(--st-muted) !important; }
+#view-dashboard .dashboard-refresh[aria-busy="true"] { cursor: progress; }
+#view-dashboard .dashboard-refresh-glyph {
+  display: inline-block;
+  margin-right: 4px;
+  animation: st-dashboard-refresh 900ms linear infinite;
+}
+#view-dashboard .dashboard-chart-bar {
+  transform: scaleY(.08);
+  transform-origin: center bottom;
+  animation: st-dashboard-bar-enter 520ms var(--st-ease) forwards;
+}
+#view-dashboard .dashboard-chart-bar.expense { animation-delay: 70ms; }
+#view-dashboard .dashboard-ring-progress {
+  transition: stroke-dasharray 650ms var(--st-ease);
+}
+@keyframes st-dashboard-refresh { to { transform: rotate(360deg); } }
+@keyframes st-dashboard-bar-enter { to { transform: scaleY(1); } }
+@media (max-width: 1100px) {
+  #view-dashboard .dashboard-bottom-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  #view-dashboard .dashboard-bottom-grid { gap: 10px; }
+  #view-dashboard .dashboard-attention-panel .panel-head,
+  #view-dashboard .pi-home-panel .panel-head { padding: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #view-dashboard .dashboard-refresh-glyph,
+  #view-dashboard .dashboard-chart-bar { animation: none !important; transform: none !important; }
+  #view-dashboard .dashboard-ring-progress { transition: none !important; }
+}
