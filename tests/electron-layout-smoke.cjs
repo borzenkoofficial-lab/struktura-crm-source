@@ -188,7 +188,7 @@ async function collectGeometry(page, viewport, viewName) {
       assert.ok(Math.abs(metrics.dashboardRecentGrid.cards[0].top - metrics.dashboardRecentGrid.cards[1].top) <= 1, 'dashboard recent cards must share the same row on wide screens');
     }
     const lightSurfaces = metrics.dashboardRecentGrid.surfaces.filter(value => {
-      const channels = value.match(/\\d+/g)?.slice(0, 3).map(Number) || [];
+      const channels = value.match(/\d+/g)?.slice(0, 3).map(Number) || [];
       return channels.length === 3 && channels.every(channel => channel > 242);
     });
     assert.equal(lightSurfaces.length, 0, 'dashboard recent panels must not retain light surfaces in dark mode: ' + JSON.stringify(metrics.dashboardRecentGrid.surfaces));
