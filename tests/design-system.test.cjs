@@ -356,3 +356,13 @@ test('only the active Salesforce colourway stylesheet is enabled', () => {
   assert.ok(renderer.includes("darkStylesheet.disabled = appTheme !== 'dark'"));
   assert.ok(renderer.includes("lightStylesheet.disabled = appTheme !== 'light'"));
 });
+
+
+test('theme boot applies the saved colourway before the renderer starts', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'src', 'index.html'), 'utf8');
+  const boot = fs.readFileSync(path.join(__dirname, '..', 'src', 'theme-boot.js'), 'utf8');
+  assert.ok(html.indexOf('theme-dark-stylesheet') < html.indexOf('theme-boot.js'));
+  assert.ok(html.indexOf('theme-light-stylesheet') < html.indexOf('theme-boot.js'));
+  assert.ok(boot.includes("darkStylesheet.disabled = theme !== 'dark'"));
+  assert.ok(boot.includes("lightStylesheet.disabled = theme !== 'light'"));
+});
