@@ -2777,9 +2777,9 @@ html[data-theme="light"] dialog.dashboard-customize-dialog::backdrop {
   }
 }
 
-/* Wide-screen Dock: reclaim measured intrinsic overflow through inter-group spacing,
-   not by clipping destinations or reducing the interactive hit areas. */
-#skolDock.skol-dock { gap: 3px !important; }
+/* Wide-screen Dock: add a small intrinsic-layout safety margin without clipping
+   destinations or reducing the interactive hit areas. */
+#skolDock.skol-dock { gap: 2px !important; }
 #skolDock .dock-group { gap: 0 !important; }
 #skolDock .dock-divider {
   flex: 0 0 1px !important;
