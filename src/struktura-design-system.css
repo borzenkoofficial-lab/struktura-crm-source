@@ -1335,3 +1335,225 @@ html[data-theme="dark"] #view-engineering .eng-card .eng-help {
   #view-production .production-project-card:hover { transform: none !important; }
   #view-production .production-progress-track > span { animation: none !important; transform: none !important; }
 }
+
+/* Engineering calculator: make assumptions, inputs and calculated output visually distinct. */
+#view-engineering .eng-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  padding: clamp(20px, 2.4vw, 30px);
+  border: 1px solid var(--st-line) !important;
+  border-left: 3px solid var(--st-accent) !important;
+  border-radius: var(--st-radius-xl) !important;
+  background: var(--st-surface) !important;
+  box-shadow: var(--st-shadow-panel) !important;
+}
+#view-engineering .eng-hero h2 {
+  margin: 8px 0;
+  color: var(--st-ink) !important;
+  font-size: clamp(24px, 2.4vw, 34px);
+  letter-spacing: -.045em;
+}
+#view-engineering .eng-hero p {
+  max-width: 72ch;
+  color: var(--st-muted) !important;
+  line-height: 1.6;
+}
+#view-engineering .eng-hero-mark {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  flex: 0 0 76px;
+  border: 1px solid var(--st-line-strong);
+  border-radius: 20px;
+  background: var(--st-surface-raised);
+  color: var(--st-accent);
+  font-size: 36px;
+}
+#view-engineering .eng-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 11px;
+  margin: 14px 0 18px;
+}
+#view-engineering .eng-stat {
+  min-width: 0;
+  padding: 15px 17px;
+  border: 1px solid var(--st-line) !important;
+  border-radius: var(--st-radius-md) !important;
+  background: var(--st-surface) !important;
+  box-shadow: var(--st-shadow-panel) !important;
+}
+#view-engineering .eng-stat span,
+#view-engineering .eng-stat small {
+  display: block;
+  color: var(--st-muted) !important;
+  font-size: 10px;
+  line-height: 1.5;
+}
+#view-engineering .eng-stat strong {
+  display: block;
+  margin: 9px 0 5px;
+  color: var(--st-ink) !important;
+  font-size: clamp(20px, 1.8vw, 27px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.035em;
+  overflow-wrap: anywhere;
+}
+#view-engineering .eng-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr);
+  align-items: start;
+  gap: 13px;
+  margin: 14px 0 20px;
+}
+#view-engineering .eng-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--st-line) !important;
+  border-radius: var(--st-radius-lg) !important;
+  background: var(--st-surface) !important;
+  box-shadow: var(--st-shadow-panel) !important;
+}
+#view-engineering .eng-card-head {
+  padding: 17px 19px;
+  border-bottom: 1px solid var(--st-line) !important;
+  background: var(--st-surface-muted) !important;
+}
+#view-engineering .eng-card-head h3 {
+  margin: 0;
+  color: var(--st-ink) !important;
+  font-size: 13px;
+}
+#view-engineering .eng-card-head p {
+  margin: 6px 0 0;
+  color: var(--st-muted) !important;
+  font-size: 10px;
+  line-height: 1.55;
+}
+#view-engineering .eng-card-body { padding: 18px 19px; }
+#view-engineering .eng-form-grid,
+#view-engineering .eng-observation-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+}
+#view-engineering .eng-card label,
+#view-engineering .eng-calendar-controls label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--st-ink-soft) !important;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+#view-engineering .eng-card label.wide,
+#view-engineering .eng-form-grid .wide { grid-column: 1 / -1; }
+#view-engineering .eng-card :where(input:not([type="checkbox"]):not([type="file"]), select, textarea),
+#view-engineering .eng-calendar-controls input {
+  width: 100%;
+  min-width: 0;
+  min-height: 39px;
+  padding: 9px 11px;
+  border: 1px solid var(--st-line-strong) !important;
+  border-radius: var(--st-radius-sm) !important;
+  background: var(--st-surface-muted) !important;
+  color: var(--st-ink) !important;
+  font: inherit;
+  font-weight: 450;
+}
+#view-engineering .eng-card textarea { min-height: 78px; resize: vertical; }
+#view-engineering .eng-card input[readonly] {
+  background: var(--st-surface-raised) !important;
+  color: var(--st-accent) !important;
+}
+#view-engineering .eng-card label small,
+#view-engineering .eng-form-help {
+  color: var(--st-muted) !important;
+  font-size: 9px;
+  font-weight: 450;
+  line-height: 1.5;
+}
+#view-engineering .eng-note {
+  margin: 15px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--st-line) !important;
+  border-left: 3px solid var(--st-info) !important;
+  border-radius: var(--st-radius-sm);
+  background: var(--st-surface-muted) !important;
+  color: var(--st-muted) !important;
+  font-size: 10px;
+  line-height: 1.65;
+}
+#view-engineering .eng-actions,
+#view-engineering .eng-plan-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+#view-engineering .eng-section-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 24px 0 12px;
+}
+#view-engineering .eng-section-title h3 {
+  margin: 0;
+  color: var(--st-ink) !important;
+  font-size: 17px;
+  letter-spacing: -.025em;
+}
+#view-engineering .eng-section-title p {
+  margin: 5px 0 0;
+  color: var(--st-muted) !important;
+  font-size: 10px;
+  line-height: 1.55;
+}
+#view-engineering .eng-estimate-import,
+#view-engineering .eng-order-plan-review,
+#view-engineering .eng-project-calendar {
+  margin: 14px 0;
+  padding: 15px;
+  border: 1px solid var(--st-line) !important;
+  border-radius: var(--st-radius-md) !important;
+  background: var(--st-surface-muted) !important;
+}
+#view-engineering .eng-estimate-import h4,
+#view-engineering .eng-project-calendar h4 { color: var(--st-ink) !important; }
+#view-engineering .eng-estimate-import p { color: var(--st-muted) !important; font-size: 10px; line-height: 1.55; }
+#view-engineering .eng-plan-history-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 0 8px;
+  border-bottom: 1px solid var(--st-line);
+  color: var(--st-ink) !important;
+  font-size: 11px;
+}
+#view-engineering .eng-plan-history-head span,
+#view-engineering .eng-plan-subtitle { color: var(--st-muted) !important; font-size: 10px; line-height: 1.55; }
+#view-engineering .eng-warning-list { color: var(--st-warning) !important; }
+#view-engineering .eng-empty { padding: 18px; border: 1px dashed var(--st-line-strong); border-radius: var(--st-radius-md); color: var(--st-muted) !important; line-height: 1.6; }
+@media (max-width: 1180px) {
+  #view-engineering .eng-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  #view-engineering .eng-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  #view-engineering .eng-stat-grid,
+  #view-engineering .eng-form-grid,
+  #view-engineering .eng-observation-form { grid-template-columns: minmax(0, 1fr); }
+  #view-engineering .eng-form-grid .wide { grid-column: auto; }
+  #view-engineering .eng-hero { align-items: flex-start; }
+  #view-engineering .eng-hero-mark { width: 52px; height: 52px; flex-basis: 52px; font-size: 25px; border-radius: 14px; }
+  #view-engineering .eng-card-body { padding: 14px; }
+  #view-engineering .eng-section-title { align-items: flex-start; flex-direction: column; }
+}
