@@ -5,6 +5,10 @@ function applyAppTheme(theme, persist = true) {
   appTheme = theme === 'light' ? 'light' : 'dark';
   document.documentElement.dataset.theme = appTheme;
   document.documentElement.style.colorScheme = appTheme;
+  const darkStylesheet = $('theme-dark-stylesheet');
+  const lightStylesheet = $('theme-light-stylesheet');
+  if (darkStylesheet) darkStylesheet.disabled = appTheme !== 'dark';
+  if (lightStylesheet) lightStylesheet.disabled = appTheme !== 'light';
   const button = $('themeToggleBtn');
   if (button) {
     const nextTheme = appTheme === 'dark' ? 'light' : 'dark';
