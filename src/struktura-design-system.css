@@ -379,3 +379,94 @@ html[data-theme="dark"] .app-footer {
   border-color: var(--st-line) !important;
   color: var(--st-muted) !important;
 }
+
+/* PI companion: professional utility, never a cartoon overlay that opens itself. */
+#skolDock { z-index: 70 !important; }
+.main { padding-bottom: 104px !important; }
+.pi-companion {
+  right: 22px !important;
+  bottom: 86px !important;
+  z-index: 80 !important;
+  gap: 10px !important;
+}
+.pi-coach-avatar {
+  width: 52px !important;
+  height: 52px !important;
+  border: 1px solid var(--st-line-strong) !important;
+  border-radius: 15px !important;
+  background: var(--st-surface-raised) !important;
+  box-shadow: var(--st-shadow-panel) !important;
+  transform: none !important;
+  transition: border-color var(--st-normal) var(--st-ease), background var(--st-normal) var(--st-ease), box-shadow var(--st-normal) var(--st-ease) !important;
+}
+.pi-coach-avatar:hover {
+  border-color: color-mix(in srgb, var(--st-accent) 70%, var(--st-line)) !important;
+  background: var(--st-surface) !important;
+  box-shadow: var(--st-shadow-float) !important;
+}
+.pi-avatar-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 31px;
+  height: 31px;
+  border: 1px solid color-mix(in srgb, var(--st-accent) 55%, var(--st-line));
+  border-radius: 9px;
+  color: var(--st-accent);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .04em;
+  background: var(--st-surface-muted);
+}
+.pi-avatar-mark::before,
+.pi-avatar-mark::after {
+  content: "";
+  position: absolute;
+  background: var(--st-accent);
+  opacity: .65;
+}
+.pi-avatar-mark::before { width: 1px; height: 7px; top: -5px; left: 7px; }
+.pi-avatar-mark::after { height: 1px; width: 7px; right: -5px; bottom: 7px; }
+.pi-avatar-mark i {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--st-positive);
+}
+.pi-avatar-caption { display: none !important; }
+.pi-avatar-aura, .pi-avatar-orbit, .pi-avatar-face,
+.pi-avatar-spark { display: none !important; }
+.pi-avatar-status {
+  right: 5px !important;
+  bottom: 5px !important;
+  width: 6px !important;
+  height: 6px !important;
+  border: 1px solid var(--st-surface) !important;
+  background: var(--st-positive) !important;
+  box-shadow: none !important;
+}
+.pi-coach-popover {
+  width: min(360px, calc(100vw - 28px)) !important;
+  max-height: min(60vh, 520px) !important;
+  border: 1px solid var(--st-line-strong) !important;
+  border-radius: var(--st-radius-lg) !important;
+  background: var(--st-surface) !important;
+  color: var(--st-ink) !important;
+  box-shadow: var(--st-shadow-float) !important;
+}
+.pi-coach-head { border-bottom-color: var(--st-line) !important; }
+.pi-coach-head strong, .pi-coach-popover h3 { color: var(--st-ink) !important; }
+.pi-coach-popover > p, .pi-coach-evidence p { color: var(--st-muted) !important; }
+.pi-coach-evidence { background: var(--st-surface-muted) !important; border-color: var(--st-line) !important; }
+.pi-coach-evidence summary { color: var(--st-ink-soft) !important; }
+@media (max-width: 760px) {
+  .pi-companion { right: 12px !important; bottom: 82px !important; }
+  .pi-coach-popover { max-height: 52vh !important; }
+  .main { padding-bottom: 112px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pi-coach-avatar, .pi-coach-popover { animation: none !important; transition: none !important; }
+}
