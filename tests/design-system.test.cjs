@@ -202,3 +202,9 @@ test('dark theme covers legacy PI summary, order evidence cards and inline notic
   assert.ok(smoke.includes('.commercial-order-card'));
   assert.ok(smoke.includes('.notice.inline-notice'));
 });
+
+test('dark theme styles the Brave API status and manual search query tiles', () => {
+  assert.ok(css.includes('#view-prospects :where(.search-api-status, .domain-query)'));
+  assert.ok(css.includes('html[data-theme="dark"] #view-prospects .domain-query strong'));
+  assert.ok(smoke.includes('.domain-query,.search-api-status'));
+});
