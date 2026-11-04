@@ -1145,7 +1145,7 @@ function renderDashboardCashflowChart(cashflow, complete) {
   }
   const values = (Array.isArray(cashflow) ? cashflow : []).slice(-dashboardCashflowMonths);
   if (!values.length || !values.some(item => Number(item.income) || Number(item.expenses))) {
-    target.innerHTML = '<div class="dashboard-chart-empty">За последние 6 месяцев ещё нет финансовых записей.</div>';
+    target.innerHTML = '<div class="dashboard-chart-empty">За последние ' + dashboardCashflowMonths + ' месяцев ещё нет финансовых записей.</div>';
     return;
   }
   const max = Math.max(0, ...values.flatMap(item => [Number(item.income) || 0, Number(item.expenses) || 0])) || 1;
