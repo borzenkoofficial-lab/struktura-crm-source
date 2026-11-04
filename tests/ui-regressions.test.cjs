@@ -1060,7 +1060,8 @@ test('Dock interaction layer exposes command search, contextual actions and pers
 
 test('shared layout hardening keeps content inside cards, forms, tables and dialogs', () => {
   const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\.css)"/g)].map(match => match[1]);
-  assert.equal(links.at(-1), 'ui-layout-hardening.css', 'the shared geometry layer loads after both themes');
+  assert.equal(links.at(-2), 'ui-layout-hardening.css', 'the shared geometry layer loads after both themes');
+  assert.equal(links.at(-1), 'struktura-design-system.css', 'the semantic design-system layer loads after shared geometry hardening');
   assert.ok(layoutCss.includes('.main'));
   assert.ok(layoutCss.includes('min-width: 0'));
   assert.match(layoutCss, /\.stat-card > strong[\s\S]*?white-space: normal/);
