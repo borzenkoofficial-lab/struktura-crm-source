@@ -2784,6 +2784,13 @@ html[data-theme="light"] dialog.dashboard-customize-dialog::backdrop {
   flex: 0 0 1px !important;
   margin-inline: 1px !important;
 }
+/* The system cluster's notification control is the only fixed-width outlier at 1920px. Keep its hit area comfortably above 44px while reclaiming the measured 2px overflow. */
+#skolDock .dock-notifications-trigger {
+  flex: 0 0 66px !important;
+  width: 66px !important;
+  min-width: 66px !important;
+  max-width: 66px !important;
+}
 
 
 /* Legacy calculator, production and PI sub-surfaces: remove bright islands in dark workspaces. */
