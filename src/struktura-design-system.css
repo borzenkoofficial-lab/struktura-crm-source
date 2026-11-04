@@ -2451,9 +2451,10 @@ body { font-size: var(--st-font-body); line-height: 1.55; }
 
 /* Precision Dock: opaque graphite capsule, larger vector targets, no glass haze. */
 #skolDock.skol-dock {
+  box-sizing: border-box !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 9px !important;
+  gap: 8px !important;
   min-height: 72px !important;
   padding: 9px 13px !important;
   border: 1px solid rgba(210,224,236,.22) !important;
@@ -2472,10 +2473,10 @@ html[data-theme="light"] #skolDock.skol-dock {
   box-shadow: 0 14px 34px rgba(26,43,37,.16), inset 0 1px 0 rgba(255,255,255,.96) !important;
 }
 #skolDock .dock-brand { display: none !important; }
-#skolDock .dock-group { align-items:center !important; gap:5px !important; }
+#skolDock .dock-group { align-items:center !important; gap:4px !important; }
 #skolDock .dock-divider {
   height: 34px !important;
-  margin: 0 3px !important;
+  margin: 0 2px !important;
   background: rgba(185,202,216,.19) !important;
 }
 #skolDock .dock-item {
