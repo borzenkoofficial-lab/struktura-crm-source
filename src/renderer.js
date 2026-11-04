@@ -963,6 +963,67 @@ function dashboardSaveLayout() {
  try { localStorage.setItem(DASHBOARD_LAYOUT_KEY,JSON.stringify(dashboardLayout)); }
  catch(error) { toast('Не удалось сохранить компоновку: '+error.message,true); }
 }
+const DASHBOARD_SAVED_WORKSPACES_KEY = 'struktura-dashboard-workspaces-v1';
+function dashboardReadSavedWorkspaces() {
+ try {
+  const saved=JSON.parse(localStorage.getItem(DASHBOARD_SAVED_WORKSPACES_KEY)||'[]');
+  return Array.isArray(saved)?saved.filter(item=>item&&typeof item.id==='string'&&typeof item.name==='string'&&item.layout&&typeof item.layout==='object').slice(0,12):[];
+ } catch { return []; }
+}
+function dashboardRenderSavedWorkspaces() {
+ const select=$('dashboardWorkspaceSelect');if(!select)return;
+ const items=dashboardReadSavedWorkspaces();
+ const selected=select.value;
+ select.innerHTML=items.length?items.map(item=>'<option value="'+esc(item.id)+'">'+esc(item.name)+'</option>').join(''):'<option value="">Нет сохранённых пространств</option>';
+ if(items.some(item=>item.id===selected))select.value=selected;
+ const hasSelection=Boolean(select.value&&items.some(item=>item.id===select.value));
+ const load=$('dashboardWorkspaceLoad');if(load)load.disabled=!hasSelection;
+ const remove=$('dashboardWorkspaceDelete');if(remove)remove.disabled=!hasSelection;
+}
+function dashboardNormalizeSavedLayout(value) {
+ const fallback={version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']},density:'comfortable',preset:''};
+ if(!value||typeof value!=='object')return fallback;
+ const order=[...(Array.isArray(value.order)?value.order.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)):[]),...DASHBOARD_DEFAULT_ORDER.filter(id=>!value.order?.includes(id))];
+ const sizes={};
+ for(const id of DASHBOARD_DEFAULT_ORDER)if(['half','wide','full'].includes(value.sizes?.[id]))sizes[id]=value.sizes[id];
+ return {version:1,order,hidden:Array.isArray(value.hidden)?[...new Set(value.hidden.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)))]:[],sizes,preferences:{kpis:Array.isArray(value.preferences?.kpis)?[...new Set(value.preferences.kpis.filter(id=>['leads','projects','clients','people'].includes(id)))]:[...fallback.preferences.kpis]},density:value.density==='compact'?'compact':'comfortable',preset:''};
+}
+function dashboardSaveNamedWorkspace() {
+ const input=$('dashboardWorkspaceName');const name=input?.value.trim();
+ if(!name){toast('Укажи название рабочего пространства.',true);input?.focus();return;}
+ const items=dashboardReadSavedWorkspaces();
+ const existing=items.find(item=>item.name.toLocaleLowerCase()===name.toLocaleLowerCase());
+ if(!existing&&items.length>=12){toast('Можно сохранить не более 12 рабочих пространств.',true);return;}
+ const id=existing?.id||('workspace-'+Date.now().toString(36));
+ const next={id,name,layout:JSON.parse(JSON.stringify(dashboardLayout)),updatedAt:new Date().toISOString()};
+ const saved=existing?items.map(item=>item.id===id?next:item):[...items,next];
+ try {
+  localStorage.setItem(DASHBOARD_SAVED_WORKSPACES_KEY,JSON.stringify(saved));
+  dashboardRenderSavedWorkspaces();
+  const select=$('dashboardWorkspaceSelect');if(select)select.value=id;
+  dashboardRenderSavedWorkspaces();
+  if(input)input.value='';
+  toast(existing?'Рабочее пространство обновлено.':'Рабочее пространство сохранено.');
+ } catch(error){toast('Не удалось сохранить рабочее пространство: '+error.message,true);}
+}
+function dashboardLoadNamedWorkspace() {
+ const id=$('dashboardWorkspaceSelect')?.value;
+ const item=dashboardReadSavedWorkspaces().find(entry=>entry.id===id);
+ if(!item)return;
+ dashboardLayout=dashboardNormalizeSavedLayout(item.layout);
+ dashboardSaveLayout();dashboardApplyLayout();
+ toast('Рабочее пространство «'+item.name+'» открыто.');
+}
+function dashboardDeleteNamedWorkspace() {
+ const select=$('dashboardWorkspaceSelect');const id=select?.value;
+ const items=dashboardReadSavedWorkspaces();const item=items.find(entry=>entry.id===id);
+ if(!item)return;
+ try {
+  localStorage.setItem(DASHBOARD_SAVED_WORKSPACES_KEY,JSON.stringify(items.filter(entry=>entry.id!==id)));
+  dashboardRenderSavedWorkspaces();
+  toast('Рабочее пространство «'+item.name+'» удалено.');
+ } catch(error){toast('Не удалось удалить рабочее пространство: '+error.message,true);}
+}
 function dashboardRenderCatalog() {
  const target=$('dashboardWidgetCatalog'); if(!target)return;
  target.innerHTML=DASHBOARD_WIDGETS.map(item=>{
@@ -1000,7 +1061,7 @@ function dashboardApplyLayout() {
   const size=['half','wide','full'].includes(dashboardLayout.sizes[id])?dashboardLayout.sizes[id]:fallback;
   widget.classList.add('dashboard-size-'+size);
  }
- dashboardRenderCatalog(); dashboardRenderEditControls(); dashboardApplyKpiPreferences();
+ dashboardRenderCatalog(); dashboardRenderEditControls(); dashboardApplyKpiPreferences(); dashboardRenderSavedWorkspaces();
 }
 function dashboardOpenCustomizer() {
  dashboardEditMode=true; dashboardRenderEditControls(); dashboardRenderCatalog();
@@ -1034,6 +1095,11 @@ function dashboardInitCustomizer() {
  $('dashboardCustomizeBtn')?.addEventListener('click',dashboardOpenCustomizer);
  $('dashboardCustomizeClose')?.addEventListener('click',dashboardCloseCustomizer);
  $('dashboardCustomizeDone')?.addEventListener('click',dashboardCloseCustomizer);
+ $('dashboardWorkspaceSave')?.addEventListener('click',dashboardSaveNamedWorkspace);
+ $('dashboardWorkspaceLoad')?.addEventListener('click',dashboardLoadNamedWorkspace);
+ $('dashboardWorkspaceDelete')?.addEventListener('click',dashboardDeleteNamedWorkspace);
+ $('dashboardWorkspaceSelect')?.addEventListener('change',dashboardRenderSavedWorkspaces);
+ $('dashboardWorkspaceName')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();dashboardSaveNamedWorkspace();}});
  $('dashboardLayoutReset')?.addEventListener('click',()=>{dashboardLayout={version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']},density:'comfortable',preset:'overview'};dashboardSaveLayout();dashboardApplyLayout();});
  $('dashboardWidgetCatalog')?.addEventListener('change',event=>{
   const input=event.target.closest('[data-dashboard-widget-toggle]');if(!input)return;
