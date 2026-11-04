@@ -278,3 +278,104 @@ dialog[open] { animation: st-dialog-in var(--st-normal) var(--st-ease) both; }
     transform: none !important;
   }
 }
+
+/* Dark theme coverage for legacy module surfaces that predate semantic tokens. */
+html[data-theme="dark"] :where(
+  .stat-card, .finance-card, .settings-card, .project-card, .client-card,
+  .task-card, .report-card, .production-card, .production-project-card,
+  .pricing-card, .eng-stat, .eng-card, .estimate-panel, .estimate-pro-panel,
+  .crawler-panel, .order-radar-panel, .browser-shell, .records-panel,
+  .record-detail-panel, .dashboard-finance-panel, .dashboard-progress-section,
+  .dashboard-list-panel, .dashboard-attention-panel, .panel,
+  .settings-page-grid, .settings-page-section, .settings-integration-card,
+  .settings-security-card, .settings-data-card, .notification-settings-card,
+  .pi-home-panel, .pi-error-panel, .opportunity-radar, .prospect-card,
+  .task-list-panel, .report-section, .production-history-panel,
+  .production-plan-panel, .production-shift-panel, .estimate-summary,
+  .estimate-line-card, .eng-project-calendar, .eng-history-panel
+) {
+  background-color: var(--st-surface) !important;
+  border-color: var(--st-line) !important;
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] dialog.modal,
+html[data-theme="dark"] .modal,
+html[data-theme="dark"] .modal-content {
+  background: var(--st-surface) !important;
+  color: var(--st-ink) !important;
+  border-color: var(--st-line-strong) !important;
+}
+html[data-theme="dark"] :where(
+  .panel-head p, .section-head p, .settings-card p, .settings-card small,
+  .stat-card small, .finance-card small, .record-detail-panel small,
+  .form-hint, .field-hint, .table-sub, .empty-state span,
+  .dashboard-money-card small, .dashboard-ring-detail,
+  .eng-card p, .eng-stat small, .production-card p,
+  .production-project-card p, .settings-description, .settings-meta
+) {
+  color: var(--st-muted) !important;
+}
+html[data-theme="dark"] :where(
+  .panel-head h3, .section-head h3, .settings-card h3, .settings-card strong,
+  .stat-card strong, .finance-card strong, .record-detail-panel h3,
+  .eng-card h3, .production-card h3, .production-project-card h3,
+  .data-table td, .data-table td strong, .form-field label
+) {
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] .data-table thead th {
+  background: #202c38 !important;
+  color: #9eacb9 !important;
+  border-bottom-color: var(--st-line-strong) !important;
+}
+html[data-theme="dark"] .data-table tbody tr:hover td {
+  background: #253342 !important;
+}
+html[data-theme="dark"] .data-table tbody tr.is-selected td {
+  background: #2a3943 !important;
+}
+html[data-theme="dark"] .pill {
+  background: #293642 !important;
+  color: #c6d0d7 !important;
+  border-color: var(--st-line) !important;
+}
+html[data-theme="dark"] .pill.won,
+html[data-theme="dark"] .pill.completed,
+html[data-theme="dark"] .pill.success {
+  background: rgba(70, 170, 125, .16) !important;
+  color: #83d8ac !important;
+}
+html[data-theme="dark"] .pill.lost,
+html[data-theme="dark"] .pill.error,
+html[data-theme="dark"] .pill.overdue {
+  background: rgba(220, 90, 100, .16) !important;
+  color: #f09a9e !important;
+}
+html[data-theme="dark"] .pill.warning,
+html[data-theme="dark"] .pill.estimate {
+  background: rgba(210, 160, 75, .16) !important;
+  color: #edc17c !important;
+}
+html[data-theme="dark"] .toolbar,
+html[data-theme="dark"] .dashboard-toolbar,
+html[data-theme="dark"] .dashboard-panel-heading {
+  color: var(--st-ink) !important;
+}
+html[data-theme="dark"] .empty-state,
+html[data-theme="dark"] .empty-state strong {
+  color: var(--st-ink-soft) !important;
+}
+html[data-theme="dark"] .text-button,
+html[data-theme="dark"] .dashboard-ring-link {
+  color: var(--st-accent) !important;
+}
+html[data-theme="dark"] .local-badge {
+  background: #1a2730 !important;
+  border-color: var(--st-line) !important;
+}
+html[data-theme="dark"] .local-badge strong { color: var(--st-ink) !important; }
+html[data-theme="dark"] .local-badge small { color: var(--st-muted) !important; }
+html[data-theme="dark"] .app-footer {
+  border-color: var(--st-line) !important;
+  color: var(--st-muted) !important;
+}
