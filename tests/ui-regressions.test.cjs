@@ -1171,9 +1171,11 @@ test('Windows CI includes a real Electron viewport smoke test with isolated prof
 
   assert.equal(packageJson.scripts['test:ui'], 'node tests/electron-layout-smoke.cjs');
   assert.match(e2e, /_electron/);
-  assert.match(e2e, /executablePath: electronExecutable/);
+  assert.match(e2e, /executablePath:\\s*process\\.env\\.SKOL_UI_E2E_EXECUTABLE\\s*\\|\\|\\s*electronExecutable/);
+  assert.match(e2e, /args: process\\.env\\.SKOL_UI_E2E_EXECUTABLE \\? \\[\\] : \\[root\\]/);
   assert.match(e2e, /createLicenseToken/);
-  assert.match(e2e, /setViewportSize/);
+  assert.match(e2e, /win\\.setContentSize/);
+  assert.match(e2e, /nativeWindowViewportMatrix/);
   assert.match(e2e, /console\.log\('\[view\] '/);
   assert.match(e2e, /checkedPairs: geometry\.map/);
   assert.ok(e2e.includes("views: ['dashboard', 'projects', 'production', 'finance', 'engineering']"));
@@ -1193,6 +1195,9 @@ test('Windows CI includes a real Electron viewport smoke test with isolated prof
   assert.match(workflow, /Install Playwright for Electron UI checks/);
   assert.match(workflow, /Run Electron responsive layout checks/);
   assert.match(workflow, /SKOL-Electron-UI-Screenshots/);
+  assert.match(workflow, /Install and smoke-test the packaged Windows app/);
+  assert.match(workflow, /SKOL_UI_E2E_EXECUTABLE/);
+  assert.match(workflow, /SKOL-Packaged-App-UI-Screenshots/);
   assert.match(workflow, /playwright@1\.64\.1/);
 });
 
