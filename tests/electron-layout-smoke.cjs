@@ -481,14 +481,28 @@ async function run() {
     await page.keyboard.press('Tab');
     await page.keyboard.press('Escape');
 
+    const nativeWindowViewportMatrix = [];
     for (const viewport of viewportMatrix) {
       console.log('[viewport] ' + viewport.name + ' started');
       // Clear the pointer-driven magnification before measuring intrinsic layout.
       // A transformed hovered icon may extend the scrollable overflow area by design.
       await page.mouse.move(12, 12);
       await page.waitForFunction(() => [...document.querySelectorAll('#skolDock .dock-item')].every(item => !item.style.getPropertyValue('--dock-scale')), null, { timeout: 3000 });
-      await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await page.waitForFunction(expected => window.innerWidth === expected.width && window.innerHeight === expected.height, viewport, { timeout: 10000 });
+
+      // Resize the actual Electron BrowserWindow content area. page.setViewportSize()
+      // only emulates a renderer viewport and leaves the native window unchanged.
+      const nativeViewport = await electronApp.evaluate(({ BrowserWindow }, size) => {
+        const win = BrowserWindow.getAllWindows().find(candidate => !candidate.isDestroyed());
+        if (!win) throw new Error('СКОЛ BrowserWindow is unavailable during native resize.');
+        win.setContentSize(size.width, size.height);
+        const bounds = win.getBounds();
+        const contentBounds = win.getContentBounds();
+        const contentSize = win.getContentSize();
+        return { bounds, contentBounds, contentSize };
+      }, viewport);
+      await page.waitForFunction(expected => window.innerWidth === expected.width && window.innerHeight === expected.height, viewport, { timeout: 15000 });
+      assert.deepEqual(nativeViewport.contentSize, [viewport.width, viewport.height], 'native Electron content size must match ' + viewport.name + ': ' + JSON.stringify(nativeViewport));
+      nativeWindowViewportMatrix.push({ name: viewport.name, ...nativeViewport });
       const dockBounds = await page.locator('#skolDock').evaluate(node => {
         const rect = node.getBoundingClientRect();
         return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height, scrollWidth: node.scrollWidth, clientWidth: node.clientWidth };
@@ -551,6 +565,7 @@ async function run() {
       electronVersion: await electronApp.evaluate(({ app }) => process.versions.electron),
       chromiumVersion: await electronApp.evaluate(() => process.versions.chrome || process.versions.chromium || 'unknown'),
       nativeWindowDiagnostics,
+      nativeWindowViewportMatrix,
       viewports: viewportMatrix,
       viewsChecked: [...new Set(geometry.map(item => item.view))],
       checkedPairs: geometry.map(item => ({ viewport: item.viewport, view: item.view })),
