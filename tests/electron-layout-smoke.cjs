@@ -151,9 +151,10 @@ async function run() {
   const screenshots = [];
 
   try {
+    const packagedExecutable = process.env.SKOL_ELECTRON_EXECUTABLE;
     electronApp = await electron.launch({
-      executablePath: electronExecutable,
-      args: [root],
+      executablePath: packagedExecutable || electronExecutable,
+      args: packagedExecutable ? [] : [root],
       env: childEnv,
       timeout: 60000
     });
