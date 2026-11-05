@@ -3403,3 +3403,22 @@ html,body,.app-shell,.main,.view{min-width:0;max-width:100%}html,body{overflow-x
 :where(.eng-hero h2,.eng-card h3,.eng-stat strong,.eng-result strong,.eng-history-item strong,.eng-section-title h3,.eng-estimate-import h4,.eng-scenario-wrap h4,.eng-plan-history-head strong,.eng-plan-history-copy strong){color:var(--sf-text,#202b3b)}
 :where(.eng-hero p,.eng-card-head p,.eng-form-grid label,.eng-observation-form label,.eng-stat span,.eng-stat small,.eng-result span,.eng-result small,.eng-history-item p,.eng-form-help,.eng-empty,.eng-note,.eng-section-title p,.eng-plan-subtitle,.eng-plan-history-empty,.eng-plan-history-head span,.eng-plan-history-copy small,.eng-estimate-import p){color:var(--sf-muted,#596779)}
 :where(.eng-form-grid input,.eng-form-grid select,.eng-form-grid textarea,.eng-observation-form input,.eng-observation-form select,.eng-estimate-import textarea){border-color:var(--sf-line,rgba(30,43,60,.12));background:var(--sf-panel-2,#f7f9fb);color:var(--sf-text,#202b3b)}
+
+
+/* Final readability and viewport fit corrections for compact Windows work areas. */
+:where(.dashboard-live-indicator,.dashboard-chart-month,.dashboard-ring-title,
+  .dashboard-ring-detail,.dashboard-ring-link,.dashboard-attention-copy small,
+  .dashboard-attention-empty,.notification-status,.nav-item i,.local-badge small,
+  .data-table td,.eng-table td,.eng-calendar-table td) {
+  font-size: max(12px, 1em) !important;
+}
+@media (min-width: 1181px) {
+  .skol-dock { overflow: visible !important; }
+}
+@media (max-width: 1180px) {
+  .skol-dock { gap: 3px !important; }
+  .skol-dock .dock-group { gap: 0 !important; }
+  .skol-dock .dock-item { min-width: 34px !important; max-width: 34px !important; }
+  .skol-dock .dock-icon { width: 30px !important; height: 30px !important; }
+  .skol-dock .dock-divider { margin-left: 1px !important; margin-right: 1px !important; }
+}
