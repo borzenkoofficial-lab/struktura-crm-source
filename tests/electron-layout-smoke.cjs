@@ -288,13 +288,27 @@ async function run() {
     const dragViewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
     assert.ok(dragBox && kpisBox, 'drag source and target are rendered');
     assert.ok(dragBox.y >= 0 && dragBox.y < dragViewport.height && kpisBox.y >= 0 && kpisBox.y < dragViewport.height, 'drag source and target are inside the viewport: ' + JSON.stringify({ dragBox, kpisBox, dragViewport }));
+    const dragHandleState = await dragHandle.evaluate(node => ({ display: getComputedStyle(node).display, rect: (() => { const r = node.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })() }));
+    await page.evaluate(() => {
+      window.__skolDragTrace = [];
+      for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'lostpointercapture']) {
+        window.addEventListener(type, event => {
+          if (window.__skolDragTrace.length < 40) window.__skolDragTrace.push({
+            type, target: event.target?.className?.toString?.() || event.target?.tagName,
+            pointerId: event.pointerId, button: event.button, buttons: event.buttons,
+            x: Math.round(event.clientX), y: Math.round(event.clientY)
+          });
+        }, true);
+      }
+    });
     await page.mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + dragBox.height / 2);
     await page.mouse.down();
     await page.mouse.move(kpisBox.x + kpisBox.width / 2, kpisBox.y + 8, { steps: 10 });
     await page.mouse.up();
     await page.waitForTimeout(100);
     const orderAfterDrag = await page.locator('#view-dashboard [data-dashboard-widget]').evaluateAll(nodes => nodes.map(node => node.dataset.dashboardWidget));
-    assert.ok(orderAfterDrag.indexOf('finance') < orderAfterDrag.indexOf('kpis'), 'dashboard blocks can be reordered by dragging their handle');
+    const dragTrace = await page.evaluate(() => window.__skolDragTrace || []);
+    assert.ok(orderAfterDrag.indexOf('finance') < orderAfterDrag.indexOf('kpis'), 'dashboard blocks can be reordered by dragging their handle: ' + JSON.stringify({ orderAfterDrag, dragTrace, dragBox, kpisBox, dragViewport, dragHandleState }));
 
     const financeVisibility = customizePanel.locator('[data-visibility-key="finance"]');
     await financeVisibility.uncheck();
