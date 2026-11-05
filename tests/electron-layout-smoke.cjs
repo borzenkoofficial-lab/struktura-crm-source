@@ -8,7 +8,6 @@ const path = require('node:path');
 const { _electron: electron } = require('playwright');
 const electronExecutable = require('electron');
 const { createLicenseToken, getFeaturesForEdition } = require('../src/license-core.cjs');
-const { openDatabase } = require('../src/db.cjs');
 
 const root = path.resolve(__dirname, '..');
 const outputDir = path.resolve(process.env.SKOL_UI_E2E_OUTPUT || path.join(root, 'artifacts', 'ui-layout-smoke'));
@@ -134,25 +133,6 @@ async function run() {
   fs.mkdirSync(userData, { recursive: true });
   const legacyProfileMode = process.env.SKOL_UI_E2E_LEGACY_PROFILE === '1';
   const expectedUserData = legacyProfileMode ? path.join(tempRoot, 'Struktura CRM') : userData;
-  if (legacyProfileMode) {
-    fs.mkdirSync(expectedUserData, { recursive: true });
-    const legacyDb = openDatabase(expectedUserData);
-    try {
-      const clientId = legacyDb.prepare('INSERT INTO clients(name,phone,client_type,contact_name) VALUES (?,?,?,?)')
-        .run('Существующий клиент до обновления', '+79990000002', 'company', 'Старый контакт').lastInsertRowid;
-      const leadId = legacyDb.prepare("INSERT INTO leads(client_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,'demolition','phone','new',87500,?,?)")
-        .run(clientId, 'Старая заявка до обновления', 'Москва, старый адрес', 'Данные должны сохраниться').lastInsertRowid;
-      const projectId = legacyDb.prepare("INSERT INTO projects(lead_id,client_id,title,service,status,contract_rub,address) VALUES (?,?,'Старый объект до обновления','demolition','active',250000,'Москва, объект')")
-        .run(leadId, clientId).lastInsertRowid;
-      legacyDb.prepare("INSERT INTO payments(project_id,amount_rub,payment_date,payment_type,method,note) VALUES (?,50000,'2026-11-01','incoming','bank','Старый платёж')")
-        .run(projectId);
-      legacyDb.prepare("INSERT INTO expenses(project_id,amount_rub,expense_date,category,description,is_paid) VALUES (?,7000,'2026-11-02','materials','Старый расход',1)")
-        .run(projectId);
-      legacyDb.prepare("INSERT OR REPLACE INTO settings(key,value) VALUES ('e2e_upgrade_marker','preserve-me')").run();
-    } finally {
-      legacyDb.close();
-    }
-  }
 
   const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519');
   const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
@@ -161,7 +141,8 @@ async function run() {
     ...process.env,
     SKOL_UI_E2E: '1',
     SKOL_UI_E2E_USER_DATA: userData,
-    SKOL_UI_E2E_PUBLIC_KEY_B64: Buffer.from(publicKeyPem, 'utf8').toString('base64')
+    SKOL_UI_E2E_PUBLIC_KEY_B64: Buffer.from(publicKeyPem, 'utf8').toString('base64'),
+    ...(legacyProfileMode ? { SKOL_UI_E2E_SEED_LEGACY_PROFILE: '1' } : {})
   };
 
   let electronApp;
