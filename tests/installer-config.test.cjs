@@ -17,6 +17,8 @@ test('Windows app and installer use the СКОЛ logo and product identity', () 
   assert.equal(pkg.build.nsis.installerHeader, 'build/skol-installer-header.bmp');
   assert.equal(pkg.build.nsis.installerSidebar, 'build/skol-installer-sidebar.bmp');
   assert.equal(pkg.build.nsis.uninstallerSidebar, 'build/skol-installer-sidebar.bmp');
+  assert.equal(pkg.build.nsis.license, 'build/license_ru.txt');
+  assert.equal(pkg.build.nsis.language, 'Russian');
   assert.match(pkg.build.win.artifactName, /^SKOL-Setup-/);
   assert.equal(pkg.build.appId, 'ru.struktura.crm', 'keep the established Windows app identity for upgrade compatibility');
   assert.ok(pkg.scripts['dist:win'].includes('create-installer-assets.cjs'));
@@ -25,4 +27,11 @@ test('Windows app and installer use the СКОЛ logo and product identity', () 
   assert.ok(buildScript.includes("'skol-installer-header.bmp'"));
   assert.ok(buildScript.includes('СКОЛ'));
   assert.ok(buildScript.includes('const n = 256'), 'Windows app icon must be 256x256 pixels');
+  const installerScript = fs.readFileSync(path.join(root, 'build/installer.nsh'), 'utf8');
+  const policy = fs.readFileSync(path.join(root, 'build/license_ru.txt'), 'utf8');
+  assert.match(installerScript, /customWelcomePage/);
+  assert.match(installerScript, /SkolSlidesPageCreate/);
+  assert.match(installerScript, /Следующий слайд/);
+  assert.match(policy, /Локальные данные/);
+  assert.match(policy, /Резервное копирование/);
 });

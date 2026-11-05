@@ -7,12 +7,12 @@ const outDir = path.join(__dirname, '..', 'build');
 fs.mkdirSync(outDir, { recursive: true });
 
 const palette = {
-  graphite: [37, 40, 43],
-  graphite2: [48, 51, 53],
-  terracotta: [182, 107, 75],
-  pale: [245, 243, 239],
-  white: [245, 243, 239],
-  teal: [182, 107, 75]
+  graphite: [30, 37, 32],
+  graphite2: [245, 248, 243],
+  terracotta: [183, 255, 0],
+  pale: [248, 250, 246],
+  white: [255, 255, 255],
+  teal: [183, 255, 0]
 };
 
 function canvas(width, height, pixel) {
@@ -118,36 +118,28 @@ function iconIco() {
   header.writeUInt32LE(dib.length, 14); header.writeUInt32LE(22, 18);
   return Buffer.concat([header, dib]);
 }
-const side = canvas(164, 314, (x, y) => blend(palette.graphite, palette.graphite2, y / 314 * 0.55 + x / 164 * 0.08));
-circle(side, 144, 26, 70, [30, 66, 89], 1);
-circle(side, 145, 27, 49, [35, 76, 99], 1);
-circle(side, 18, 285, 78, [24, 48, 68], 1);
-rect(side, 23, 43, 48, 48, palette.terracotta);
-rect(side, 31, 51, 32, 32, palette.graphite);
-rect(side, 31, 51, 32, 6, palette.white);
-rect(side, 56, 51, 7, 12, palette.white);
-rect(side, 31, 64, 32, 6, palette.white);
-rect(side, 31, 64, 7, 12, palette.white);
-rect(side, 31, 76, 32, 7, palette.white);
-text(side, 'СКОЛ', 23, 109, 3, palette.white, 1);
-rect(side, 23, 135, 42, 3, palette.terracotta);
-text(side, 'BUILD', 23, 153, 1, [220, 231, 239], 1);
-text(side, 'BUSINESS', 23, 184, 1, [159, 183, 198], 1);
-text(side, 'MANAGEMENT', 23, 196, 1, [159, 183, 198], 1);
-line(side, 23, 226, 141, 226, [60, 88, 107], 1);
-circle(side, 27, 249, 3, palette.terracotta);
-text(side, 'LOCAL DATA', 37, 246, 1, [190, 207, 218], 1);
-rect(side, 23, 275, 118, 1, [60, 88, 107]);
+const side = canvas(164, 314, (x, y) => blend(palette.white, palette.pale, y / 314 * 0.65));
+rect(side, 0, 0, 164, 7, palette.terracotta);
+rect(side, 20, 34, 52, 52, palette.terracotta);
+text(side, 'СКОЛ', 22, 51, 3, palette.graphite, 1);
+text(side, 'УПРАВЛЕНИЕ', 20, 112, 1, palette.graphite, 1);
+text(side, 'СТРОЙКОЙ', 20, 126, 1, palette.graphite, 1);
+rect(side, 20, 151, 124, 2, [222, 229, 220]);
+text(side, 'ЕДИНАЯ СИСТЕМА', 20, 170, 1, [95, 108, 96], 1);
+text(side, 'ДЛЯ ОБЪЕКТОВ', 20, 184, 1, [95, 108, 96], 1);
+rect(side, 20, 218, 124, 36, [244, 248, 239]);
+rect(side, 20, 218, 4, 36, palette.terracotta);
+text(side, 'ЛОКАЛЬНЫЕ ДАННЫЕ', 30, 232, 1, palette.graphite, 1);
+circle(side, 132, 281, 17, palette.terracotta);
+circle(side, 132, 281, 7, palette.graphite);
+text(side, 'СКОЛ / DESKTOP', 20, 284, 1, [95, 108, 96], 1);
 
-const header = canvas(150, 57, (x, y) => blend(palette.graphite, palette.graphite2, x / 150 * 0.4 + y / 57 * 0.15));
+const header = canvas(150, 57, () => palette.white);
+rect(header, 0, 0, 150, 4, palette.terracotta);
 rect(header, 12, 12, 31, 31, palette.terracotta);
-rect(header, 18, 18, 19, 5, palette.white);
-rect(header, 32, 18, 5, 11, palette.white);
-rect(header, 18, 26, 19, 5, palette.white);
-rect(header, 18, 26, 5, 11, palette.white);
-rect(header, 18, 32, 19, 5, palette.white);
-text(header, 'СКОЛ', 51, 14, 3, palette.white, 1);
-text(header, 'LOCAL', 51, 39, 1, [176, 198, 211], 1);
+text(header, 'С', 17, 19, 3, palette.graphite, 0);
+text(header, 'СКОЛ', 51, 14, 3, palette.graphite, 1);
+text(header, 'DESKTOP SYSTEM', 51, 39, 1, [95, 108, 96], 1);
 
 fs.writeFileSync(path.join(outDir, 'skol-installer-sidebar.bmp'), bmp(side));
 fs.writeFileSync(path.join(outDir, 'skol-installer-header.bmp'), bmp(header));

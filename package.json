@@ -52,7 +52,10 @@
       "installerHeader": "build/skol-installer-header.bmp",
       "installerSidebar": "build/skol-installer-sidebar.bmp",
       "uninstallerSidebar": "build/skol-installer-sidebar.bmp",
-      "include": "build/installer.nsh"
+      "include": "build/installer.nsh",
+      "license": "build/license_ru.txt",
+      "displayLanguageSelector": false,
+      "language": "Russian"
     },
     "publish": [
       {
