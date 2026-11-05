@@ -275,7 +275,7 @@ async function run() {
     assert.deepEqual(orderAfterMove, ['kpis', 'progress', 'finance', 'lists', 'attention'], 'dashboard block can be moved with accessible move controls');
 
     // Verify actual pointer dragging from the dedicated handle, not only arrow controls.
-    await page.setViewportSize({ width: 1280, height: 1200 });
+    await page.setViewportSize({ width: 1280, height: 1800 });
     await page.evaluate(() => {
       const main = document.querySelector('.main');
       if (main) main.scrollTop = 0;
