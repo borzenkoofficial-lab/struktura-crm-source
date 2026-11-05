@@ -1191,8 +1191,12 @@ test('dashboard widgets can be reordered, hidden, restored and persisted indepen
   assert.match(dashboard, /id="dashboardCustomizeBtn"/);
   assert.match(html, /dashboard-layout\.js/);
   assert.match(layout, /skol-dashboard-layout-v1/);
-  assert.match(layout, /dragstart/);
-  assert.match(layout, /dragover/);
+  assert.match(layout, /pointerdown/);
+  assert.match(layout, /pointermove/);
+  assert.match(layout, /pointerup/);
+  assert.match(layout, /pointercancel/);
+  assert.match(layout, /setPointerCapture/);
+  assert.match(layout, /is-customizing/);
   assert.match(layout, /data-move-direction/);
   assert.match(layout, /data-visibility-key/);
   assert.match(layout, /localStorage\.setItem/);
