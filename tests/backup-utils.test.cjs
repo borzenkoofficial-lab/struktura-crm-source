@@ -217,3 +217,47 @@ test('restore replacement keeps a safety copy and opens the restored database on
     fs.rmSync(userDataPath, { recursive: true, force: true });
   }
 });
+
+
+test('restore leaves the live database open and unchanged when safety backup creation fails', async () => {
+  const { replaceDatabaseWithRollback } = require('../src/backup-restore.cjs');
+  const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'skol-restore-safety-failure-'));
+  const livePath = path.join(userDataPath, 'struktura-crm.sqlite');
+  const candidatePath = path.join(userDataPath, 'candidate.sqlite');
+  let db;
+  try {
+    db = new Database(livePath);
+    db.exec('CREATE TABLE restore_probe (value TEXT NOT NULL)');
+    db.prepare('INSERT INTO restore_probe(value) VALUES (?)').run('original-data');
+    const candidate = new Database(candidatePath);
+    candidate.exec('CREATE TABLE restore_probe (value TEXT NOT NULL)');
+    candidate.prepare('INSERT INTO restore_probe(value) VALUES (?)').run('replacement-data');
+    candidate.close();
+
+    const databaseWithFailedBackup = {
+      pragma: (...args) => db.pragma(...args),
+      backup: async () => { throw new Error('simulated disk write failure'); },
+      close: () => db.close(),
+      get open() { return db.open; }
+    };
+    await assert.rejects(
+      replaceDatabaseWithRollback({
+        database: databaseWithFailedBackup,
+        userDataPath,
+        livePath,
+        restoreCandidatePath: candidatePath,
+        openDatabase: directory => new Database(path.join(directory, 'struktura-crm.sqlite')),
+        validateDatabase: () => { throw new Error('must not validate an uninstalled candidate'); },
+        now: new Date('2026-11-05T13:00:00.000Z')
+      }),
+      /Действующая база не изменена.*simulated disk write failure/i
+    );
+
+    assert.equal(db.open, true);
+    assert.equal(db.prepare('SELECT value FROM restore_probe').get().value, 'original-data');
+    assert.equal(fs.existsSync(path.join(userDataPath, 'SKOL-before-restore-2026-11-05T13-00-00-000Z.sqlite')), false);
+  } finally {
+    if (db && db.open) db.close();
+    fs.rmSync(userDataPath, { recursive: true, force: true });
+  }
+});
