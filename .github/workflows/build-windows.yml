@@ -126,6 +126,24 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Run installed Windows app legacy-profile upgrade smoke
+        shell: pwsh
+        run: npm run test:ui
+        env:
+          NODE_PATH: ${{ runner.temp }}\\skol-playwright\\node_modules
+          SKOL_ELECTRON_EXECUTABLE: ${{ runner.temp }}\\skol-installed-app\\СКОЛ.exe
+          SKOL_UI_E2E_LEGACY_PROFILE: '1'
+          SKOL_UI_E2E_OUTPUT: artifacts\\installed-legacy-profile-smoke
+
+      - name: Upload legacy-profile upgrade smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SKOL-Legacy-Profile-Upgrade-Smoke
+          path: artifacts/installed-legacy-profile-smoke/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
