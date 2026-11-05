@@ -23,6 +23,29 @@ if (process.env.SKOL_UI_E2E === '1') {
   app.setPath('userData', isolatedUserDataPath);
 }
 // Keep an existing current profile; fall back to legacy data only if the current profile has no database.
+const { openDatabase } = require('./db.cjs');
+// Seed a synthetic legacy profile inside Electron's own runtime so better-sqlite3
+// uses the same native ABI as the packaged application under test.
+if (process.env.SKOL_UI_E2E_SEED_LEGACY_PROFILE === '1') {
+  if (process.env.SKOL_UI_E2E !== '1') throw new Error('Legacy profile seeding is restricted to the isolated Electron E2E test.');
+  const legacySeedPath = path.join(app.getPath('appData'), 'Struktura CRM');
+  const legacyDb = openDatabase(legacySeedPath);
+  try {
+    const clientId = legacyDb.prepare('INSERT INTO clients(name,phone,client_type,contact_name) VALUES (?,?,?,?)')
+      .run('Существующий клиент до обновления', '+79990000002', 'company', 'Старый контакт').lastInsertRowid;
+    const leadId = legacyDb.prepare("INSERT INTO leads(client_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,'demolition','phone','new',87500,?,?)")
+      .run(clientId, 'Старая заявка до обновления', 'Москва, старый адрес', 'Данные должны сохраниться').lastInsertRowid;
+    const projectId = legacyDb.prepare("INSERT INTO projects(lead_id,client_id,title,service,status,contract_rub,address) VALUES (?,?,'Старый объект до обновления','demolition','active',250000,'Москва, объект')")
+      .run(leadId, clientId).lastInsertRowid;
+    legacyDb.prepare("INSERT INTO payments(project_id,amount_rub,payment_date,payment_type,method,note) VALUES (?,50000,'2026-11-01','incoming','bank','Старый платёж')")
+      .run(projectId);
+    legacyDb.prepare("INSERT INTO expenses(project_id,amount_rub,expense_date,category,description,is_paid) VALUES (?,7000,'2026-11-02','materials','Старый расход',1)")
+      .run(projectId);
+    legacyDb.prepare("INSERT OR REPLACE INTO settings(key,value) VALUES ('e2e_upgrade_marker','preserve-me')").run();
+  } finally {
+    legacyDb.close();
+  }
+}
 const legacyDataCandidates = ['Struktura CRM', 'struktura-crm', 'struktura-crm-source'];
 const currentUserDataPath = app.getPath('userData');
 const legacyDataPath = findLegacyUserDataPath({
@@ -35,7 +58,6 @@ const legacyDataPath = findLegacyUserDataPath({
 if (legacyDataPath && path.resolve(legacyDataPath) !== path.resolve(currentUserDataPath)) {
   app.setPath('userData', legacyDataPath);
 }
-const { openDatabase } = require('./db.cjs');
 const Database = require('better-sqlite3');
 const { parseCsv, prospectDuplicateKeys, safeCsvCell } = require('./csv.cjs');
 const { crawlSites } = require('./site-crawler.cjs');
