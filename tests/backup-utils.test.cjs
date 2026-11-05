@@ -16,6 +16,8 @@ test('backup validation accepts a database initialized by the current applicatio
     const result = validateBackupDatabase(db);
     assert.ok(result.tableCount >= result.validatedTables);
     assert.equal(result.validatedTables, 6);
+    assert.equal(result.validatedCurrentTables, 14);
+    assert.equal(result.schemaVersion, 14);
   } finally {
     if (db && db.open) db.close();
     fs.rmSync(userDataPath, { recursive: true, force: true });
@@ -68,6 +70,39 @@ test('backup validation rejects a non-CRM SQLite database before restore', () =>
     db = new Database(dbPath);
     db.exec('CREATE TABLE unrelated (id INTEGER PRIMARY KEY, value TEXT)');
     assert.throws(() => validateBackupDatabase(db), /Отсутствуют обязательные таблицы/);
+  } finally {
+    if (db && db.open) db.close();
+    fs.rmSync(userDataPath, { recursive: true, force: true });
+  }
+});
+
+
+test('backup validation rejects a current-version database missing a production table', () => {
+  const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'skol-backup-missing-table-'));
+  let db;
+  try {
+    db = openDatabase(userDataPath);
+    db.exec('DROP TABLE work_shifts');
+    assert.throws(
+      () => validateBackupDatabase(db),
+      /заявляет актуальную схему, но в ней отсутствуют таблицы: work_shifts/i
+    );
+  } finally {
+    if (db && db.open) db.close();
+    fs.rmSync(userDataPath, { recursive: true, force: true });
+  }
+});
+
+test('backup validation rejects a current-version database missing a production column', () => {
+  const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'skol-backup-missing-column-'));
+  let db;
+  try {
+    db = openDatabase(userDataPath);
+    db.exec('ALTER TABLE work_shift_items DROP COLUMN hours');
+    assert.throws(
+      () => validateBackupDatabase(db),
+      /work_shift_items\\.hours/
+    );
   } finally {
     if (db && db.open) db.close();
     fs.rmSync(userDataPath, { recursive: true, force: true });
