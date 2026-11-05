@@ -108,3 +108,20 @@ test('backup validation rejects a current-version database missing a production 
     fs.rmSync(userDataPath, { recursive: true, force: true });
   }
 });
+
+
+test('backup validation rejects a current-version database missing a commercial order source field', () => {
+  const userDataPath = fs.mkdtempSync(path.join(os.tmpdir(), 'skol-backup-missing-order-source-'));
+  let db;
+  try {
+    db = openDatabase(userDataPath);
+    db.exec('ALTER TABLE commercial_orders DROP COLUMN source_url');
+    assert.throws(
+      () => validateBackupDatabase(db),
+      /commercial_orders\\.source_url/
+    );
+  } finally {
+    if (db && db.open) db.close();
+    fs.rmSync(userDataPath, { recursive: true, force: true });
+  }
+});
