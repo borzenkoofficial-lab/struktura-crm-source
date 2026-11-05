@@ -3145,7 +3145,7 @@ body.theme-dark .skol-dock .dock-item:hover .dock-icon,
 /* Main dashboard — real data, visible hierarchy and iOS-style progress rings. */
 #view-dashboard{padding-top:14px}
 
-#view-dashboard .dashboard-hero{position:relative;display:flex;align-items:center;min-height:205px;padding:30px 34px;overflow:hidden}
+#view-dashboard .dashboard-hero{position:relative;display:flex;align-items:center;min-height:205px;padding:30px 34px;overflow: clip}
 
 .dashboard-hero .welcome-copy{position:relative;max-width:590px}
 
@@ -3157,7 +3157,7 @@ body.theme-dark .skol-dock .dock-item:hover .dock-icon,
 
 .dashboard-hero .welcome-actions .button{min-height:39px;padding:10px 15px}
 
-.dashboard-hero-side{position:absolute;inset:0 0 0 auto;width:35%;overflow:hidden}
+.dashboard-hero-side{position:absolute;inset:0 0 0 auto;width:35%;overflow: clip}
 
 .dashboard-hero-orbit{position:absolute}
 
@@ -3255,7 +3255,7 @@ body.theme-dark .skol-dock .dock-item:hover .dock-icon,
 
 .dashboard-lists-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:13px;margin-top:15px}
 
-.dashboard-list-panel,.dashboard-attention-panel,.pi-home-panel{min-width:0;overflow:hidden}
+.dashboard-list-panel,.dashboard-attention-panel,.pi-home-panel{min-width:0;overflow: clip}
 
 .dashboard-list-panel .panel-head,.dashboard-attention-panel .panel-head,.pi-home-panel .panel-head{padding:16px 18px}
 
@@ -3365,9 +3365,9 @@ html,body,.app-shell,.main,.view{min-width:0;max-width:100%}html,body{overflow-x
 
 /* Dashboard layout rules shared by light and dark modes. */
 #view-dashboard{min-width:0}
-#view-dashboard .dashboard-hero{position:relative;display:flex;align-items:center;min-width:0;min-height:208px;padding:clamp(20px,2.4vw,34px);overflow:hidden;border-radius:var(--sf-radius,22px)}
+#view-dashboard .dashboard-hero{position:relative;display:flex;align-items:center;min-width:0;min-height:208px;padding:clamp(20px,2.4vw,34px);overflow: clip;border-radius:var(--sf-radius,22px)}
 #view-dashboard .dashboard-hero .welcome-copy{position:relative;z-index:2;min-width:0;max-width:590px}
-#view-dashboard .dashboard-hero-side{position:absolute;inset:0 0 0 auto;width:35%;overflow:hidden;pointer-events:none}
+#view-dashboard .dashboard-hero-side{position:absolute;inset:0 0 0 auto;width:35%;overflow: clip;pointer-events:none}
 #view-dashboard .dashboard-hero-emblem{position:absolute;right:clamp(24px,8vw,125px);top:50%;display:grid;place-items:center;width:108px;height:108px;transform:translateY(-50%)}
 #view-dashboard .dashboard-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;min-width:0;margin:24px 1px 14px}
 #view-dashboard .dashboard-toolbar-copy{min-width:0;flex:1 1 auto}
@@ -3386,7 +3386,7 @@ html,body,.app-shell,.main,.view{min-width:0;max-width:100%}html,body{overflow-x
 #view-dashboard .dashboard-ring{position:relative;display:grid;place-items:center;width:112px;height:112px;flex:0 0 112px}
 #view-dashboard .dashboard-ring svg{display:block;width:100%;height:100%;max-width:112px;overflow:visible}
 #view-dashboard .dashboard-lists-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:14px;min-width:0;margin-top:15px}
-#view-dashboard .dashboard-list-panel,#view-dashboard .dashboard-attention-panel,#view-dashboard .pi-home-panel{min-width:0;max-width:100%;overflow:hidden}
+#view-dashboard .dashboard-list-panel,#view-dashboard .dashboard-attention-panel,#view-dashboard .pi-home-panel{min-width:0;max-width:100%;overflow: clip}
 #view-dashboard .dashboard-attention-list{display:flex;min-width:0;flex-direction:column;gap:8px}
 #view-dashboard .dashboard-attention-item{display:flex;align-items:center;gap:10px;width:100%;min-width:0}
 #view-dashboard .dashboard-attention-copy{display:flex;min-width:0;flex:1 1 auto;flex-direction:column;gap:2px}
