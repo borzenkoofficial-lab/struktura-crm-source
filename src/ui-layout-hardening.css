@@ -3422,3 +3422,40 @@ html,body,.app-shell,.main,.view{min-width:0;max-width:100%}html,body{overflow-x
   .skol-dock .dock-icon { width: 30px !important; height: 30px !important; }
   .skol-dock .dock-divider { margin-left: 1px !important; margin-right: 1px !important; }
 }
+
+
+/* SKOL desktop workspace clearance: fixed Dock and PI must not cover each other or the final content. */
+.main {
+  padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px));
+}
+
+.pi-companion {
+  bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+}
+
+.pi-coach-popover {
+  max-height: min(54vh, 460px);
+  max-height: min(54dvh, 460px);
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 760px) {
+  .main {
+    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+  }
+  .pi-companion {
+    right: 12px;
+    bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  }
+  .pi-coach-popover {
+    max-height: min(48vh, 390px);
+    max-height: min(48dvh, 390px);
+  }
+}
+
+@media (max-height: 700px) {
+  .pi-coach-popover {
+    max-height: min(42vh, 300px);
+    max-height: min(42dvh, 300px);
+  }
+}
