@@ -3424,9 +3424,9 @@ html,body,.app-shell,.main,.view{min-width:0;max-width:100%}html,body{overflow-x
 }
 
 
-/* SKOL desktop workspace clearance: fixed Dock and PI must not cover each other or the final content. */
+/* SKOL desktop workspace clearance: override legacy responsive padding rules. */
 .main {
-  padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px)) !important;
 }
 
 .pi-companion {
@@ -3441,7 +3441,7 @@ html,body,.app-shell,.main,.view{min-width:0;max-width:100%}html,body{overflow-x
 
 @media (max-width: 760px) {
   .main {
-    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(132px + env(safe-area-inset-bottom, 0px)) !important;
   }
   .pi-companion {
     right: 12px;
