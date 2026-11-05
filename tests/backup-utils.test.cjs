@@ -115,10 +115,10 @@ test('backup validation rejects a current-version database missing a commercial 
   let db;
   try {
     db = openDatabase(userDataPath);
-    db.exec('ALTER TABLE commercial_orders DROP COLUMN source_url');
+    db.exec('ALTER TABLE commercial_orders DROP COLUMN source_page_title');
     assert.throws(
       () => validateBackupDatabase(db),
-      /commercial_orders\\.source_url/
+      /commercial_orders\\.source_page_title/
     );
   } finally {
     if (db && db.open) db.close();
