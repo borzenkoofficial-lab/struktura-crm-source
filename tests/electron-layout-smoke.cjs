@@ -274,6 +274,17 @@ async function run() {
     const orderAfterMove = await page.locator('#view-dashboard [data-dashboard-widget]').evaluateAll(nodes => nodes.map(node => node.dataset.dashboardWidget));
     assert.deepEqual(orderAfterMove, ['kpis', 'progress', 'finance', 'lists', 'attention'], 'dashboard block can be moved with accessible move controls');
 
+    // Verify actual pointer dragging from the dedicated handle, not only arrow controls.
+    const dragHandle = page.locator('#view-dashboard [data-dashboard-widget="attention"] [data-drag-handle]');
+    const dragBox = await dragHandle.boundingBox();
+    const financeBox = await page.locator('#view-dashboard [data-dashboard-widget="finance"]').boundingBox();
+    await page.mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + dragBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(financeBox.x + financeBox.width / 2, financeBox.y + 8, { steps: 8 });
+    await page.mouse.up();
+    const orderAfterDrag = await page.locator('#view-dashboard [data-dashboard-widget]').evaluateAll(nodes => nodes.map(node => node.dataset.dashboardWidget));
+    assert.ok(orderAfterDrag.indexOf('attention') < orderAfterDrag.indexOf('finance'), 'dashboard blocks can be reordered by dragging their handle');
+
     const financeVisibility = customizePanel.locator('[data-visibility-key="finance"]');
     await financeVisibility.uncheck();
     assert.equal(await page.locator('#view-dashboard [data-dashboard-widget="finance"]').evaluate(node => node.hidden), true, 'dashboard block can be hidden');

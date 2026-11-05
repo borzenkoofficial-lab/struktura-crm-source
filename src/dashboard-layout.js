@@ -61,7 +61,7 @@
     drag.textContent = '⠿';
     drag.title = 'Перетащить блок';
     drag.setAttribute('aria-label', 'Перетащить блок «' + labels[key] + '»');
-    drag.draggable = true;
+    drag.draggable = false;
     drag.dataset.dragHandle = 'true';
 
     const up = document.createElement('button');
@@ -160,6 +160,7 @@
     const target = ensurePanel();
     const open = typeof force === 'boolean' ? force : target.hidden;
     target.hidden = !open;
+    root.classList.toggle('is-customizing', open);
     trigger.setAttribute('aria-expanded', String(open));
     trigger.classList.toggle('is-active', open);
     if (open) refreshPanel();
@@ -196,36 +197,55 @@
     if (event.target.closest('[data-close-dashboard-layout]')) togglePanel(false);
   });
 
-  root.addEventListener('dragstart', event => {
-    const handle = event.target.closest('[data-drag-handle]');
-    if (!handle) { event.preventDefault(); return; }
-    draggedWidget = handle.closest('[data-dashboard-widget]');
-    if (!draggedWidget) { event.preventDefault(); return; }
-    draggedWidget.classList.add('is-dragging');
-    if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', draggedWidget.dataset.dashboardWidget);
+  let pointerDrag = null;
+  function clearPointerDrag(commit = false) {
+    if (!pointerDrag) return;
+    pointerDrag.widget.classList.remove('is-dragging');
+    widgets().forEach(widget => widget.classList.remove('drop-before', 'drop-after'));
+    if (commit && pointerDrag.started) {
+      saveLayout();
+      refreshPanel();
     }
+    pointerDrag = null;
+    draggedWidget = null;
+  }
+
+  root.addEventListener('pointerdown', event => {
+    const handle = event.target.closest('[data-drag-handle]');
+    if (!handle || !root.classList.contains('is-customizing') || event.button !== 0) return;
+    const widget = handle.closest('[data-dashboard-widget]');
+    if (!widget) return;
+    pointerDrag = { widget, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, started: false };
+    draggedWidget = widget;
+    try { handle.setPointerCapture(event.pointerId); } catch {}
   });
-  root.addEventListener('dragover', event => {
-    if (!draggedWidget) return;
-    const target = event.target.closest('[data-dashboard-widget]');
-    if (!target || target === draggedWidget) return;
+
+  root.addEventListener('pointermove', event => {
+    if (!pointerDrag || event.pointerId !== pointerDrag.pointerId) return;
+    const dx = event.clientX - pointerDrag.startX;
+    const dy = event.clientY - pointerDrag.startY;
+    if (!pointerDrag.started && Math.hypot(dx, dy) < 6) return;
+    pointerDrag.started = true;
     event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    pointerDrag.widget.classList.add('is-dragging');
+    const underPointer = document.elementFromPoint(event.clientX, event.clientY);
+    const target = underPointer && underPointer.closest('[data-dashboard-widget]');
+    if (!target || target === pointerDrag.widget || !root.contains(target)) return;
+    widgets().forEach(widget => widget.classList.remove('drop-before', 'drop-after'));
     const rect = target.getBoundingClientRect();
     const after = event.clientY > rect.top + rect.height / 2;
-    root.insertBefore(draggedWidget, after ? target.nextSibling : target);
+    target.classList.add(after ? 'drop-after' : 'drop-before');
+    root.insertBefore(pointerDrag.widget, after ? target.nextSibling : target);
   });
-  root.addEventListener('drop', event => {
-    if (!draggedWidget) return;
-    event.preventDefault();
-    saveLayout();
-    refreshPanel();
+
+  root.addEventListener('pointerup', event => {
+    if (pointerDrag && event.pointerId === pointerDrag.pointerId) clearPointerDrag(true);
   });
-  root.addEventListener('dragend', () => {
-    if (draggedWidget) draggedWidget.classList.remove('is-dragging');
-    draggedWidget = null;
-    saveLayout();
+  root.addEventListener('pointercancel', event => {
+    if (pointerDrag && event.pointerId === pointerDrag.pointerId) clearPointerDrag(false);
   });
+  window.addEventListener('pointerup', event => {
+    if (pointerDrag && event.pointerId === pointerDrag.pointerId) clearPointerDrag(true);
+  });
+  window.addEventListener('blur', () => clearPointerDrag(false));
 })();

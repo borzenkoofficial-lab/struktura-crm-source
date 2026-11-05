@@ -3485,3 +3485,34 @@ html,body,.app-shell,.main,.view{min-width:0;max-width:100%}html,body{overflow-x
 #view-dashboard .dashboard-customize-footer .button{min-height:34px;padding:7px 10px;font-size:10px}
 @media(max-width:980px){#view-dashboard .dashboard-customize-panel{grid-template-columns:1fr}#view-dashboard .dashboard-customize-footer{justify-content:flex-start}}
 @media(prefers-reduced-motion:reduce){#view-dashboard .dashboard-custom-widget{transition:none}}
+
+/* Refined dashboard analytics and dependable touch/mouse widget reordering. */
+#view-dashboard.is-customizing .dashboard-widget-controls,
+#view-dashboard .dashboard-custom-widget:focus-within .dashboard-widget-controls{display:flex}
+#view-dashboard .dashboard-widget-controls{opacity:1;transform:translateY(0);transition:opacity .16s ease,transform .16s ease}
+#view-dashboard:not(.is-customizing) .dashboard-widget-controls{display:none}
+#view-dashboard .dashboard-widget-drag{touch-action:none;user-select:none;-webkit-user-select:none}
+#view-dashboard .dashboard-custom-widget.drop-before:before,
+#view-dashboard .dashboard-custom-widget.drop-after:after{content:"";position:absolute;left:12px;right:12px;height:3px;border-radius:99px;background:#a6d735;box-shadow:0 0 0 4px rgba(166,215,53,.12);z-index:12;pointer-events:none}
+#view-dashboard .dashboard-custom-widget.drop-before:before{top:-7px}
+#view-dashboard .dashboard-custom-widget.drop-after:after{bottom:-7px}
+#view-dashboard .dashboard-chart-visual{width:100%;min-width:0;padding-top:4px}
+#view-dashboard .dashboard-cashflow-svg{display:block;width:100%;height:auto;overflow:visible;max-height:190px}
+#view-dashboard .dashboard-chart-gridline{stroke:#edf1e8;stroke-width:1;stroke-dasharray:3 7}
+#view-dashboard .dashboard-chart-area{fill:url(#dashboardIncomeFill);opacity:0;animation:skolChartAreaIn .8s .12s ease forwards}
+#view-dashboard .dashboard-chart-line{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:3.5;stroke-dasharray:1000;stroke-dashoffset:1000;animation:skolChartDraw 1.15s cubic-bezier(.22,.72,.22,1) forwards}
+#view-dashboard .dashboard-chart-line.income{stroke:#91c72a}
+#view-dashboard .dashboard-chart-line.expense{stroke:#9aa8b8;stroke-width:2.5;stroke-dasharray:6 7;animation-delay:.12s}
+#view-dashboard .dashboard-chart-dot{stroke:#fff;stroke-width:2;transform-box:fill-box;transform-origin:center;animation:skolChartDotIn .35s ease both}
+#view-dashboard .dashboard-chart-dot.income{fill:#91c72a}
+#view-dashboard .dashboard-chart-dot.expense{fill:#9aa8b8;animation-delay:.12s}
+#view-dashboard .dashboard-chart-months{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;padding:0 2px;margin-top:-2px}
+#view-dashboard .dashboard-chart-months .dashboard-chart-month{text-align:center;color:#8793a2;font-size:11px;line-height:1.4}
+@keyframes skolChartDraw{to{stroke-dashoffset:0}}
+@keyframes skolChartAreaIn{to{opacity:1}}
+@keyframes skolChartDotIn{from{opacity:0;transform:scale(.45)}to{opacity:1;transform:scale(1)}}
+@media(max-width:620px){#view-dashboard .dashboard-cashflow-svg{max-height:160px}#view-dashboard .dashboard-chart-months{gap:2px}}
+@media(prefers-reduced-motion:reduce){
+ #view-dashboard .dashboard-chart-area,#view-dashboard .dashboard-chart-line,#view-dashboard .dashboard-chart-dot{animation:none!important;opacity:1!important;stroke-dashoffset:0!important;transform:none!important}
+ #view-dashboard .dashboard-widget-controls,#view-dashboard .dashboard-custom-widget{transition:none!important}
+}

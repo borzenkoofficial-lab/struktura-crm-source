@@ -556,17 +556,32 @@ function renderDashboardCashflowChart(cashflow, complete) {
     target.innerHTML = '<div class="dashboard-chart-empty">За последние 6 месяцев ещё нет финансовых записей.</div>';
     return;
   }
-  const max = Math.max(0, ...values.flatMap(item => [Number(item.income) || 0, Number(item.expenses) || 0])) || 1;
-  target.innerHTML = values.map(item => `<div class="dashboard-chart-column" aria-label="${esc(item.label)}: поступления ${esc(fmt(item.income))}, расходы ${esc(fmt(item.expenses))}">
-    <div class="dashboard-chart-bars"><span class="dashboard-chart-bar income" data-chart-income="${esc(item.key)}"></span><span class="dashboard-chart-bar expense" data-chart-expense="${esc(item.key)}"></span></div>
-    <span class="dashboard-chart-month">${esc(item.label)}</span>
-  </div>`).join('');
-  for (const item of values) {
-    const incomeBar = target.querySelector(`[data-chart-income="${item.key}"]`);
-    const expenseBar = target.querySelector(`[data-chart-expense="${item.key}"]`);
-    if (incomeBar) incomeBar.style.height = `${item.income > 0 ? Math.max(5, item.income / max * 100) : 2}%`;
-    if (expenseBar) expenseBar.style.height = `${item.expenses > 0 ? Math.max(5, item.expenses / max * 100) : 2}%`;
-  }
+
+  const baseline = 150, top = 24, left = 28, right = 692;
+  const max = Math.max(1, ...values.flatMap(item => [Number(item.income) || 0, Number(item.expenses) || 0]));
+  const xAt = index => values.length === 1 ? 360 : left + (right - left) * index / (values.length - 1);
+  const yAt = value => baseline - Math.max(0, Number(value) || 0) / max * (baseline - top);
+  const income = values.map((item, index) => ({ x: xAt(index), y: yAt(item.income), item }));
+  const expenses = values.map((item, index) => ({ x: xAt(index), y: yAt(item.expenses), item }));
+  const linePath = points => points.map((point, index) => {
+    if (!index) return `M ${point.x} ${point.y}`;
+    const previous = points[index - 1], middle = (previous.x + point.x) / 2;
+    return `C ${middle} ${previous.y}, ${middle} ${point.y}, ${point.x} ${point.y}`;
+  }).join(' ');
+  const incomePath = linePath(income), expensePath = linePath(expenses);
+  const areaPath = `${incomePath} L ${income[income.length - 1].x} ${baseline} L ${income[0].x} ${baseline} Z`;
+  const grid = [top, (top + baseline) / 2, baseline].map(y => `<line class="dashboard-chart-gridline" x1="18" y1="${y}" x2="702" y2="${y}"/>`).join('');
+  const dots = (points, type, field, title) => points.map(point =>
+    `<circle class="dashboard-chart-dot ${type}" cx="${point.x}" cy="${point.y}" r="${type === 'income' ? 4 : 3.5}"><title>${esc(point.item.label)} · ${title}: ${esc(fmt(point.item[field]))}</title></circle>`).join('');
+  const monthLabels = values.map(item => `<span class="dashboard-chart-month">${esc(item.label)}</span>`).join('');
+  target.innerHTML = `<div class="dashboard-chart-visual">
+    <svg class="dashboard-cashflow-svg" viewBox="0 0 720 184" role="img" aria-label="Динамика поступлений и оплаченных расходов за шесть месяцев">
+      <defs><linearGradient id="dashboardIncomeFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#a8d936" stop-opacity=".28"/><stop offset="100%" stop-color="#a8d936" stop-opacity="0"/></linearGradient></defs>
+      ${grid}<path class="dashboard-chart-area" d="${areaPath}"/>
+      <path class="dashboard-chart-line expense" d="${expensePath}"/><path class="dashboard-chart-line income" d="${incomePath}"/>
+      ${dots(expenses,'expense','expenses','расходы')}${dots(income,'income','income','поступления')}
+    </svg><div class="dashboard-chart-months" aria-hidden="true">${monthLabels}</div>
+  </div>`;
 }
 
 function renderDashboardAttention(attention = {}) {
