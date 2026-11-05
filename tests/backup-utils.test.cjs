@@ -101,7 +101,7 @@ test('backup validation rejects a current-version database missing a production 
     db.exec('ALTER TABLE work_shift_items DROP COLUMN hours');
     assert.throws(
       () => validateBackupDatabase(db),
-      /work_shift_items\\.hours/
+      /work_shift_items\.hours/
     );
   } finally {
     if (db && db.open) db.close();
