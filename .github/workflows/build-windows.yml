@@ -93,6 +93,39 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install Windows package for packaged-app smoke
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem "dist/SKOL-Setup-*.exe" | Select-Object -First 1
+          if (-not $installer) { throw "Windows installer was not produced." }
+          $installDir = Join-Path $env:RUNNER_TEMP "skol-installed-app"
+          $install = Start-Process -FilePath $installer.FullName -ArgumentList @("/S", "/D=$installDir") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Silent installer exited with code $($install.ExitCode)." }
+          $appPath = Join-Path $installDir "СКОЛ.exe"
+          if (-not (Test-Path $appPath)) {
+            Get-ChildItem -Force $installDir | Format-Table -AutoSize | Out-String | Write-Host
+            throw "Installed СКОЛ.exe was not found in $installDir."
+          }
+          "SKOL_ELECTRON_EXECUTABLE=$appPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Installed app: $appPath"
+
+      - name: Run installed Windows app smoke
+        shell: pwsh
+        run: npm run test:ui
+        env:
+          NODE_PATH: ${{ runner.temp }}\\skol-playwright\\node_modules
+          SKOL_ELECTRON_EXECUTABLE: ${{ runner.temp }}\\skol-installed-app\\СКОЛ.exe
+          SKOL_UI_E2E_OUTPUT: artifacts\\installed-app-smoke
+
+      - name: Upload installed app smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SKOL-Installed-App-Smoke
+          path: artifacts/installed-app-smoke/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
