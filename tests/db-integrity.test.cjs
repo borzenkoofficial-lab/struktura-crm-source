@@ -42,15 +42,51 @@ test('database upgrades a legacy schema without dropping existing project and le
   try {
     db = new Database(dbPath);
     db.exec(`
-      CREATE TABLE clients (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
-    INSERT INTO clients(id,name) VALUES (5,'Существующий заказчик');
-      CREATE TABLE leads (id INTEGER PRIMARY KEY, status TEXT NOT NULL, created_at TEXT NOT NULL);
-      CREATE TABLE projects (id INTEGER PRIMARY KEY, status TEXT NOT NULL, title TEXT NOT NULL);
+      CREATE TABLE clients (
+        id INTEGER PRIMARY KEY, name TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '',
+        email TEXT NOT NULL DEFAULT '', client_type TEXT NOT NULL DEFAULT 'person',
+        notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE leads (
+        id INTEGER PRIMARY KEY, client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+        title TEXT NOT NULL, service TEXT NOT NULL DEFAULT 'demolition',
+        source TEXT NOT NULL DEFAULT 'phone', status TEXT NOT NULL DEFAULT 'new',
+        budget_rub INTEGER NOT NULL DEFAULT 0, address TEXT NOT NULL DEFAULT '',
+        next_action TEXT NOT NULL DEFAULT '', next_action_at TEXT,
+        notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE projects (
+        id INTEGER PRIMARY KEY, lead_id INTEGER REFERENCES leads(id) ON DELETE SET NULL,
+        client_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+        title TEXT NOT NULL, service TEXT NOT NULL DEFAULT 'demolition',
+        status TEXT NOT NULL DEFAULT 'planned', contract_rub INTEGER NOT NULL DEFAULT 0,
+        address TEXT NOT NULL DEFAULT '', start_date TEXT, end_date TEXT,
+        notes TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE payments (
+        id INTEGER PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        amount_rub INTEGER NOT NULL, payment_date TEXT NOT NULL,
+        payment_type TEXT NOT NULL DEFAULT 'incoming', method TEXT NOT NULL DEFAULT 'other',
+        note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE expenses (
+        id INTEGER PRIMARY KEY, project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        amount_rub INTEGER NOT NULL, expense_date TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'other',
+        description TEXT NOT NULL, is_paid INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
       CREATE TABLE prospects (id INTEGER PRIMARY KEY, status TEXT NOT NULL, region TEXT NOT NULL);
       CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-      INSERT INTO leads(id,status,created_at) VALUES (7,'new','2025-01-01');
-      INSERT INTO projects(id,status,title) VALUES (11,'active','Старый объект');
+      INSERT INTO clients(id,name,phone,client_type,notes) VALUES (5,'Существующий заказчик','+79990000003','company','Клиент из старой базы');
+      INSERT INTO leads(id,client_id,title,status,created_at) VALUES (7,5,'Старая заявка','new','2025-01-01');
+      INSERT INTO projects(id,lead_id,client_id,status,title,contract_rub) VALUES (11,7,5,'active','Старый объект',250000);
+      INSERT INTO payments(id,project_id,amount_rub,payment_date,note) VALUES (15,11,50000,'2025-01-02','Старый платёж');
+      INSERT INTO expenses(id,project_id,amount_rub,expense_date,description) VALUES (17,11,7000,'2025-01-03','Старый расход');
       INSERT INTO prospects(id,status,region) VALUES (13,'new','Москва');
+      INSERT INTO settings(key,value) VALUES ('custom_setting','preserve-this-value');
     `);
     db.close(); db = null;
     db = openDatabase(userDataPath);
@@ -58,7 +94,11 @@ test('database upgrades a legacy schema without dropping existing project and le
     const projectColumns = new Set(db.prepare('PRAGMA table_info(projects)').all().map(row => row.name));
     const clientColumns = new Set(db.prepare('PRAGMA table_info(clients)').all().map(row => row.name));
     assert.ok(clientColumns.has('contact_name'));
-    assert.equal(db.prepare('SELECT name,contact_name FROM clients WHERE id=5').get().name,'Существующий заказчик');
+    const migratedClient = db.prepare('SELECT name,phone,client_type,contact_name,notes FROM clients WHERE id=5').get();
+    assert.deepEqual(migratedClient, {
+      name: 'Существующий заказчик', phone: '+79990000003', client_type: 'company',
+      contact_name: '', notes: 'Клиент из старой базы'
+    });
     const prospectColumns = new Set(db.prepare('PRAGMA table_info(prospects)').all().map(row => row.name));
     assert.ok(leadColumns.has('commercial_order_id'));
     assert.ok(projectColumns.has('planned_people'));
@@ -69,9 +109,21 @@ test('database upgrades a legacy schema without dropping existing project and le
     assert.ok(orderColumns.has('source_fetched_at'));
     const documentColumns = new Set(db.prepare('PRAGMA table_info(commercial_order_documents)').all().map(row => row.name));
     for (const column of ['order_id','source_url','extracted_text','fact_evidence_json','sha256','fetched_at','document_type','sheet_count','row_count','line_items_json']) assert.ok(documentColumns.has(column));
-    assert.equal(db.prepare('SELECT status FROM leads WHERE id=7').get().status, 'new');
-    assert.equal(db.prepare('SELECT title FROM projects WHERE id=11').get().title, 'Старый объект');
+    assert.deepEqual(db.prepare('SELECT client_id,title,status FROM leads WHERE id=7').get(), {
+      client_id: 5, title: 'Старая заявка', status: 'new'
+    });
+    assert.deepEqual(db.prepare('SELECT lead_id,client_id,title,contract_rub,status FROM projects WHERE id=11').get(), {
+      lead_id: 7, client_id: 5, title: 'Старый объект', contract_rub: 250000, status: 'active'
+    });
+    assert.deepEqual(db.prepare('SELECT project_id,amount_rub,note FROM payments WHERE id=15').get(), {
+      project_id: 11, amount_rub: 50000, note: 'Старый платёж'
+    });
+    assert.deepEqual(db.prepare('SELECT project_id,amount_rub,description FROM expenses WHERE id=17').get(), {
+      project_id: 11, amount_rub: 7000, description: 'Старый расход'
+    });
+    assert.equal(db.prepare("SELECT value FROM settings WHERE key='custom_setting'").get().value, 'preserve-this-value');
     assert.equal(db.prepare('SELECT region FROM prospects WHERE id=13').get().region, 'Москва');
+    assert.equal(db.pragma('foreign_key_check').length, 0);
     assert.equal(db.pragma('integrity_check', { simple: true }), 'ok');
   } finally {
     if (db && db.open) db.close();
