@@ -16,7 +16,7 @@ test('backup validation accepts a database initialized by the current applicatio
     const result = validateBackupDatabase(db);
     assert.ok(result.tableCount >= result.validatedTables);
     assert.equal(result.validatedTables, 6);
-    assert.equal(result.validatedCurrentTables, 14);
+    assert.equal(result.validatedCurrentTables, 17);
     assert.equal(result.schemaVersion, 14);
   } finally {
     if (db && db.open) db.close();
