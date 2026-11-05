@@ -1032,7 +1032,11 @@ test('Salesforce light layout loads after base CSS and the reusable metrics modu
   assert.ok(links.indexOf('theme-salesforce-light.css') > links.indexOf('theme-salesforce.css'));
   assert.ok(html.includes('<script src="dashboard-metrics.js"></script><script src="renderer.js"></script>'));
   const css = fs.readFileSync(path.join(__dirname, '../src/theme-salesforce-light.css'), 'utf8');
-  for (const selector of ['.dashboard-kpis','.dashboard-finance-metrics','.dashboard-rings-grid','.dashboard-attention-list','.nav-more-menu']) assert.ok(css.includes(selector));
+  const sharedLayout = fs.readFileSync(path.join(__dirname, '../src/ui-layout-hardening.css'), 'utf8');
+  for (const selector of ['.dashboard-kpis','.dashboard-finance-metrics','.dashboard-rings-grid','.dashboard-attention-list']) {
+    assert.ok(sharedLayout.includes(selector), selector + ' belongs to the shared geometry layer');
+  }
+  assert.ok(css.includes('.nav-more-menu'), 'theme-specific navigation surface styling remains in the light theme');
   assert.ok(css.includes('@media(max-width:620px)'));
   assert.ok(css.includes('@media(prefers-reduced-motion:reduce)'));
   assert.ok(css.includes('overflow-wrap:anywhere'));
