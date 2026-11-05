@@ -3525,7 +3525,7 @@ html,body,.app-shell,.main,.view{min-width:0;max-width:100%}html,body{overflow-x
 #view-dashboard .dashboard-chart-gridline{stroke:#e9eee4;stroke-width:1;stroke-dasharray:2 7;vector-effect:non-scaling-stroke}
 #view-dashboard .dashboard-chart-line{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;animation:skolChartDraw 1.2s cubic-bezier(.22,.72,.22,1) forwards;vector-effect:non-scaling-stroke}
 #view-dashboard .dashboard-chart-line.income{stroke:#8fbe28;stroke-width:3.6}
-#view-dashboard .dashboard-chart-line.expense{stroke:#a3afbb;stroke-width:2.4;animation-delay:.12s}
+#view-dashboard .dashboard-chart-line.expense{stroke:#a3afbb;stroke-width:2.4;stroke-dasharray:1;animation-delay:.12s}
 #view-dashboard .dashboard-chart-area{fill:url(#dashboardIncomeFill);opacity:0;animation:skolChartAreaIn .85s .16s ease forwards}
 #view-dashboard .dashboard-chart-dot{stroke:#fff;stroke-width:2.2;transform-box:fill-box;transform-origin:center;animation:skolChartDotIn .34s ease both;animation-delay:calc(.36s + var(--point-index,0) * 58ms);cursor:help;vector-effect:non-scaling-stroke}
 #view-dashboard .dashboard-chart-dot.income{fill:#8fbe28}

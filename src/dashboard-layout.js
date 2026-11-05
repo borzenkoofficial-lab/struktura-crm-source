@@ -15,7 +15,6 @@
   if (!root || !trigger) return;
 
   const widgets = () => Array.from(root.querySelectorAll('[data-dashboard-widget]'));
-  let draggedWidget = null;
   let panel = null;
 
   function readLayout() {
