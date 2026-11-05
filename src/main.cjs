@@ -1371,6 +1371,9 @@ ipcMain.handle('backup:restore', async () => {
     for (const sidecar of [walPath, shmPath]) if (fs.existsSync(sidecar)) fs.rmSync(sidecar, { force: true });
     fs.copyFileSync(restoreCandidatePath, livePath);
     db = openDatabase(userDataPath);
+    // Validate the migrated live database before exposing restored data to the UI.
+    // If migration or validation fails, the catch block restores the safety copy.
+    validateBackupDatabase(db);
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload();
     return { canceled: false, safetyPath };
   } catch (error) {
