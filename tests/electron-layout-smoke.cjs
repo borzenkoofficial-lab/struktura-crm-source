@@ -201,6 +201,46 @@ async function run() {
       return !splash || splash.classList.contains('is-hidden');
     }, null, { timeout: 15000 });
     await page.waitForTimeout(750);
+
+    // Exercise the real preload → IPC → SQLite path for a core CRM relationship.
+    const clientLeadWorkflow = await page.evaluate(async () => {
+      const client = await window.crm.createClient({
+        name: 'E2E заказчик СКОЛ',
+        phone: '+79990000001',
+        client_type: 'company',
+        contact_name: 'Тестовый представитель'
+      });
+      const lead = await window.crm.createLead({
+        title: 'E2E демонтаж офиса',
+        client_id: client.id,
+        service: 'demolition',
+        source: 'phone',
+        budget_rub: 125000,
+        address: 'Москва, тестовый адрес',
+        notes: 'Проверка сквозного сохранения связи'
+      });
+      const linked = (await window.crm.listLeads()).find(item => item.id === lead.id);
+      if (!linked || linked.client_id !== client.id || linked.client_name !== client.name) {
+        throw new Error('Связь заявки с клиентом не сохранилась после чтения из SQLite.');
+      }
+      await window.crm.updateLead({ ...linked, title: 'E2E демонтаж офиса — обновлено' });
+      const updated = (await window.crm.listLeads()).find(item => item.id === lead.id);
+      if (!updated || updated.client_id !== client.id || updated.client_name !== client.name) {
+        throw new Error('Связь заявки с клиентом потерялась при редактировании заявки.');
+      }
+      let invalidClientRejected = false;
+      try {
+        await window.crm.createLead({ title: 'E2E invalid relation', client_id: 999999, budget_rub: 0 });
+      } catch (error) {
+        invalidClientRejected = /клиент не найден/i.test(String(error.message || error));
+      }
+      if (!invalidClientRejected) throw new Error('CRM должна отклонять ссылку на несуществующего клиента.');
+      return { clientId: client.id, leadId: lead.id, linkedClientName: updated.client_name, invalidClientRejected };
+    });
+    assert.ok(clientLeadWorkflow.clientId > 0 && clientLeadWorkflow.leadId > 0, 'CRM creates test client and lead through IPC');
+    assert.equal(clientLeadWorkflow.linkedClientName, 'E2E заказчик СКОЛ', 'lead-client relation survives create, read and update');
+    assert.equal(clientLeadWorkflow.invalidClientRejected, true, 'invalid client relations are rejected');
+
     // Exercise the persistent macOS-inspired Dock on the real Electron window.
     const dock = page.locator('#skolDock');
     await dock.waitFor({ state: 'visible' });
@@ -261,6 +301,9 @@ async function run() {
       for (const viewName of (viewport.views || viewNames)) {
         console.log('[view] ' + viewport.name + ' / ' + viewName + ' checking');
         await openView(page, viewName);
+        if (viewName === 'leads') {
+          await page.locator('#leadsTable').getByText('E2E заказчик СКОЛ').waitFor({ state: 'visible' });
+        }
         const report = await collectGeometry(page, viewport, viewName);
         geometry.push({ viewport: viewport.name, view: viewName, ...report });
         console.log('[view] ' + viewport.name + ' / ' + viewName + ' passed');
