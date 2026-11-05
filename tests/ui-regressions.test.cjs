@@ -1150,7 +1150,7 @@ test('Windows CI includes a real Electron viewport smoke test with isolated prof
 
   assert.equal(packageJson.scripts['test:ui'], 'node tests/electron-layout-smoke.cjs');
   assert.match(e2e, /_electron/);
-  assert.match(e2e, /executablePath: electronExecutable/);
+  assert.match(e2e, /executablePath: packagedExecutable \|\| electronExecutable/);
   assert.match(e2e, /createLicenseToken/);
   assert.match(e2e, /setViewportSize/);
   assert.match(e2e, /console\.log\('\[view\] '/);
