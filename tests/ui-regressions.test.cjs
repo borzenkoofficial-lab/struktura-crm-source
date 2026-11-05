@@ -207,26 +207,32 @@ test('data and product utilities are grouped inside Settings, not in the Dock', 
 
 test('backup restore validates SQLite structure and preserves an automatic rollback copy', () => {
   const backupUtils = fs.readFileSync(path.join(__dirname, '../src/backup-utils.cjs'), 'utf8');
+  const restoreUtils = fs.readFileSync(path.join(__dirname, '../src/backup-restore.cjs'), 'utf8');
   assert.match(main, /validateBackupDatabase\(candidate\)/);
   assert.match(main, /validateBackupDatabase\(normalized\)/);
   assert.match(backupUtils, /integrity_check/);
   assert.match(backupUtils, /REQUIRED_BACKUP_COLUMNS/);
   assert.match(backupUtils, /clients: \['id', 'name', 'phone', 'email'/);
-  assert.match(main, /await db\.backup\(safetyPath\)/);
-  assert.match(main, /прежняя база возвращена/);
-  assert.match(main, /Действующая база не изменена/);
+  assert.match(restoreUtils, /await database\.backup\(safetyPath\)/);
+  assert.match(restoreUtils, /validateDatabase\(replacementDatabase\)/);
+  assert.match(restoreUtils, /прежняя база возвращена/);
+  assert.match(restoreUtils, /Действующая база не изменена/);
+  assert.match(main, /replaceDatabaseWithRollback/);
 });
 
 test('backup restore normalizes SQLite files so source WAL data is included and rollback sidecars are cleared', () => {
   const restoreStart = main.indexOf("ipcMain.handle('backup:restore'");
   const restoreEnd = main.indexOf("ipcMain.handle('browser:state'", restoreStart);
   const restore = main.slice(restoreStart, restoreEnd);
+  const restoreUtils = fs.readFileSync(path.join(__dirname, '../src/backup-restore.cjs'), 'utf8');
   assert.ok(restoreStart >= 0 && restoreEnd > restoreStart, 'restore handler exists');
   assert.match(restore, /await candidate\.backup\(restoreCandidatePath\)/);
   assert.match(restore, /new Database\(restoreCandidatePath, \{ readonly: true, fileMustExist: true \}\)/);
-  assert.match(restore, /fs\.copyFileSync\(restoreCandidatePath, livePath\)/);
   assert.doesNotMatch(restore, /fs\.copyFileSync\(sourcePath, livePath\)/);
-  assert.match(restore, /for \(const sidecar of \[walPath, shmPath\]\).*fs\.rmSync\(sidecar/);
+  assert.match(restoreUtils, /fileSystem\.copyFileSync\(restoreCandidatePath, livePath\)/);
+  assert.match(restoreUtils, /livePath\}-wal/);
+  assert.match(restoreUtils, /livePath\}-shm/);
+  assert.match(restoreUtils, /removeSidecars\(\)/);
   assert.match(restore, /fs\.rmSync\(restoreCandidatePath, \{ force: true \}\)/);
 });
 
@@ -234,12 +240,11 @@ test('backup restore cleans candidate and incomplete safety backup if safety bac
   const restoreStart = main.indexOf("ipcMain.handle('backup:restore'");
   const restoreEnd = main.indexOf("ipcMain.handle('browser:state'", restoreStart);
   const restore = main.slice(restoreStart, restoreEnd);
-  const safetyBlock = restore.slice(restore.indexOf('const safetyPath'), restore.indexOf('  db.close();', restore.indexOf('const safetyPath')));
-  assert.match(safetyBlock, /try\s*\{[\s\S]*db\.pragma\('wal_checkpoint\(FULL\)'\)[\s\S]*await db\.backup\(safetyPath\)[\s\S]*\}\s*catch\s*\(error\)/);
-  assert.match(safetyBlock, /fs\.rmSync\(safetyPath, \{ force: true \}\)/);
-  assert.match(safetyBlock, /fs\.rmSync\(restoreCandidatePath, \{ force: true \}\)/);
-  assert.match(safetyBlock, /Действующая база не изменена/);
-  assert.ok(restore.indexOf('db.close();', restore.indexOf('const safetyPath')) > restore.indexOf('await db.backup(safetyPath)'), 'live database stays open until safety backup succeeds');
+  const restoreUtils = fs.readFileSync(path.join(__dirname, '../src/backup-restore.cjs'), 'utf8');
+  assert.match(restoreUtils, /try\s*\{[\s\S]*database\.pragma\('wal_checkpoint\(FULL\)'\)[\s\S]*await database\.backup\(safetyPath\)[\s\S]*\}\s*catch\s*\(error\)/);
+  assert.match(restoreUtils, /fileSystem\.rmSync\(safetyPath, \{ force: true \}\)/);
+  assert.match(restoreUtils, /Действующая база не изменена/);
+  assert.match(restore, /finally\s*\{[\s\S]*fs\.rmSync\(restoreCandidatePath, \{ force: true \}\)/);
 });
 
 test('payments and expenses reject impossible calendar dates before writing to SQLite', () => {
