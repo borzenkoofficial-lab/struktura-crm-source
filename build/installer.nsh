@@ -12,6 +12,7 @@
 !define MUI_WELCOMEPAGE_TITLE "Добро пожаловать в СКОЛ"
 !define MUI_WELCOMEPAGE_TEXT "Единая система управления строительными объектами, заявками, сметами и производством.$\r$\n$\r$\nПеред установкой можно посмотреть короткую презентацию возможностей программы."
 
+!ifndef BUILD_UNINSTALLER
 Var SkolSlideIndex
 Var SkolSlideHeading
 Var SkolSlideBody
@@ -109,3 +110,4 @@ FunctionEnd
 
 Function SkolSlidesPageLeave
 FunctionEnd
+!endif

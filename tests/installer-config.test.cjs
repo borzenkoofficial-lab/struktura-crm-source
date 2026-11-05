@@ -29,6 +29,7 @@ test('Windows app and installer use the СКОЛ logo and product identity', () 
   assert.ok(buildScript.includes('const n = 256'), 'Windows app icon must be 256x256 pixels');
   const installerScript = fs.readFileSync(path.join(root, 'build/installer.nsh'), 'utf8');
   const policy = fs.readFileSync(path.join(root, 'build/license_ru.txt'), 'utf8');
+  assert.match(installerScript, /!ifndef BUILD_UNINSTALLER[\\s\\S]*!macro customWelcomePage[\\s\\S]*!endif/);
   assert.match(installerScript, /customWelcomePage/);
   assert.match(installerScript, /SkolSlidesPageCreate/);
   assert.match(installerScript, /Следующий слайд/);
