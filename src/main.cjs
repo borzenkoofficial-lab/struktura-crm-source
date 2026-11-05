@@ -1362,7 +1362,7 @@ ipcMain.handle('backup:restore', async () => {
       userDataPath,
       livePath,
       restoreCandidatePath,
-      openDatabase: openDatabaseForRestore,
+      openDatabase: directory => openDatabase(directory),
       validateDatabase: validateBackupDatabase,
       onDatabase: nextDatabase => { db = nextDatabase; }
     });
