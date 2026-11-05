@@ -573,10 +573,17 @@ body.theme-dark .skol-dock .dock-item:hover .dock-icon,
 }
 
 
-/* Remove the 4px intrinsic overflow measured at the 1280px viewport. */
+/* Compact the Dock's intrinsic content at laptop widths without shrinking icons. */
 @media (min-width: 1181px) and (max-width: 1400px) {
   .skol-dock {
-    padding-left: 10px !important;
-    padding-right: 10px !important;
+    gap: 6px !important;
+  }
+
+  .skol-dock .dock-group {
+    gap: 4px !important;
+  }
+
+  .skol-dock .dock-item {
+    min-width: 54px !important;
   }
 }
