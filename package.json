@@ -55,7 +55,7 @@
       "include": "build/installer.nsh",
       "license": "build/license_ru.txt",
       "displayLanguageSelector": false,
-      "language": "Russian"
+      "language": "1049"
     },
     "publish": [
       {

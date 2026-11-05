@@ -18,7 +18,7 @@ test('Windows app and installer use the СКОЛ logo and product identity', () 
   assert.equal(pkg.build.nsis.installerSidebar, 'build/skol-installer-sidebar.bmp');
   assert.equal(pkg.build.nsis.uninstallerSidebar, 'build/skol-installer-sidebar.bmp');
   assert.equal(pkg.build.nsis.license, 'build/license_ru.txt');
-  assert.equal(pkg.build.nsis.language, 'Russian');
+  assert.equal(pkg.build.nsis.language, '1049', 'NSIS language is the Russian LCID in decimal form');
   assert.match(pkg.build.win.artifactName, /^SKOL-Setup-/);
   assert.equal(pkg.build.appId, 'ru.struktura.crm', 'keep the established Windows app identity for upgrade compatibility');
   assert.ok(pkg.scripts['dist:win'].includes('create-installer-assets.cjs'));
