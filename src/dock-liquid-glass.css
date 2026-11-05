@@ -1,0 +1,433 @@
+/* ============================================================
+   SKOL Dock — Liquid Glass upgrade
+   Richer frosted glass, specular rim, soft depth, theme-aware.
+   Overrides the previous Dock capsule for a more fluid look.
+   ============================================================ */
+
+.skol-dock {
+  position: fixed !important;
+  z-index: 1000 !important;
+  left: 50% !important;
+  bottom: max(16px, env(safe-area-inset-bottom)) !important;
+  transform: translateX(-50%) !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  gap: 8px !important;
+  width: max-content !important;
+  max-width: calc(100vw - 32px) !important;
+  padding: 12px 14px 11px !important;
+  border-radius: 28px !important;
+  border: 1px solid rgba(255, 255, 255, 0.55) !important;
+  background:
+    linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.72) 0%,
+      rgba(255, 255, 255, 0.38) 42%,
+      rgba(245, 249, 255, 0.28) 100%
+    ) !important;
+  box-shadow:
+    0 22px 60px rgba(15, 28, 48, 0.22),
+    0 8px 24px rgba(15, 28, 48, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.25) !important;
+  backdrop-filter: blur(36px) saturate(1.85) brightness(1.05) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(1.85) brightness(1.05) !important;
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  scrollbar-width: none !important;
+  overscroll-behavior-x: contain !important;
+  isolation: isolate !important;
+}
+
+.skol-dock::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 12px !important;
+  right: 12px !important;
+  top: 1px !important;
+  height: 1px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.95) 20%,
+    rgba(255, 255, 255, 1) 50%,
+    rgba(255, 255, 255, 0.95) 80%,
+    transparent 100%
+  ) !important;
+  pointer-events: none !important;
+  opacity: 0.9 !important;
+  z-index: 2 !important;
+}
+
+.skol-dock::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  background: radial-gradient(
+    120% 80% at 50% -10%,
+    rgba(255, 255, 255, 0.45) 0%,
+    transparent 55%
+  ) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+}
+
+.skol-dock::-webkit-scrollbar {
+  display: none !important;
+}
+
+.dock-group {
+  display: flex !important;
+  align-items: flex-end !important;
+  gap: 6px !important;
+  flex: 0 0 auto !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.dock-divider {
+  align-self: center !important;
+  flex: 0 0 1px !important;
+  width: 1px !important;
+  height: 40px !important;
+  margin: 0 4px !important;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(120, 140, 165, 0.35),
+    transparent
+  ) !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.skol-dock .dock-item {
+  position: relative !important;
+  display: flex !important;
+  flex: 0 0 auto !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  width: auto !important;
+  min-width: 64px !important;
+  max-width: 148px !important;
+  min-height: 80px !important;
+  padding: 0 2px 2px !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  background: transparent !important;
+  color: #5a6b82 !important;
+  box-shadow: none !important;
+  transform-origin: 50% 100% !important;
+  transition:
+    transform 0.32s cubic-bezier(0.22, 1.15, 0.28, 1.25),
+    color 0.2s ease,
+    filter 0.2s ease !important;
+  cursor: pointer !important;
+  outline: none !important;
+  z-index: 1 !important;
+}
+
+.skol-dock .dock-icon {
+  display: grid !important;
+  place-items: center !important;
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.85) !important;
+  background:
+    linear-gradient(
+      155deg,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(236, 243, 250, 0.82) 55%,
+      rgba(220, 232, 245, 0.75) 100%
+    ) !important;
+  color: #4a5d75 !important;
+  box-shadow:
+    0 6px 16px rgba(30, 50, 75, 0.14),
+    0 2px 4px rgba(30, 50, 75, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(180, 200, 220, 0.25) !important;
+  transition:
+    transform 0.32s cubic-bezier(0.22, 1.15, 0.28, 1.25),
+    background 0.22s ease,
+    color 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease !important;
+  will-change: transform !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.skol-dock .dock-icon::before {
+  content: "" !important;
+  position: absolute !important;
+  top: 1px !important;
+  left: 8px !important;
+  right: 8px !important;
+  height: 1px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.95),
+    transparent
+  ) !important;
+  pointer-events: none !important;
+}
+
+.skol-dock .dock-icon svg {
+  display: block !important;
+  width: 24px !important;
+  height: 24px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.7 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.skol-dock .dock-label {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  max-width: 100% !important;
+  min-height: 20px !important;
+  padding: 3px 9px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(200, 214, 230, 0.65) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  color: #5c6e86 !important;
+  font-size: 9px !important;
+  font-weight: 750 !important;
+  letter-spacing: -0.05px !important;
+  line-height: 1.15 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  box-shadow: 0 1px 2px rgba(20, 40, 60, 0.06) !important;
+}
+
+.skol-dock .dock-item:hover,
+.skol-dock .dock-item:focus-visible {
+  color: #2f4058 !important;
+  transform: translateY(-10px) scale(1.08) !important;
+  filter: brightness(1.04) !important;
+}
+
+.skol-dock .dock-item:hover .dock-icon,
+.skol-dock .dock-item:focus-visible .dock-icon {
+  transform: scale(1.06) !important;
+  border-color: rgba(255, 255, 255, 1) !important;
+  background:
+    linear-gradient(
+      155deg,
+      #ffffff 0%,
+      #f2f7fc 50%,
+      #e4eef8 100%
+    ) !important;
+  box-shadow:
+    0 12px 28px rgba(25, 45, 70, 0.2),
+    0 4px 10px rgba(25, 45, 70, 0.1),
+    inset 0 1px 0 #fff,
+    0 0 0 1px rgba(255, 255, 255, 0.5) !important;
+  color: #2a3c52 !important;
+}
+
+.skol-dock .dock-item:hover .dock-label,
+.skol-dock .dock-item:focus-visible .dock-label {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(180, 200, 220, 0.8) !important;
+  color: #3a4d66 !important;
+}
+
+.skol-dock .dock-item.active {
+  color: var(--sf-lime-ink, #1a2800) !important;
+}
+
+.skol-dock .dock-item.active .dock-icon {
+  border-color: color-mix(in srgb, var(--sf-lime, #b8ff00) 55%, #fff) !important;
+  background:
+    linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--sf-lime, #b8ff00) 78%, #fff) 0%,
+      color-mix(in srgb, var(--sf-lime, #a8e500) 92%, #d4f060) 100%
+    ) !important;
+  color: var(--sf-lime-ink, #152000) !important;
+  box-shadow:
+    0 8px 22px color-mix(in srgb, var(--sf-lime, #b8ff00) 35%, transparent),
+    0 3px 8px rgba(30, 50, 20, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 0 0 1px color-mix(in srgb, var(--sf-lime, #b8ff00) 40%, transparent) !important;
+}
+
+.skol-dock .dock-item.active .dock-label {
+  border-color: color-mix(in srgb, var(--sf-lime, #b8ff00) 45%, transparent) !important;
+  background: color-mix(in srgb, var(--sf-lime, #b8ff00) 18%, rgba(255, 255, 255, 0.85)) !important;
+  color: var(--sf-lime-ink, #1a2800) !important;
+  font-weight: 800 !important;
+}
+
+.skol-dock .dock-item:active {
+  transform: translateY(-3px) scale(0.96) !important;
+  transition-duration: 0.08s !important;
+}
+
+.skol-dock .dock-item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--sf-lime, #b8ff00) 70%, transparent) !important;
+  outline-offset: 4px !important;
+}
+
+/* Dark theme liquid glass */
+html[data-theme="dark"] .skol-dock,
+body.theme-dark .skol-dock,
+[data-color-scheme="dark"] .skol-dock {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  background:
+    linear-gradient(
+      165deg,
+      rgba(40, 52, 72, 0.78) 0%,
+      rgba(22, 30, 46, 0.72) 50%,
+      rgba(16, 22, 34, 0.78) 100%
+    ) !important;
+  box-shadow:
+    0 22px 60px rgba(0, 0, 0, 0.45),
+    0 8px 24px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: blur(40px) saturate(1.7) brightness(0.95) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(1.7) brightness(0.95) !important;
+}
+
+html[data-theme="dark"] .skol-dock::before,
+body.theme-dark .skol-dock::before,
+[data-color-scheme="dark"] .skol-dock::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.35) 25%,
+    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0.35) 75%,
+    transparent 100%
+  ) !important;
+  opacity: 0.7 !important;
+}
+
+html[data-theme="dark"] .skol-dock::after,
+body.theme-dark .skol-dock::after,
+[data-color-scheme="dark"] .skol-dock::after {
+  background: radial-gradient(
+    120% 80% at 50% -10%,
+    rgba(255, 255, 255, 0.1) 0%,
+    transparent 55%
+  ) !important;
+}
+
+html[data-theme="dark"] .skol-dock .dock-icon,
+body.theme-dark .skol-dock .dock-icon,
+[data-color-scheme="dark"] .skol-dock .dock-icon {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  background:
+    linear-gradient(
+      155deg,
+      rgba(55, 70, 95, 0.9) 0%,
+      rgba(32, 42, 60, 0.85) 100%
+    ) !important;
+  color: #c5d0e0 !important;
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+html[data-theme="dark"] .skol-dock .dock-label,
+body.theme-dark .skol-dock .dock-label,
+[data-color-scheme="dark"] .skol-dock .dock-label {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(20, 28, 42, 0.75) !important;
+  color: #a8b6c8 !important;
+}
+
+html[data-theme="dark"] .skol-dock .dock-item:hover .dock-icon,
+body.theme-dark .skol-dock .dock-item:hover .dock-icon,
+[data-color-scheme="dark"] .skol-dock .dock-item:hover .dock-icon {
+  background:
+    linear-gradient(
+      155deg,
+      rgba(70, 90, 120, 0.95) 0%,
+      rgba(40, 55, 78, 0.9) 100%
+    ) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  color: #e8eef6 !important;
+}
+
+@media (max-width: 1180px) {
+  .skol-dock {
+    gap: 5px !important;
+    padding: 8px 10px !important;
+    border-radius: 22px !important;
+  }
+  .skol-dock .dock-item {
+    min-width: 40px !important;
+    max-width: 40px !important;
+    min-height: 42px !important;
+  }
+  .skol-dock .dock-icon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 12px !important;
+  }
+  .skol-dock .dock-label {
+    display: none !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .skol-dock {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    width: auto !important;
+    max-width: none !important;
+    transform: none !important;
+    justify-content: flex-start !important;
+    border-radius: 20px !important;
+    padding: 7px 9px !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .skol-dock {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: #e8eef5 !important;
+    border-color: #c5d0dc !important;
+  }
+  .skol-dock::before,
+  .skol-dock::after {
+    display: none !important;
+  }
+  html[data-theme="dark"] .skol-dock,
+  body.theme-dark .skol-dock {
+    background: #1a2332 !important;
+    border-color: #2e3b4f !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skol-dock .dock-item,
+  .skol-dock .dock-icon {
+    transition: none !important;
+  }
+  .skol-dock .dock-item:hover,
+  .skol-dock .dock-item:focus-visible {
+    transform: none !important;
+  }
+}
