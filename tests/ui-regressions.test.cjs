@@ -1179,3 +1179,24 @@ test('Windows CI includes a real Electron viewport smoke test with isolated prof
   assert.match(workflow, /SKOL-Electron-UI-Screenshots/);
   assert.match(workflow, /playwright@1\.64\.1/);
 });
+
+
+test('dashboard widgets can be reordered, hidden, restored and persisted independently of CRM records', () => {
+  const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
+  const layout = fs.readFileSync(path.join(__dirname, '../src/dashboard-layout.js'), 'utf8');
+  const dashboard = html.slice(html.indexOf('id="view-dashboard"'), html.indexOf('id="view-leads"'));
+  for (const key of ['kpis','finance','progress','lists','attention']) {
+    assert.match(dashboard, new RegExp('data-dashboard-widget="' + key + '"'));
+  }
+  assert.match(dashboard, /id="dashboardCustomizeBtn"/);
+  assert.match(html, /dashboard-layout\.js/);
+  assert.match(layout, /skol-dashboard-layout-v1/);
+  assert.match(layout, /dragstart/);
+  assert.match(layout, /dragover/);
+  assert.match(layout, /data-move-direction/);
+  assert.match(layout, /data-visibility-key/);
+  assert.match(layout, /localStorage\.setItem/);
+  assert.match(layout, /localStorage\.removeItem/);
+  assert.match(layout, /resetDashboardLayout/);
+  assert.match(layout, /aria-expanded/);
+});
