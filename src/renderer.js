@@ -793,7 +793,7 @@ async function refreshLeads() {
   const q = ($('leadSearch')?.value || '').toLowerCase();
   const status = $('leadStatusFilter')?.value || '';
   const filtered = rows.filter(l => `${l.title} ${l.address} ${l.notes} ${sourceLabels[l.source]}`.toLowerCase().includes(q) && (!status || l.status === status));
-  $('leadsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th><th>Адрес</th><th>Создана</th><th>Действия</th></tr></thead><tbody>${filtered.map(l => `<tr class="record-row${String(l.id) === String(selectedRecordIds.leads) ? ' is-selected' : ''}" data-record-kind="lead" data-record-id="${l.id}"><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><select class="lead-status-select" data-lead-status="${l.id}" aria-label="Статус заявки: ${esc(l.title)}">${Object.entries(statusLabels).map(([value,label]) => `<option value="${value}" ${l.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(l.budget_rub)}</td><td>${esc(l.address || '—')}</td><td>${esc(String(l.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-lead="${l.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Заявок не найдено','Создай заявку или измени фильтр.');
+  $('leadsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Клиент</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th><th>Адрес</th><th>Создана</th><th>Действия</th></tr></thead><tbody>${filtered.map(l => `<tr class="record-row${String(l.id) === String(selectedRecordIds.leads) ? ' is-selected' : ''}" data-record-kind="lead" data-record-id="${l.id}"><td>${esc(l.title)}</td><td>${esc(l.client_name || '—')}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><select class="lead-status-select" data-lead-status="${l.id}" aria-label="Статус заявки: ${esc(l.title)}">${Object.entries(statusLabels).map(([value,label]) => `<option value="${value}" ${l.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(l.budget_rub)}</td><td>${esc(l.address || '—')}</td><td>${esc(String(l.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-lead="${l.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Заявок не найдено','Создай заявку или измени фильтр.');
   const selected = filtered.find(item => String(item.id) === String(selectedRecordIds.leads)) || filtered[0] || null;
   selectedRecordIds.leads = selected?.id ?? null;
   $('leadsTable').querySelectorAll('tr[data-record-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.recordId) === String(selectedRecordIds.leads)));
@@ -1389,8 +1389,14 @@ document.addEventListener('click', e => {
   const editProspect = e.target.closest('[data-prospect-edit]'); if (editProspect) window.crm.listProspects().then(rows => openProspectEditor(rows.find(p => p.id === Number(editProspect.dataset.prospectEdit)))).catch(err => toast(err.message,true));
   const convertProspect = e.target.closest('[data-prospect-convert]'); if (convertProspect) window.crm.convertProspectToLead(Number(convertProspect.dataset.prospectConvert)).then(async r => { toast(`Создана заявка №${r.leadId}.`); await Promise.all([refreshProspects(),refreshLeads(),refreshDashboard()]); }).catch(err => toast(err.message,true));
 });
-$('quickLead').addEventListener('click', () => { $('leadForm').reset(); $('leadDialogTitle').textContent = 'Добавить заявку'; showView('leads'); openDialog('leadDialog'); });
-$('addLeadBtn').addEventListener('click', () => { $('leadForm').reset(); $('leadDialogTitle').textContent = 'Добавить заявку'; openDialog('leadDialog'); });
+async function populateLeadClientOptions(clientId = '') {
+  const clients = await window.crm.listClients();
+  const select = $('leadClientSelect');
+  select.innerHTML = '<option value="">Без клиента</option>' + clients.map(client => `<option value="${client.id}">${esc(client.name)}${client.phone ? ` · ${esc(client.phone)}` : ''}</option>`).join('');
+  select.value = clientId ? String(clientId) : '';
+}
+$('quickLead').addEventListener('click', async () => { $('leadForm').reset(); $('leadDialogTitle').textContent = 'Добавить заявку'; try { await populateLeadClientOptions(); showView('leads'); openDialog('leadDialog'); } catch (error) { toast(`Не удалось загрузить клиентов: ${error.message}`, true); } });
+$('addLeadBtn').addEventListener('click', async () => { $('leadForm').reset(); $('leadDialogTitle').textContent = 'Добавить заявку'; try { await populateLeadClientOptions(); openDialog('leadDialog'); } catch (error) { toast(`Не удалось загрузить клиентов: ${error.message}`, true); } });
 $('addClientBtn').addEventListener('click', () => { $('clientForm').reset(); $('clientDialogTitle').textContent = 'Новый клиент'; openDialog('clientDialog'); });
 async function populateProjectRelationships(clientId = '', leadId = '') {
   const [clients, leads] = await Promise.all([window.crm.listClients(), window.crm.listLeads()]);
@@ -1660,7 +1666,8 @@ $('leadsTable').addEventListener('click', async event => {
     const rows = await window.crm.listLeads(), lead = rows.find(item => item.id === Number(button.dataset.editLead));
     if (!lead) throw new Error('Заявка не найдена. Обнови список.');
     const form = $('leadForm');
-    for (const key of ['id','title','service','source','budget_rub','address','notes']) form.elements[key].value = lead[key] ?? '';
+    await populateLeadClientOptions(lead.client_id);
+    for (const key of ['id','title','client_id','service','source','budget_rub','address','notes']) form.elements[key].value = lead[key] ?? '';
     $('leadDialogTitle').textContent = 'Изменить заявку'; openDialog('leadDialog');
   } catch (error) { toast(error.message, true); }
 });
