@@ -8,6 +8,7 @@ const path = require('node:path');
 const { _electron: electron } = require('playwright');
 const electronExecutable = require('electron');
 const { createLicenseToken, getFeaturesForEdition } = require('../src/license-core.cjs');
+const { openDatabase } = require('../src/db.cjs');
 
 const root = path.resolve(__dirname, '..');
 const outputDir = path.resolve(process.env.SKOL_UI_E2E_OUTPUT || path.join(root, 'artifacts', 'ui-layout-smoke'));
@@ -131,6 +132,27 @@ async function run() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'skol-electron-ui-e2e-'));
   const userData = path.join(tempRoot, 'user-data');
   fs.mkdirSync(userData, { recursive: true });
+  const legacyProfileMode = process.env.SKOL_UI_E2E_LEGACY_PROFILE === '1';
+  const expectedUserData = legacyProfileMode ? path.join(tempRoot, 'Struktura CRM') : userData;
+  if (legacyProfileMode) {
+    fs.mkdirSync(expectedUserData, { recursive: true });
+    const legacyDb = openDatabase(expectedUserData);
+    try {
+      const clientId = legacyDb.prepare('INSERT INTO clients(name,phone,client_type,contact_name) VALUES (?,?,?,?)')
+        .run('Существующий клиент до обновления', '+79990000002', 'company', 'Старый контакт').lastInsertRowid;
+      const leadId = legacyDb.prepare("INSERT INTO leads(client_id,title,service,source,status,budget_rub,address,notes) VALUES (?,?,'demolition','phone','new',87500,?,?)")
+        .run(clientId, 'Старая заявка до обновления', 'Москва, старый адрес', 'Данные должны сохраниться').lastInsertRowid;
+      const projectId = legacyDb.prepare("INSERT INTO projects(lead_id,client_id,title,service,status,contract_rub,address) VALUES (?,?,'Старый объект до обновления','demolition','active',250000,'Москва, объект')")
+        .run(leadId, clientId).lastInsertRowid;
+      legacyDb.prepare("INSERT INTO payments(project_id,amount_rub,payment_date,payment_type,method,note) VALUES (?,50000,'2026-11-01','incoming','bank','Старый платёж')")
+        .run(projectId);
+      legacyDb.prepare("INSERT INTO expenses(project_id,amount_rub,expense_date,category,description,is_paid) VALUES (?,7000,'2026-11-02','materials','Старый расход',1)")
+        .run(projectId);
+      legacyDb.prepare("INSERT OR REPLACE INTO settings(key,value) VALUES ('e2e_upgrade_marker','preserve-me')").run();
+    } finally {
+      legacyDb.close();
+    }
+  }
 
   const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519');
   const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
@@ -160,7 +182,9 @@ async function run() {
     });
 
     const actualUserData = await electronApp.evaluate(({ app }) => app.getPath('userData'));
-    assert.equal(path.resolve(actualUserData), path.resolve(userData), 'Electron must use an isolated temporary profile');
+    assert.equal(path.resolve(actualUserData), path.resolve(expectedUserData), legacyProfileMode
+      ? 'Electron must reuse the existing Struktura CRM profile during upgrade'
+      : 'Electron must use an isolated temporary profile');
 
     page = await electronApp.firstWindow({ timeout: 60000 });
     await page.waitForTimeout(1500);
@@ -195,6 +219,28 @@ async function run() {
     await page.locator('#licenseKeyInput').fill(token);
     await page.locator('#licenseActivateBtn').click();
     await page.locator('#licenseActivationScreen').waitFor({ state: 'hidden', timeout: 15000 });
+
+    if (legacyProfileMode) {
+      const preserved = await page.evaluate(async () => {
+        const clients = await window.crm.listClients();
+        const leads = await window.crm.listLeads();
+        const projects = await window.crm.listProjects();
+        const payments = await window.crm.listPayments();
+        const expenses = await window.crm.listExpenses();
+        return {
+          client: clients.find(item => item.name === 'Существующий клиент до обновления') || null,
+          lead: leads.find(item => item.title === 'Старая заявка до обновления') || null,
+          project: projects.find(item => item.title === 'Старый объект до обновления') || null,
+          payment: payments.find(item => item.note === 'Старый платёж') || null,
+          expense: expenses.find(item => item.description === 'Старый расход') || null
+        };
+      });
+      assert.ok(preserved.client, 'legacy client must remain available after packaged-app startup');
+      assert.ok(preserved.lead && preserved.lead.client_id === preserved.client.id, 'legacy lead and client relationship must be preserved');
+      assert.ok(preserved.project && preserved.project.client_id === preserved.client.id, 'legacy project and client relationship must be preserved');
+      assert.ok(preserved.payment && preserved.payment.amount_rub === 50000, 'legacy incoming payment must be preserved');
+      assert.ok(preserved.expense && preserved.expense.amount_rub === 7000, 'legacy expense must be preserved');
+    }
 
     await page.waitForSelector('#view-dashboard.active', { timeout: 30000 });
     await page.waitForFunction(() => {
