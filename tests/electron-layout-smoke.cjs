@@ -259,6 +259,37 @@ async function run() {
     await page.keyboard.press('Tab');
     await page.keyboard.press('Escape');
 
+    // Verify dashboard personalization in a real Electron renderer before viewport checks.
+    const customize = page.locator('#dashboardCustomizeBtn');
+    await customize.waitFor({ state: 'visible' });
+    await customize.click();
+    const customizePanel = page.locator('#dashboardCustomizePanel');
+    await customizePanel.waitFor({ state: 'visible' });
+    assert.equal(await customizePanel.locator('[data-visibility-key]').count(), 5, 'all five dashboard blocks can be managed');
+
+    const orderBefore = await page.locator('#view-dashboard [data-dashboard-widget]').evaluateAll(nodes => nodes.map(node => node.dataset.dashboardWidget));
+    assert.deepEqual(orderBefore, ['kpis', 'finance', 'progress', 'lists', 'attention'], 'dashboard starts with its documented default order');
+
+    await page.locator('#view-dashboard [data-dashboard-widget="progress"] [data-move-direction="-1"]').click();
+    const orderAfterMove = await page.locator('#view-dashboard [data-dashboard-widget]').evaluateAll(nodes => nodes.map(node => node.dataset.dashboardWidget));
+    assert.deepEqual(orderAfterMove, ['kpis', 'progress', 'finance', 'lists', 'attention'], 'dashboard block can be moved with accessible move controls');
+
+    const financeVisibility = customizePanel.locator('[data-visibility-key="finance"]');
+    await financeVisibility.uncheck();
+    assert.equal(await page.locator('#view-dashboard [data-dashboard-widget="finance"]').evaluate(node => node.hidden), true, 'dashboard block can be hidden');
+    await financeVisibility.check();
+    assert.equal(await page.locator('#view-dashboard [data-dashboard-widget="finance"]').evaluate(node => node.hidden), false, 'hidden dashboard block can be restored');
+
+    const persistedLayout = await page.evaluate(() => JSON.parse(localStorage.getItem('skol-dashboard-layout-v1') || '{}'));
+    assert.deepEqual(persistedLayout.order, orderAfterMove, 'custom order is saved locally');
+    assert.deepEqual(persistedLayout.hidden, [], 'visibility state is saved locally');
+
+    await customizePanel.locator('[data-reset-dashboard-layout]').click();
+    const resetOrder = await page.locator('#view-dashboard [data-dashboard-widget]').evaluateAll(nodes => nodes.map(node => node.dataset.dashboardWidget));
+    assert.deepEqual(resetOrder, orderBefore, 'dashboard layout can be restored to its default');
+    await customize.click();
+    await page.screenshot({ path: path.join(outputDir, 'dashboard-customization.png'), animations: 'disabled' });
+
     for (const viewport of viewportMatrix) {
       console.log('[viewport] ' + viewport.name + ' started');
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
