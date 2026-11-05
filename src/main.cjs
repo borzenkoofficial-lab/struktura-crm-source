@@ -7,6 +7,7 @@ const { getDeviceId } = require('./license-device.cjs');
 const { createLicenseService, assertIpcAccess, filterDashboardSummary } = require('./license-service.cjs');
 const { skolWordmarkSvg } = require('./branding.cjs');
 const { validateBackupDatabase } = require('./backup-utils.cjs');
+const { replaceDatabaseWithRollback } = require('./backup-restore.cjs');
 const { findLegacyUserDataPath } = require('./user-data-path.cjs');
 app.setName('СКОЛ');
 // The real Electron UI test must never read or migrate a user's production profile.
@@ -1355,39 +1356,18 @@ ipcMain.handle('backup:restore', async () => {
     return { canceled: true };
   }
 
-  const safetyPath = path.join(userDataPath, `SKOL-before-restore-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`);
-  const walPath = `${livePath}-wal`, shmPath = `${livePath}-shm`;
   try {
-    db.pragma('wal_checkpoint(FULL)');
-    await db.backup(safetyPath);
-  } catch (error) {
-    // The live database is still open and untouched; remove incomplete temporary files.
-    try { fs.rmSync(safetyPath, { force: true }); } catch {}
-    try { fs.rmSync(restoreCandidatePath, { force: true }); } catch {}
-    throw new Error(`Не удалось создать страховочную копию. Действующая база не изменена. ${error.message}`);
-  }
-  db.close();
-  try {
-    for (const sidecar of [walPath, shmPath]) if (fs.existsSync(sidecar)) fs.rmSync(sidecar, { force: true });
-    fs.copyFileSync(restoreCandidatePath, livePath);
-    db = openDatabase(userDataPath);
-    // Validate the migrated live database before exposing restored data to the UI.
-    // If migration or validation fails, the catch block restores the safety copy.
-    validateBackupDatabase(db);
+    const { safetyPath } = await replaceDatabaseWithRollback({
+      database: db,
+      userDataPath,
+      livePath,
+      restoreCandidatePath,
+      openDatabase: openDatabaseForRestore,
+      validateDatabase: validateBackupDatabase,
+      onDatabase: nextDatabase => { db = nextDatabase; }
+    });
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.reload();
     return { canceled: false, safetyPath };
-  } catch (error) {
-    try { if (db && db.open) db.close(); } catch {}
-    try {
-      for (const sidecar of [walPath, shmPath]) if (fs.existsSync(sidecar)) fs.rmSync(sidecar, { force: true });
-      fs.copyFileSync(safetyPath, livePath);
-      db = openDatabase(userDataPath);
-    } catch (rollbackError) {
-      throw new Error(`Восстановление не завершено: ${error.message}. Автоматический откат также не удался: ${rollbackError.message}. Сохранённая копия: ${safetyPath}`);
-    } finally {
-      try { fs.rmSync(restoreCandidatePath, { force: true }); } catch {}
-    }
-    throw new Error(`Восстановление не удалось; прежняя база возвращена. ${error.message}`);
   } finally {
     try { fs.rmSync(restoreCandidatePath, { force: true }); } catch {}
   }
