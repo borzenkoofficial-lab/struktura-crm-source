@@ -14,6 +14,9 @@ const REQUIRED_BACKUP_COLUMNS = Object.freeze({
 // contain every corresponding table and column before it can replace live data.
 const CURRENT_SCHEMA_VERSION = 14;
 const REQUIRED_CURRENT_BACKUP_COLUMNS = Object.freeze({
+  clients: ['id', 'name', 'phone', 'email', 'contact_name', 'client_type', 'notes', 'created_at', 'updated_at'],
+  leads: ['id', 'client_id', 'commercial_order_id', 'title', 'service', 'source', 'status', 'budget_rub', 'address', 'next_action', 'next_action_at', 'notes', 'created_at', 'updated_at'],
+  projects: ['id', 'lead_id', 'client_id', 'title', 'service', 'status', 'contract_rub', 'address', 'start_date', 'end_date', 'planned_people', 'complexity_factor', 'notes', 'created_at', 'updated_at'],
   income_records: ['id', 'amount_rub', 'income_date', 'record_type', 'source', 'note', 'created_at'],
   activities: ['id', 'client_id', 'lead_id', 'kind', 'body', 'occurred_at'],
   tasks: ['id', 'lead_id', 'project_id', 'title', 'due_at', 'is_done', 'created_at'],
