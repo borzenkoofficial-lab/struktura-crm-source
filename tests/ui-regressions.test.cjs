@@ -1204,3 +1204,24 @@ test('dashboard widgets can be reordered, hidden, restored and persisted indepen
   assert.match(layout, /resetDashboardLayout/);
   assert.match(layout, /aria-expanded/);
 });
+
+
+test('dashboard cashflow chart exposes animated, accessible financial trends and six-month totals', () => {
+  const renderer = fs.readFileSync(path.join(__dirname, '../src/renderer.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(__dirname, '../src/ui-layout-hardening.css'), 'utf8');
+  assert.match(renderer, /data-chart-point/);
+  assert.match(renderer, /dashboard-chart-summary/);
+  assert.match(renderer, /pathLength="1"/);
+  assert.match(renderer, /aria-label="Поступления за/);
+  assert.match(renderer, /aria-label="Расходы за/);
+  assert.match(styles, /dashboard-chart-summary/);
+  assert.match(styles, /prefers-reduced-motion:reduce/);
+});
+
+test('dashboard pointer drag ignores the dragged card and restores order when cancelled', () => {
+  const layout = fs.readFileSync(path.join(__dirname, '../src/dashboard-layout.js'), 'utf8');
+  assert.match(layout, /originalOrder/);
+  assert.match(layout, /pointerEvents\s*=\s*['"]none['"]/);
+  assert.match(layout, /lostpointercapture/);
+  assert.match(layout, /pointercancel/);
+});
