@@ -92,6 +92,9 @@ function showView(name) {
     toast('Этот раздел недоступен на текущем тарифе СКОЛ.', true);
     return;
   }
+  const mainContent = document.querySelector('.main');
+  if (mainContent) mainContent.scrollTop = 0;
+  window.scrollTo(0, 0);
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', engineering: 'ПИ · Расчёт объекта', browser: 'Браузер и поиск заказчиков', prospects: 'Центр привлечения заказов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки' };
