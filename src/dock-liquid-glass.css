@@ -465,3 +465,109 @@ body.theme-dark .skol-dock .dock-item:hover .dock-icon,
 .engineering-view :where(.eng-table-wrap,.eng-calendar-table-wrap,.eng-order-plan-review-table){width:100%;max-width:100%;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
 .engineering-view :where(table,.eng-table,.eng-calendar-table){max-width:100%}
 .engineering-view :where(.eng-card,.eng-panel,.eng-stat,.eng-history-item,.eng-plan-operation,.eng-estimate-import){overflow-wrap:anywhere}
+
+
+/* Narrow-window fit: keep every destination visible without horizontal scrolling. */
+@media (max-width: 760px) {
+  .skol-dock {
+    box-sizing: border-box !important;
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    left: 10px !important;
+    right: 10px !important;
+    transform: none !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    padding: 5px 6px !important;
+    overflow: hidden !important;
+  }
+
+  .skol-dock .dock-brand {
+    flex: 0 0 26px !important;
+    width: 26px !important;
+    min-width: 26px !important;
+    max-width: 26px !important;
+  }
+
+  .skol-dock .dock-brand img {
+    max-width: 24px !important;
+    max-height: 24px !important;
+  }
+
+  .skol-dock .dock-group {
+    gap: 2px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .skol-dock .dock-item {
+    box-sizing: border-box !important;
+    flex: 0 0 34px !important;
+    width: 34px !important;
+    min-width: 34px !important;
+    max-width: 34px !important;
+    min-height: 36px !important;
+    padding: 0 !important;
+  }
+
+  .skol-dock .dock-icon {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 10px !important;
+  }
+
+  .skol-dock .dock-icon svg {
+    width: 19px !important;
+    height: 19px !important;
+  }
+
+  .skol-dock .dock-label {
+    display: none !important;
+  }
+
+  .skol-dock .dock-divider {
+    flex: 0 0 1px !important;
+    width: 1px !important;
+    height: 26px !important;
+    margin: 0 1px !important;
+  }
+}
+
+@media (max-width: 560px) {
+  .skol-dock {
+    gap: 2px !important;
+    padding-right: 4px !important;
+    padding-left: 4px !important;
+  }
+
+  .skol-dock .dock-brand {
+    flex-basis: 22px !important;
+    width: 22px !important;
+    min-width: 22px !important;
+    max-width: 22px !important;
+  }
+
+  .skol-dock .dock-brand img {
+    max-width: 20px !important;
+    max-height: 20px !important;
+  }
+
+  .skol-dock .dock-group {
+    gap: 1px !important;
+  }
+
+  .skol-dock .dock-item {
+    flex-basis: 31px !important;
+    width: 31px !important;
+    min-width: 31px !important;
+    max-width: 31px !important;
+  }
+
+  .skol-dock .dock-icon {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .skol-dock .dock-divider {
+    margin: 0 !important;
+  }
+}
