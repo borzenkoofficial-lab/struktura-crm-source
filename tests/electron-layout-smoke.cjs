@@ -276,12 +276,18 @@ async function run() {
 
     // Verify actual pointer dragging from the dedicated handle, not only arrow controls.
     await page.setViewportSize({ width: 1280, height: 1200 });
+    await page.evaluate(() => {
+      const main = document.querySelector('.main');
+      if (main) main.scrollTop = 0;
+      window.scrollTo(0, 0);
+    });
+    await page.waitForTimeout(80);
     const dragHandle = page.locator('#view-dashboard [data-dashboard-widget="finance"] [data-drag-handle]');
-    await dragHandle.scrollIntoViewIfNeeded();
     const dragBox = await dragHandle.boundingBox();
     const kpisBox = await page.locator('#view-dashboard [data-dashboard-widget="kpis"]').boundingBox();
+    const dragViewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
     assert.ok(dragBox && kpisBox, 'drag source and target are rendered');
-    assert.ok(dragBox.y >= 0 && dragBox.y < 1200 && kpisBox.y >= 0 && kpisBox.y < 1200, 'drag source and target are inside the viewport');
+    assert.ok(dragBox.y >= 0 && dragBox.y < dragViewport.height && kpisBox.y >= 0 && kpisBox.y < dragViewport.height, 'drag source and target are inside the viewport: ' + JSON.stringify({ dragBox, kpisBox, dragViewport }));
     await page.mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + dragBox.height / 2);
     await page.mouse.down();
     await page.mouse.move(kpisBox.x + kpisBox.width / 2, kpisBox.y + 8, { steps: 10 });
