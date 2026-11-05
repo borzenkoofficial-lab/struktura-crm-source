@@ -1224,5 +1224,5 @@ test('dashboard pointer drag ignores the dragged card and restores order when ca
   assert.match(layout, /pointerEvents\s*=\s*['"]none['"]/);
   assert.match(layout, /lostpointercapture/);
   assert.match(layout, /pointercancel/);
-  assert.match(layout, /clearPointerDrag\\(false\\)/);
+  assert.ok(layout.includes('clearPointerDrag(false)'));
 });
