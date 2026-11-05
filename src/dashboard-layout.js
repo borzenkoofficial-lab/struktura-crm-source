@@ -160,6 +160,9 @@
     const open = typeof force === 'boolean' ? force : target.hidden;
     target.hidden = !open;
     root.classList.toggle('is-customizing', open);
+    document.documentElement.classList.toggle('dashboard-layout-editing', open);
+    const piCompanion = document.getElementById('piCompanion');
+    if (piCompanion) piCompanion.inert = open;
     trigger.setAttribute('aria-expanded', String(open));
     trigger.classList.toggle('is-active', open);
     if (open) refreshPanel();

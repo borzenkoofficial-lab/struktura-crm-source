@@ -263,6 +263,7 @@ async function run() {
     const customize = page.locator('#dashboardCustomizeBtn');
     await customize.waitFor({ state: 'visible' });
     await customize.click();
+    assert.equal(await page.locator('#piCompanion').evaluate(node => getComputedStyle(node).visibility), 'hidden', 'PI companion does not cover dashboard editing controls');
     const customizePanel = page.locator('#dashboardCustomizePanel');
     await customizePanel.waitFor({ state: 'visible' });
     assert.equal(await customizePanel.locator('[data-visibility-key]').count(), 5, 'all five dashboard blocks can be managed');
@@ -324,6 +325,7 @@ async function run() {
     const resetOrder = await page.locator('#view-dashboard [data-dashboard-widget]').evaluateAll(nodes => nodes.map(node => node.dataset.dashboardWidget));
     assert.deepEqual(resetOrder, orderBefore, 'dashboard layout can be restored to its default');
     await customize.click();
+    assert.notEqual(await page.locator('#piCompanion').evaluate(node => getComputedStyle(node).visibility), 'hidden', 'PI companion returns after dashboard editing closes');
     await page.screenshot({ path: path.join(outputDir, 'dashboard-customization.png'), animations: 'disabled' });
 
     for (const viewport of viewportMatrix) {

@@ -3559,3 +3559,10 @@ html,body,.app-shell,.main,.view{min-width:0;max-width:100%}html,body{overflow-x
  #view-dashboard .dashboard-chart-area,#view-dashboard .dashboard-chart-line,#view-dashboard .dashboard-chart-dot{animation:none!important;opacity:1!important;stroke-dashoffset:0!important;transform:none!important}
  #view-dashboard .dashboard-custom-widget{transition:none!important}
 }
+
+
+/* Keep the floating PI companion from intercepting dashboard layout controls. */
+html.dashboard-layout-editing #piCompanion {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
