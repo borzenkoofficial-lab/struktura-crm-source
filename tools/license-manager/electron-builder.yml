@@ -15,6 +15,7 @@ files:
 extraMetadata:
   main: tools/license-manager/main.cjs
 win:
+  icon: build/skol.ico
   target:
     - target: portable
       arch:
