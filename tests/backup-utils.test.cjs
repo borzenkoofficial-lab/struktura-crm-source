@@ -166,7 +166,7 @@ test('restore rollback preserves the original database when the replacement fail
 
     assert.equal(currentDb.open, true);
     assert.equal(currentDb.prepare('SELECT value FROM restore_probe').get().value, 'original-data');
-    assert.equal(fs.existsSync(path.join(userDataPath, 'SKOL-before-restore-2026-11-05T120000000Z.sqlite')), true);
+    assert.equal(fs.existsSync(path.join(userDataPath, 'SKOL-before-restore-2026-11-05T12-00-00-000Z.sqlite')), true);
     assert.equal(fs.existsSync(livePath + '-wal'), false);
     assert.equal(fs.existsSync(livePath + '-shm'), false);
     currentDb.close();
