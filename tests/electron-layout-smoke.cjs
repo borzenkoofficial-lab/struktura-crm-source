@@ -103,11 +103,22 @@ async function collectGeometry(page, viewport, viewName) {
     }
 
     const activeBounds = active ? rect(active) : null;
+    const dock = document.getElementById('skolDock');
+    const piAvatar = document.getElementById('piCoachAvatarBtn');
+    const dockBounds = dock && visible(dock) ? rect(dock) : null;
+    const piBounds = piAvatar && visible(piAvatar) ? rect(piAvatar) : null;
+    const overlaps = (a, b) => Boolean(a && b && Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 2);
+    const main = document.querySelector('.main');
+    const mainPaddingBottom = main ? Number.parseFloat(getComputedStyle(main).paddingBottom) : 0;
     return {
       viewport: { width: window.innerWidth, height: window.innerHeight },
       document: { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth, bodyScrollWidth: document.body.scrollWidth },
       activeView: active?.id || null,
       activeBounds,
+      dockBounds,
+      piBounds,
+      piDockOverlap: overlaps(dockBounds, piBounds),
+      mainPaddingBottom,
       outside,
       clippedText,
       overlappingActions
@@ -116,6 +127,8 @@ async function collectGeometry(page, viewport, viewName) {
 
   assert.equal(metrics.viewport.width, viewport.width, 'Electron viewport width must match requested size');
   assert.ok(metrics.document.scrollWidth <= viewport.width + 1, viewName + ': document must not scroll horizontally: ' + JSON.stringify(metrics.document));
+  assert.equal(metrics.piDockOverlap, false, viewName + ': PI avatar must not overlap the fixed Dock');
+  assert.ok(metrics.mainPaddingBottom >= 90, viewName + ': main workspace must reserve space for the fixed Dock');
   assert.ok(metrics.document.bodyScrollWidth <= viewport.width + 1, viewName + ': body must not overflow horizontally: ' + JSON.stringify(metrics.document));
   assert.ok(metrics.activeBounds && metrics.activeBounds.left >= -1 && metrics.activeBounds.right <= viewport.width + 1, viewName + ': active workspace must remain inside the window');
   assert.equal(metrics.outside.length, 0, viewName + ': primary containers must remain inside the viewport: ' + JSON.stringify(metrics.outside));
