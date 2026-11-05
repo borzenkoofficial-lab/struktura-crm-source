@@ -571,3 +571,12 @@ body.theme-dark .skol-dock .dock-item:hover .dock-icon,
     margin: 0 !important;
   }
 }
+
+
+/* Remove the 4px intrinsic overflow measured at the 1280px viewport. */
+@media (min-width: 1181px) and (max-width: 1400px) {
+  .skol-dock {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+}
