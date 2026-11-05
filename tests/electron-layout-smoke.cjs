@@ -16,6 +16,8 @@ const viewNames = [
   'prospects', 'tasks', 'reports', 'browser', 'settings'
 ];
 const viewportMatrix = [
+  { name: '640x800', width: 640, height: 800, views: viewNames, screenshots: ['dashboard', 'engineering'] },
+  { name: '800x600', width: 800, height: 600, views: viewNames, screenshots: ['dashboard', 'projects'] },
   { name: '1024x768', width: 1024, height: 768, views: viewNames, screenshots: ['dashboard', 'leads', 'finance', 'engineering', 'settings'] },
   { name: '1280x800', width: 1280, height: 800, views: ['dashboard', 'projects', 'production', 'finance', 'engineering'], screenshots: ['dashboard', 'projects', 'production'] },
   { name: '1440x900', width: 1440, height: 900, views: viewNames, screenshots: ['dashboard', 'prospects', 'tasks', 'reports', 'browser'] },
