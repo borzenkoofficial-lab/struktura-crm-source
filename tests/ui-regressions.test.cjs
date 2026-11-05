@@ -1220,8 +1220,9 @@ test('dashboard cashflow chart exposes animated, accessible financial trends and
 
 test('dashboard pointer drag ignores the dragged card and restores order when cancelled', () => {
   const layout = fs.readFileSync(path.join(__dirname, '../src/dashboard-layout.js'), 'utf8');
-  assert.match(layout, /originalOrder/);
+  assert.match(layout, /dropTarget/);
   assert.match(layout, /pointerEvents\s*=\s*['"]none['"]/);
   assert.match(layout, /lostpointercapture/);
   assert.match(layout, /pointercancel/);
+  assert.match(layout, /clearPointerDrag\\(false\\)/);
 });

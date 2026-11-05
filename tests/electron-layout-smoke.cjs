@@ -275,15 +275,20 @@ async function run() {
     assert.deepEqual(orderAfterMove, ['kpis', 'progress', 'finance', 'lists', 'attention'], 'dashboard block can be moved with accessible move controls');
 
     // Verify actual pointer dragging from the dedicated handle, not only arrow controls.
-    const dragHandle = page.locator('#view-dashboard [data-dashboard-widget="attention"] [data-drag-handle]');
+    await page.setViewportSize({ width: 1280, height: 1200 });
+    const dragHandle = page.locator('#view-dashboard [data-dashboard-widget="finance"] [data-drag-handle]');
+    await dragHandle.scrollIntoViewIfNeeded();
     const dragBox = await dragHandle.boundingBox();
-    const financeBox = await page.locator('#view-dashboard [data-dashboard-widget="finance"]').boundingBox();
+    const kpisBox = await page.locator('#view-dashboard [data-dashboard-widget="kpis"]').boundingBox();
+    assert.ok(dragBox && kpisBox, 'drag source and target are rendered');
+    assert.ok(dragBox.y >= 0 && dragBox.y < 1200 && kpisBox.y >= 0 && kpisBox.y < 1200, 'drag source and target are inside the viewport');
     await page.mouse.move(dragBox.x + dragBox.width / 2, dragBox.y + dragBox.height / 2);
     await page.mouse.down();
-    await page.mouse.move(financeBox.x + financeBox.width / 2, financeBox.y + 8, { steps: 8 });
+    await page.mouse.move(kpisBox.x + kpisBox.width / 2, kpisBox.y + 8, { steps: 10 });
     await page.mouse.up();
+    await page.waitForTimeout(100);
     const orderAfterDrag = await page.locator('#view-dashboard [data-dashboard-widget]').evaluateAll(nodes => nodes.map(node => node.dataset.dashboardWidget));
-    assert.ok(orderAfterDrag.indexOf('attention') < orderAfterDrag.indexOf('finance'), 'dashboard blocks can be reordered by dragging their handle');
+    assert.ok(orderAfterDrag.indexOf('finance') < orderAfterDrag.indexOf('kpis'), 'dashboard blocks can be reordered by dragging their handle');
 
     const financeVisibility = customizePanel.locator('[data-visibility-key="finance"]');
     await financeVisibility.uncheck();
@@ -292,7 +297,7 @@ async function run() {
     assert.equal(await page.locator('#view-dashboard [data-dashboard-widget="finance"]').evaluate(node => node.hidden), false, 'hidden dashboard block can be restored');
 
     const persistedLayout = await page.evaluate(() => JSON.parse(localStorage.getItem('skol-dashboard-layout-v1') || '{}'));
-    assert.deepEqual(persistedLayout.order, orderAfterMove, 'custom order is saved locally');
+    assert.deepEqual(persistedLayout.order, orderAfterDrag, 'dragged order is saved locally');
     assert.deepEqual(persistedLayout.hidden, [], 'visibility state is saved locally');
 
     await customizePanel.locator('[data-reset-dashboard-layout]').click();

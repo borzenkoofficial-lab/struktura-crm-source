@@ -557,12 +557,12 @@ function renderDashboardCashflowChart(cashflow, complete) {
     return;
   }
 
-  const baseline = 150, top = 24, left = 28, right = 692;
+  const baseline = 150, top = 24, left = 30, right = 690;
   const max = Math.max(1, ...values.flatMap(item => [Number(item.income) || 0, Number(item.expenses) || 0]));
   const xAt = index => values.length === 1 ? 360 : left + (right - left) * index / (values.length - 1);
   const yAt = value => baseline - Math.max(0, Number(value) || 0) / max * (baseline - top);
-  const income = values.map((item, index) => ({ x: xAt(index), y: yAt(item.income), item }));
-  const expenses = values.map((item, index) => ({ x: xAt(index), y: yAt(item.expenses), item }));
+  const income = values.map((item, index) => ({ x: xAt(index), y: yAt(item.income), item, index }));
+  const expenses = values.map((item, index) => ({ x: xAt(index), y: yAt(item.expenses), item, index }));
   const linePath = points => points.map((point, index) => {
     if (!index) return `M ${point.x} ${point.y}`;
     const previous = points[index - 1], middle = (previous.x + point.x) / 2;
@@ -571,16 +571,34 @@ function renderDashboardCashflowChart(cashflow, complete) {
   const incomePath = linePath(income), expensePath = linePath(expenses);
   const areaPath = `${incomePath} L ${income[income.length - 1].x} ${baseline} L ${income[0].x} ${baseline} Z`;
   const grid = [top, (top + baseline) / 2, baseline].map(y => `<line class="dashboard-chart-gridline" x1="18" y1="${y}" x2="702" y2="${y}"/>`).join('');
-  const dots = (points, type, field, title) => points.map(point =>
-    `<circle class="dashboard-chart-dot ${type}" cx="${point.x}" cy="${point.y}" r="${type === 'income' ? 4 : 3.5}"><title>${esc(point.item.label)} · ${title}: ${esc(fmt(point.item[field]))}</title></circle>`).join('');
+  const dots = (points, type, field, title) => points.map(point => {
+    const label = `${title} за ${point.item.label}: ${fmt(point.item[field])}`;
+    return `<circle class="dashboard-chart-dot ${type}" data-chart-point="${type}" cx="${point.x}" cy="${point.y}" r="${type === 'income' ? 4.5 : 4}" tabindex="0" role="img" aria-label="${esc(label)}" style="--point-index:${point.index}"><title>${esc(label)}</title></circle>`;
+  }).join('');
   const monthLabels = values.map(item => `<span class="dashboard-chart-month">${esc(item.label)}</span>`).join('');
-  target.innerHTML = `<div class="dashboard-chart-visual">
-    <svg class="dashboard-cashflow-svg" viewBox="0 0 720 184" role="img" aria-label="Динамика поступлений и оплаченных расходов за шесть месяцев">
-      <defs><linearGradient id="dashboardIncomeFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#a8d936" stop-opacity=".28"/><stop offset="100%" stop-color="#a8d936" stop-opacity="0"/></linearGradient></defs>
+  const totalIncome = values.reduce((total, item) => total + (Number(item.income) || 0), 0);
+  const totalExpenses = values.reduce((total, item) => total + (Number(item.expenses) || 0), 0);
+  const netCashflow = totalIncome - totalExpenses;
+  const netTone = netCashflow > 0 ? 'positive' : netCashflow < 0 ? 'negative' : 'neutral';
+
+  target.innerHTML = `<div class="dashboard-chart-visual" role="group" aria-label="Финансовая динамика за шесть месяцев">
+    <svg class="dashboard-cashflow-svg" viewBox="0 0 720 184" role="img" aria-label="График поступлений и оплаченных расходов за шесть месяцев">
+      <defs><linearGradient id="dashboardIncomeFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#a8d936" stop-opacity=".30"/>
+        <stop offset="68%" stop-color="#a8d936" stop-opacity=".10"/>
+        <stop offset="100%" stop-color="#a8d936" stop-opacity="0"/>
+      </linearGradient></defs>
       ${grid}<path class="dashboard-chart-area" d="${areaPath}"/>
-      <path class="dashboard-chart-line expense" d="${expensePath}"/><path class="dashboard-chart-line income" d="${incomePath}"/>
-      ${dots(expenses,'expense','expenses','расходы')}${dots(income,'income','income','поступления')}
-    </svg><div class="dashboard-chart-months" aria-hidden="true">${monthLabels}</div>
+      <path class="dashboard-chart-line expense" pathLength="1" d="${expensePath}"/>
+      <path class="dashboard-chart-line income" pathLength="1" d="${incomePath}"/>
+      ${dots(expenses,'expense','expenses','Расходы')}${dots(income,'income','income','Поступления')}
+    </svg>
+    <div class="dashboard-chart-months" aria-hidden="true">${monthLabels}</div>
+    <div class="dashboard-chart-summary" aria-label="Итоги за шесть месяцев">
+      <div class="dashboard-chart-summary-item income"><span>Поступления за 6 месяцев</span><strong aria-label="Поступления за шесть месяцев: ${esc(fmt(totalIncome))}">${esc(fmt(totalIncome))}</strong></div>
+      <div class="dashboard-chart-summary-item expense"><span>Оплаченные расходы</span><strong aria-label="Расходы за шесть месяцев: ${esc(fmt(totalExpenses))}">${esc(fmt(totalExpenses))}</strong></div>
+      <div class="dashboard-chart-summary-item ${netTone}"><span>Поступления минус расходы</span><strong aria-label="Разница за шесть месяцев: ${esc(fmt(netCashflow))}">${netCashflow > 0 ? '+' : ''}${esc(fmt(netCashflow))}</strong></div>
+    </div>
   </div>`;
 }
 

@@ -200,14 +200,22 @@
   let pointerDrag = null;
   function clearPointerDrag(commit = false) {
     if (!pointerDrag) return;
-    pointerDrag.widget.classList.remove('is-dragging');
+    const state = pointerDrag;
+    pointerDrag = null;
+    state.widget.classList.remove('is-dragging');
+    state.widget.style.pointerEvents = '';
     widgets().forEach(widget => widget.classList.remove('drop-before', 'drop-after'));
-    if (commit && pointerDrag.started) {
+    root.classList.remove('is-widget-dragging');
+
+    if (commit && state.started && state.dropTarget && state.dropTarget !== state.widget && root.contains(state.dropTarget)) {
+      root.insertBefore(state.widget, state.dropAfter ? state.dropTarget.nextSibling : state.dropTarget);
       saveLayout();
       refreshPanel();
     }
-    pointerDrag = null;
-    draggedWidget = null;
+
+    try {
+      if (state.handle.hasPointerCapture(state.pointerId)) state.handle.releasePointerCapture(state.pointerId);
+    } catch {}
   }
 
   root.addEventListener('pointerdown', event => {
@@ -215,12 +223,19 @@
     if (!handle || !root.classList.contains('is-customizing') || event.button !== 0) return;
     const widget = handle.closest('[data-dashboard-widget]');
     if (!widget) return;
-    pointerDrag = { widget, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, started: false };
-    draggedWidget = widget;
+    event.preventDefault();
+    pointerDrag = {
+      widget, handle, pointerId: event.pointerId,
+      startX: event.clientX, startY: event.clientY,
+      started: false, dropTarget: null, dropAfter: false
+    };
     try { handle.setPointerCapture(event.pointerId); } catch {}
+    handle.addEventListener('lostpointercapture', lostEvent => {
+      if (pointerDrag && lostEvent.pointerId === pointerDrag.pointerId) clearPointerDrag(false);
+    }, { once: true });
   });
 
-  root.addEventListener('pointermove', event => {
+  window.addEventListener('pointermove', event => {
     if (!pointerDrag || event.pointerId !== pointerDrag.pointerId) return;
     const dx = event.clientX - pointerDrag.startX;
     const dy = event.clientY - pointerDrag.startY;
@@ -228,24 +243,29 @@
     pointerDrag.started = true;
     event.preventDefault();
     pointerDrag.widget.classList.add('is-dragging');
+    pointerDrag.widget.style.pointerEvents = 'none';
+    root.classList.add('is-widget-dragging');
+
     const underPointer = document.elementFromPoint(event.clientX, event.clientY);
     const target = underPointer && underPointer.closest('[data-dashboard-widget]');
-    if (!target || target === pointerDrag.widget || !root.contains(target)) return;
+    if (!target || target === pointerDrag.widget || !root.contains(target)) {
+      widgets().forEach(widget => widget.classList.remove('drop-before', 'drop-after'));
+      pointerDrag.dropTarget = null;
+      return;
+    }
     widgets().forEach(widget => widget.classList.remove('drop-before', 'drop-after'));
     const rect = target.getBoundingClientRect();
     const after = event.clientY > rect.top + rect.height / 2;
     target.classList.add(after ? 'drop-after' : 'drop-before');
-    root.insertBefore(pointerDrag.widget, after ? target.nextSibling : target);
+    pointerDrag.dropTarget = target;
+    pointerDrag.dropAfter = after;
   });
 
-  root.addEventListener('pointerup', event => {
-    if (pointerDrag && event.pointerId === pointerDrag.pointerId) clearPointerDrag(true);
-  });
-  root.addEventListener('pointercancel', event => {
-    if (pointerDrag && event.pointerId === pointerDrag.pointerId) clearPointerDrag(false);
-  });
   window.addEventListener('pointerup', event => {
     if (pointerDrag && event.pointerId === pointerDrag.pointerId) clearPointerDrag(true);
+  });
+  window.addEventListener('pointercancel', event => {
+    if (pointerDrag && event.pointerId === pointerDrag.pointerId) clearPointerDrag(false);
   });
   window.addEventListener('blur', () => clearPointerDrag(false));
 })();
