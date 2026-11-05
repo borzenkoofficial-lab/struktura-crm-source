@@ -1035,7 +1035,7 @@ test('Salesforce light layout loads after base CSS and the reusable metrics modu
   const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\.css)">/g)].map(match => match[1]);
   assert.ok(links.indexOf('theme-salesforce.css') > links.indexOf('styles.css'));
   assert.ok(links.indexOf('theme-salesforce-light.css') > links.indexOf('theme-salesforce.css'));
-  assert.ok(html.includes('<script src="dashboard-metrics.js"></script><script src="renderer.js"></script>'));
+  assert.ok(html.includes('<script src="dashboard-metrics.js"></script><script src="dashboard-layout.js"></script><script src="renderer.js"></script>'));
   const css = fs.readFileSync(path.join(__dirname, '../src/theme-salesforce-light.css'), 'utf8');
   const sharedLayout = fs.readFileSync(path.join(__dirname, '../src/ui-layout-hardening.css'), 'utf8');
   for (const selector of ['.dashboard-kpis','.dashboard-finance-metrics','.dashboard-rings-grid','.dashboard-attention-list']) {
