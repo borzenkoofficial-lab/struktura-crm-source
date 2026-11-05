@@ -48,3 +48,9 @@
 .eng-result-grid-spaced{margin-top:13px}
 @media(max-width:1000px){.eng-layout{grid-template-columns:minmax(0,1fr)}.eng-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.eng-hero{padding:18px}.eng-hero h2{font-size:22px}.eng-hero-mark{display:none}.eng-form-grid,.eng-observation-form{grid-template-columns:minmax(0,1fr)}.eng-form-grid .wide{grid-column:auto}.eng-card-body{padding:15px}.eng-stat strong{font-size:19px}}
+
+
+/* Layout safety: table scroll stays inside its own wrapper. */
+.engineering-view,.engineering-view>*,.eng-layout>*,.eng-card,.eng-stat,.eng-result-grid>*,.eng-history-item{min-width:0;max-width:100%}
+.eng-table-wrap{width:100%;min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.eng-table{width:100%;min-width:560px;max-width:none}

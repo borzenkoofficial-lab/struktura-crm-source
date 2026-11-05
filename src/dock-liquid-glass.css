@@ -431,3 +431,35 @@ body.theme-dark .skol-dock .dock-item:hover .dock-icon,
     transform: none !important;
   }
 }
+
+
+/* SKOL Liquid Glass refinement */
+.skol-dock{overflow:visible!important;border-radius:var(--sf-radius,24px)!important;padding:10px 13px!important}
+.skol-dock .dock-item{min-width:58px!important;min-height:62px!important;gap:0!important;border-radius:var(--sf-radius,18px)!important}
+.skol-dock .dock-icon{width:44px!important;height:44px!important;border-radius:var(--sf-radius,15px)!important;background:linear-gradient(145deg,color-mix(in srgb,var(--dock-accent,#7c8a9b) 12%,#fff),color-mix(in srgb,var(--dock-accent,#7c8a9b) 5%,#edf1f5))!important;color:var(--dock-accent,#65758a)!important;box-shadow:0 5px 14px color-mix(in srgb,var(--dock-accent,#65758a) 16%,transparent),inset 0 1px 0 #fff!important}
+.skol-dock .dock-item[data-view="dashboard"]{--dock-accent:#83a92b}
+.skol-dock .dock-item[data-view="leads"]{--dock-accent:#e09a37}
+.skol-dock .dock-item[data-view="clients"]{--dock-accent:#4b9bba}
+.skol-dock .dock-item[data-view="projects"]{--dock-accent:#7a83c5}
+.skol-dock .dock-item[data-view="production"]{--dock-accent:#3c9b83}
+.skol-dock .dock-item[data-view="finance"]{--dock-accent:#299b70}
+.skol-dock .dock-item[data-view="engineering"]{--dock-accent:#bf8a48}
+.skol-dock .dock-item[data-view="tasks"]{--dock-accent:#6b8ec1}
+.skol-dock .dock-item[data-view="reports"]{--dock-accent:#9277b8}
+.skol-dock .dock-item[data-view="settings"]{--dock-accent:#778493}
+.skol-dock .dock-item[data-view="help"]{--dock-accent:#4c9ba0}
+.skol-dock .dock-label{position:absolute!important;left:50%!important;bottom:calc(100% + 12px)!important;z-index:20!important;width:max-content!important;max-width:180px!important;min-height:0!important;padding:7px 11px!important;border:1px solid rgba(255,255,255,.82)!important;border-radius:10px!important;background:rgba(255,255,255,.88)!important;color:#263344!important;font-size:11px!important;font-weight:700!important;line-height:1.2!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important;transform:translate(-50%,5px)!important;box-shadow:0 8px 24px rgba(25,38,54,.14),inset 0 1px 0 #fff!important;backdrop-filter:blur(18px) saturate(1.35)!important;-webkit-backdrop-filter:blur(18px) saturate(1.35)!important;transition:opacity .16s ease,transform .16s ease,visibility .16s ease!important}
+.skol-dock .dock-item:hover .dock-label,.skol-dock .dock-item:focus-visible .dock-label{opacity:1!important;visibility:visible!important;transform:translate(-50%,0)!important}
+.skol-dock .dock-item.active .dock-icon{background:linear-gradient(145deg,color-mix(in srgb,var(--sf-lime,#b8ed32) 78%,#fff),color-mix(in srgb,var(--sf-lime,#b8ed32) 92%,#d7ed9c))!important;color:#24320c!important}
+.skol-dock .dock-item.active .dock-label{background:rgba(255,255,255,.96)!important;color:#24320c!important;border-color:color-mix(in srgb,var(--sf-lime,#b8ed32) 55%,#fff)!important}
+.skol-dock .dock-brand,.skol-dock .dock-group,.skol-dock .dock-divider{flex-shrink:0!important}
+@media(max-width:1180px){.skol-dock{overflow-x:auto!important;overflow-y:hidden!important}.skol-dock .dock-label{display:none!important}}
+@media(prefers-reduced-motion:reduce){.skol-dock .dock-label{transition:none!important}}
+
+/* Engineering surfaces and intrinsic-width safety */
+.engineering-view,.engineering-view *,.eng-plan-operation,.eng-estimate-import,.eng-scenario-wrap,.eng-plan-history-item{min-width:0}
+.engineering-view :where(.eng-hero,.eng-stat,.eng-card,.eng-panel,.eng-result-card,.eng-history-item,.eng-empty,.eng-note),.eng-plan-operation,.eng-estimate-import,.eng-plan-history-item{border-radius:var(--sf-radius,18px)}
+.engineering-view :where(.eng-layout,.eng-stat-grid,.eng-form-grid,.eng-result-grid,.eng-observation-form)>*{min-width:0;max-width:100%}
+.engineering-view :where(.eng-table-wrap,.eng-calendar-table-wrap,.eng-order-plan-review-table){width:100%;max-width:100%;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.engineering-view :where(table,.eng-table,.eng-calendar-table){max-width:100%}
+.engineering-view :where(.eng-card,.eng-panel,.eng-stat,.eng-history-item,.eng-plan-operation,.eng-estimate-import){overflow-wrap:anywhere}

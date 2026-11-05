@@ -11,3 +11,10 @@
 .eng-calendar-table tr.eng-scenario-current td{background:color-mix(in srgb,var(--sf-lime,#a8e500) 9%,var(--sf-panel,#fff));font-weight:650}
 
 .eng-plan-history{display:grid;gap:8px;margin:12px 0 18px}.eng-plan-history-empty{padding:15px 16px;border:1px dashed var(--sf-line,rgba(30,43,60,.12));border-radius:var(--sf-radius-sm,10px);color:var(--sf-muted,#596779);font-size:13px;line-height:1.55}.eng-plan-history-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:16px}.eng-plan-history-head strong{font-size:14px}.eng-plan-history-head span{font-size:12px;color:var(--sf-muted,#596779)}.eng-plan-history-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 14px;border:1px solid var(--sf-line,rgba(30,43,60,.12));border-radius:var(--sf-radius-sm,10px);background:var(--sf-panel,#fff)}.eng-plan-history-copy{display:grid;gap:4px;min-width:0}.eng-plan-history-copy strong{font-size:13px;overflow-wrap:anywhere}.eng-plan-history-copy small{color:var(--sf-dim,#6b7788);font-size:12px;line-height:1.45}.eng-plan-history-actions{display:flex;gap:7px;flex-shrink:0}.eng-plan-history-actions .button{padding:7px 10px;font-size:12px}@media(max-width:700px){.eng-plan-history-head{align-items:flex-start;flex-direction:column;gap:4px}.eng-plan-history-item{align-items:flex-start;flex-direction:column}.eng-plan-history-actions{width:100%}}
+
+
+/* Keep plan tables and cards inside the available content width. */
+.eng-plan-operation,.eng-plan-history,.eng-plan-history-item,.eng-estimate-import,.eng-scenario-wrap,.eng-plan-timeline,.eng-plan-timeline-row,.eng-calendar-table-wrap{min-width:0;max-width:100%}
+.eng-plan-operation,.eng-estimate-import,.eng-plan-history-item{border-radius:var(--sf-radius,18px)}
+.eng-calendar-table-wrap{width:100%;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+.eng-calendar-table{min-width:640px;max-width:none}
