@@ -2671,7 +2671,7 @@ input[type="checkbox"], input[type="radio"] {
   gap: 8px !important;
   width: max-content !important;
   max-width: calc(100vw - 32px) !important;
-  padding: 12px 14px 11px !important;
+  padding: 6px 10px !important;
   border-radius: 28px !important;
   border: 1px solid rgba(255, 255, 255, 0.55) !important;
   background:
@@ -2737,7 +2737,7 @@ input[type="checkbox"], input[type="radio"] {
 .dock-group {
   display: flex !important;
   align-items: flex-end !important;
-  gap: 6px !important;
+  gap: 0 !important;
   flex: 0 0 auto !important;
   position: relative !important;
   z-index: 1 !important;
@@ -2770,7 +2770,7 @@ input[type="checkbox"], input[type="radio"] {
   width: auto !important;
   min-width: 64px !important;
   max-width: 148px !important;
-  min-height: 68px !important;
+  min-height: 42px !important;
   padding: 0 2px 2px !important;
   border: 0 !important;
   border-radius: 18px !important;
@@ -2790,9 +2790,9 @@ input[type="checkbox"], input[type="radio"] {
 .skol-dock .dock-icon {
   display: grid !important;
   place-items: center !important;
-  width: 48px !important;
-  height: 48px !important;
-  border-radius: 16px !important;
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 12px !important;
   border: 1px solid rgba(255, 255, 255, 0.85) !important;
   background:
     linear-gradient(
@@ -2849,7 +2849,12 @@ input[type="checkbox"], input[type="radio"] {
 }
 
 .skol-dock .dock-label {
-  display: inline-flex !important;
+  display: none !important;
+  position: absolute !important;
+  left: 50% !important;
+  bottom: calc(100% + 8px) !important;
+  z-index: 10 !important;
+  transform: translateX(-50%) !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 4px !important;
@@ -2899,6 +2904,7 @@ input[type="checkbox"], input[type="radio"] {
 
 .skol-dock .dock-item:hover .dock-label,
 .skol-dock .dock-item:focus-visible .dock-label {
+  display: inline-flex !important;
   background: rgba(255, 255, 255, 0.92) !important;
   border-color: rgba(180, 200, 220, 0.8) !important;
   color: #3a4d66 !important;
