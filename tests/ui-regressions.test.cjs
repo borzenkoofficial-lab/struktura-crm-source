@@ -324,7 +324,7 @@ test('lead details can be edited without creating a duplicate lead', () => {
   assert.match(preload, /updateLead: \(data\) => ipcRenderer\.invoke\('leads:update', data\)/);
   const handler = main.match(/ipcMain\.handle\('leads:update',[\s\S]*?\n\}\);/);
   assert.ok(handler); assert.match(handler[0], /Number\.isSafeInteger\(id\)/);
-  assert.match(handler[0], /UPDATE leads SET title=\?, service=\?, source=\?, budget_rub=\?, address=\?, notes=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
+  assert.match(handler[0], /UPDATE leads SET client_id=\?, title=\?, service=\?, source=\?, budget_rub=\?, address=\?, notes=\?, updated_at=CURRENT_TIMESTAMP WHERE id=\?/);
 });
 
 
