@@ -497,7 +497,6 @@ html[data-theme="light"] #skolDock .dock-notifications-trigger:focus-visible {
 /* Content-sized labels: keep every character inside its own tooltip surface. */
 #skolDock .dock-label,
 #skolDock .dock-notifications-label {
-  display: block !important;
   box-sizing: border-box !important;
   width: max-content !important;
   min-width: 0 !important;
