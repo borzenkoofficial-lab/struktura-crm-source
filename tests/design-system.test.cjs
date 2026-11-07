@@ -19,6 +19,13 @@ test('theme bootstrap runs synchronously after theme stylesheets and before body
   assert.ok(boot.includes('document.documentElement.dataset.theme = theme'));
 });
 
+test('fresh installs default to the white-and-lime light theme while saved preferences remain respected', () => {
+  assert.match(boot, /let theme = 'light'/);
+  assert.ok(boot.includes("saved === 'light' || saved === 'dark'"));
+  assert.ok(css.includes('html[data-theme="light"]'));
+  assert.ok(css.includes('--st-accent: #a4d52f'));
+});
+
 test('theme switch is accessible and persistent', () => {
   assert.ok(html.includes('id="themeToggleBtn"'));
   assert.ok(renderer.includes("skol-theme-preference-v1"));
