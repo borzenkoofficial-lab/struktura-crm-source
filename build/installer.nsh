@@ -2,7 +2,6 @@
 ; This file customizes only presentation and inserts one optional feature-tour page.
 !define MUI_BGCOLOR "FFFFFF"
 !define MUI_TEXTCOLOR "25282B"
-!define MUI_HEADER透明 "0"
 
 !include "LogicLib.nsh"
 !include "nsDialogs.nsh"
@@ -23,7 +22,7 @@ Function SKOLSlideRender
     ${NSD_SetText} $SKOLSlideTitle "Управление объектами"
     ${NSD_SetText} $SKOLSlideBody "Клиенты, заявки, объекты и история работ собраны в одном рабочем пространстве."
     ${NSD_SetText} $SKOLSlideCounter "01 / 03"
-    ${NSD_SetText} $SKOLSlideNextButton "Следующий экран"
+    ${NSD_SetText} $SKOLSlideNextButton "Следующий слайд"
   ${ElseIf} $SKOLSlideIndex == 1
     ${NSD_SetText} $SKOLSlideTitle "Сметы и производство"
     ${NSD_SetText} $SKOLSlideBody "Подготовка расчётов, планирование работ и контроль выполнения — в едином процессе."
@@ -33,7 +32,7 @@ Function SKOLSlideRender
     ${NSD_SetText} $SKOLSlideTitle "Финансы и контроль"
     ${NSD_SetText} $SKOLSlideBody "Доходы, расходы, задачи и отчёты доступны локально на вашем компьютере."
     ${NSD_SetText} $SKOLSlideCounter "03 / 03"
-    ${NSD_SetText} $SKOLSlideNextButton "Продолжить установку"
+    ${NSD_SetText} $SKOLSlideNextButton "Готово — нажмите Далее"
   ${EndIf}
 FunctionEnd
 
