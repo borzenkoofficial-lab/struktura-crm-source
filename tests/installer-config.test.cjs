@@ -5,10 +5,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.join(__dirname, '..');
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
 const buildScript = fs.readFileSync(path.join(root, 'scripts/create-installer-assets.cjs'), 'utf8');
 
 test('Windows app and installer use the СКОЛ logo and product identity', () => {
   assert.equal(pkg.version, '1.28.0');
+  assert.equal(lock.version, pkg.version);
+  assert.equal(lock.packages[''].version, pkg.version);
   assert.equal(pkg.name, 'skol-desktop');
   assert.equal(pkg.build.productName, 'СКОЛ');
   assert.equal(pkg.build.win.icon, 'build/skol.ico');
