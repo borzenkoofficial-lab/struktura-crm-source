@@ -464,3 +464,10 @@ html[data-theme="light"] #skolDock .dock-notifications-trigger:focus-visible {
 .main {
   padding-bottom: 104px !important;
 }
+
+/* Keep the compact desktop Dock clear of the workspace scroll viewport at 1024px. */
+@media (min-width: 761px) and (max-width: 1180px) {
+  #skolDock.skol-dock {
+    bottom: 12px !important;
+  }
+}
