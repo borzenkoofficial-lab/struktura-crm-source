@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test tests/*.test.cjs",
-    "dist:win": "node scripts/create-installer-assets.cjs && electron-builder --win nsis",
+    "dist:win": "node scripts/create-installer-assets.cjs && node scripts/create-liquid-installer-assets.cjs && electron-builder --win nsis",
     "license-manager": "electron tools/license-manager/main.cjs",
     "dist:license-manager": "electron-builder --win portable --config tools/license-manager/electron-builder.yml --publish never",
     "test:ui": "node tests/electron-layout-smoke.cjs"
@@ -52,7 +52,8 @@
       "installerHeader": "build/skol-installer-header.bmp",
       "installerSidebar": "build/skol-installer-sidebar.bmp",
       "uninstallerSidebar": "build/skol-installer-sidebar.bmp",
-      "include": "build/installer.nsh"
+      "include": "build/installer.nsh",
+      "license": "build/installer-notice.rtf"
     },
     "publish": [
       {
