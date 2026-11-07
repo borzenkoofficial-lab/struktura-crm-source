@@ -3,6 +3,7 @@
 !define MUI_BGCOLOR "FFFFFF"
 !define MUI_TEXTCOLOR "25282B"
 
+!ifndef BUILD_UNINSTALLER
 !include "LogicLib.nsh"
 !include "nsDialogs.nsh"
 !include "WinMessages.nsh"
@@ -70,6 +71,8 @@ Function SKOLFeaturePageCreate
   Call SKOLSlideRender
   nsDialogs::Show
 FunctionEnd
+
+!endif ; BUILD_UNINSTALLER
 
 !macro customHeader
   !define MUI_WELCOMEPAGE_TITLE "СКОЛ CRM"
