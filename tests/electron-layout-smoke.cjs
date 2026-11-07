@@ -375,6 +375,11 @@ async function run() {
     await themeButton.click();
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
     assert.equal(await themeButton.getAttribute('aria-pressed'), 'true', 'light theme state is exposed accessibly');
+    // Keep the responsive workspace sweep in dark mode because its surface-leak assertions
+    // specifically validate that dark workspaces do not retain white legacy panels.
+    await themeButton.click();
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+    assert.equal(await themeButton.getAttribute('aria-pressed'), 'false', 'dark theme state is exposed accessibly');
 
     // Exercise dashboard period controls and the new refresh pending/recovery state.
     const weekPeriod = page.locator('[data-dashboard-period="week"]');
