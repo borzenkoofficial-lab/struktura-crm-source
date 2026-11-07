@@ -80,8 +80,5 @@ FunctionEnd
 
 !macro customWelcomePage
   !insertmacro MUI_PAGE_WELCOME
-!macroend
-
-!macro customPageAfterChangeDir
   Page custom SKOLFeaturePageCreate
 !macroend
