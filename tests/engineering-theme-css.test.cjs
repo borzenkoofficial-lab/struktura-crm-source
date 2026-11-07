@@ -14,13 +14,13 @@ const styles = [
 
 test('engineering workspaces use the active Salesforce theme tokens', () => {
   for (const { name, css } of styles) {
-    assert.match(css, /var\\(--sf-/u, name + ' must use theme variables');
+    assert.match(css, /var\(--sf-/u, name + ' must use theme variables');
   }
 });
 
 test('engineering workspaces preserve narrow-layout overflow safety', () => {
   for (const { name, css } of styles) {
-    assert.match(css, /min-width\\s*:\\s*0/u, name + ' must allow grid children to shrink');
-    assert.match(css, /overflow\\s*:\\s*(?:auto|hidden)/u, name + ' must contain overflow');
+    assert.match(css, /min-width\s*:\s*0/u, name + ' must allow grid children to shrink');
+    assert.match(css, /overflow\s*:\s*(?:auto|hidden)/u, name + ' must contain overflow');
   }
 });
