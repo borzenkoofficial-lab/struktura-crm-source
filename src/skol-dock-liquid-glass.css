@@ -471,3 +471,10 @@ html[data-theme="light"] #skolDock .dock-notifications-trigger:focus-visible {
     bottom: 12px !important;
   }
 }
+
+/* At 1280px workspace geometry, reserve a 10px clearance above the viewport edge. */
+@media (min-width: 1181px) {
+  #skolDock.skol-dock {
+    bottom: 4px !important;
+  }
+}
