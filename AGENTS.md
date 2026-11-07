@@ -34,14 +34,14 @@
 
 ## Unmerged feature proposals
 
-The following open proposals are **not part of main** and must not be treated as installed product functionality:
+The following proposals were closed during consolidation and their source branches were preserved as a **closed integration backlog**. They are **not part of main** and must not be treated as installed product functionality:
 
 - PR #61 — AnyModel AI integration / search provider change.
 - PR #62 — direct EIS procurement search connector.
 - PR #68 — restore client linkage on lead creation and editing.
 - PR #69 — stricter SQLite backup/restore schema validation.
 
-These proposals were developed against older branch histories. Do not merge their branches wholesale or use them as a base. Re-audit each against current `main`, port only the required feature/fix, preserve current UI and data contracts, then run focused tests plus the full verification suite. Older 1.14–1.16 PRs are historical proposals, not a current release base.
+These proposals were developed against older branch histories. Do not merge their branches wholesale or use them as a base. Re-audit each against current `main`, port only the required feature/fix, preserve current UI and data contracts, then run focused tests plus the full verification suite. Older 1.14–1.16 PRs are also closed historical proposals, not a current release base.
 
 ## Required verification
 
