@@ -1,0 +1,466 @@
+/* ============================================================
+   СКОЛ 1.28 — Liquid Glass Dock (iOS-style)
+   Drop-in override for #skolDock / .skol-dock
+   Requires: modern Chromium/Electron (backdrop-filter)
+   Install: place in src/ and link AFTER struktura-design-system.css
+   ============================================================ */
+
+/* --- Core dock capsule --- */
+#skolDock.skol-dock {
+  --dock-glass-bg: rgba(255, 255, 255, 0.12);
+  --dock-glass-border: rgba(255, 255, 255, 0.28);
+  --dock-glass-shadow:
+    0 18px 48px rgba(0, 0, 0, 0.28),
+    0 4px 12px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+  --dock-item-size: 52px;
+  --dock-icon-size: 44px;
+  --dock-radius: 28px;
+  --dock-ease: cubic-bezier(0.22, 0.85, 0.28, 1);
+
+  position: fixed !important;
+  left: 50% !important;
+  bottom: 14px !important;
+  transform: translateX(-50%) !important;
+  z-index: 90 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+
+  height: 72px !important;
+  min-height: 72px !important;
+  max-height: 72px !important;
+  padding: 8px 14px !important;
+
+  border-radius: var(--dock-radius) !important;
+  border: 1px solid var(--dock-glass-border) !important;
+
+  background:
+    linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0.06) 42%,
+      rgba(255, 255, 255, 0.03) 100%
+    ),
+    var(--dock-glass-bg) !important;
+
+  -webkit-backdrop-filter: blur(28px) saturate(180%) brightness(1.05) !important;
+  backdrop-filter: blur(28px) saturate(180%) brightness(1.05) !important;
+
+  box-shadow: var(--dock-glass-shadow) !important;
+  overflow: visible !important;
+  isolation: isolate !important;
+}
+
+/* Specular top edge (liquid highlight) */
+#skolDock.skol-dock::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: inherit !important;
+  pointer-events: none !important;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.38) 0%,
+      rgba(255, 255, 255, 0.08) 18%,
+      transparent 42%
+    ) !important;
+  opacity: 0.85 !important;
+  z-index: 0 !important;
+}
+
+/* Soft inner refraction rim */
+#skolDock.skol-dock::after {
+  content: "" !important;
+  position: absolute !important;
+  inset: 1px !important;
+  border-radius: calc(var(--dock-radius) - 1px) !important;
+  pointer-events: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04) !important;
+  z-index: 0 !important;
+}
+
+html[data-theme="dark"] #skolDock.skol-dock {
+  --dock-glass-bg: rgba(22, 32, 44, 0.42);
+  --dock-glass-border: rgba(255, 255, 255, 0.16);
+  background:
+    linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.10) 0%,
+      rgba(255, 255, 255, 0.03) 45%,
+      rgba(0, 0, 0, 0.12) 100%
+    ),
+    var(--dock-glass-bg) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(160%) brightness(0.95) !important;
+  backdrop-filter: blur(32px) saturate(160%) brightness(0.95) !important;
+}
+
+html[data-theme="light"] #skolDock.skol-dock {
+  --dock-glass-bg: rgba(255, 255, 255, 0.48);
+  --dock-glass-border: rgba(30, 45, 40, 0.14);
+  background:
+    linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.72) 0%,
+      rgba(255, 255, 255, 0.28) 48%,
+      rgba(255, 255, 255, 0.18) 100%
+    ),
+    var(--dock-glass-bg) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(170%) brightness(1.08) !important;
+  backdrop-filter: blur(30px) saturate(170%) brightness(1.08) !important;
+  box-shadow:
+    0 18px 44px rgba(20, 35, 30, 0.16),
+    0 4px 12px rgba(20, 35, 30, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Groups & dividers */
+#skolDock .dock-brand { display: none !important; }
+
+#skolDock .dock-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+#skolDock .dock-divider {
+  width: 1px !important;
+  height: 28px !important;
+  margin: 0 4px !important;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(255, 255, 255, 0.28),
+    transparent
+  ) !important;
+  border: 0 !important;
+}
+
+/* Items */
+#skolDock .dock-item,
+#skolDock .dock-notifications-trigger {
+  position: relative !important;
+  display: grid !important;
+  place-items: center !important;
+  flex: 0 0 var(--dock-item-size) !important;
+  width: var(--dock-item-size) !important;
+  min-width: var(--dock-item-size) !important;
+  max-width: var(--dock-item-size) !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.78) !important;
+  transform-origin: 50% 100% !important;
+  transition:
+    transform 200ms var(--dock-ease),
+    color 180ms ease,
+    filter 180ms ease !important;
+  z-index: 1 !important;
+}
+
+html[data-theme="light"] #skolDock .dock-item,
+html[data-theme="light"] #skolDock .dock-notifications-trigger {
+  color: rgba(30, 45, 40, 0.72) !important;
+}
+
+/* Icon tile — glass chip */
+#skolDock .dock-icon,
+#skolDock .dock-notifications-icon {
+  position: relative !important;
+  display: grid !important;
+  place-items: center !important;
+  width: var(--dock-icon-size) !important;
+  height: var(--dock-icon-size) !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0.06) 100%
+    ) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+  backdrop-filter: blur(12px) saturate(140%) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 4px 12px rgba(0, 0, 0, 0.12) !important;
+  color: inherit !important;
+  overflow: visible !important;
+  transition:
+    transform 200ms var(--dock-ease),
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease !important;
+}
+
+html[data-theme="light"] #skolDock .dock-icon,
+html[data-theme="light"] #skolDock .dock-notifications-icon {
+  border-color: rgba(30, 45, 40, 0.12) !important;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.85) 0%,
+      rgba(255, 255, 255, 0.45) 100%
+    ) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 4px 14px rgba(20, 35, 30, 0.1) !important;
+}
+
+/* High-quality vector icons (4K-ready) */
+#skolDock .dock-icon svg,
+#skolDock .dock-notifications-icon svg {
+  display: block !important;
+  width: 24px !important;
+  height: 24px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.75 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  shape-rendering: geometricPrecision !important;
+  vector-effect: non-scaling-stroke !important;
+  filter: none !important;
+}
+
+/* Hover / focus — lift + magnify */
+#skolDock .dock-item:hover,
+#skolDock .dock-item:focus-visible,
+#skolDock .dock-notifications-trigger:hover,
+#skolDock .dock-notifications-trigger:focus-visible {
+  z-index: 12 !important;
+  color: #fff !important;
+  transform: translateY(-10px) scale(1.18) !important;
+}
+
+html[data-theme="light"] #skolDock .dock-item:hover,
+html[data-theme="light"] #skolDock .dock-item:focus-visible,
+html[data-theme="light"] #skolDock .dock-notifications-trigger:hover,
+html[data-theme="light"] #skolDock .dock-notifications-trigger:focus-visible {
+  color: var(--st-accent, #e96535) !important;
+}
+
+#skolDock .dock-item:hover .dock-icon,
+#skolDock .dock-item:focus-visible .dock-icon,
+#skolDock .dock-notifications-trigger:hover .dock-notifications-icon,
+#skolDock .dock-notifications-trigger:focus-visible .dock-notifications-icon {
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.38) 0%,
+      rgba(255, 255, 255, 0.12) 100%
+    ) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 10px 24px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Active state — accent liquid chip */
+#skolDock .dock-item.active {
+  color: #fff !important;
+}
+
+#skolDock .dock-item.active .dock-icon {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--st-accent, #e96535) 92%, white 8%),
+    var(--st-accent, #e96535)
+  ) !important;
+  border-color: color-mix(in srgb, var(--st-accent, #e96535) 70%, white 30%) !important;
+  color: #1a120c !important;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--st-accent, #e96535) 22%, transparent),
+    0 8px 20px color-mix(in srgb, var(--st-accent, #e96535) 35%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
+}
+
+#skolDock .dock-item.active:hover .dock-icon {
+  transform: scale(1.02) !important;
+}
+
+/* Active indicator dot */
+#skolDock .dock-item.active::after {
+  content: "" !important;
+  position: absolute !important;
+  bottom: 2px !important;
+  left: 50% !important;
+  width: 5px !important;
+  height: 5px !important;
+  margin-left: -2.5px !important;
+  border-radius: 50% !important;
+  background: var(--st-accent, #e96535) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--st-accent, #e96535) 20%, transparent) !important;
+}
+
+/* Hover labels — glass tooltips */
+#skolDock .dock-label,
+#skolDock .dock-notifications-label {
+  position: absolute !important;
+  bottom: calc(100% + 14px) !important;
+  left: 50% !important;
+  transform: translateX(-50%) translateY(6px) !important;
+  padding: 7px 12px !important;
+  border-radius: 10px !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  background: rgba(22, 32, 44, 0.72) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
+  backdrop-filter: blur(16px) saturate(140%) !important;
+  color: #f4f7fa !important;
+  font-size: 11.5px !important;
+  font-weight: 650 !important;
+  line-height: 1.25 !important;
+  white-space: nowrap !important;
+  letter-spacing: 0.01em !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition:
+    opacity 160ms ease,
+    transform 200ms var(--dock-ease) !important;
+  z-index: 20 !important;
+}
+
+#skolDock .dock-label i {
+  font-style: normal !important;
+  font-size: 10px !important;
+  opacity: 0.75 !important;
+  margin-left: 4px !important;
+}
+
+#skolDock .dock-item:hover .dock-label,
+#skolDock .dock-item:focus-visible .dock-label,
+#skolDock .dock-notifications-trigger:hover .dock-notifications-label,
+#skolDock .dock-notifications-trigger:focus-visible .dock-notifications-label {
+  opacity: 1 !important;
+  transform: translateX(-50%) translateY(0) !important;
+}
+
+/* Badges */
+#skolDock .dock-badge {
+  position: absolute !important;
+  top: -3px !important;
+  right: -3px !important;
+  min-width: 16px !important;
+  height: 16px !important;
+  padding: 0 4px !important;
+  border-radius: 999px !important;
+  background: #e24b4b !important;
+  color: #fff !important;
+  font-size: 9px !important;
+  font-weight: 750 !important;
+  line-height: 16px !important;
+  text-align: center !important;
+  box-shadow: 0 2px 6px rgba(226, 75, 75, 0.45) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.35) !important;
+}
+
+/* 4K / large displays */
+@media (min-width: 2200px) {
+  #skolDock.skol-dock {
+    --dock-item-size: 58px;
+    --dock-icon-size: 48px;
+    height: 80px !important;
+    min-height: 80px !important;
+    max-height: 80px !important;
+    padding: 10px 18px !important;
+    border-radius: 32px !important;
+  }
+
+  #skolDock .dock-icon svg,
+  #skolDock .dock-notifications-icon svg {
+    width: 26px !important;
+    height: 26px !important;
+    stroke-width: 1.65 !important;
+  }
+
+  #skolDock .dock-label,
+  #skolDock .dock-notifications-label {
+    font-size: 12.5px !important;
+    padding: 8px 14px !important;
+  }
+}
+
+/* Compact */
+@media (max-width: 1180px) {
+  #skolDock.skol-dock {
+    --dock-item-size: 46px;
+    --dock-icon-size: 40px;
+    height: 64px !important;
+    min-height: 64px !important;
+    max-height: 64px !important;
+    gap: 4px !important;
+    padding: 6px 10px !important;
+  }
+
+  #skolDock .dock-icon svg {
+    width: 22px !important;
+    height: 22px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  #skolDock.skol-dock {
+    --dock-item-size: 40px;
+    --dock-icon-size: 34px;
+    height: 58px !important;
+    min-height: 58px !important;
+    max-height: 58px !important;
+    bottom: 10px !important;
+    border-radius: 20px !important;
+    padding: 5px 8px !important;
+  }
+
+  #skolDock .dock-item:hover,
+  #skolDock .dock-item:focus-visible {
+    transform: translateY(-6px) scale(1.1) !important;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  #skolDock,
+  #skolDock * {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  #skolDock .dock-item:hover,
+  #skolDock .dock-item:focus-visible {
+    transform: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  #skolDock.skol-dock,
+  #skolDock .dock-icon,
+  #skolDock .dock-label {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: #1a2430 !important;
+  }
+
+  html[data-theme="light"] #skolDock.skol-dock,
+  html[data-theme="light"] #skolDock .dock-icon {
+    background: #f3f6f5 !important;
+  }
+}
+
+/* Keep content above dock */
+.main {
+  padding-bottom: 104px !important;
+}
