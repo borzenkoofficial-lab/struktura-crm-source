@@ -9,6 +9,19 @@ const { skolWordmarkSvg } = require('./branding.cjs');
 const { validateBackupDatabase } = require('./backup-utils.cjs');
 const { findLegacyUserDataPath } = require('./user-data-path.cjs');
 app.setName('СКОЛ');
+// The real Electron UI test must never read or migrate a user's production profile.
+// This override is available only when the dedicated test runner explicitly opts in.
+if (process.env.SKOL_UI_E2E === '1') {
+  const e2eUserDataPath = process.env.SKOL_UI_E2E_USER_DATA;
+  const e2ePublicKey = process.env.SKOL_UI_E2E_PUBLIC_KEY_B64;
+  if (!e2eUserDataPath || !e2ePublicKey) {
+    throw new Error('SKOL_UI_E2E requires an isolated user-data path and a temporary public key.');
+  }
+  const isolatedUserDataPath = path.resolve(e2eUserDataPath);
+  fs.mkdirSync(isolatedUserDataPath, { recursive: true });
+  app.setPath('appData', path.dirname(isolatedUserDataPath));
+  app.setPath('userData', isolatedUserDataPath);
+}
 // Keep an existing current profile; fall back to legacy data only if the current profile has no database.
 const legacyDataCandidates = ['Struktura CRM', 'struktura-crm', 'struktura-crm-source'];
 const currentUserDataPath = app.getPath('userData');
@@ -216,7 +229,10 @@ app.whenReady().then(() => {
   // Remove Electron's legacy File/Edit/View/Window/Help menu; keep native Windows controls.
   Menu.setApplicationMenu(null);
   db = openDatabase(app.getPath('userData'));
-  const licensePublicKey = fs.readFileSync(path.join(__dirname, 'license-public-key.pem'), 'utf8');
+  const licensePublicKey = process.env.SKOL_UI_E2E === '1'
+    ? Buffer.from(process.env.SKOL_UI_E2E_PUBLIC_KEY_B64, 'base64').toString('utf8')
+    : fs.readFileSync(path.join(__dirname, 'license-public-key.pem'), 'utf8');
+  if (!licensePublicKey.includes('PUBLIC KEY')) throw new Error('License public key is invalid.');
   const licenseDeviceId = getDeviceId();
   licenseService = createLicenseService({
     getSetting,
@@ -280,6 +296,24 @@ ipcMain.handle('security:pinDisable', (_event, input = {}) => {
   return { enabled: false };
 });
 
+ipcMain.handle('notifications:getInbox', () => {
+  const settings = normalizeReminderSettings(getSetting('reminder_settings', DEFAULT_REMINDER_SETTINGS));
+  if (!settings.enabled) return [];
+  const tasks = db.prepare(`SELECT t.id,t.title,t.due_at,t.is_done,t.project_id,p.title project_title
+    FROM tasks t LEFT JOIN projects p ON p.id=t.project_id
+    WHERE t.is_done=0 AND t.due_at IS NOT NULL AND t.due_at<>''`).all();
+  const projects = db.prepare(`SELECT p.id,p.title,p.status,p.start_date,p.end_date,p.created_at,
+    (SELECT MAX(ws.shift_date) FROM work_shifts ws WHERE ws.project_id=p.id) last_shift_date
+    FROM projects p WHERE p.status='active'`).all();
+  // Inbox shows current actionable conditions regardless of desktop push schedule/cooldown.
+  const inboxSettings = { ...settings, enabled: true, startHour: 0, endHour: 24, weekdaysOnly: false };
+  const items = buildReminders({ tasks, projects, now: new Date(), settings: inboxSettings, lastSent: {} });
+  return items.map(item => {
+    const [kind, rawId] = item.key.split(':');
+    const id = Number(rawId);
+    return { ...item, id, kind: kind === 'task' ? 'task' : kind === 'project-deadline' ? 'project' : 'shift-report' };
+  }).sort((a, b) => (a.level === 'danger' ? -1 : 0) - (b.level === 'danger' ? -1 : 0));
+});
 ipcMain.handle('notifications:getSettings', () => normalizeReminderSettings(getSetting('reminder_settings', DEFAULT_REMINDER_SETTINGS)));
 ipcMain.handle('notifications:saveSettings', (_event, input = {}) => {
   const settings = normalizeReminderSettings(input);

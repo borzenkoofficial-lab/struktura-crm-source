@@ -69,6 +69,6 @@ test('visible application screens use the СКОЛ wordmark and no former brand 
   assert.doesNotMatch(html, /assets\/skol-wordmark-inverse\.svg/);
   assert.match(html, /assets\/skol-monogram\.svg/);
   assert.doesNotMatch(html, /STRUKTURA|Struktura CRM/);
-  assert.match(renderer, /О продукте СКОЛ/);
+  assert.match(html, /О продукте СКОЛ/);
   assert.doesNotMatch(renderer, /STRUKTURA|Struktura CRM/);
 });

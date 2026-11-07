@@ -12,10 +12,12 @@ on:
     branches:
       - main
       - 'fix/**'
+      - 'test/**'
   push:
     branches:
       - main
       - 'fix/**'
+      - 'test/**'
       - 'installer-build/**'
     tags:
       - 'v*'
@@ -46,9 +48,8 @@ jobs:
   build-windows:
     name: Build Windows installer
     needs: test
-    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/installer-build/') || github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.build_installer)
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
@@ -61,12 +62,76 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Rebuild native modules for Electron
+        run: npx electron-builder install-app-deps --platform=win32 --arch=x64
+
+      - name: Install Playwright for Electron UI checks
+        shell: pwsh
+        run: npm install --prefix "$env:RUNNER_TEMP/skol-playwright" --no-save --package-lock=false --ignore-scripts playwright@1.64.1
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Run Electron responsive layout checks
+        shell: pwsh
+        run: npm run test:ui
+        env:
+          NODE_PATH: ${{ runner.temp }}\skol-playwright\node_modules
+          SKOL_UI_E2E_OUTPUT: artifacts\ui-layout-smoke
+
+      - name: Upload Electron UI screenshots and geometry report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SKOL-Electron-UI-Screenshots
+          path: artifacts/ui-layout-smoke/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Build Windows installer
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_installer }}
         run: npm run dist:win -- --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install and smoke-test the packaged Windows app
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_installer }}
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -Path dist -Filter 'SKOL-Setup-*.exe' -File | Select-Object -First 1
+          if (-not $installer) { throw 'SKOL Windows installer was not produced.' }
+
+          $installDir = Join-Path $env:RUNNER_TEMP 'skol-installed-smoke'
+          New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+          $process = Start-Process -FilePath $installer.FullName -ArgumentList @('/S', "/D=$installDir") -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "NSIS installer exited with code $($process.ExitCode)." }
+
+          $appExe = Join-Path $installDir 'СКОЛ.exe'
+          if (-not (Test-Path -LiteralPath $appExe -PathType Leaf)) {
+            $appExe = Get-ChildItem -Path $installDir -Filter '*.exe' -File -Recurse |
+              Where-Object { $_.Name -notmatch 'Uninstall|Setup' } |
+              Select-Object -First 1 -ExpandProperty FullName
+          }
+          if (-not $appExe -or -not (Test-Path -LiteralPath $appExe -PathType Leaf)) {
+            throw "Installed application executable was not found under $installDir."
+          }
+
+          Write-Host "Smoke testing installed binary: $appExe"
+          $env:SKOL_UI_E2E_EXECUTABLE = $appExe
+          $env:SKOL_UI_E2E_OUTPUT = 'artifacts/ui-layout-smoke-installed'
+          $env:NODE_PATH = Join-Path $env:RUNNER_TEMP 'skol-playwright\node_modules'
+          npm run test:ui
+
+      - name: Upload packaged-app UI screenshots and geometry report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SKOL-Packaged-App-UI-Screenshots
+          path: artifacts/ui-layout-smoke-installed/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload installer
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_installer }}
         uses: actions/upload-artifact@v4
         with:
           name: SKOL-Windows-Installer
@@ -75,9 +140,11 @@ jobs:
           retention-days: 14
 
       - name: Build standalone License Manager
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_installer }}
         run: npm run dist:license-manager
 
       - name: Upload License Manager
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.build_installer }}
         uses: actions/upload-artifact@v4
         with:
           name: SKOL-License-Manager

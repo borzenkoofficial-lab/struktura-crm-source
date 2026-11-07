@@ -25,13 +25,12 @@ test('async create forms capture their form before awaiting IPC', () => {
   }
 });
 
-test('pricing and AI API preview clearly do not enable checkout or provider credentials', () => {
-  assert.match(html, /Покупка пока не активна/);
-  assert.match(html, /платёжный провайдер будет подключён отдельно/i);
-  assert.match(html, /Поля отключены намеренно/);
-  assert.match(html, /id="view-plans"/);
+test('commercial tariff page is fully removed without affecting license management', () => {
+  assert.doesNotMatch(html, /id="view-plans"|data-view="plans"|data-plan-action/);
+  assert.doesNotMatch(html, /Тариф СКОЛ CRM|Тариф и интеграции|Покупка пока не активна|платёжный провайдер будет подключён отдельно/);
+  assert.doesNotMatch(renderer, /data-plan-action|plans: 'Тариф/);
+  assert.match(html, /id="manageLicenseBtn"/, 'local license management remains available in Settings');
 });
-
 test('HTML IDs are unique and all literal renderer element references resolve', () => {
   const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(ids).size, ids.length, 'HTML element IDs must be unique');
@@ -46,7 +45,8 @@ test('startup animation is wired to initial dashboard readiness with a safety ti
   assert.match(html, /class="startup-mark"/);
   assert.match(html, /class="startup-progress"/);
   assert.match(renderer, /function hideStartupSplash\(\)/);
-  assert.match(renderer, /\.finally\(\(\) => \{[\s\S]*?hideStartupSplash\(\);[\s\S]*?maybeStartNavGuide\(\);[\s\S]*?\}\)/, 'startup hides the splash and schedules first-run menu guidance');
+  assert.match(renderer, /\.finally\(\(\) => \{[\s\S]*?hideStartupSplash\(\);[\s\S]*?\}\)/, 'startup hides the splash after the startup gate resolves');
+  assert.doesNotMatch(renderer, /maybeStartNavGuide|NAV_GUIDE_STORAGE_KEY/);
   assert.match(renderer, /window\.setTimeout\(hideStartupSplash, 8000\)/);
   assert.match(renderer, /startupSplash\.classList\.add\('is-hidden'\)/);
 });
@@ -187,6 +187,22 @@ test('backup restore is exposed in the UI and safe preload bridge', () => {
   assert.match(renderer, /\$\('restoreBackupBtn'\)\.addEventListener\('click'/);
   assert.match(preload, /restoreBackup:\s*\(\) => ipcRenderer\.invoke\('backup:restore'\)/);
   assert.match(main, /ipcMain\.handle\('backup:restore'/);
+});
+
+test('data and product utilities are grouped inside Settings, not in the Dock', () => {
+  const settingsStart = html.indexOf('id="view-settings"');
+  const settingsEnd = html.indexOf('<footer class="app-footer"', settingsStart);
+  const settings = html.slice(settingsStart, settingsEnd);
+  for (const id of ['dataFolderBtn','backupBtn','restoreBackupBtn']) {
+    assert.ok(settings.includes('id="' + id + '"'), id + ' is available in Settings');
+  }
+  assert.ok(settings.includes('class="about-settings-details"'), 'product information is expandable inside Settings');
+  assert.ok(settings.includes('О продукте СКОЛ'));
+  const dockStart = html.indexOf('id="skolDock"');
+  const dockEnd = html.indexOf('</nav>', dockStart);
+  const dock = html.slice(dockStart, dockEnd);
+  for (const id of ['dataFolderBtn','backupBtn','restoreBackupBtn']) assert.ok(!dock.includes('id="' + id + '"'));
+  assert.match(html, /id="manageLicenseBtn"/, 'license management remains separate from the removed commercial tariff page');
 });
 
 test('backup restore validates SQLite structure and preserves an automatic rollback copy', () => {
@@ -584,16 +600,15 @@ test('PI keeps sparse calibration data in collection mode and never suggests an 
 });
 
 
-test('product presentation tab is reachable and keeps the SKOL story and contextual navigation', () => {
-  assert.match(html, /data-view="about"/);
-  assert.match(html, /id="view-about"/);
+test('product information is grouped inside Settings with its original story and contextual navigation', () => {
+  assert.match(html, /class="about-settings-details"/);
+  assert.match(html, /<strong>О продукте СКОЛ<\/strong>/);
   assert.match(html, /Порядок в работе/);
   assert.match(html, /Факты важнее впечатлений/);
   assert.match(html, /data-goto="production"/);
   assert.match(html, /data-goto="projects"/);
-  assert.match(renderer, /about: 'О продукте СКОЛ'/);
+  assert.doesNotMatch(html, /id="view-about"|data-view="about"/);
 });
-
 test('product presentation includes responsive 3D visuals and respects reduced-motion preferences', () => {
   const styles = fs.readFileSync(path.join(__dirname, '../src/styles.css'), 'utf8');
   assert.match(styles, /\.about-hero-scene/);
@@ -764,7 +779,7 @@ test('regression fixes preserve contract amounts, task links, budgets and financ
 
 
 test('PIN controls are available from a dedicated Settings workspace', () => {
-  assert.match(html, /data-view="settings"><span>⚙<\/span>Настройки/);
+  assert.match(html, /id="skolDock"[\s\S]*?data-view="settings"/);
   assert.match(html, /id="view-settings"/);
   assert.match(html, /id="pinSettingsForm"/);
   assert.match(renderer, /settings: 'Настройки'/);
@@ -971,39 +986,32 @@ test('dashboard contains only live business KPI slots, interactive rings and exp
   assert.ok(renderer.includes("metrics.finance.totalContract > 0 ? metrics.finance.collectionPercent : null"));
 });
 
-test('navigation is a horizontal slide-out top panel with a five-second idle close', () => {
+test('navigation is grouped in a persistent bottom Dock with all active workspaces', () => {
   const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
-  const duplicateIds = [...new Set(ids.filter((id,index) => ids.indexOf(id) !== index))];
-  assert.deepEqual(duplicateIds, [], 'no duplicate HTML ids');
-  assert.equal((html.match(/class="nav-primary"/g) || []).length, 1);
-  assert.equal((html.match(/id="navMenuToggle"/g) || []).length, 1, 'there is one arrow toggle');
-  assert.equal((html.match(/id="nav-primary"/g) || []).length, 1, 'the panel has a stable target id');
-  assert.match(html, /id="navMenuToggle"[^>]*aria-expanded="false"/, 'navigation starts collapsed');
-  assert.match(html, /id="nav-primary"[^>]*aria-hidden="true"[^>]*inert/, 'closed navigation is removed from keyboard navigation');
-  assert.equal((html.match(/class="nav-more"/g) || []).length, 0, 'the old dropdown is removed');
-  const navStart = html.indexOf('id="nav-primary"');
-  const navEnd = html.indexOf('</nav>', navStart);
-  const primary = html.slice(navStart, navEnd);
-  assert.deepEqual([...primary.matchAll(/data-view="([^"]+)"/g)].map(match => match[1]),
-    ['dashboard','leads','clients','projects','production','finance','engineering','prospects','tasks','reports','browser','plans','settings','about']);
-  assert.equal((primary.match(/class="nav-menu-group(?: nav-menu-system)?"/g) || []).length, 3, 'logical navigation groups remain');
-  const views = [...html.matchAll(/id="view-([^"]+)"/g)].map(match => match[1]);
-  assert.equal(views.length, 14);
-  assert.equal(new Set(views).size, 14);
-  for (const view of views) assert.ok(primary.includes('data-view="' + view + '"'), view + ' remains reachable from the top navigation');
-  assert.ok(!html.includes('toggleSidebarBtn'), 'old vertical-sidebar toggle is removed');
-  assert.ok(!renderer.includes('gruzli.sidebarCollapsed'), 'old brand-specific UI persistence key is removed');
-  assert.doesNotMatch(renderer, /nav-more|button\.closest\(['"]\.nav-more['"]\)/, 'old disclosure handlers are removed');
-  assert.match(renderer, /NAV_MENU_AUTO_CLOSE_MS\s*=\s*5000/, 'the idle close delay is exactly five seconds');
-  assert.ok(renderer.includes("navMenuToggle.addEventListener('click'"), 'the arrow toggles the panel');
-  assert.ok(renderer.includes("addEventListener('pointerenter'"), 'pointer entry cancels the close timer');
-  assert.ok(renderer.includes("addEventListener('pointerleave'"), 'pointer exit schedules the close timer');
-  assert.ok(renderer.includes("addEventListener('focusin'"), 'keyboard focus keeps navigation available');
-  assert.ok(renderer.includes("addEventListener('focusout'"), 'leaving keyboard focus schedules the close timer');
-  assert.match(layoutCss, /\.sidebar \.nav-primary\s*\{[\s\S]*?flex-direction: row !important/);
-  assert.match(layoutCss, /\.sidebar\.nav-expanded \.nav-primary\s*\{[\s\S]*?overflow-x: auto !important/);
-  assert.match(layoutCss, /\.sidebar \.nav-menu-group\s*\{[\s\S]*?flex-direction: row !important/);
-  assert.match(layoutCss, /@media \(max-width: 700px\)[\s\S]*?\.sidebar \.nav-primary\s*\{[\s\S]*?left: 8px !important/);
+  assert.equal(new Set(ids).size, ids.length, 'no duplicate HTML ids');
+  assert.equal((html.match(/id="skolDock"/g) || []).length, 1);
+  const dockStart = html.indexOf('id="skolDock"');
+  const dockEnd = html.indexOf('</nav>', dockStart);
+  const dock = html.slice(dockStart, dockEnd);
+  assert.deepEqual([...dock.matchAll(/data-view="([^"]+)"/g)].map(match => match[1]),
+    ['dashboard','leads','clients','projects','production','finance','engineering','tasks','reports','prospects','browser','settings']);
+  assert.equal((dock.match(/class="dock-group/g) || []).length, 4, 'workspaces are grouped by purpose');
+  assert.equal((dock.match(/class="dock-divider"/g) || []).length, 3, 'groups are visually separated');
+  assert.equal((dock.match(/class="dock-icon"/g) || []).length, 12, 'each destination has a dedicated icon');
+  assert.equal((dock.match(/class="dock-label"/g) || []).length, 12, 'each destination has a text capsule');
+  for (const view of ['dashboard','leads','clients','projects','production','finance','engineering','tasks','reports','prospects','browser','settings']) {
+    assert.ok(dock.includes('data-view="' + view + '"'), view + ' remains reachable');
+  }
+  assert.doesNotMatch(html, /navMenuToggle|nav-primary|navGuideCard|navGuideReplay|id="view-plans"|id="view-about"/);
+  assert.ok(renderer.includes("const skolDock = $('skolDock')"));
+  assert.match(renderer, /skolDock\.addEventListener\('keydown'/);
+  assert.match(renderer, /event\.target\.closest\('\[data-view\]'\)/);
+  assert.match(layoutCss, /\.skol-dock\s*\{[\s\S]*?position:fixed/);
+  assert.match(layoutCss, /\.skol-dock\s*\{[\s\S]*?backdrop-filter:blur/);
+  assert.match(layoutCss, /\.skol-dock \.dock-item:hover[\s\S]*?scale\(1\.12\)/);
+  assert.match(layoutCss, /\.skol-dock:has\(\.dock-item:hover\)/);
+  assert.match(layoutCss, /\.dock-label\s*\{[\s\S]*?border-radius:999px/);
+  assert.match(layoutCss, /@media\(prefers-reduced-motion:reduce\)/);
 });
 test('all five split workspaces keep a detail pane and table list in the current 1.25 interface', () => {
   for (const id of ['leadDetailPanel','clientDetailPanel','projectDetailPanel','paymentDetailPanel','expenseDetailPanel']) {
@@ -1018,10 +1026,14 @@ test('all five split workspaces keep a detail pane and table list in the current
   assert.ok(renderer.includes("renderFinanceDetailPanel('expense', selectedExpense)"));
 });
 
-test('Salesforce light layout loads after base CSS and the reusable metrics module loads before renderer', () => {
-  const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\.css)">/g)].map(match => match[1]);
-  assert.ok(links.indexOf('theme-salesforce.css') > links.indexOf('styles.css'));
-  assert.ok(links.indexOf('theme-salesforce-light.css') > links.indexOf('theme-salesforce.css'));
+test('Salesforce themes load after base CSS and theme bootstrap runs before body paint', () => {
+  const baseStyles = html.indexOf('href="styles.css"');
+  const darkThemeStyles = html.indexOf('href="theme-salesforce.css"');
+  const lightThemeStyles = html.indexOf('href="theme-salesforce-light.css"');
+  const themeBoot = html.indexOf('theme-boot.js');
+  assert.ok(baseStyles >= 0 && darkThemeStyles > baseStyles, 'dark theme stylesheet follows base CSS');
+  assert.ok(lightThemeStyles > darkThemeStyles, 'light theme stylesheet follows dark theme stylesheet');
+  assert.ok(themeBoot > lightThemeStyles && themeBoot < html.indexOf('<body>'), 'theme bootstrap follows both themes and precedes body paint');
   assert.ok(html.includes('<script src="dashboard-metrics.js"></script><script src="renderer.js"></script>'));
   const css = fs.readFileSync(path.join(__dirname, '../src/theme-salesforce-light.css'), 'utf8');
   for (const selector of ['.dashboard-kpis','.dashboard-finance-metrics','.dashboard-rings-grid','.dashboard-attention-list','.nav-more-menu']) assert.ok(css.includes(selector));
@@ -1034,9 +1046,26 @@ test('Salesforce light layout loads after base CSS and the reusable metrics modu
 
 
 
+test('Dock interaction layer exposes command search, contextual actions and persistent preferences', () => {
+  assert.match(html, /id="dockPaletteDialog"/);
+  assert.match(html, /id="dockSettingsDialog"/);
+  assert.match(html, /data-dock-badge="lead"/);
+  assert.match(html, /data-dock-badge="task"/);
+  assert.match(renderer, /DOCK_PREFS_KEY/);
+  assert.match(renderer, /contextmenu/);
+  assert.match(renderer, /dockOpenPalette/);
+  assert.match(renderer, /dockRunCommand/);
+  assert.match(renderer, /dockRememberView/);
+  assert.match(renderer, /data-dock-recent-index/);
+  assert.match(renderer, /dockPreferences\.order/);
+  assert.match(layoutCss, /--dock-pointer-x/);
+  assert.match(layoutCss, /dock-context-menu/);
+});
+
 test('shared layout hardening keeps content inside cards, forms, tables and dialogs', () => {
   const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\.css)"/g)].map(match => match[1]);
-  assert.equal(links.at(-1), 'ui-layout-hardening.css', 'the shared geometry layer loads after both themes');
+  assert.equal(links.at(-2), 'ui-layout-hardening.css', 'the shared geometry layer loads after both themes');
+  assert.equal(links.at(-1), 'struktura-design-system.css', 'the semantic design-system layer loads after shared geometry hardening');
   assert.ok(layoutCss.includes('.main'));
   assert.ok(layoutCss.includes('min-width: 0'));
   assert.match(layoutCss, /\.stat-card > strong[\s\S]*?white-space: normal/);
@@ -1044,7 +1073,7 @@ test('shared layout hardening keeps content inside cards, forms, tables and dial
   assert.match(layoutCss, /\.table-wrap,[\s\S]*?overflow-x: auto/);
   assert.match(layoutCss, /dialog\.modal,[\s\S]*?max-height: calc\(100dvh - 32px\)/);
   assert.match(layoutCss, /@media \(max-width: 1120px\)[\s\S]*?\.records-workspace[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
-  const withoutComments = layoutCss.replace(/\/\*[\s\S]*?\*\//g, '');
+  const withoutComments = layoutCss.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\.skol-dock[\s\S]*$/, '');
   const navigationAnimationRules = withoutComments
     .replace(/\.sidebar \.nav-primary\s*\{[^}]*\}/g, '')
     .replace(/\.sidebar\.nav-expanded \.nav-primary\s*\{[^}]*\}/g, '');
@@ -1052,30 +1081,16 @@ test('shared layout hardening keeps content inside cards, forms, tables and dial
 });
 
 
-test('top menu has premium motion and an accessible interactive first-run guide', () => {
-  assert.match(html, /class="nav-menu-toggle"[^>]*id="navMenuToggle"/);
-  assert.match(html, /class="nav-menu-toggle-text">МЕНЮ<\/span>/);
-  assert.match(html, /id="navGuideReplay"/);
-  assert.match(html, /id="navGuideCard"[^>]*role="dialog"[^>]*aria-modal="true"/);
-  for (const id of ['navGuideBackdrop','navGuideTitle','navGuideText','navGuideProgress','navGuideSkip','navGuideBack','navGuideNext']) {
-    assert.equal((html.match(new RegExp('id="' + id + '"','g')) || []).length, 1, id + ' is unique');
-  }
-  assert.match(renderer, /NAV_GUIDE_STORAGE_KEY/);
-  assert.match(renderer, /function showNavGuideStep\(step\)/);
-  assert.match(renderer, /function maybeStartNavGuide\(\)/);
-  assert.match(renderer, /navGuideReplay\?\.addEventListener\('click', startNavGuide\)/);
-  assert.match(renderer, /event\.key !== 'Escape'/);
-  assert.match(renderer, /navGuideCard\?\.addEventListener\('keydown'/);
-  assert.match(renderer, /setTimeout\(\(\) => \{\s*if \(startupUnlocked\) maybeStartNavGuide\(\)/);
-  assert.match(layoutCss, /\.sidebar \.nav-menu-toggle\s*\{[\s\S]*?left: 50% !important/);
-  assert.match(layoutCss, /\.nav-guide-card\s*\{[\s\S]*?position:fixed/);
-  assert.match(layoutCss, /@keyframes skolNavJelly/);
-  assert.match(layoutCss, /@keyframes skolNavGuidePulse/);
-  assert.match(layoutCss, /\.sidebar \.nav-primary \.nav-item:hover[\s\S]*?animation:skolNavJelly/);
-  assert.match(layoutCss, /@media \(prefers-reduced-motion:reduce\)[\s\S]*?\.nav-guide-card/);
+test('macOS Dock remains fixed, accessible, responsive and respects reduced motion', () => {
+  assert.match(html, /id="skolDock"[^>]*aria-label="Основная навигация СКОЛ"/);
+  assert.match(html, /class="dock-icon"/);
+  assert.match(html, /<svg viewBox="0 0 24 24">/);
+  assert.match(renderer, /ArrowLeft.*ArrowRight.*Home.*End/);
+  assert.match(layoutCss, /\.skol-dock\s*\{[\s\S]*?position:fixed/);
+  assert.match(layoutCss, /@media\(max-width:760px\)/);
+  assert.match(layoutCss, /@media\(max-width:420px\)/);
+  assert.match(layoutCss, /@media\(prefers-reduced-motion:reduce\)/);
 });
-
-
 test('shared design system keeps component rhythm consistent without replacing page layouts', () => {
   assert.match(layoutCss, /--skol-radius-control:\s*12px/);
   assert.match(layoutCss, /--skol-radius-card:\s*17px/);
@@ -1088,8 +1103,12 @@ test('shared design system keeps component rhythm consistent without replacing p
   assert.match(layoutCss, /\.data-table tbody tr:hover td/);
   assert.match(layoutCss, /@media \(max-width: 760px\)/);
   assert.match(layoutCss, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.doesNotMatch(designCssForTest(layoutCss), /overflow\s*:\s*hidden/, 'shared design polish must not clip interactive/business content');
+  assert.doesNotMatch(withoutDockCss(designCssForTest(layoutCss)), /overflow\s*:\s*hidden/, 'shared design polish must not clip interactive/business content');
 });
+
+function withoutDockCss(source) {
+  return source.replace(/\/\* SKOL Dock — compact, colorful macOS-inspired icon rail\.[\s\S]*$/, '');
+}
 
 function designCssForTest(source) {
   const marker = '/* SKOL 1.26 — shared visual system.';
@@ -1099,7 +1118,7 @@ function designCssForTest(source) {
 
 test('workspace polish gives dashboard, records, estimate, production, finance and engineering consistent responsive layouts', () => {
   const marker = '/* SKOL 1.27 — workspace-specific visual pass.';
-  const workspaceCss = layoutCss.slice(layoutCss.lastIndexOf(marker));
+  const workspaceCss = withoutDockCss(layoutCss.slice(layoutCss.lastIndexOf(marker)));
   assert.ok(layoutCss.includes(marker), 'workspace polish is present in the final layout layer');
 
   assert.match(workspaceCss, /#view-dashboard \.dashboard-hero/);
@@ -1124,9 +1143,9 @@ test('workspace polish gives dashboard, records, estimate, production, finance a
 });
 
 
-test('secondary workspaces keep order radar, task/report tables, browser inspector, pricing and settings responsive', () => {
+test('secondary workspaces keep order radar, task/report tables, browser inspector and settings responsive', () => {
   const marker = '/* SKOL 1.27.1 — secondary workspaces:';
-  const secondaryCss = layoutCss.slice(layoutCss.lastIndexOf(marker));
+  const secondaryCss = withoutDockCss(layoutCss.slice(layoutCss.lastIndexOf(marker)));
   assert.ok(layoutCss.includes(marker), 'secondary workspace polish is in the final CSS layer');
   assert.match(secondaryCss, /#view-prospects \.crawler-panel/);
   assert.match(secondaryCss, /#view-prospects \.order-radar-metrics/);
@@ -1135,10 +1154,66 @@ test('secondary workspaces keep order radar, task/report tables, browser inspect
   assert.match(secondaryCss, /#view-reports \.report-stats/);
   assert.match(secondaryCss, /#view-browser \.browser-workspace/);
   assert.match(secondaryCss, /#view-browser \.browser-inspector/);
-  assert.match(secondaryCss, /#view-plans \.pricing-grid/);
   assert.match(secondaryCss, /#view-settings \.settings-card:first-child\s*\{\s*grid-column: 1 \/ -1/);
   assert.match(secondaryCss, /@media \(max-width: 1120px\)/);
   assert.match(secondaryCss, /@media \(max-width: 760px\)/);
   assert.match(secondaryCss, /@media \(max-width: 520px\)/);
   assert.doesNotMatch(secondaryCss, /overflow\s*:\s*hidden/, 'secondary workspace polish must not clip text or controls');
+});
+
+
+test('Windows CI includes a real Electron viewport smoke test with isolated profile and screenshot artifacts', () => {
+  const repoRoot = path.resolve(__dirname, '..');
+  const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+  const e2e = fs.readFileSync(path.join(repoRoot, 'tests', 'electron-layout-smoke.cjs'), 'utf8');
+  const main = fs.readFileSync(path.join(repoRoot, 'src', 'main.cjs'), 'utf8');
+  const workflow = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'build-windows.yml'), 'utf8');
+
+  assert.equal(packageJson.scripts['test:ui'], 'node tests/electron-layout-smoke.cjs');
+  assert.match(e2e, /_electron/);
+  assert.ok(e2e.includes('executablePath: process.env.SKOL_UI_E2E_EXECUTABLE || electronExecutable'));
+  assert.ok(e2e.includes('args: process.env.SKOL_UI_E2E_EXECUTABLE ? [] : [root]'));
+  assert.match(e2e, /createLicenseToken/);
+  assert.ok(e2e.includes('win.setContentSize'));
+  assert.ok(e2e.includes('nativeWindowViewportMatrix'));
+  assert.match(e2e, /console\.log\('\[view\] '/);
+  assert.match(e2e, /checkedPairs: geometry\.map/);
+  assert.ok(e2e.includes("views: ['dashboard', 'projects', 'production', 'finance', 'engineering']"));
+  assert.match(e2e, /1024/);
+  assert.match(e2e, /1280/);
+  assert.match(e2e, /1440/);
+  assert.match(e2e, /1920/);
+  assert.match(e2e, /page\.screenshot/);
+  assert.match(e2e, /scrollWidth/);
+  assert.match(e2e, /SKOL_UI_E2E_OUTPUT/);
+  assert.match(main, /SKOL_UI_E2E_USER_DATA/);
+  assert.match(main, /app\.setPath\('userData'/);
+  assert.match(main, /license-public-key\.pem/);
+  assert.match(e2e, /SKOL_UI_E2E_PUBLIC_KEY_B64/);
+  assert.match(workflow, /Rebuild native modules for Electron/);
+  assert.match(workflow, /electron-builder install-app-deps --platform=win32 --arch=x64/);
+  assert.match(workflow, /Install Playwright for Electron UI checks/);
+  assert.match(workflow, /Run Electron responsive layout checks/);
+  assert.match(workflow, /SKOL-Electron-UI-Screenshots/);
+  assert.match(workflow, /Install and smoke-test the packaged Windows app/);
+  assert.match(workflow, /SKOL_UI_E2E_EXECUTABLE/);
+  assert.match(workflow, /SKOL-Packaged-App-UI-Screenshots/);
+  assert.match(workflow, /playwright@1\.64\.1/);
+});
+
+test('Dock notification inbox routes each actionable reminder to its real workflow', () => {
+  assert.match(html, /id="dockNotificationsDialog"/);
+  assert.match(html, /data-notification-filter="shift-report"/);
+  assert.match(preload, /getNotificationInbox: \(\) => ipcRenderer\.invoke\('notifications:getInbox'\)/);
+  assert.match(main, /ipcMain\.handle\('notifications:getInbox'/);
+  assert.match(main, /buildReminders\(\{ tasks, projects, now: new Date\(\), settings: inboxSettings, lastSent: \{\} \}\)/);
+  assert.match(renderer, /item\.kind === 'task'[\s\S]*?refreshTasks\(\)\.then/);
+  assert.match(renderer, /item\.kind === 'shift-report'[\s\S]*?openProductionShift\(item\.id\)/);
+  assert.match(renderer, /item\.kind === 'project'[\s\S]*?refreshProjects\(\)\.then/);
+  assert.match(renderer, /showView\('tasks', \{ skipLoad: true \}\)/);
+  assert.match(renderer, /showView\('projects', \{ skipLoad: true \}\)/);
+  assert.match(renderer, /showView\('production', \{ skipLoad: true \}\)/);
+  assert.match(renderer, /Заполнить отчёт смены/);
+  assert.match(renderer, /Открыть задачу/);
+  assert.match(renderer, /Открыть объект/);
 });

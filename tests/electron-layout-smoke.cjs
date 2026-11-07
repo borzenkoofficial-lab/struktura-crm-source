@@ -1,0 +1,688 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { _electron: electron } = require('playwright');
+const electronExecutable = require('electron');
+const { createLicenseToken, getFeaturesForEdition } = require('../src/license-core.cjs');
+
+const root = path.resolve(__dirname, '..');
+const outputDir = path.resolve(process.env.SKOL_UI_E2E_OUTPUT || path.join(root, 'artifacts', 'ui-layout-smoke'));
+const viewNames = [
+  'dashboard', 'leads', 'clients', 'projects', 'production', 'finance', 'engineering',
+  'prospects', 'tasks', 'reports', 'browser', 'settings'
+];
+const viewportMatrix = [
+  { name: '1024x768', width: 1024, height: 768, views: viewNames, screenshots: ['dashboard', 'leads', 'finance', 'engineering', 'settings'] },
+  { name: '1280x800', width: 1280, height: 800, views: ['dashboard', 'projects', 'production', 'finance', 'engineering'], screenshots: ['dashboard', 'projects', 'production'] },
+  { name: '1440x900', width: 1440, height: 900, views: viewNames, screenshots: ['dashboard', 'prospects', 'tasks', 'reports', 'browser'] },
+  { name: '1920x1080', width: 1920, height: 1080, views: viewNames, screenshots: ['dashboard', 'projects', 'settings'] },
+  { name: '2560x1440', width: 2560, height: 1440, views: ['dashboard', 'projects', 'finance', 'settings'], screenshots: ['dashboard', 'finance', 'settings'] },
+  { name: '3840x2160', width: 3840, height: 2160, views: ['dashboard', 'projects', 'finance', 'settings'], screenshots: ['dashboard', 'finance', 'settings'] }
+];
+
+function makeTestLicense(deviceId, privateKeyPem) {
+  const updatesUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return createLicenseToken({
+    v: 1,
+    product: 'SKOL_CRM',
+    licenseId: 'SKOL-UI-E2E-00001',
+    edition: 'BUSINESS',
+    features: getFeaturesForEdition('BUSINESS'),
+    deviceId,
+    issuedAt: new Date(Date.now() - 60 * 1000).toISOString(),
+    expiresAt: null,
+    updatesUntil,
+    seatIndex: 1,
+    seatCount: 1
+  }, privateKeyPem);
+}
+
+function safeFileName(value) {
+  return String(value).replace(/[^a-z0-9_-]+/gi, '-').toLowerCase();
+}
+
+async function openView(page, name) {
+  const item = page.locator('#skolDock .dock-item[data-view="' + name + '"]');
+  await item.scrollIntoViewIfNeeded();
+  const workspaceViewport = page.locator('.main');
+  const previousScrollTop = await workspaceViewport.evaluate(element => {
+    const maxScroll = Math.max(0, element.scrollHeight - element.clientHeight);
+    element.scrollTop = maxScroll;
+    return Math.round(element.scrollTop);
+  });
+  await item.click();
+
+  await page.waitForFunction(viewName => {
+    const view = document.getElementById('view-' + viewName);
+    return Boolean(view && view.classList.contains('active') && !view.hasAttribute('aria-busy'));
+  }, name, { timeout: 20000 });
+
+  const currentScrollTop = await workspaceViewport.evaluate(element => Math.round(element.scrollTop));
+  assert.equal(currentScrollTop, 0, name + ': navigation must reset the shared workspace scroll position (previous=' + previousScrollTop + ')');
+
+  const loadErrors = await page.locator('#view-' + name + ' .section-load-error').count();
+  assert.equal(loadErrors, 0, 'Раздел ' + name + ' должен загрузиться без ошибки');
+}
+
+async function collectGeometry(page, viewport, viewName) {
+  const metrics = await page.evaluate(() => {
+    const active = document.querySelector('.view.active');
+    const rect = element => {
+      const box = element.getBoundingClientRect();
+      return { left: Math.round(box.left * 10) / 10, right: Math.round(box.right * 10) / 10, top: Math.round(box.top * 10) / 10, bottom: Math.round(box.bottom * 10) / 10, width: Math.round(box.width * 10) / 10, height: Math.round(box.height * 10) / 10 };
+    };
+    const visible = element => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden';
+    const containerSelector = '.section-head,.panel,.records-panel,.stat-card,.finance-card,.settings-card,.pricing-card,.eng-card,.estimate-pro-panel,.dashboard-hero,.dashboard-finance-panel,.browser-shell,.records-workspace,.eng-layout,.settings-page-grid,.pricing-grid';
+    const outside = Array.from(active?.querySelectorAll(containerSelector) || [])
+      .filter(visible)
+      .map(element => ({ selector: element.className || element.tagName, bounds: rect(element) }))
+      .filter(item => item.bounds.width > 0 && (item.bounds.left < -1 || item.bounds.right > window.innerWidth + 1))
+      .slice(0, 30);
+
+    const clippingSelector = 'h1,h2,h3,h4,.button,.pill,.stat-card > strong,.finance-card > strong,.dashboard-money-card > strong,.pricing-price,.eng-stat > strong';
+    const clippedText = Array.from(active?.querySelectorAll(clippingSelector) || [])
+      .filter(visible)
+      .filter(element => {
+        const style = getComputedStyle(element);
+        return style.whiteSpace === 'nowrap'
+          && style.textOverflow !== 'ellipsis'
+          && element.clientWidth > 0
+          && element.scrollWidth > element.clientWidth + 2;
+      })
+      .map(element => ({ text: (element.innerText || element.textContent || '').trim().slice(0, 90), selector: element.className || element.tagName, clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }))
+      .slice(0, 20);
+
+    const overlappingActions = [];
+    const rowSelector = '.button-row,.top-actions,.estimate-actions,.estimate-head-actions,.eng-actions,.modal-actions';
+    for (const row of Array.from(active?.querySelectorAll(rowSelector) || []).filter(visible)) {
+      const controls = Array.from(row.children).filter(child => visible(child) && child.matches('button,a,.button,input,select'));
+      for (let i = 0; i < controls.length; i++) {
+        const a = controls[i].getBoundingClientRect();
+        for (let j = i + 1; j < controls.length; j++) {
+          const b = controls[j].getBoundingClientRect();
+          const overlapX = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+          const overlapY = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+          if (overlapX > 2 && overlapY > 2) overlappingActions.push({ row: row.className, first: (controls[i].innerText || '').trim(), second: (controls[j].innerText || '').trim() });
+        }
+      }
+    }
+
+    const activeBounds = active ? rect(active) : null;
+    const mainElement = document.querySelector('.main');
+    const dockElement = document.querySelector('#skolDock');
+    const avatarElement = document.querySelector('#piCoachAvatarBtn');
+    const popoverElement = document.querySelector('#piCoachPopover');
+    const mainBounds = mainElement ? rect(mainElement) : null;
+    const mainScrollTop = mainElement ? Math.round(mainElement.scrollTop * 10) / 10 : null;
+    const dockBounds = dockElement ? rect(dockElement) : null;
+    const recentGrid = active?.querySelector('.dashboard-widget-recent .dashboard-lists-grid');
+    const recentGridStyle = recentGrid ? getComputedStyle(recentGrid) : null;
+    const dashboardRecentGrid = recentGrid ? {
+      display: recentGridStyle.display,
+      gridTemplateColumns: recentGridStyle.gridTemplateColumns,
+      columnCount: recentGridStyle.gridTemplateColumns.split(/\s+/).filter(Boolean).length,
+      cards: [...recentGrid.children].map(rect),
+      surfaces: [...recentGrid.querySelectorAll('.table-wrap')].map(element => getComputedStyle(element).backgroundColor)
+    } : null;
+    const dashboardLayout = active?.id === 'view-dashboard' ? (() => {
+      const style = selector => {
+        const element = active.querySelector(selector);
+        return element ? getComputedStyle(element) : null;
+      };
+      const columns = value => value ? value.gridTemplateColumns.split(/\s+/).filter(Boolean).length : 0;
+      const toolbar = style('.dashboard-toolbar');
+      const toolbarActions = style('.dashboard-toolbar-actions');
+      const kpis = style('.dashboard-kpis');
+      const finance = style('.dashboard-finance-metrics');
+      const chart = style('.dashboard-cashflow-chart');
+      const chartBars = style('.dashboard-chart-bars');
+      const chartEmpty = style('.dashboard-chart-empty');
+      const rings = style('.dashboard-rings-grid');
+      const ringValue = style('.dashboard-ring-value');
+      const panelHeading = style('.dashboard-panel-heading');
+      const attention = style('.dashboard-attention-list');
+      return {
+        toolbarDisplay: toolbar?.display || null,
+        toolbarActionsDisplay: toolbarActions?.display || null,
+        kpiDisplay: kpis?.display || null,
+        kpiColumns: columns(kpis),
+        financeDisplay: finance?.display || null,
+        financeColumns: columns(finance),
+        chartDisplay: chart?.display || null,
+        chartColumns: columns(chart),
+        chartBarsHeight: chartBars ? Number.parseFloat(chartBars.height) : 0,
+        chartEmptyDisplay: chartEmpty?.display || null,
+        ringsDisplay: rings?.display || null,
+        ringsColumns: columns(rings),
+        ringValuePosition: ringValue?.position || null,
+        panelHeadingDisplay: panelHeading?.display || null,
+        attentionDisplay: attention?.display || null
+      };
+    })() : null;
+    const avatarBounds = avatarElement ? rect(avatarElement) : null;
+    const intersects = (a, b) => Boolean(a && b && Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1);
+    const piPopoverHidden = !popoverElement || popoverElement.hidden;
+    const piAvatarOverlapsDock = intersects(avatarBounds, dockBounds);
+    const piAvatarOverlapsWorkspace = intersects(avatarBounds, mainBounds);
+    const darkSurfaceSelector = '.records-panel,.records-workspace,.records-list,.table-panel,.finance-card,.income-period-card,.finance-forecast-grid article,.finance-insights,.eng-hero,.eng-stat,.eng-card,.settings-card,.dashboard-hero,.dashboard-money-card,.dashboard-ring-card,.browser-inspector,.crawler-panel,.opportunity-radar,.commercial-order-card,.production-stats article,.production-project-card,.pi-production-panel,.report-stats .stat-card,.pi-home-summary,.pi-alert,.pi-no-alerts,.pi-order-summary,.notice.inline-notice,.domain-query,.search-api-status,.order-source-page,.order-source-documents,.order-evidence-details,.pi-order-details,.estimate-pro-panel,.estimate-pro-head,.estimate-duration-panel,.estimate-calibration-panel,.estimate-actual-panel,.estimate-subpanel,.estimate-advisor,.estimate-add-row,.estimate-table-wrap,.estimate-pro-results>div,.estimate-catalog-panel,.estimate-payroll-preview,.estimate-actual-results>div,.estimate-risk-alert,.estimate-risk-note';
+    const themeSurfaceLeaks = Array.from(active?.querySelectorAll(darkSurfaceSelector) || [])
+      .filter(visible)
+      .filter(element => {
+        const style = getComputedStyle(element);
+        const rgb = style.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+        const solidWhite = rgb && Number(rgb[1]) > 242 && Number(rgb[2]) > 242 && Number(rgb[3]) > 242;
+        const whiteGradient = style.backgroundImage !== 'none' && /#fff|white|rgb\(255/i.test(style.backgroundImage);
+        return Boolean(solidWhite || whiteGradient);
+      })
+      .map(element => ({ selector: element.id || element.className || element.tagName, background: getComputedStyle(element).backgroundColor }))
+      .slice(0, 20);
+    return {
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        devicePixelRatio: window.devicePixelRatio,
+        outerWidth: window.outerWidth,
+        outerHeight: window.outerHeight,
+        screenWidth: window.screen.width,
+        screenHeight: window.screen.height,
+        visualViewportScale: window.visualViewport?.scale ?? null
+      },
+      document: { scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth, bodyScrollWidth: document.body.scrollWidth },
+      activeView: active?.id || null,
+      activeBounds,
+      mainBounds,
+      mainScrollTop,
+      dashboardRecentGrid,
+      dashboardLayout,
+      dockBounds,
+      avatarBounds,
+      piPopoverHidden,
+      piAvatarOverlapsDock,
+      piAvatarOverlapsWorkspace,
+      themeSurfaceLeaks,
+      outside,
+      clippedText,
+      overlappingActions
+    };
+  });
+
+  assert.equal(metrics.viewport.width, viewport.width, 'Electron viewport width must match requested size');
+  assert.ok(metrics.document.scrollWidth <= viewport.width + 1, viewName + ': document must not scroll horizontally: ' + JSON.stringify(metrics.document));
+  assert.ok(metrics.document.bodyScrollWidth <= viewport.width + 1, viewName + ': body must not overflow horizontally: ' + JSON.stringify(metrics.document));
+  assert.ok(metrics.activeBounds && metrics.activeBounds.left >= -1 && metrics.activeBounds.right <= viewport.width + 1, viewName + ': active workspace must remain inside the window');
+  assert.ok(metrics.mainScrollTop !== null && metrics.mainScrollTop <= 1, viewName + ': every workspace must begin at the top after navigation: ' + metrics.mainScrollTop);
+  if (viewName === 'dashboard') {
+    const expectedColumns = viewport.width > 840 ? 2 : 1;
+    const expectedKpiColumns = viewport.width <= 1180 ? 2 : 4;
+    const expectedFinanceColumns = viewport.width <= 620 ? 1 : 3;
+    assert.ok(metrics.dashboardLayout, 'dashboard must expose its shared layout geometry');
+    assert.equal(metrics.dashboardLayout.toolbarDisplay, 'flex', 'dashboard toolbar remains a flex row/column in every theme');
+    assert.equal(metrics.dashboardLayout.toolbarActionsDisplay, 'flex', 'dashboard period and action controls retain flex layout');
+    assert.equal(metrics.dashboardLayout.kpiDisplay, 'grid', 'dashboard KPI cards retain CSS Grid in every theme');
+    assert.equal(metrics.dashboardLayout.kpiColumns, expectedKpiColumns, 'dashboard KPI column count follows its responsive breakpoint: ' + JSON.stringify(metrics.dashboardLayout));
+    assert.equal(metrics.dashboardLayout.financeDisplay, 'grid', 'dashboard finance metrics retain CSS Grid in every theme');
+    assert.equal(metrics.dashboardLayout.financeColumns, expectedFinanceColumns, 'dashboard finance metrics retain responsive columns: ' + JSON.stringify(metrics.dashboardLayout));
+    assert.equal(metrics.dashboardLayout.chartDisplay, 'grid', 'dashboard cashflow chart retains CSS Grid in every theme');
+    assert.equal(metrics.dashboardLayout.chartColumns, 6, 'dashboard cashflow chart retains six month columns');
+    if (metrics.dashboardLayout.chartBarsHeight > 0) {
+      assert.ok(metrics.dashboardLayout.chartBarsHeight >= (viewport.width <= 620 ? 64 : 78), 'dashboard chart bars retain measurable height: ' + JSON.stringify(metrics.dashboardLayout));
+    } else {
+      assert.equal(metrics.dashboardLayout.chartEmptyDisplay, 'grid', 'empty dashboard cashflow state remains a centred grid item');
+    }
+    assert.equal(metrics.dashboardLayout.ringsDisplay, 'grid', 'dashboard progress rings retain CSS Grid in every theme');
+    assert.ok(metrics.dashboardLayout.ringsColumns >= 2, 'dashboard progress rings retain a visible multi-column layout');
+    assert.equal(metrics.dashboardLayout.ringValuePosition, 'absolute', 'dashboard ring values remain centred over the SVG ring');
+    assert.equal(metrics.dashboardLayout.panelHeadingDisplay, 'flex', 'dashboard panel headers preserve their aligned heading/actions layout');
+    assert.equal(metrics.dashboardLayout.attentionDisplay, 'flex', 'dashboard attention list retains its vertical flex layout');
+    assert.ok(metrics.dashboardRecentGrid, 'dashboard recent-records grid must exist');
+    assert.equal(metrics.dashboardRecentGrid.display, 'grid', 'dashboard recent-records wrapper must use CSS Grid in the active theme');
+    assert.equal(metrics.dashboardRecentGrid.columnCount, expectedColumns, 'dashboard recent-records grid must use the expected responsive column count: ' + JSON.stringify(metrics.dashboardRecentGrid));
+    if (expectedColumns === 2) {
+      assert.ok(Math.abs(metrics.dashboardRecentGrid.cards[0].top - metrics.dashboardRecentGrid.cards[1].top) <= 1, 'dashboard recent cards must share the same row on wide screens');
+    }
+    const lightSurfaces = metrics.dashboardRecentGrid.surfaces.filter(value => {
+      const channels = value.match(/\d+/g)?.slice(0, 3).map(Number) || [];
+      return channels.length === 3 && channels.every(channel => channel > 242);
+    });
+    assert.equal(lightSurfaces.length, 0, 'dashboard recent panels must not retain light surfaces in dark mode: ' + JSON.stringify(metrics.dashboardRecentGrid.surfaces));
+  }
+  assert.equal(metrics.outside.length, 0, viewName + ': primary containers must remain inside the viewport: ' + JSON.stringify(metrics.outside));
+  assert.equal(metrics.clippedText.length, 0, viewName + ': important labels must not be clipped: ' + JSON.stringify(metrics.clippedText));
+  assert.equal(metrics.overlappingActions.length, 0, viewName + ': adjacent action buttons must not overlap: ' + JSON.stringify(metrics.overlappingActions));
+  assert.ok(metrics.mainBounds && metrics.dockBounds && metrics.mainBounds.bottom <= metrics.dockBounds.top + 1, viewName + ': workspace scroll viewport must end before the fixed Dock: ' + JSON.stringify({ main: metrics.mainBounds, dock: metrics.dockBounds }));
+  assert.equal(metrics.piPopoverHidden, true, viewName + ': PI insights must not auto-open a blocking popover');
+  assert.equal(metrics.piAvatarOverlapsDock, false, viewName + ': PI control must not overlap the Dock');
+  assert.equal(metrics.piAvatarOverlapsWorkspace, false, viewName + ': PI control must stay in the reserved bottom rail');
+  assert.equal(metrics.themeSurfaceLeaks.length, 0, viewName + ': key enterprise surfaces must not remain white in dark mode: ' + JSON.stringify(metrics.themeSurfaceLeaks));
+  return metrics;
+}
+
+async function run() {
+  fs.rmSync(outputDir, { recursive: true, force: true });
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'skol-electron-ui-e2e-'));
+  const userData = path.join(tempRoot, 'user-data');
+  fs.mkdirSync(userData, { recursive: true });
+
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('ed25519');
+  const privateKeyPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
+  const publicKeyPem = publicKey.export({ type: 'spki', format: 'pem' });
+  const childEnv = {
+    ...process.env,
+    SKOL_UI_E2E: '1',
+    SKOL_UI_E2E_USER_DATA: userData,
+    SKOL_UI_E2E_PUBLIC_KEY_B64: Buffer.from(publicKeyPem, 'utf8').toString('base64')
+  };
+
+  let electronApp;
+  let page;
+  const pageErrors = [];
+  const rendererConsole = [];
+  const mainProcessErrors = [];
+  const geometry = [];
+  const screenshots = [];
+
+  try {
+    electronApp = await electron.launch({
+      executablePath: process.env.SKOL_UI_E2E_EXECUTABLE || electronExecutable,
+      args: process.env.SKOL_UI_E2E_EXECUTABLE ? [] : [root],
+      env: childEnv,
+      timeout: 60000
+    });
+
+    const nativeWindowDiagnostics = await electronApp.evaluate(({ app, BrowserWindow, screen }) => {
+      const win = BrowserWindow.getAllWindows()[0];
+      const bounds = win.getBounds();
+      const display = screen.getDisplayMatching(bounds);
+      return {
+        version: app.getVersion(),
+        windowBounds: bounds,
+        contentBounds: win.getContentBounds(),
+        contentSize: win.getContentSize(),
+        zoomFactor: win.webContents.getZoomFactor(),
+        zoomLevel: win.webContents.getZoomLevel(),
+        display: {
+          bounds: display.bounds,
+          workArea: display.workArea,
+          scaleFactor: display.scaleFactor,
+          size: display.size
+        }
+      };
+    });
+    const actualUserData = await electronApp.evaluate(({ app }) => app.getPath('userData'));
+    assert.equal(path.resolve(actualUserData), path.resolve(userData), 'Electron must use an isolated temporary profile');
+
+    page = await electronApp.firstWindow({ timeout: 60000 });
+    await page.waitForTimeout(1500);
+    const knownWindows = electronApp.windows();
+    const crmWindow = knownWindows.find(candidate => candidate.url().startsWith('file://'));
+    if (crmWindow) page = crmWindow;
+    page.setDefaultTimeout(15000);
+    page.on('pageerror', error => pageErrors.push(String(error?.stack || error?.message || error)));
+    page.on('console', message => rendererConsole.push(message.type() + ': ' + message.text()));
+    const electronProcess = electronApp.process();
+    electronProcess.stderr?.on('data', chunk => mainProcessErrors.push(String(chunk)));
+    try {
+      await page.waitForSelector('#licenseActivationScreen:not([hidden])', { timeout: 30000 });
+    } catch (error) {
+      const electronWindowUrls = electronApp.windows().map(candidate => candidate.url());
+      const diagnostics = await page.evaluate(() => ({
+        title: document.title,
+        url: location.href,
+        readyState: document.readyState,
+        bodyText: (document.body?.innerText || '').slice(0, 4000),
+        licenseScreenExists: Boolean(document.getElementById('licenseActivationScreen')),
+        licenseScreenHidden: document.getElementById('licenseActivationScreen')?.hidden,
+        startupSplash: document.getElementById('startupSplash')?.className
+      })).catch(e => ({ evaluationError: String(e) }));
+      console.error('[electron-ui] startup diagnostics', JSON.stringify({ diagnostics, electronWindowUrls, pageErrors, rendererConsole, mainProcessErrors }, null, 2));
+      throw error;
+    }
+
+    const deviceId = (await page.locator('#licenseDeviceId').innerText()).trim();
+    assert.match(deviceId, /^[a-f0-9]{64}$/i, 'temporary license activation must expose a valid device ID');
+    const token = makeTestLicense(deviceId, privateKeyPem);
+    await page.locator('#licenseKeyInput').fill(token);
+    await page.locator('#licenseActivateBtn').click();
+    await page.locator('#licenseActivationScreen').waitFor({ state: 'hidden', timeout: 15000 });
+
+    await page.waitForSelector('#view-dashboard.active', { timeout: 30000 });
+    await page.waitForFunction(() => {
+      const splash = document.getElementById('startupSplash');
+      return !splash || splash.classList.contains('is-hidden');
+    }, null, { timeout: 15000 });
+    await page.waitForTimeout(750);
+    // Fresh profiles must start in the requested white-and-lime light theme.
+    // Exercise the persisted switch into dark and back to light in the real Electron window.
+    const themeButton = page.locator('#themeToggleBtn');
+    assert.equal(await page.locator('html').getAttribute('data-theme'), 'light', 'new isolated profiles start in the white-and-lime light theme');
+    const lightBackground = await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor);
+    assert.equal(await page.locator('#theme-light-stylesheet').evaluate(node => node.disabled), false, 'light colourway stylesheet is enabled');
+    assert.equal(await page.locator('#theme-dark-stylesheet').evaluate(node => node.disabled), true, 'dark colourway stylesheet is disabled');
+    await themeButton.click();
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+    const darkBackground = await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor);
+    assert.equal(await page.locator('#theme-dark-stylesheet').evaluate(node => node.disabled), false, 'dark colourway stylesheet is enabled');
+    assert.equal(await page.locator('#theme-light-stylesheet').evaluate(node => node.disabled), true, 'light colourway stylesheet is disabled');
+    assert.notEqual(lightBackground, darkBackground, 'light and dark themes must change the actual application surface');
+    assert.equal(await themeButton.getAttribute('aria-pressed'), 'false', 'dark theme state is exposed accessibly');
+    assert.equal(await page.evaluate(() => localStorage.getItem('skol-theme-preference-v1')), 'dark', 'theme choice persists in the local profile');
+    await themeButton.click();
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+    assert.equal(await themeButton.getAttribute('aria-pressed'), 'true', 'light theme state is exposed accessibly');
+    // Keep the responsive workspace sweep in dark mode because its surface-leak assertions
+    // specifically validate that dark workspaces do not retain white legacy panels.
+    await themeButton.click();
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
+    assert.equal(await themeButton.getAttribute('aria-pressed'), 'false', 'dark theme state is exposed accessibly');
+
+    // Exercise dashboard period controls and the new refresh pending/recovery state.
+    const weekPeriod = page.locator('[data-dashboard-period="week"]');
+    const monthPeriod = page.locator('[data-dashboard-period="month"]');
+    await weekPeriod.click();
+    assert.equal(await weekPeriod.getAttribute('aria-pressed'), 'true', 'dashboard period selection is exposed accessibly');
+    await monthPeriod.click();
+    assert.equal(await monthPeriod.getAttribute('aria-pressed'), 'true', 'dashboard period can be restored');
+    const refreshButton = page.locator('#refreshBtn');
+    await page.waitForFunction(() => {
+      const button = document.getElementById('refreshBtn');
+      return Boolean(button && !button.disabled);
+    }, null, { timeout: 20000 });
+    await refreshButton.click();
+    await page.waitForFunction(() => {
+      const button = document.getElementById('refreshBtn');
+      const view = document.getElementById('view-dashboard');
+      return Boolean(button && !button.disabled && !button.hasAttribute('aria-busy') && view && !view.hasAttribute('aria-busy'));
+    }, null, { timeout: 20000 });
+
+    // Exercise the global command palette through its real keyboard shortcut.
+    await page.keyboard.press('Control+k');
+    const commandDialog = page.locator('#dockPaletteDialog');
+    await commandDialog.waitFor({ state: 'visible' });
+    await page.locator('#dockPaletteSearch').fill('Финансы');
+    const financeCommand = page.locator('#dockPaletteResults [data-dock-command-index]');
+    await financeCommand.waitFor({ state: 'visible' });
+    assert.match(await financeCommand.innerText(), /Финансы/, 'command search returns the finance destination');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => !document.getElementById('dockPaletteDialog').open);
+    await page.waitForSelector('#view-finance.active', { timeout: 15000 });
+
+    // Opening and cancelling a lead dialog must not write a record.
+    await openView(page, 'leads');
+    await page.locator('#addLeadBtn').click();
+    const leadDialog = page.locator('#leadDialog');
+    await leadDialog.waitFor({ state: 'visible' });
+    assert.equal(await leadDialog.evaluate(node => node.open), true, 'new lead dialog opens from the workspace');
+    await leadDialog.getByRole('button', { name: 'Отмена' }).click();
+    await page.waitForFunction(() => !document.getElementById('leadDialog').open);
+    await openView(page, 'dashboard');
+
+    // Exercise the real dashboard workspace presets and saved layout in Electron.
+    await page.locator('#dashboardCustomizeBtn').click();
+    const dashboardDialog = page.locator('#dashboardCustomizeDialog');
+    assert.equal(await dashboardDialog.evaluate(node => node.open), true, 'dashboard customizer opens as a native dialog');
+    await page.screenshot({ path: path.join(outputDir, 'dashboard-customizer.png'), animations: 'disabled' });
+
+    await dashboardDialog.locator('[data-dashboard-preset="sales"]').click();
+    const salesLayout = await page.locator('#dashboardWidgetGrid').evaluate(grid => ({
+      order: [...grid.querySelectorAll('[data-dashboard-widget]')].map(node => node.dataset.dashboardWidget),
+      hidden: [...grid.querySelectorAll('[data-dashboard-widget][hidden]')].map(node => node.dataset.dashboardWidget)
+    }));
+    assert.deepEqual(salesLayout.order, ['kpis', 'pipeline', 'attention', 'progress', 'portfolio', 'recent', 'finance'], 'sales preset orders real dashboard widgets');
+    assert.deepEqual(salesLayout.hidden, ['finance'], 'sales preset hides the finance widget');
+
+    await dashboardDialog.locator('[data-dashboard-preset="finance"]').click();
+    const financeLayout = await page.locator('#dashboardWidgetGrid').evaluate(grid => ({
+      order: [...grid.querySelectorAll('[data-dashboard-widget]')].map(node => node.dataset.dashboardWidget),
+      hidden: [...grid.querySelectorAll('[data-dashboard-widget][hidden]')].map(node => node.dataset.dashboardWidget)
+    }));
+    assert.deepEqual(financeLayout.order, ['finance', 'kpis', 'portfolio', 'progress', 'pipeline', 'attention', 'recent'], 'finance preset orders real dashboard widgets');
+    assert.deepEqual(financeLayout.hidden.sort(), ['attention', 'pipeline'], 'finance preset hides sales and attention widgets');
+
+    await dashboardDialog.locator('[data-dashboard-preset="overview"]').click();
+    const persistedDashboardLayout = await page.evaluate(() => JSON.parse(localStorage.getItem('struktura-dashboard-layout-v1') || 'null'));
+    assert.equal(persistedDashboardLayout?.preset, 'overview', 'workspace preset is persisted locally');
+    assert.deepEqual(persistedDashboardLayout?.hidden, [], 'overview restores all dashboard widgets');
+
+    // Save, alter and restore a named custom workspace in the real Electron renderer.
+    await dashboardDialog.locator('#dashboardWorkspaceName').fill('Ежедневный контроль');
+    await dashboardDialog.locator('#dashboardWorkspaceSave').click();
+    const savedWorkspaceRecords = await page.evaluate(() => JSON.parse(localStorage.getItem('struktura-dashboard-workspaces-v1') || '[]'));
+    assert.equal(savedWorkspaceRecords.length, 1, 'named workspace is persisted locally');
+    assert.equal(savedWorkspaceRecords[0].name, 'Ежедневный контроль', 'saved workspace retains its user-defined name');
+    await dashboardDialog.locator('[data-dashboard-preset="sales"]').click();
+    await dashboardDialog.locator('#dashboardWorkspaceSelect').selectOption({ label: 'Ежедневный контроль' });
+    await dashboardDialog.locator('#dashboardWorkspaceLoad').click();
+    const restoredNamedLayout = await page.locator('#dashboardWidgetGrid').evaluate(grid => ({
+      order: [...grid.querySelectorAll('[data-dashboard-widget]')].map(node => node.dataset.dashboardWidget),
+      hidden: [...grid.querySelectorAll('[data-dashboard-widget][hidden]')].map(node => node.dataset.dashboardWidget)
+    }));
+    assert.deepEqual(restoredNamedLayout.order, ['kpis', 'attention', 'finance', 'pipeline', 'portfolio', 'progress', 'recent'], 'named workspace restores its saved widget order');
+    assert.deepEqual(restoredNamedLayout.hidden, [], 'named workspace restores its saved visibility');
+    await dashboardDialog.locator('#dashboardWorkspaceDelete').click();
+    assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('struktura-dashboard-workspaces-v1') || '[]').length), 0, 'named workspace can be deleted');
+    assert.equal(await dashboardDialog.locator('#dashboardWorkspaceLoad').isDisabled(), true, 'load action is disabled when no saved workspace is selected');
+
+    await dashboardDialog.locator('#dashboardCustomizeDone').click();
+    await page.waitForFunction(() => !document.getElementById('dashboardCustomizeDialog').open);
+
+    // Exercise the persistent macOS-inspired Dock on the real Electron window.
+    const dock = page.locator('#skolDock');
+    await dock.waitFor({ state: 'visible' });
+    const dockLayout = await dock.evaluate(node => {
+      const rect = node.getBoundingClientRect();
+      const items = [...node.querySelectorAll('.dock-item')];
+      return {
+        position: getComputedStyle(node).position,
+        bottomGap: Math.round(window.innerHeight - rect.bottom),
+        height: Math.round(rect.height),
+        width: Math.round(rect.width),
+        scrollWidth: node.scrollWidth,
+        clientWidth: node.clientWidth,
+        left: Math.round(rect.left),
+        right: Math.round(rect.right),
+        itemCount: items.length,
+        groupCount: node.querySelectorAll('.dock-group').length,
+        labelCount: node.querySelectorAll('.dock-label').length,
+        iconCount: node.querySelectorAll('.dock-icon svg').length,
+        labels: items.map(item => item.querySelector('.dock-label')?.innerText.trim())
+      };
+    });
+    assert.equal(dockLayout.position, 'fixed', 'Dock stays fixed to the application window');
+    assert.ok(dockLayout.bottomGap >= 0 && dockLayout.bottomGap <= 20, 'Dock is attached to the bottom edge: ' + JSON.stringify(dockLayout));
+    assert.equal(dockLayout.itemCount, 12, 'all 12 primary workspaces are present');
+    assert.equal(dockLayout.groupCount, 4, 'workspaces are grouped into four logical groups');
+    assert.equal(dockLayout.labelCount, 12, 'every icon retains an accessible label tooltip');
+    assert.ok(dockLayout.height >= 54 && dockLayout.height <= 64, 'Dock uses a stable 54–64px precision capsule: ' + JSON.stringify(dockLayout));
+    assert.ok(dockLayout.width >= 620, 'Dock has enough horizontal room for legible navigation targets: ' + JSON.stringify(dockLayout));
+    assert.ok(dockLayout.scrollWidth <= dockLayout.clientWidth + 1, 'Dock contents must not create internal horizontal overflow: ' + JSON.stringify(dockLayout));
+    assert.ok(dockLayout.left >= 0 && dockLayout.right <= await page.evaluate(() => window.innerWidth), 'Dock stays fully inside the application viewport: ' + JSON.stringify(dockLayout));
+    const dockIconStyles = await dock.locator('.dock-icon').first().evaluate(node => {
+      const style = getComputedStyle(node);
+      return { radius: style.borderRadius, background: style.backgroundImage, backgroundColor: style.backgroundColor, color: style.color, borderColor: style.borderColor, width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height, filter: style.filter };
+    });
+    assert.equal(dockIconStyles.background, 'none', 'Dock icons use controlled semantic surfaces, not decorative gradients');
+    assert.notEqual(dockIconStyles.backgroundColor, 'rgba(0, 0, 0, 0)', 'Dock icons retain a visible semantic surface');
+    assert.notEqual(dockIconStyles.borderColor, 'rgba(0, 0, 0, 0)', 'Dock icons retain a visible token border');
+    assert.ok(dockIconStyles.width >= 40 && dockIconStyles.height >= 40, 'Dock icons remain large enough for crisp vector rendering: ' + JSON.stringify(dockIconStyles));
+    assert.equal(dockIconStyles.filter, 'none', 'Dock vector glyphs are not softened by filters');
+    const dockSurface = await dock.evaluate(node => {
+      const style = getComputedStyle(node);
+      return { backgroundColor: style.backgroundColor, backdropFilter: style.backdropFilter, borderColor: style.borderColor, textRendering: getComputedStyle(document.documentElement).textRendering };
+    });
+    assert.equal(dockSurface.backdropFilter, 'none', 'Dock uses a crisp opaque surface instead of blur haze');
+    assert.notEqual(dockSurface.backgroundColor, 'rgba(0, 0, 0, 0)', 'Dock surface remains fully defined');
+    assert.ok(['geometricprecision', 'optimizelegibility'].includes(dockSurface.textRendering), 'Chromium resolves geometric text rendering to a supported precision mode: ' + dockSurface.textRendering);
+    const dockGlyphs = await dock.locator('.dock-icon').evaluateAll(nodes => nodes.map(node => {
+      const rect = node.getBoundingClientRect();
+      const svg = node.querySelector('svg');
+      const iconRect = svg?.getBoundingClientRect();
+      return { width: rect.width, height: rect.height, svgWidth: iconRect?.width || 0, svgHeight: iconRect?.height || 0, filter: svg ? getComputedStyle(svg).filter : 'missing' };
+    }));
+    assert.equal(dockGlyphs.length, 12, 'all primary destinations render an icon');
+    assert.ok(dockGlyphs.every(icon => icon.width >= 40 && icon.height >= 40 && icon.svgWidth >= 20 && icon.svgHeight >= 20 && icon.filter === 'none'), 'every dock icon is large, vector-based and filter-free: ' + JSON.stringify(dockGlyphs));
+    assert.equal(dockLayout.iconCount, 12, 'every destination has a vector icon');
+    assert.ok(dockLayout.labels.includes('Создать резервную копию') === false, 'data utilities live in Settings, not in the Dock');
+    await page.screenshot({ path: path.join(outputDir, 'dock-default.png'), animations: 'disabled' });
+
+    const hoverTarget = dock.locator('.dock-item[data-view="projects"]');
+    const beforeHover = await hoverTarget.boundingBox();
+    const label = hoverTarget.locator('.dock-label');
+    assert.equal(await label.evaluate(node => getComputedStyle(node).visibility), 'hidden', 'labels stay out of the way until hover');
+    assert.equal(await label.evaluate(node => getComputedStyle(node).display), 'none', 'hidden tooltip labels do not extend Dock scrollable width');
+    await hoverTarget.hover();
+    await page.waitForTimeout(300);
+    const afterHover = await hoverTarget.boundingBox();
+    assert.ok(afterHover.width > beforeHover.width * 1.05, 'hover magnifies the dock icon and its hit target');
+    assert.equal(await label.evaluate(node => getComputedStyle(node).visibility), 'visible', 'hover reveals the destination label');
+    await page.screenshot({ path: path.join(outputDir, 'dock-hover.png'), animations: 'disabled' });
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Escape');
+
+    const nativeWindowViewportMatrix = [];
+    for (const viewport of viewportMatrix) {
+      console.log('[viewport] ' + viewport.name + ' started');
+      // Clear the pointer-driven magnification before measuring intrinsic layout.
+      // A transformed hovered icon may extend the scrollable overflow area by design.
+      await page.mouse.move(12, 12);
+      await page.waitForFunction(() => [...document.querySelectorAll('#skolDock .dock-item')].every(item => !item.style.getPropertyValue('--dock-scale')), null, { timeout: 3000 });
+
+      // Resize the actual Electron BrowserWindow content area. page.setViewportSize()
+      // only emulates a renderer viewport and leaves the native window unchanged.
+      const nativeViewport = await electronApp.evaluate(({ BrowserWindow }, size) => {
+        const win = BrowserWindow.getAllWindows().find(candidate => !candidate.isDestroyed());
+        if (!win) throw new Error('СКОЛ BrowserWindow is unavailable during native resize.');
+        win.setContentSize(size.width, size.height);
+        const bounds = win.getBounds();
+        const contentBounds = win.getContentBounds();
+        const contentSize = win.getContentSize();
+        return { bounds, contentBounds, contentSize };
+      }, viewport);
+      await page.waitForFunction(expected => window.innerWidth === expected.width && window.innerHeight === expected.height, viewport, { timeout: 15000 });
+      assert.deepEqual(nativeViewport.contentSize, [viewport.width, viewport.height], 'native Electron content size must match ' + viewport.name + ': ' + JSON.stringify(nativeViewport));
+      nativeWindowViewportMatrix.push({ name: viewport.name, ...nativeViewport });
+      const dockBounds = await page.locator('#skolDock').evaluate(node => {
+        const rect = node.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height, scrollWidth: node.scrollWidth, clientWidth: node.clientWidth };
+      });
+      const dockDiagnostics = viewport.width >= 1800 ? await page.locator('#skolDock').evaluate(node => {
+        const describe = element => {
+          const rect = element.getBoundingClientRect();
+          const style = getComputedStyle(element);
+          return {
+            tag: element.tagName,
+            className: typeof element.className === 'string' ? element.className : '',
+            id: element.id || '',
+            left: Number(rect.left.toFixed(2)),
+            right: Number(rect.right.toFixed(2)),
+            width: Number(rect.width.toFixed(2)),
+            scrollWidth: element.scrollWidth,
+            clientWidth: element.clientWidth,
+            display: style.display,
+            flex: style.flex,
+            flexBasis: style.flexBasis,
+            gap: style.gap,
+            boxSizing: style.boxSizing,
+            padding: style.padding,
+            margin: style.margin,
+            minWidth: style.minWidth,
+            widthStyle: style.width
+          };
+        };
+        return {
+          dock: describe(node),
+          children: [...node.children].map(child => ({
+            ...describe(child),
+            children: [...child.children].map(describe)
+          }))
+        };
+      }) : null;
+      if (dockDiagnostics) console.log('[dock-geometry] ' + JSON.stringify(dockDiagnostics));
+      assert.ok(dockBounds.left >= -1 && dockBounds.right <= viewport.width + 1, 'Dock stays within ' + viewport.name + ': ' + JSON.stringify(dockBounds));
+      const dockHeightLimit = viewport.width <= 760 ? 56 : viewport.width <= 1180 ? 60 : 64;
+      assert.ok(dockBounds.height <= dockHeightLimit + 1, 'Dock respects its responsive height limit at ' + viewport.name + ' (' + dockHeightLimit + 'px): ' + JSON.stringify(dockBounds));
+      assert.ok(dockBounds.scrollWidth <= dockBounds.clientWidth + 1, 'All Dock destinations fit without horizontal clipping at ' + viewport.name + ': ' + JSON.stringify(dockBounds));
+
+      for (const viewName of (viewport.views || viewNames)) {
+        console.log('[view] ' + viewport.name + ' / ' + viewName + ' checking');
+        await openView(page, viewName);
+        const report = await collectGeometry(page, viewport, viewName);
+        geometry.push({ viewport: viewport.name, view: viewName, ...report });
+        console.log('[view] ' + viewport.name + ' / ' + viewName + ' passed');
+        if (viewport.screenshots.includes(viewName)) {
+          const screenshotName = viewport.name + '-' + safeFileName(viewName) + '.png';
+          const screenshotPath = path.join(outputDir, screenshotName);
+          await page.screenshot({ path: screenshotPath, animations: 'disabled' });
+          screenshots.push(screenshotName);
+        }
+      }
+    }
+
+    assert.equal(pageErrors.length, 0, 'renderer must not throw uncaught errors: ' + pageErrors.join('\\n'));
+    const result = {
+      status: 'passed',
+      electronVersion: await electronApp.evaluate(({ app }) => process.versions.electron),
+      chromiumVersion: await electronApp.evaluate(() => process.versions.chrome || process.versions.chromium || 'unknown'),
+      nativeWindowDiagnostics,
+      nativeWindowViewportMatrix,
+      viewports: viewportMatrix,
+      viewsChecked: [...new Set(geometry.map(item => item.view))],
+      checkedPairs: geometry.map(item => ({ viewport: item.viewport, view: item.view })),
+      screenshots,
+      pageErrors,
+      geometry
+    };
+    fs.writeFileSync(path.join(outputDir, 'geometry-report.json'), JSON.stringify(result, null, 2), 'utf8');
+    console.log('SKOL Electron UI layout smoke passed: ' + viewportMatrix.length + ' viewport sizes × ' + viewNames.length + ' workspaces; ' + screenshots.length + ' screenshots.');
+  } catch (error) {
+    if (page) {
+      try {
+        await page.screenshot({ path: path.join(outputDir, 'failure-current-view.png'), animations: 'disabled' });
+      } catch { /* Electron may already have closed. */ }
+    }
+    const failure = {
+      status: 'failed',
+      message: String(error?.stack || error),
+      pageErrors,
+      screenshots,
+      geometry
+    };
+    fs.writeFileSync(path.join(outputDir, 'geometry-report.json'), JSON.stringify(failure, null, 2), 'utf8');
+    throw error;
+  } finally {
+    if (electronApp) {
+      const child = electronApp.process();
+      // Closing Electron can hang after an assertion fails. Bound the graceful close,
+      // then terminate the child before deleting its temporary profile.
+      try {
+        await Promise.race([
+          electronApp.close(),
+          new Promise(resolve => {
+            const timer = setTimeout(resolve, 10000);
+            timer.unref?.();
+          })
+        ]);
+      } catch { /* Preserve the original test failure. */ }
+      if (child && child.exitCode === null) {
+        try { child.kill(); } catch { /* The process may already be exiting. */ }
+        await new Promise(resolve => {
+          if (child.exitCode !== null) return resolve();
+          const timer = setTimeout(resolve, 5000);
+          timer.unref?.();
+          child.once('exit', () => { clearTimeout(timer); resolve(); });
+        });
+      }
+    }
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
+run().catch(error => {
+  console.error(error?.stack || error);
+  process.exitCode = 1;
+});

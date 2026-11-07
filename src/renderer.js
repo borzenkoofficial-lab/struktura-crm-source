@@ -1,4 +1,34 @@
 const $ = (id) => document.getElementById(id);
+const APP_THEME_KEY = 'skol-theme-preference-v1';
+let appTheme = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+function applyAppTheme(theme, persist = true) {
+  appTheme = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = appTheme;
+  document.documentElement.style.colorScheme = appTheme;
+  const darkStylesheet = $('theme-dark-stylesheet');
+  const lightStylesheet = $('theme-light-stylesheet');
+  if (darkStylesheet) darkStylesheet.disabled = appTheme !== 'dark';
+  if (lightStylesheet) lightStylesheet.disabled = appTheme !== 'light';
+  const button = $('themeToggleBtn');
+  if (button) {
+    const nextTheme = appTheme === 'dark' ? 'light' : 'dark';
+    const label = button.querySelector('.theme-toggle-label');
+    const glyph = button.querySelector('.theme-toggle-glyph');
+    if (label) label.textContent = nextTheme === 'light' ? 'Светлая тема' : 'Тёмная тема';
+    if (glyph) glyph.textContent = nextTheme === 'light' ? '☼' : '◐';
+    button.setAttribute('aria-label', nextTheme === 'light' ? 'Включить светлую тему' : 'Включить тёмную тему');
+    button.setAttribute('aria-pressed', String(appTheme === 'light'));
+  }
+  if (persist) {
+    try { localStorage.setItem(APP_THEME_KEY, appTheme); }
+    catch (error) { console.warn('Theme preference could not be saved:', error); }
+  }
+}
+applyAppTheme(appTheme, false);
+$('themeToggleBtn')?.addEventListener('click', () => {
+  applyAppTheme(appTheme === 'dark' ? 'light' : 'dark');
+});
+
 const serviceLabels = { demolition: 'Демонтаж', finishing: 'Отделочные работы', raised_floor: 'Фальшполы' };
 const sourceLabels = { avito: 'Авито', phone: 'Телефон', telegram: 'Telegram', recommendation: 'Рекомендация', website: 'Сайт', other: 'Другое' };
 const statusLabels = { new: 'Новая', contacted: 'Связались', measurement: 'Замер', estimate: 'Смета', negotiation: 'Переговоры', won: 'Выиграна', lost: 'Отказ' };
@@ -85,21 +115,36 @@ function toast(message, error = false) {
 }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function dateToday() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`; }
-function showView(name) {
+const dockRecentViews = [];
+function dockRememberView(name) {
+  const view = document.getElementById('view-' + name);
+  if (!view) return;
+  const title = document.querySelector('#skolDock .dock-item[data-view="' + name + '"]')?.title ||
+    document.querySelector('.nav-item[data-view="' + name + '"]')?.textContent?.trim() || name;
+  const previous = dockRecentViews.findIndex(item => item.name === name);
+  if (previous >= 0) dockRecentViews.splice(previous, 1);
+  dockRecentViews.unshift({ name, title });
+  dockRecentViews.splice(5);
+}
+function showView(name, options = {}) {
   const requestedView = $(`view-${name}`);
   const requiredFeature = requestedView?.dataset.feature;
   if (requiredFeature && !licenseFeatures.has(requiredFeature)) {
     toast('Этот раздел недоступен на текущем тарифе СКОЛ.', true);
     return;
   }
+  dockRememberView(name);
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === `view-${name}`));
+  // Every workspace shares this scroll viewport; never carry one page's offset into another.
+  const workspaceViewport = document.querySelector('.main');
+  if (workspaceViewport) workspaceViewport.scrollTop = 0;
   document.querySelectorAll('.nav-item[data-view]').forEach(b => { const active = b.dataset.view === name; b.classList.toggle('active', active); if (active) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', engineering: 'ПИ · Расчёт объекта', browser: 'Браузер и поиск заказчиков', prospects: 'Центр привлечения заказов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки', plans: 'Тариф и интеграции', about: 'О продукте СКОЛ' };
+  const titles = { dashboard: 'Обзор бизнеса', leads: 'Заявки', clients: 'Клиенты', projects: 'Объекты', finance: 'Финансы', production: 'Производство · План / факт', engineering: 'ПИ · Расчёт объекта', browser: 'Браузер и поиск заказчиков', prospects: 'Центр привлечения заказов', tasks: 'План действий', reports: 'Отчёты', settings: 'Настройки' };
   $('pageTitle').textContent = titles[name] || 'СКОЛ CRM';
   const loaders = { dashboard: refreshDashboard, leads: refreshLeads, clients: refreshClients, projects: refreshProjects, production: refreshProduction, finance: refreshFinance, prospects: refreshProspects, tasks: refreshTasks, reports: refreshReports };
   if (name === 'settings') refreshPinSettings().catch(() => toast('Не удалось загрузить настройки безопасности. Попробуй открыть раздел ещё раз.', true));
   const view = $(`view-${name}`);
-  if (loaders[name] && view) {
+  if (loaders[name] && view && !options.skipLoad) {
     view.setAttribute('aria-busy', 'true');
     loaders[name]()
       .catch(error => {
@@ -114,196 +159,399 @@ function showView(name) {
   // Re-evaluate business signals when the user moves between CRM sections.
   if (name !== 'dashboard') refreshPiCoach().catch(() => {});
 }
-// Top navigation: one horizontal panel, opened by the chevron and closed
-// five seconds after the pointer and keyboard focus leave the navigation area.
-const NAV_MENU_AUTO_CLOSE_MS = 5000;
-const navMenuShell = document.querySelector('.sidebar');
-const navMenuToggle = $('navMenuToggle');
-const navMenuPanel = $('nav-primary');
-let navMenuCloseTimer = null;
-let navPointerInside = false;
-let navFocusInside = false;
+// Register primary navigation before the rest of renderer initialization.
+// Persistent bottom Dock navigation. All workspaces stay one click away.
+const skolDock = $('skolDock');
+if (skolDock) {
+  skolDock.addEventListener('keydown', event => {
+    if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+    const items = [...skolDock.querySelectorAll('.dock-item:not([hidden]):not(:disabled)')];
+    const current = items.indexOf(document.activeElement);
+    if (current < 0) return;
+    event.preventDefault();
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + items.length) % items.length;
+    items[next]?.focus();
+  });
+}
 
-function cancelNavMenuClose() {
-  if (navMenuCloseTimer !== null) {
-    window.clearTimeout(navMenuCloseTimer);
-    navMenuCloseTimer = null;
+
+// Dock interaction layer: proximity magnification, command palette, contextual actions and preferences.
+const DOCK_PREFS_KEY = 'skol-dock-preferences-v1';
+const dockContextMenu = $('dockContextMenu');
+const dockPaletteDialog = $('dockPaletteDialog');
+const dockSettingsDialog = $('dockSettingsDialog');
+const dockCommands = [
+  ...[...document.querySelectorAll('#skolDock .dock-item[data-view]')].map(item => ({
+    type: 'view', view: item.dataset.view, label: item.title || item.innerText.trim(),
+    description: item.closest('.dock-group')?.getAttribute('aria-label') || 'Раздел CRM'
+  })),
+  { type: 'action', action: 'lead', label: 'Создать заявку', description: 'Новое обращение клиента' },
+  { type: 'action', action: 'client', label: 'Добавить клиента', description: 'Новая запись в клиентской базе' },
+  { type: 'action', action: 'project', label: 'Создать объект', description: 'Новый объект и договор' },
+  { type: 'action', action: 'task', label: 'Создать задачу', description: 'Добавить пункт плана действий' },
+  { type: 'action', action: 'settings', label: 'Настроить Dock', description: 'Состав и порядок разделов' }
+];
+let dockPaletteActiveIndex = 0;
+let dockPreferences = { hidden: [], order: [] };
+function dockLoadPreferences() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DOCK_PREFS_KEY) || '{}');
+    dockPreferences = {
+      hidden: Array.isArray(saved.hidden) ? saved.hidden.filter(value => typeof value === 'string') : [],
+      order: Array.isArray(saved.order) ? saved.order.filter(value => typeof value === 'string') : []
+    };
+  } catch { dockPreferences = { hidden: [], order: [] }; }
+}
+function dockApplyPreferences() {
+  if (!skolDock) return;
+  const items = [...skolDock.querySelectorAll('.dock-item[data-view]')];
+  items.forEach(item => { item.hidden = dockPreferences.hidden.includes(item.dataset.view); });
+  for (const group of skolDock.querySelectorAll('.dock-group')) {
+    const children = [...group.querySelectorAll('.dock-item[data-view]')];
+    const rank = new Map(dockPreferences.order.map((name, index) => [name, index]));
+    children.sort((a, b) => (rank.get(a.dataset.view) ?? 999) - (rank.get(b.dataset.view) ?? 999));
+    children.forEach(item => group.appendChild(item));
+  }
+  for (const group of skolDock.querySelectorAll('.dock-group')) {
+    const visible = group.querySelectorAll('.dock-item:not([hidden])').length > 0;
+    group.hidden = !visible;
+    const divider = group.nextElementSibling;
+    if (divider?.classList.contains('dock-divider')) divider.hidden = !visible;
   }
 }
-
-function setNavMenuOpen(open, { restoreFocus = false } = {}) {
-  if (!navMenuShell || !navMenuToggle || !navMenuPanel) return;
-  cancelNavMenuClose();
-  navMenuShell.classList.toggle('nav-expanded', open);
-  navMenuToggle.setAttribute('aria-expanded', String(open));
-  navMenuToggle.setAttribute('aria-label', open ? 'Закрыть меню разделов' : 'Открыть меню разделов');
-  navMenuToggle.title = open ? 'Закрыть меню разделов' : 'Открыть меню разделов';
-  navMenuPanel.setAttribute('aria-hidden', String(!open));
-  navMenuPanel.inert = !open;
-  if (!open && (restoreFocus || navMenuPanel.contains(document.activeElement))) {
-    navMenuToggle.focus();
+function dockSavePreferences() {
+  try { localStorage.setItem(DOCK_PREFS_KEY, JSON.stringify(dockPreferences)); }
+  catch { toast('Не удалось сохранить настройки Dock в локальном хранилище.', true); }
+}
+function dockOpenSettings() {
+  if (!dockSettingsDialog || !skolDock) return;
+  const list = $('dockSettingsList');
+  const groups = [...skolDock.querySelectorAll('.dock-group')];
+  list.innerHTML = groups.map(group => {
+    const groupName = group.getAttribute('aria-label') || 'Разделы';
+    const items = [...group.querySelectorAll('.dock-item[data-view]')];
+    return '<section class="dock-settings-group"><h3>' + esc(groupName) + '</h3>' +
+      items.map((item, index) => '<div class="dock-settings-row" data-dock-setting-row="' + esc(item.dataset.view) + '">' +
+        '<label><input type="checkbox" data-dock-visible="' + esc(item.dataset.view) + '"' + (dockPreferences.hidden.includes(item.dataset.view) ? '' : ' checked') + '><span class="dock-settings-icon">' + item.querySelector('.dock-icon').innerHTML + '</span><span>' + esc(item.title || item.innerText.trim()) + '</span></label>' +
+        '<span class="dock-settings-order"><button type="button" data-dock-move="-1" aria-label="Переместить выше" ' + (index === 0 ? 'disabled' : '') + '>↑</button><button type="button" data-dock-move="1" aria-label="Переместить ниже" ' + (index === items.length - 1 ? 'disabled' : '') + '>↓</button></span></div>').join('') +
+      '</section>';
+  }).join('');
+  if (!dockSettingsDialog.open) dockSettingsDialog.showModal();
+}
+function dockOpenContext(event, item) {
+  if (!dockContextMenu) return;
+  event.preventDefault();
+  const view = item?.dataset.view;
+  const actions = [
+    { label: 'Открыть раздел', run: () => view && showView(view) },
+    ...(view === 'leads' ? [{ label: '＋ Создать заявку', run: () => $('quickLead')?.click() }] : []),
+    ...(view === 'clients' ? [{ label: '＋ Добавить клиента', run: () => $('addClientBtn')?.click() }] : []),
+    ...(view === 'projects' ? [{ label: '＋ Создать объект', run: () => $('addProjectBtn')?.click() }] : []),
+    ...(view === 'tasks' ? [{ label: '＋ Создать задачу', run: () => $('addTaskBtn')?.click() }] : []),
+    { label: '⌕ Быстрый поиск', run: dockOpenPalette },
+    { label: '⚙ Настроить Dock', run: dockOpenSettings }
+  ];
+  dockContextMenu.innerHTML = actions.map((action, index) => '<button type="button" role="menuitem" data-dock-context-action="' + index + '">' + esc(action.label) + '</button>').join('');
+  dockContextMenu._actions = actions;
+  dockContextMenu.hidden = false;
+  const width = 218, height = actions.length * 38 + 12;
+  dockContextMenu.style.left = Math.max(8, Math.min(window.innerWidth - width - 8, event.clientX)) + 'px';
+  dockContextMenu.style.top = Math.max(8, Math.min(window.innerHeight - height - 8, event.clientY)) + 'px';
+}
+function dockRunCommand(command) {
+  if (!command) return;
+  if (command.type === 'view') showView(command.view);
+  if (command.type === 'action') {
+    const ids = { lead: 'quickLead', client: 'addClientBtn', project: 'addProjectBtn', task: 'addTaskBtn' };
+    if (command.action === 'settings') dockOpenSettings();
+    else $(ids[command.action])?.click();
+  }
+  if (dockPaletteDialog?.open) dockPaletteDialog.close();
+}
+function dockRenderPalette(query = '') {
+  const target = $('dockPaletteResults');
+  if (!target) return;
+  const normalized = query.trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+  const results = dockCommands.filter(item => (item.label + ' ' + item.description).toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').includes(normalized));
+  dockPaletteActiveIndex = Math.min(dockPaletteActiveIndex, Math.max(0, results.length - 1));
+  target.innerHTML = results.length ? results.map((item, index) =>
+    '<button type="button" role="option" aria-current="' + (index === dockPaletteActiveIndex) + '" data-dock-command-index="' + index + '">' +
+    '<span class="dock-command-glyph">' + (item.type === 'view' ? '↗' : '＋') + '</span><span><strong>' + esc(item.label) + '</strong><small>' + esc(item.description) + '</small></span><kbd>' + (item.type === 'view' ? 'Раздел' : 'Действие') + '</kbd></button>'
+  ).join('') : '<p class="dock-palette-empty">Ничего не найдено. Попробуй другое название.</p>';
+  target._results = results;
+  const recent = !normalized ? dockRecentViews.filter(item => item.name !== 'dashboard').slice(0, 5) : [];
+  target._recent = recent;
+  if (recent.length) {
+    target.insertAdjacentHTML('afterbegin', '<div class="dock-palette-section-label">НЕДАВНИЕ РАЗДЕЛЫ</div>' +
+      recent.map((item, index) => '<button type="button" role="option" data-dock-recent-index="' + index + '"><span class="dock-command-glyph">↶</span><span><strong>' + esc(item.title) + '</strong><small>Недавно открывали</small></span><kbd>Недавно</kbd></button>').join(''));
   }
 }
-
-function scheduleNavMenuClose() {
-  cancelNavMenuClose();
-  if (!navMenuShell?.classList.contains('nav-expanded') || navPointerInside || navFocusInside) return;
-  navMenuCloseTimer = window.setTimeout(() => {
-    navMenuCloseTimer = null;
-    if (!navPointerInside && !navFocusInside) setNavMenuOpen(false);
-  }, NAV_MENU_AUTO_CLOSE_MS);
-}
-
-if (navMenuShell && navMenuToggle && navMenuPanel) {
-  navMenuShell.addEventListener('pointerenter', () => {
-    navPointerInside = true;
-    cancelNavMenuClose();
-  });
-  navMenuShell.addEventListener('pointerleave', () => {
-    navPointerInside = false;
-    scheduleNavMenuClose();
-  });
-  navMenuShell.addEventListener('focusin', () => {
-    navFocusInside = true;
-    cancelNavMenuClose();
-  });
-  navMenuShell.addEventListener('focusout', () => {
-    window.setTimeout(() => {
-      navFocusInside = navMenuShell.contains(document.activeElement);
-      scheduleNavMenuClose();
-    }, 0);
-  });
-  navMenuToggle.addEventListener('click', event => {
-    const shouldOpen = !navMenuShell.classList.contains('nav-expanded');
-    setNavMenuOpen(shouldOpen);
-    // A mouse click should not leave keyboard focus on the trigger and prevent auto-close.
-    if (event.detail > 0) navMenuToggle.blur();
-  });
-  document.addEventListener('keydown', event => {
-    if (event.key !== 'Escape') return;
-    if (navGuideCard && !navGuideCard.hidden) {
-      closeNavGuide(true);
-      return;
-    }
-    if (navMenuShell.classList.contains('nav-expanded')) {
-      setNavMenuOpen(false, { restoreFocus: true });
+let dockRecordSearchVersion = 0;
+let dockRecordSearchTimer = null;
+async function dockAppendRecordResults(query) {
+  const term = String(query || '').trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');
+  const version = ++dockRecordSearchVersion;
+  const target = $('dockPaletteResults');
+  if (term.length < 2 || !window.crm) return;
+  const searchInputIds = { leads: 'leadSearch', clients: 'clientSearch', projects: 'projectSearch' };
+  const sources = [
+    { view: 'leads', label: 'Заявка', load: () => window.crm.listLeads(), title: item => item.title || item.name || '', detail: item => [item.status, item.phone, item.address].filter(Boolean).join(' · ') },
+    { view: 'clients', label: 'Клиент', load: () => window.crm.listClients(), title: item => item.name || item.company || '', detail: item => [item.phone, item.email].filter(Boolean).join(' · ') },
+    { view: 'projects', label: 'Объект', load: () => window.crm.listProjects(), title: item => item.title || item.name || '', detail: item => [item.address, item.status].filter(Boolean).join(' · ') }
+  ];
+  const settled = await Promise.allSettled(sources.map(source => source.load()));
+  if (version !== dockRecordSearchVersion || !dockPaletteDialog?.open) return;
+  const records = [];
+  settled.forEach((result, index) => {
+    if (result.status !== 'fulfilled' || !Array.isArray(result.value)) return;
+    const source = sources[index];
+    for (const item of result.value) {
+      const title = String(source.title(item) || '');
+      const detail = String(source.detail(item) || '');
+      if ((title + ' ' + detail).toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').includes(term)) {
+        records.push({ view: source.view, label: source.label, title, detail, query: title });
+      }
+      if (records.length >= 12) break;
     }
   });
+  if (version !== dockRecordSearchVersion) return;
+  const section = records.length ? '<div class="dock-palette-section-label">ЗАПИСИ CRM</div>' + records.slice(0, 10).map((record, index) =>
+    '<button type="button" role="option" data-dock-record-index="' + index + '">' +
+    '<span class="dock-command-glyph">⌕</span><span><strong>' + esc(record.title) + '</strong><small>' + esc(record.label + (record.detail ? ' · ' + record.detail : '')) + '</small></span><kbd>' + esc(record.label) + '</kbd></button>'
+  ).join('') : '';
+  target._records = records.slice(0, 10);
+  if (section) target.insertAdjacentHTML('beforeend', section);
 }
-
-// Interactive first-run guide for the top navigation.
-const NAV_GUIDE_STORAGE_KEY = 'skol.navGuide.menu.v1';
-const navGuideBackdrop = $('navGuideBackdrop');
-const navGuideCard = $('navGuideCard');
-const navGuideTitle = $('navGuideTitle');
-const navGuideText = $('navGuideText');
-const navGuideProgress = $('navGuideProgress');
-const navGuideSkip = $('navGuideSkip');
-const navGuideBack = $('navGuideBack');
-const navGuideNext = $('navGuideNext');
-const navGuideReplay = $('navGuideReplay');
-let navGuideStep = 0;
-let navGuideReturnFocus = null;
-
-function showNavGuideStep(step) {
-  if (!navMenuShell || !navMenuToggle || !navMenuPanel || !navGuideBackdrop || !navGuideCard) return;
-  navGuideStep = step === 2 ? 2 : 1;
-  navMenuShell.classList.add('nav-guide-active');
-  navGuideBackdrop.hidden = false;
-  navGuideCard.hidden = false;
-  navGuideCard.dataset.step = String(navGuideStep);
-
-  if (navGuideStep === 1) {
-    setNavMenuOpen(false);
-    navMenuToggle.classList.add('nav-guide-highlight');
-    navMenuPanel.classList.remove('nav-guide-highlight');
-    navGuideTitle.textContent = 'Главная кнопка навигации';
-    navGuideText.textContent = 'Кнопка «МЕНЮ» по центру верхней панели открывает список всех разделов CRM. Нажмите «Показать меню» или саму выделенную кнопку, чтобы увидеть рабочие пространства, инструменты и настройки.';
-    navGuideProgress.textContent = '01 / 02';
-    navGuideBack.hidden = true;
-    navGuideNext.textContent = 'Показать меню ↗';
+function dockOpenPalette() {
+  if (!dockPaletteDialog) return;
+  if (dockContextMenu) dockContextMenu.hidden = true;
+  if (!dockPaletteDialog.open) dockPaletteDialog.showModal();
+  $('dockPaletteSearch').value = '';
+  dockPaletteActiveIndex = 0;
+  dockRenderPalette('');
+  requestAnimationFrame(() => $('dockPaletteSearch')?.focus());
+}
+function dockSyncBadge(type, sourceId) {
+  const source = $(sourceId);
+  const badge = document.querySelector('[data-dock-badge="' + type + '"]');
+  if (!source || !badge) return;
+  const count = Math.max(0, Number(String(source.textContent || '0').replace(/[^0-9]/g, '')) || 0);
+  badge.textContent = count > 99 ? '99+' : String(count);
+  badge.hidden = count === 0;
+}
+function dockObserveCounters() {
+  dockSyncBadge('lead', 'leadNavCount');
+  dockSyncBadge('task', 'taskNavCount');
+  if (typeof MutationObserver === 'undefined') return;
+  const observer = new MutationObserver(records => {
+    for (const record of records) {
+      if (record.target.id === 'leadNavCount') dockSyncBadge('lead', 'leadNavCount');
+      if (record.target.id === 'taskNavCount') dockSyncBadge('task', 'taskNavCount');
+    }
+  });
+  ['leadNavCount','taskNavCount'].forEach(id => { const node = $(id); if (node) observer.observe(node, { childList: true, characterData: true, subtree: true }); });
+}
+let dockNotificationItems = [];
+let dockNotificationFilter = 'all';
+let dockNotificationError = '';
+function dockRenderNotifications() {
+  const list = $('dockNotificationsList'), state = $('dockNotificationsState'), badge = $('dockNotificationBadge');
+  if (!list || !state || !badge) return;
+  const count = dockNotificationItems.length;
+  badge.textContent = count > 99 ? '99+' : String(count);
+  badge.hidden = count === 0;
+  $('dockNotificationsSummary').textContent = count ? `Актуальных событий: ${count}. Выбери событие, чтобы открыть связанную запись.` : 'Новых событий по текущим правилам нет.';
+  const filtered = dockNotificationFilter === 'all' ? dockNotificationItems : dockNotificationItems.filter(item => item.kind === dockNotificationFilter);
+  state.hidden = filtered.length > 0;
+  state.textContent = dockNotificationError ? 'Не удалось загрузить уведомления. Проверь соединение с локальной базой и повтори попытку.' : count === 0 ? 'Сейчас нет актуальных уведомлений.' : 'В этой категории событий нет.';
+  list.innerHTML = filtered.map(item => {
+    const type = item.kind === 'task' ? 'ЗАДАЧА' : item.kind === 'project' ? 'СРОК ОБЪЕКТА' : 'ОТЧЁТ СМЕНЫ';
+    const action = item.kind === 'task' ? 'Открыть задачу →' : item.kind === 'shift-report' ? 'Заполнить отчёт смены →' : 'Открыть объект →';
+    return `<button type="button" class="dock-notification-item ${item.level === 'danger' ? 'is-danger' : ''}" data-notification-key="${esc(item.key)}"><span class="dock-notification-type">${type}</span><strong>${esc(item.title)}</strong><span>${esc(item.body)}</span><small>${action}</small></button>`;
+  }).join('');
+}
+async function dockRefreshNotifications() {
+  const state = $('dockNotificationsState'), list = $('dockNotificationsList');
+  if (state) { state.hidden = false; state.textContent = 'Обновляю события…'; }
+  if (list) list.innerHTML = '';
+  dockNotificationError = '';
+  try { dockNotificationItems = await window.crm.getNotificationInbox(); }
+  catch (error) { dockNotificationItems = []; dockNotificationError = error?.message || 'load_failed'; }
+  dockRenderNotifications();
+}
+function dockOpenNotifications() {
+  const dialog = $('dockNotificationsDialog');
+  if (!dialog) return;
+  if (!dialog.open) dialog.showModal();
+  dockRefreshNotifications();
+}
+$('dockNotificationsBtn')?.addEventListener('click', dockOpenNotifications);
+$('dockNotificationsRefresh')?.addEventListener('click', () => dockRefreshNotifications());
+$('dockNotificationsDialog')?.addEventListener('click', event => {
+  const filter = event.target.closest('[data-notification-filter]');
+  if (filter) {
+    dockNotificationFilter = filter.dataset.notificationFilter;
+    document.querySelectorAll('[data-notification-filter]').forEach(button => button.classList.toggle('is-active', button === filter));
+    dockRenderNotifications();
+    return;
+  }
+  const itemButton = event.target.closest('[data-notification-key]');
+  if (!itemButton) return;
+  const item = dockNotificationItems.find(entry => entry.key === itemButton.dataset.notificationKey);
+  if (!item) return;
+  $('dockNotificationsDialog').close();
+  if (item.kind === 'task') {
+    showView('tasks', { skipLoad: true });
+    $('taskFilter').value = 'all';
+    refreshTasks().then(() => {
+      const button = [...document.querySelectorAll('[data-edit-task]')].find(node => Number(node.dataset.editTask) === item.id);
+      if (button) button.click();
+      else toast('Задача найдена в уведомлении, но не отображается в текущем списке. Проверь фильтры.', true);
+    }).catch(error => toast(error.message, true));
+  } else if (item.kind === 'shift-report') {
+    showView('production', { skipLoad: true });
+    openProductionShift(item.id).catch(error => toast(`Не удалось открыть отчёт смены: ${error.message}`, true));
   } else {
-    setNavMenuOpen(true);
-    navMenuToggle.classList.remove('nav-guide-highlight');
-    navMenuPanel.classList.add('nav-guide-highlight');
-    navGuideTitle.textContent = 'Выберите нужный раздел';
-    navGuideText.textContent = 'Пункты меню открывают соответствующие экраны: заявки, клиентов, объекты, производство, финансы и инструменты. Наведите курсор на пункт, чтобы увидеть плавную анимацию. После ухода курсора меню свернётся через 5 секунд.';
-    navGuideProgress.textContent = '02 / 02';
-    navGuideBack.hidden = false;
-    navGuideNext.textContent = 'Понятно';
+    selectedRecordIds.projects = item.id;
+    showView('projects', { skipLoad: true });
+    refreshProjects().then(() => {
+      const button = [...document.querySelectorAll('[data-edit-project]')].find(node => Number(node.dataset.editProject) === item.id);
+      if (button) button.click();
+      else toast('Объект из уведомления не найден в списке. Проверь, не изменился ли его статус.', true);
+    }).catch(error => toast(error.message, true));
   }
-  navGuideNext?.focus();
-}
-
-function closeNavGuide(markComplete = true) {
-  if (!navGuideCard || navGuideCard.hidden) return;
-  navGuideCard.hidden = true;
-  if (navGuideBackdrop) navGuideBackdrop.hidden = true;
-  navMenuToggle?.classList.remove('nav-guide-highlight');
-  navMenuPanel?.classList.remove('nav-guide-highlight');
-  navMenuShell?.classList.remove('nav-guide-active');
-  setNavMenuOpen(false);
-  if (markComplete) {
-    try { localStorage.setItem(NAV_GUIDE_STORAGE_KEY, 'done'); } catch { /* The guide remains available through the ? button. */ }
-  }
-  const returnTarget = navGuideReturnFocus?.isConnected && navGuideReturnFocus !== document.body
-    ? navGuideReturnFocus
-    : navMenuToggle;
-  navGuideReturnFocus = null;
-  returnTarget?.focus();
-}
-
-function startNavGuide() {
-  if (!navGuideCard || !navGuideBackdrop) return;
-  navGuideReturnFocus = document.activeElement;
-  showNavGuideStep(1);
-}
-
-function maybeStartNavGuide() {
-  let completed = false;
-  try { completed = localStorage.getItem(NAV_GUIDE_STORAGE_KEY) === 'done'; } catch { completed = false; }
-  if (!completed && startupUnlocked) startNavGuide();
-}
-
-navGuideReplay?.addEventListener('click', startNavGuide);
-navMenuToggle?.addEventListener('click', () => {
-  if (navGuideCard && !navGuideCard.hidden && navGuideStep === 1) showNavGuideStep(2);
 });
-navGuideSkip?.addEventListener('click', () => closeNavGuide(true));
-navGuideNext?.addEventListener('click', () => {
-  if (navGuideStep === 1) showNavGuideStep(2);
-  else closeNavGuide(true);
-});
-navGuideBack?.addEventListener('click', () => showNavGuideStep(1));
-navGuideBackdrop?.addEventListener('click', () => closeNavGuide(true));
-navGuideCard?.addEventListener('keydown', event => {
-  if (event.key !== 'Tab') return;
-  const focusable = [navGuideSkip, navGuideBack, navGuideNext].filter(button => button && !button.hidden && !button.disabled);
-  if (!focusable.length) return;
-  const first = focusable[0];
-  const last = focusable[focusable.length - 1];
-  if (event.shiftKey && document.activeElement === first) {
+
+dockLoadPreferences();
+dockApplyPreferences();
+dockObserveCounters();
+if (skolDock) {
+  skolDock.addEventListener('keydown', event => {
+    if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+    const item = event.target.closest('.dock-item');
+    if (!item) return;
+    const rect = item.getBoundingClientRect();
+    dockOpenContext({ preventDefault: () => {}, clientX: rect.left + rect.width / 2, clientY: rect.top }, item);
+  });
+  skolDock.addEventListener('contextmenu', event => dockOpenContext(event, event.target.closest('.dock-item')));
+  let dockFrame = 0;
+  skolDock.addEventListener('pointermove', event => {
+    if (event.pointerType === 'touch') return;
+    cancelAnimationFrame(dockFrame);
+    dockFrame = requestAnimationFrame(() => {
+      const items = [...skolDock.querySelectorAll('.dock-item:not([hidden])')];
+      items.forEach(item => {
+        const rect = item.getBoundingClientRect();
+        const distance = Math.abs(event.clientX - (rect.left + rect.width / 2));
+        const influence = Math.max(0, 1 - distance / 112);
+        item.style.setProperty('--dock-scale', (1 + influence * .24).toFixed(3));
+        item.style.setProperty('--dock-lift', (-influence * 4.8).toFixed(2) + 'px');
+      });
+      skolDock.style.setProperty('--dock-pointer-x', (event.clientX - skolDock.getBoundingClientRect().left) + 'px');
+    });
+  });
+  skolDock.addEventListener('pointerleave', () => {
+    skolDock.querySelectorAll('.dock-item').forEach(item => { item.style.removeProperty('--dock-scale'); item.style.removeProperty('--dock-lift'); });
+    skolDock.style.removeProperty('--dock-pointer-x');
+  });
+}
+$('openCommandPaletteBtn')?.addEventListener('click', dockOpenPalette);
+document.addEventListener('keydown', event => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
     event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
+    dockOpenPalette();
+  }
+  if (event.key === 'Escape' && dockContextMenu && !dockContextMenu.hidden) dockContextMenu.hidden = true;
+});
+$('dockPaletteSearch')?.addEventListener('input', event => {
+  dockPaletteActiveIndex = 0;
+  dockRenderPalette(event.target.value);
+  clearTimeout(dockRecordSearchTimer);
+  dockRecordSearchTimer = setTimeout(() => dockAppendRecordResults(event.target.value).catch(() => {}), 220);
+});
+$('dockPaletteSearch')?.addEventListener('keydown', event => {
+  const results = $('dockPaletteResults')?._results || [];
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault();
-    first.focus();
+    dockPaletteActiveIndex = (dockPaletteActiveIndex + (event.key === 'ArrowDown' ? 1 : -1) + results.length) % Math.max(1, results.length);
+    dockRenderPalette(event.currentTarget.value);
+  } else if (event.key === 'Enter') {
+    event.preventDefault();
+    dockRunCommand(results[dockPaletteActiveIndex]);
   }
 });
+$('dockPaletteResults')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-dock-command-index]');
+  if (button) dockRunCommand($('dockPaletteResults')._results?.[Number(button.dataset.dockCommandIndex)]);
+});
+$('dockPaletteResults')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-dock-record-index]');
+  if (!button) return;
+  const record = $('dockPaletteResults')._records?.[Number(button.dataset.dockRecordIndex)];
+  if (!record) return;
+  showView(record.view);
+  const input = $(record.view === 'leads' ? 'leadSearch' : record.view === 'clients' ? 'clientSearch' : 'projectSearch');
+  if (input) {
+    input.value = record.query;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  dockPaletteDialog?.close();
+});
+$('dockPaletteResults')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-dock-recent-index]');
+  if (!button) return;
+  const recent = $('dockPaletteResults')._recent?.[Number(button.dataset.dockRecentIndex)];
+  if (!recent) return;
+  showView(recent.name);
+  dockPaletteDialog?.close();
+});
+dockContextMenu?.addEventListener('click', event => {
+  const button = event.target.closest('[data-dock-context-action]');
+  if (button) dockContextMenu._actions?.[Number(button.dataset.dockContextAction)]?.run();
+  dockContextMenu.hidden = true;
+});
+document.addEventListener('pointerdown', event => {
+  if (dockContextMenu && !dockContextMenu.hidden && !dockContextMenu.contains(event.target)) dockContextMenu.hidden = true;
+});
+document.querySelectorAll('[data-dock-close]').forEach(button => button.addEventListener('click', () => $(button.dataset.dockClose)?.close()));
+$('dockSettingsList')?.addEventListener('change', event => {
+  const view = event.target.dataset.dockVisible;
+  if (!view) return;
+  dockPreferences.hidden = event.target.checked ? dockPreferences.hidden.filter(name => name !== view) : [...new Set([...dockPreferences.hidden, view])];
+});
+$('dockSettingsList')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-dock-move]');
+  if (!button) return;
+  const row = button.closest('[data-dock-setting-row]');
+  const group = row?.parentElement;
+  const rows = [...(group?.querySelectorAll('[data-dock-setting-row]') || [])];
+  const index = rows.indexOf(row), next = index + Number(button.dataset.dockMove);
+  if (next < 0 || next >= rows.length) return;
+  if (next < index) group.insertBefore(row, rows[next]); else group.insertBefore(rows[next], row);
+  group.querySelectorAll('[data-dock-move]').forEach(control => { control.disabled = false; });
+  const updated = [...group.querySelectorAll('[data-dock-setting-row]')];
+  updated[0]?.querySelector('[data-dock-move="-1"]')?.setAttribute('disabled', '');
+  updated.at(-1)?.querySelector('[data-dock-move="1"]')?.setAttribute('disabled', '');
+});
+$('dockSettingsSave')?.addEventListener('click', () => {
+  dockPreferences.order = [...( $('dockSettingsList')?.querySelectorAll('[data-dock-setting-row]') || [])].map(row => row.dataset.dockSettingRow);
+  dockSavePreferences();
+  dockApplyPreferences();
+  dockSettingsDialog?.close();
+  toast('Настройки Dock сохранены.');
+});
+$('dockSettingsReset')?.addEventListener('click', () => {
+  dockPreferences = { hidden: [], order: [] };
+  dockSavePreferences();
+  dockApplyPreferences();
+  dockOpenSettings();
+});
 
-// Register primary navigation before the rest of renderer initialization. If a later widget
-// fails during setup, the workspace navigation remains usable and the error is observable.
 document.addEventListener('click', event => {
-  const menuButton = event.target.closest('#nav-primary button');
   const button = event.target.closest('[data-view]');
-  if (button) {
-    event.preventDefault();
-    showView(button.dataset.view);
-  }
-  if (menuButton) {
-    setNavMenuOpen(false, { restoreFocus: event.detail === 0 });
-    if (event.detail > 0) navMenuToggle?.blur();
-  }
+  if (!button || button.disabled) return;
+  event.preventDefault();
+  showView(button.dataset.view);
 }, true);
 window.addEventListener('error', event => {
   console.error('СКОЛ renderer error:', event.error || event.message);
@@ -550,7 +798,8 @@ async function refreshPiCoach(options = {}) {
       return;
     }
     const canAutoOpen = !piCoachLastAutoAt || now - piCoachLastAutoAt >= 20 * 60 * 1000;
-    if (unseen && canAutoOpen && (options.force === true || piCoachLastAutoAt === 0 || unseen.severity === 'danger' || unseen.priority >= 88)) {
+    // Insights remain available on the companion; only an explicit user refresh may open the panel.
+    if (unseen && options.force === true && canAutoOpen) {
       piCoachIndex = piCoachInsights.findIndex(item => item.id === unseen.id);
       piCoachOpen(piCoachIndex, true);
       piCoachMarkSeen(unseen.id);
@@ -695,6 +944,255 @@ $('piCoachActionBtn').addEventListener('click', () => {
 });
 if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = () => {};
 
+
+const DASHBOARD_LAYOUT_KEY = 'struktura-dashboard-layout-v1';
+const DASHBOARD_WIDGETS = [
+ {id:'kpis',title:'Ключевые показатели',description:'Заявки, объекты, клиенты и команда',size:'full'},
+ {id:'attention',title:'Требует внимания и ПИ',description:'Операционные сигналы и производство',size:'wide'},
+ {id:'finance',title:'Денежный поток',description:'Поступления, расходы и динамика',size:'full'},
+ {id:'pipeline',title:'Воронка продаж',description:'Заявки по текущим статусам',size:'half'},
+ {id:'portfolio',title:'Портфель объектов',description:'Объекты по стадиям выполнения',size:'half'},
+ {id:'progress',title:'Шкалы выполнения',description:'Прогресс объектов, задач, работ и оплат',size:'full'},
+ {id:'recent',title:'Последние записи',description:'Свежие заявки и объекты',size:'full'}
+];
+const DASHBOARD_DEFAULT_ORDER = DASHBOARD_WIDGETS.map(item=>item.id);
+let dashboardLayout = null;
+let dashboardEditMode = false;
+function dashboardLoadLayout() {
+ try {
+  const saved=JSON.parse(localStorage.getItem(DASHBOARD_LAYOUT_KEY)||'null');
+  if(!saved||saved.version!==1) return {version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']},density:'comfortable',preset:'overview'};
+  const order=[...(Array.isArray(saved.order)?saved.order.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)):[]),...DASHBOARD_DEFAULT_ORDER.filter(id=>!saved.order?.includes(id))];
+  return {version:1,order,hidden:Array.isArray(saved.hidden)?saved.hidden.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)):[],sizes:saved.sizes&&typeof saved.sizes==='object'?saved.sizes:{},preferences:{kpis:Array.isArray(saved.preferences?.kpis)?saved.preferences.kpis.filter(id=>['leads','projects','clients','people'].includes(id)):['leads','projects','clients','people']},density:saved.density==='compact'?'compact':'comfortable',preset:['overview','sales','finance'].includes(saved.preset)?saved.preset:'overview'};
+ } catch { return {version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']},density:'comfortable',preset:'overview'}; }
+}
+function dashboardSaveLayout() {
+ try { localStorage.setItem(DASHBOARD_LAYOUT_KEY,JSON.stringify(dashboardLayout)); }
+ catch(error) { toast('Не удалось сохранить компоновку: '+error.message,true); }
+}
+const DASHBOARD_SAVED_WORKSPACES_KEY = 'struktura-dashboard-workspaces-v1';
+function dashboardReadSavedWorkspaces() {
+ try {
+  const saved=JSON.parse(localStorage.getItem(DASHBOARD_SAVED_WORKSPACES_KEY)||'[]');
+  return Array.isArray(saved)?saved.filter(item=>item&&typeof item.id==='string'&&typeof item.name==='string'&&item.layout&&typeof item.layout==='object').slice(0,12):[];
+ } catch { return []; }
+}
+function dashboardRenderSavedWorkspaces() {
+ const select=$('dashboardWorkspaceSelect');if(!select)return;
+ const items=dashboardReadSavedWorkspaces();
+ const selected=select.value;
+ select.innerHTML=items.length?items.map(item=>'<option value="'+esc(item.id)+'">'+esc(item.name)+'</option>').join(''):'<option value="">Нет сохранённых пространств</option>';
+ if(items.some(item=>item.id===selected))select.value=selected;
+ const hasSelection=Boolean(select.value&&items.some(item=>item.id===select.value));
+ const load=$('dashboardWorkspaceLoad');if(load)load.disabled=!hasSelection;
+ const remove=$('dashboardWorkspaceDelete');if(remove)remove.disabled=!hasSelection;
+}
+function dashboardNormalizeSavedLayout(value) {
+ const fallback={version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']},density:'comfortable',preset:''};
+ if(!value||typeof value!=='object')return fallback;
+ const order=[...(Array.isArray(value.order)?value.order.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)):[]),...DASHBOARD_DEFAULT_ORDER.filter(id=>!value.order?.includes(id))];
+ const sizes={};
+ for(const id of DASHBOARD_DEFAULT_ORDER)if(['half','wide','full'].includes(value.sizes?.[id]))sizes[id]=value.sizes[id];
+ return {version:1,order,hidden:Array.isArray(value.hidden)?[...new Set(value.hidden.filter(id=>DASHBOARD_DEFAULT_ORDER.includes(id)))]:[],sizes,preferences:{kpis:Array.isArray(value.preferences?.kpis)?[...new Set(value.preferences.kpis.filter(id=>['leads','projects','clients','people'].includes(id)))]:[...fallback.preferences.kpis]},density:value.density==='compact'?'compact':'comfortable',preset:''};
+}
+function dashboardSaveNamedWorkspace() {
+ const input=$('dashboardWorkspaceName');const name=input?.value.trim();
+ if(!name){toast('Укажи название рабочего пространства.',true);input?.focus();return;}
+ const items=dashboardReadSavedWorkspaces();
+ const existing=items.find(item=>item.name.toLocaleLowerCase()===name.toLocaleLowerCase());
+ if(!existing&&items.length>=12){toast('Можно сохранить не более 12 рабочих пространств.',true);return;}
+ const id=existing?.id||('workspace-'+Date.now().toString(36));
+ const next={id,name,layout:JSON.parse(JSON.stringify(dashboardLayout)),updatedAt:new Date().toISOString()};
+ const saved=existing?items.map(item=>item.id===id?next:item):[...items,next];
+ try {
+  localStorage.setItem(DASHBOARD_SAVED_WORKSPACES_KEY,JSON.stringify(saved));
+  dashboardRenderSavedWorkspaces();
+  const select=$('dashboardWorkspaceSelect');if(select)select.value=id;
+  dashboardRenderSavedWorkspaces();
+  if(input)input.value='';
+  toast(existing?'Рабочее пространство обновлено.':'Рабочее пространство сохранено.');
+ } catch(error){toast('Не удалось сохранить рабочее пространство: '+error.message,true);}
+}
+function dashboardLoadNamedWorkspace() {
+ const id=$('dashboardWorkspaceSelect')?.value;
+ const item=dashboardReadSavedWorkspaces().find(entry=>entry.id===id);
+ if(!item)return;
+ dashboardLayout=dashboardNormalizeSavedLayout(item.layout);
+ dashboardSaveLayout();dashboardApplyLayout();
+ toast('Рабочее пространство «'+item.name+'» открыто.');
+}
+function dashboardDeleteNamedWorkspace() {
+ const select=$('dashboardWorkspaceSelect');const id=select?.value;
+ const items=dashboardReadSavedWorkspaces();const item=items.find(entry=>entry.id===id);
+ if(!item)return;
+ try {
+  localStorage.setItem(DASHBOARD_SAVED_WORKSPACES_KEY,JSON.stringify(items.filter(entry=>entry.id!==id)));
+  dashboardRenderSavedWorkspaces();
+  toast('Рабочее пространство «'+item.name+'» удалено.');
+ } catch(error){toast('Не удалось удалить рабочее пространство: '+error.message,true);}
+}
+function dashboardRenderCatalog() {
+ const target=$('dashboardWidgetCatalog'); if(!target)return;
+ target.innerHTML=DASHBOARD_WIDGETS.map(item=>{
+  const enabled=!dashboardLayout.hidden.includes(item.id);
+  return '<label class="dashboard-widget-option"><input type="checkbox" data-dashboard-widget-toggle="'+item.id+'"'+(enabled?' checked':'')+'><span><strong>'+esc(item.title)+'</strong><small>'+esc(item.description)+'</small></span><em>'+(enabled?'На экране':'Скрыт')+'</em></label>';
+ }).join('');
+ const kpiTarget=$('dashboardKpiPreferences');
+ if(kpiTarget) {
+  const options=[['leads','Активные заявки'],['projects','Активные объекты'],['clients','Клиенты в базе'],['people','Людей запланировано']];
+  kpiTarget.innerHTML=options.map(([id,label])=>'<label><input type="checkbox" data-dashboard-kpi="'+id+'"'+(dashboardLayout.preferences.kpis.includes(id)?' checked':'')+'><span>'+label+'</span></label>').join('');
+ }
+}
+function dashboardRenderEditControls() {
+ const grid=$('dashboardWidgetGrid'); if(!grid)return;
+ for(const widget of grid.querySelectorAll('[data-dashboard-widget]')) {
+  let tools=widget.querySelector('.dashboard-widget-tools');
+  if(!tools) {
+   tools=document.createElement('div'); tools.className='dashboard-widget-tools';
+   tools.innerHTML='<button type="button" class="dashboard-drag-handle" draggable="true" aria-label="Перетащить блок" title="Перетащить блок">⠿</button><button type="button" class="dashboard-move-up" aria-label="Переместить блок выше" title="Выше">↑</button><button type="button" class="dashboard-move-down" aria-label="Переместить блок ниже" title="Ниже">↓</button><button type="button" class="dashboard-size-button">Размер</button><button type="button" class="dashboard-hide-button">Скрыть</button>';
+   widget.prepend(tools);
+  }
+  tools.hidden=!dashboardEditMode; widget.classList.toggle('dashboard-widget-editing',dashboardEditMode);
+ }
+}
+function dashboardApplyLayout() {
+ const grid=$('dashboardWidgetGrid'); if(!grid)return;
+ grid.classList.toggle('dashboard-density-compact',dashboardLayout.density==='compact');
+ document.querySelectorAll('[data-dashboard-density]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.dashboardDensity===dashboardLayout.density)));
+ document.querySelectorAll('[data-dashboard-preset]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.dashboardPreset===dashboardLayout.preset)));
+ for(const id of dashboardLayout.order) {
+  const widget=grid.querySelector('[data-dashboard-widget="'+id+'"]'); if(!widget)continue;
+  grid.append(widget); widget.hidden=dashboardLayout.hidden.includes(id);
+  widget.classList.remove('dashboard-size-half','dashboard-size-wide','dashboard-size-full');
+  const fallback=DASHBOARD_WIDGETS.find(item=>item.id===id)?.size||'full';
+  const size=['half','wide','full'].includes(dashboardLayout.sizes[id])?dashboardLayout.sizes[id]:fallback;
+  widget.classList.add('dashboard-size-'+size);
+ }
+ dashboardRenderCatalog(); dashboardRenderEditControls(); dashboardApplyKpiPreferences(); dashboardRenderSavedWorkspaces();
+}
+function dashboardOpenCustomizer() {
+ dashboardEditMode=true; dashboardRenderEditControls(); dashboardRenderCatalog();
+ const dialog=$('dashboardCustomizeDialog'); if(dialog&&!dialog.open)dialog.showModal();
+}
+function dashboardCloseCustomizer() {
+ dashboardEditMode=false; dashboardRenderEditControls();
+ const dialog=$('dashboardCustomizeDialog'); if(dialog?.open)dialog.close();
+}
+function dashboardRenderStatusChart(targetId,rows,emptyText) {
+ const target=$(targetId); if(!target)return;
+ const values=rows.filter(item=>item.value>0);
+ if(!values.length){target.innerHTML='<div class="dashboard-chart-empty">'+esc(emptyText)+'</div>';return;}
+ const max=Math.max(...values.map(item=>item.value),1);
+ target.innerHTML=values.map(item=>'<div class="dashboard-horizontal-row"><div class="dashboard-horizontal-label"><span>'+esc(item.label)+'</span><strong>'+item.value+'</strong></div><div class="dashboard-horizontal-track"><i style="width:'+(item.value/max*100).toFixed(1)+'%"></i></div></div>').join('');
+}
+function dashboardRenderBusinessCharts(snapshot) {
+ const leads=Array.isArray(snapshot.leads)?snapshot.leads:[];
+ const projects=Array.isArray(snapshot.projects)?snapshot.projects:[];
+ const leadStatuses=[['new','Новые'],['contacted','Связались'],['measurement','Замер'],['estimate','Смета'],['negotiation','Переговоры'],['won','Выиграны'],['lost','Отказ']];
+ const projectStatuses=[['planned','Запланированы'],['active','В работе'],['completed','Завершены'],['cancelled','Отменены']];
+ dashboardRenderStatusChart('dashboardPipelineChart',leadStatuses.map(([key,label])=>({label,value:leads.filter(item=>item.status===key).length})),'Пока нет заявок для построения воронки.');
+ dashboardRenderStatusChart('dashboardPortfolioChart',projectStatuses.map(([key,label])=>({label,value:projects.filter(item=>item.status===key).length})),'Пока нет объектов для анализа портфеля.');
+}
+function dashboardApplyKpiPreferences() {
+ const ids={leads:'statLeads',projects:'statProjects',clients:'dashboardClientsCount',people:'dashboardPeopleCount'};
+ for(const [key,id] of Object.entries(ids)) { const node=$(id)?.closest('.dashboard-kpi-card'); if(node) node.hidden=!dashboardLayout.preferences.kpis.includes(key); }
+}
+function dashboardInitCustomizer() {
+ dashboardLayout=dashboardLoadLayout(); dashboardApplyLayout();
+ $('dashboardCustomizeBtn')?.addEventListener('click',dashboardOpenCustomizer);
+ $('dashboardCustomizeClose')?.addEventListener('click',dashboardCloseCustomizer);
+ $('dashboardCustomizeDone')?.addEventListener('click',dashboardCloseCustomizer);
+ $('dashboardWorkspaceSave')?.addEventListener('click',dashboardSaveNamedWorkspace);
+ $('dashboardWorkspaceLoad')?.addEventListener('click',dashboardLoadNamedWorkspace);
+ $('dashboardWorkspaceDelete')?.addEventListener('click',dashboardDeleteNamedWorkspace);
+ $('dashboardWorkspaceSelect')?.addEventListener('change',dashboardRenderSavedWorkspaces);
+ $('dashboardWorkspaceName')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();dashboardSaveNamedWorkspace();}});
+ $('dashboardLayoutReset')?.addEventListener('click',()=>{dashboardLayout={version:1,order:[...DASHBOARD_DEFAULT_ORDER],hidden:[],sizes:{},preferences:{kpis:['leads','projects','clients','people']},density:'comfortable',preset:'overview'};dashboardSaveLayout();dashboardApplyLayout();});
+ $('dashboardWidgetCatalog')?.addEventListener('change',event=>{
+  const input=event.target.closest('[data-dashboard-widget-toggle]');if(!input)return;
+  const id=input.dataset.dashboardWidgetToggle;
+  dashboardLayout.hidden=input.checked?dashboardLayout.hidden.filter(item=>item!==id):[...new Set([...dashboardLayout.hidden,id])];
+  dashboardSaveLayout();dashboardApplyLayout();
+ });
+ document.querySelectorAll('[data-dashboard-preset]').forEach(button=>button.addEventListener('click',()=>{
+  const preset=button.dataset.dashboardPreset;
+  const presets={
+   overview:{order:[...DASHBOARD_DEFAULT_ORDER],hidden:[]},
+   sales:{order:['kpis','pipeline','attention','progress','portfolio','recent','finance'],hidden:['finance']},
+   finance:{order:['finance','kpis','portfolio','progress','pipeline','attention','recent'],hidden:['pipeline','attention']}
+  };
+  const config=presets[preset];if(!config)return;
+  dashboardLayout.preset=preset;
+  dashboardLayout.order=[...config.order,...DASHBOARD_DEFAULT_ORDER.filter(id=>!config.order.includes(id))];
+  dashboardLayout.hidden=[...config.hidden];
+  dashboardSaveLayout();dashboardApplyLayout();
+ }));
+ document.querySelectorAll('[data-dashboard-density]').forEach(button=>button.addEventListener('click',()=>{
+  dashboardLayout.density=button.dataset.dashboardDensity==='compact'?'compact':'comfortable';
+  dashboardSaveLayout();dashboardApplyLayout();
+ }));
+ $('dashboardKpiPreferences')?.addEventListener('change',event=>{
+  const input=event.target.closest('[data-dashboard-kpi]');if(!input)return;
+  const id=input.dataset.dashboardKpi;
+  dashboardLayout.preferences.kpis=input.checked?[...new Set([...dashboardLayout.preferences.kpis,id])]:dashboardLayout.preferences.kpis.filter(item=>item!==id);
+  dashboardApplyKpiPreferences();dashboardSaveLayout();
+ });
+ document.querySelectorAll('[data-cashflow-months]').forEach(button=>button.addEventListener('click',()=>{
+  const next=Number(button.dataset.cashflowMonths);
+  if(![6,12].includes(next)||next===dashboardCashflowMonths)return;
+  dashboardCashflowMonths=next;
+  document.querySelectorAll('[data-cashflow-months]').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+  if(dashboardSnapshot) {
+   const data=window.SKOLDashboardMetrics.computeDashboardMetrics({...dashboardSnapshot,financeEnabled:licenseFeatures.has('finance'),productionEnabled:licenseFeatures.has('production')},dashboardPeriod,new Date(),dashboardCashflowMonths);
+   renderDashboardCashflowChart(data.cashflow,data.finance.complete);
+  }
+  const title=$('dashboardCashflowTitle');if(title)title.textContent='Динамика за '+dashboardCashflowMonths+' месяцев';
+ }));
+ document.querySelectorAll('[data-cashflow-series]').forEach(button=>button.addEventListener('click',()=>{
+  const key=button.dataset.cashflowSeries;
+  dashboardCashflowVisibility[key]=!dashboardCashflowVisibility[key];
+  button.setAttribute('aria-pressed',String(dashboardCashflowVisibility[key]));
+  const selector=key==='income'?'[data-chart-income]':'[data-chart-expense]';
+  $('dashboardCashflowChart')?.querySelectorAll(selector).forEach(bar=>bar.hidden=!dashboardCashflowVisibility[key]);
+ }));
+ $('dashboardWidgetGrid')?.addEventListener('click',event=>{
+  const widget=event.target.closest('[data-dashboard-widget]');if(!widget||!dashboardEditMode)return;
+  if(event.target.closest('.dashboard-hide-button')) {
+   dashboardLayout.hidden=[...new Set([...dashboardLayout.hidden,widget.dataset.dashboardWidget])];
+   dashboardSaveLayout();dashboardApplyLayout();
+  } else if(event.target.closest('.dashboard-move-up')) {
+   const previous=widget.previousElementSibling;
+   if(previous){widget.parentElement.insertBefore(widget,previous);dashboardLayout.order=[...$('dashboardWidgetGrid').querySelectorAll('[data-dashboard-widget]')].map(item=>item.dataset.dashboardWidget);dashboardLayout.preset='';dashboardSaveLayout();}
+  } else if(event.target.closest('.dashboard-move-down')) {
+   const next=widget.nextElementSibling;
+   if(next){widget.parentElement.insertBefore(next,widget);dashboardLayout.order=[...$('dashboardWidgetGrid').querySelectorAll('[data-dashboard-widget]')].map(item=>item.dataset.dashboardWidget);dashboardSaveLayout();}
+  } else if(event.target.closest('.dashboard-size-button')) {
+   const id=widget.dataset.dashboardWidget;const sizes=['half','wide','full'];
+   const current=dashboardLayout.sizes[id]||DASHBOARD_WIDGETS.find(item=>item.id===id)?.size||'full';
+   dashboardLayout.sizes[id]=sizes[(sizes.indexOf(current)+1)%sizes.length];dashboardSaveLayout();dashboardApplyLayout();
+  }
+ });
+ let dragged=null;
+ $('dashboardWidgetGrid')?.addEventListener('dragstart',event=>{
+  const handle=event.target.closest('.dashboard-drag-handle');
+  if(!dashboardEditMode||!handle){event.preventDefault();return;}
+  dragged=handle.closest('[data-dashboard-widget]');event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',dragged.dataset.dashboardWidget);dragged.classList.add('is-dragging');
+ });
+ $('dashboardWidgetGrid')?.addEventListener('dragover',event=>{
+  if(!dragged)return;event.preventDefault();const target=event.target.closest('[data-dashboard-widget]');
+  if(target&&target!==dragged){const rect=target.getBoundingClientRect();target.parentElement.insertBefore(dragged,event.clientY>rect.top+rect.height/2?target.nextSibling:target);}
+ });
+ $('dashboardWidgetGrid')?.addEventListener('drop',event=>{
+  if(!dragged)return;event.preventDefault();
+  dashboardLayout.order=[...$('dashboardWidgetGrid').querySelectorAll('[data-dashboard-widget]')].map(item=>item.dataset.dashboardWidget);
+  dashboardSaveLayout();dragged.classList.remove('is-dragging');dragged=null;
+ });
+ $('dashboardWidgetGrid')?.addEventListener('dragend',()=>{dragged?.classList.remove('is-dragging');dragged=null;});
+}
+dashboardInitCustomizer();
+
+let dashboardCashflowMonths = 6;
+const dashboardCashflowVisibility = {income:true,expenses:true};
 let dashboardPeriod = 'month';
 let dashboardSnapshot = null;
 let dashboardRefreshPromise = null;
@@ -718,9 +1216,9 @@ function renderDashboardCashflowChart(cashflow, complete) {
     target.innerHTML = '<div class="dashboard-chart-empty">Финансовая история загружена не полностью. Обнови обзор.</div>';
     return;
   }
-  const values = Array.isArray(cashflow) ? cashflow : [];
+  const values = (Array.isArray(cashflow) ? cashflow : []).slice(-dashboardCashflowMonths);
   if (!values.length || !values.some(item => Number(item.income) || Number(item.expenses))) {
-    target.innerHTML = '<div class="dashboard-chart-empty">За последние 6 месяцев ещё нет финансовых записей.</div>';
+    target.innerHTML = '<div class="dashboard-chart-empty">За последние ' + dashboardCashflowMonths + ' месяцев ещё нет финансовых записей.</div>';
     return;
   }
   const max = Math.max(0, ...values.flatMap(item => [Number(item.income) || 0, Number(item.expenses) || 0])) || 1;
@@ -734,6 +1232,8 @@ function renderDashboardCashflowChart(cashflow, complete) {
     if (incomeBar) incomeBar.style.height = `${item.income > 0 ? Math.max(5, item.income / max * 100) : 2}%`;
     if (expenseBar) expenseBar.style.height = `${item.expenses > 0 ? Math.max(5, item.expenses / max * 100) : 2}%`;
   }
+  target.querySelectorAll('[data-chart-income]').forEach(bar => { bar.hidden = !dashboardCashflowVisibility.income; });
+  target.querySelectorAll('[data-chart-expense]').forEach(bar => { bar.hidden = !dashboardCashflowVisibility.expenses; });
 }
 
 function renderDashboardAttention(attention = {}) {
@@ -759,7 +1259,7 @@ function renderDashboardSnapshot(snapshot) {
     ...snapshot,
     financeEnabled: licenseFeatures.has('finance'),
     productionEnabled: licenseFeatures.has('production')
-  }, dashboardPeriod, new Date());
+  }, dashboardPeriod, new Date(), dashboardCashflowMonths);
   const leads = snapshot.leads || [];
   const projects = snapshot.projects || [];
   $('statLeads').textContent = String(metrics.counts.activeLeads);
@@ -821,6 +1321,7 @@ function renderDashboardSnapshot(snapshot) {
   }
   renderDashboardCashflowChart(metrics.cashflow, metrics.finance.complete);
   renderDashboardAttention(metrics.attention);
+  dashboardRenderBusinessCharts(snapshot);
 
   $('recentLeads').innerHTML = leads.length
     ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Статус</th><th>Бюджет</th><th></th></tr></thead><tbody>${leads.slice(0,5).map(lead=>`<tr><td><strong>${esc(lead.title)}</strong><small class="table-sub">${esc(serviceLabels[lead.service] || lead.service)} · ${esc(sourceLabels[lead.source] || lead.source)}</small></td><td><span class="pill ${esc(lead.status)}">${esc(statusLabels[lead.status] || lead.status)}</span></td><td>${fmt(lead.budget_rub)}</td><td><button type="button" class="button subtle compact" data-goto="leads">Открыть</button></td></tr>`).join('')}</tbody></table>`
@@ -832,6 +1333,17 @@ function renderDashboardSnapshot(snapshot) {
 }
 async function refreshDashboard() {
   if (dashboardRefreshPromise) return dashboardRefreshPromise;
+  const dashboardView = $('view-dashboard');
+  const refreshButton = $('refreshBtn');
+  const originalRefreshMarkup = refreshButton?.innerHTML;
+  const dataStatus = $('dashboardDataStatus');
+  dashboardView?.setAttribute('aria-busy', 'true');
+  if (refreshButton) {
+    refreshButton.disabled = true;
+    refreshButton.setAttribute('aria-busy', 'true');
+    refreshButton.innerHTML = '<span class="dashboard-refresh-glyph" aria-hidden="true">↻</span> Обновляем';
+  }
+  if (dataStatus) dataStatus.textContent = 'Сверяем записи локальной базы…';
   dashboardRefreshPromise = (async () => {
     const loaders = {
       summary: () => window.crm.summary(),
@@ -870,8 +1382,20 @@ async function refreshDashboard() {
     refreshPiCoach().catch(() => {});
     return snapshot;
   })();
-  try { return await dashboardRefreshPromise; }
-  finally { dashboardRefreshPromise = null; }
+  try {
+    return await dashboardRefreshPromise;
+  } catch (error) {
+    if (dataStatus) dataStatus.textContent = 'Не удалось обновить обзор. Проверь локальную базу и повтори попытку.';
+    throw error;
+  } finally {
+    dashboardRefreshPromise = null;
+    dashboardView?.removeAttribute('aria-busy');
+    if (refreshButton) {
+      refreshButton.disabled = false;
+      refreshButton.removeAttribute('aria-busy');
+      refreshButton.innerHTML = originalRefreshMarkup || '↻ Обновить';
+    }
+  }
 }
 const recordCaches = { leads: [], clients: [], projects: [] };
 const selectedRecordIds = { leads: null, clients: null, projects: null };
@@ -946,7 +1470,7 @@ function selectRecord(kind, id) {
   selectedRecordIds[kind + 's'] = record.id;
   const tableIds = { lead: 'leadsTable', client: 'clientsTable', project: 'projectsTable' };
   const table = $(tableIds[kind]);
-  table?.querySelectorAll('tr[data-record-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.recordId) === String(record.id)));
+  table?.querySelectorAll('tr[data-record-kind]').forEach(row => { const selected = String(row.dataset.recordId) === String(record.id); row.classList.toggle('is-selected', selected); row.setAttribute('aria-current', selected ? 'true' : 'false'); });
   renderRecordDetailPanel(kind, record);
 }
 document.addEventListener('click', event => {
@@ -954,16 +1478,24 @@ document.addEventListener('click', event => {
   if (!row || event.target.closest('button, select, input, textarea, a')) return;
   selectRecord(row.dataset.recordKind, row.dataset.recordId);
 });
+document.addEventListener('keydown', event => {
+  if (!['Enter', ' '].includes(event.key) || event.defaultPrevented) return;
+  const row = event.target.closest?.('tr[data-record-kind][data-record-id]');
+  if (!row || event.target !== row) return;
+  event.preventDefault();
+  selectRecord(row.dataset.recordKind, row.dataset.recordId);
+});
+
 async function refreshLeads() {
   const rows = await window.crm.listLeads();
   recordCaches.leads = rows;
   const q = ($('leadSearch')?.value || '').toLowerCase();
   const status = $('leadStatusFilter')?.value || '';
   const filtered = rows.filter(l => `${l.title} ${l.address} ${l.notes} ${sourceLabels[l.source]}`.toLowerCase().includes(q) && (!status || l.status === status));
-  $('leadsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th><th>Адрес</th><th>Создана</th><th>Действия</th></tr></thead><tbody>${filtered.map(l => `<tr class="record-row${String(l.id) === String(selectedRecordIds.leads) ? ' is-selected' : ''}" data-record-kind="lead" data-record-id="${l.id}"><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><select class="lead-status-select" data-lead-status="${l.id}" aria-label="Статус заявки: ${esc(l.title)}">${Object.entries(statusLabels).map(([value,label]) => `<option value="${value}" ${l.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(l.budget_rub)}</td><td>${esc(l.address || '—')}</td><td>${esc(String(l.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-lead="${l.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Заявок не найдено','Создай заявку или измени фильтр.');
+  $('leadsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Заявка</th><th>Услуга</th><th>Источник</th><th>Статус</th><th>Бюджет</th><th>Адрес</th><th>Создана</th><th>Действия</th></tr></thead><tbody>${filtered.map(l => `<tr class="record-row${String(l.id) === String(selectedRecordIds.leads) ? ' is-selected' : ''}" data-record-kind="lead" data-record-id="${l.id}" tabindex="0" aria-current="${String(l.id) === String(selectedRecordIds.leads)}" aria-label="Открыть карточку заявки: ${esc(l.title)}"><td>${esc(l.title)}</td><td>${esc(serviceLabels[l.service] || l.service)}</td><td>${esc(sourceLabels[l.source] || l.source)}</td><td><select class="lead-status-select" data-lead-status="${l.id}" aria-label="Статус заявки: ${esc(l.title)}">${Object.entries(statusLabels).map(([value,label]) => `<option value="${value}" ${l.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(l.budget_rub)}</td><td>${esc(l.address || '—')}</td><td>${esc(String(l.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-lead="${l.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Заявок не найдено','Создай заявку или измени фильтр.');
   const selected = filtered.find(item => String(item.id) === String(selectedRecordIds.leads)) || filtered[0] || null;
   selectedRecordIds.leads = selected?.id ?? null;
-  $('leadsTable').querySelectorAll('tr[data-record-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.recordId) === String(selectedRecordIds.leads)));
+  $('leadsTable').querySelectorAll('tr[data-record-kind]').forEach(row => { const selected = String(row.dataset.recordId) === String(selectedRecordIds.leads); row.classList.toggle('is-selected', selected); row.setAttribute('aria-current', selected ? 'true' : 'false'); });
   renderRecordDetailPanel('lead', selected);
 }
 async function refreshClients() {
@@ -971,10 +1503,10 @@ async function refreshClients() {
   recordCaches.clients = rows;
   const q = ($('clientSearch')?.value || '').toLowerCase();
   const filtered = rows.filter(c => `${c.name} ${c.contact_name || ''} ${c.phone} ${c.email}`.toLowerCase().includes(q));
-  $('clientsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Клиент</th><th>Контактное лицо</th><th>Телефон</th><th>Email</th><th>Тип</th><th>Добавлен</th><th>Действия</th></tr></thead><tbody>${filtered.map(c => `<tr class="record-row${String(c.id) === String(selectedRecordIds.clients) ? ' is-selected' : ''}" data-record-kind="client" data-record-id="${c.id}"><td>${esc(c.name)}</td><td>${esc(c.contact_name || '—')}</td><td>${esc(c.phone || '—')}</td><td>${esc(c.email || '—')}</td><td>${c.client_type === 'company' ? 'Компания' : 'Частное лицо'}</td><td>${esc(String(c.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-client="${c.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Клиентов пока нет','Добавь первый контакт в свою базу.');
+  $('clientsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Клиент</th><th>Контактное лицо</th><th>Телефон</th><th>Email</th><th>Тип</th><th>Добавлен</th><th>Действия</th></tr></thead><tbody>${filtered.map(c => `<tr class="record-row${String(c.id) === String(selectedRecordIds.clients) ? ' is-selected' : ''}" data-record-kind="client" data-record-id="${c.id}" tabindex="0" aria-current="${String(c.id) === String(selectedRecordIds.clients)}" aria-label="Открыть карточку клиента: ${esc(c.name)}"><td>${esc(c.name)}</td><td>${esc(c.contact_name || '—')}</td><td>${esc(c.phone || '—')}</td><td>${esc(c.email || '—')}</td><td>${c.client_type === 'company' ? 'Компания' : 'Частное лицо'}</td><td>${esc(String(c.created_at).slice(0,10))}</td><td><button type="button" class="button subtle compact" data-edit-client="${c.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Клиентов пока нет','Добавь первый контакт в свою базу.');
   const selected = filtered.find(item => String(item.id) === String(selectedRecordIds.clients)) || filtered[0] || null;
   selectedRecordIds.clients = selected?.id ?? null;
-  $('clientsTable').querySelectorAll('tr[data-record-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.recordId) === String(selectedRecordIds.clients)));
+  $('clientsTable').querySelectorAll('tr[data-record-kind]').forEach(row => { const selected = String(row.dataset.recordId) === String(selectedRecordIds.clients); row.classList.toggle('is-selected', selected); row.setAttribute('aria-current', selected ? 'true' : 'false'); });
   renderRecordDetailPanel('client', selected);
 }
 async function refreshProjects() {
@@ -982,10 +1514,10 @@ async function refreshProjects() {
   recordCaches.projects = rows;
   const q = ($('projectSearch')?.value || '').toLowerCase();
   const filtered = rows.filter(p => `${p.title} ${p.address} ${p.client_name || ''}`.toLowerCase().includes(q));
-  $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th><th>Действия</th></tr></thead><tbody>${filtered.map(p => `<tr class="record-row${String(p.id) === String(selectedRecordIds.projects) ? ' is-selected' : ''}" data-record-kind="project" data-record-id="${p.id}"><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><select class="project-status-select" data-project-status="${p.id}" aria-label="Статус объекта: ${esc(p.title)}">${Object.entries(projectStatusLabels).map(([value,label]) => `<option value="${value}" ${p.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Math.max(0,Number(p.received_rub))))}</td><td><button type="button" class="button subtle compact" data-edit-project="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
+  $('projectsTable').innerHTML = filtered.length ? `<table class="data-table"><thead><tr><th>Объект</th><th>Услуга</th><th>Статус</th><th>Договор</th><th>Получено</th><th>Оплачено расходов</th><th>Долг клиента</th><th>Действия</th></tr></thead><tbody>${filtered.map(p => `<tr class="record-row${String(p.id) === String(selectedRecordIds.projects) ? ' is-selected' : ''}" data-record-kind="project" data-record-id="${p.id}" tabindex="0" aria-current="${String(p.id) === String(selectedRecordIds.projects)}" aria-label="Открыть карточку объекта: ${esc(p.title)}"><td>${esc(p.title)}<small class="table-sub">${esc(p.address || 'Адрес не указан')}</small></td><td>${esc(serviceLabels[p.service] || p.service)}</td><td><select class="project-status-select" data-project-status="${p.id}" aria-label="Статус объекта: ${esc(p.title)}">${Object.entries(projectStatusLabels).map(([value,label]) => `<option value="${value}" ${p.status === value ? 'selected' : ''}>${label}</option>`).join('')}</select></td><td>${fmt(p.contract_rub)}</td><td>${fmt(p.received_rub)}</td><td>${fmt(p.paid_expenses_rub)}</td><td>${fmt(Math.max(0,Number(p.contract_rub)-Math.max(0,Number(p.received_rub))))}</td><td><button type="button" class="button subtle compact" data-edit-project="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Объектов пока нет','Добавь объект, чтобы учитывать договоры, платежи и расходы.');
   const selected = filtered.find(item => String(item.id) === String(selectedRecordIds.projects)) || filtered[0] || null;
   selectedRecordIds.projects = selected?.id ?? null;
-  $('projectsTable').querySelectorAll('tr[data-record-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.recordId) === String(selectedRecordIds.projects)));
+  $('projectsTable').querySelectorAll('tr[data-record-kind]').forEach(row => { const selected = String(row.dataset.recordId) === String(selectedRecordIds.projects); row.classList.toggle('is-selected', selected); row.setAttribute('aria-current', selected ? 'true' : 'false'); });
   renderRecordDetailPanel('project', selected);
   const options = rows.map(p => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
   $('paymentProject').innerHTML = `<option value="">Выбери объект</option>${options}`;
@@ -1046,7 +1578,7 @@ function selectFinanceRecord(kind, id) {
   const key = kind === 'payment' ? 'payments' : 'expenses';
   financeSelectedIds[key] = record.id;
   const targetId = kind === 'payment' ? 'paymentsTable' : 'expensesTable';
-  $(targetId)?.querySelectorAll('tr[data-finance-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.financeId) === String(record.id)));
+  $(targetId)?.querySelectorAll('tr[data-finance-kind]').forEach(row => { const selected = String(row.dataset.financeId) === String(record.id); row.classList.toggle('is-selected', selected); row.setAttribute('aria-current', selected ? 'true' : 'false'); });
   renderFinanceDetailPanel(kind, record);
 }
 document.addEventListener('click', event => {
@@ -1054,6 +1586,14 @@ document.addEventListener('click', event => {
   if (!row || event.target.closest('button, select, input, textarea, a')) return;
   selectFinanceRecord(row.dataset.financeKind, row.dataset.financeId);
 });
+document.addEventListener('keydown', event => {
+  if (!['Enter', ' '].includes(event.key) || event.defaultPrevented) return;
+  const row = event.target.closest?.('tr[data-finance-kind][data-finance-id]');
+  if (!row || event.target !== row) return;
+  event.preventDefault();
+  selectFinanceRecord(row.dataset.financeKind, row.dataset.financeId);
+});
+
 async function refreshFinance() {
   const [summary, payments, expenses, insights, incomeRecords] = await Promise.all([window.crm.summary(), window.crm.listPayments(), window.crm.listExpenses(), window.crm.financeInsights(), window.crm.listIncomeRecords()]);
   renderFinanceInsights(insights);
@@ -1070,14 +1610,14 @@ async function refreshFinance() {
   financeRecordCaches.payments = payments;
   const selectedPayment = payments.find(item => String(item.id) === String(financeSelectedIds.payments)) || payments[0] || null;
   financeSelectedIds.payments = selectedPayment?.id ?? null;
-  $('paymentsTable').innerHTML = payments.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Операция</th><th>Сумма</th><th>Способ</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${payments.map(p => `<tr class="record-row${String(p.id) === String(financeSelectedIds.payments) ? ' is-selected' : ''}" data-finance-kind="payment" data-finance-id="${p.id}"><td>${esc(p.payment_date)}</td><td>${esc(p.project_title)}</td><td>${p.payment_type === 'refund' ? '<span class="pill lost">Возврат</span>' : '<span class="pill won">Поступление</span>'}</td><td>${p.payment_type === 'refund' ? '−' : '+'}${fmt(p.amount_rub)}</td><td>${esc(({cash:'Наличные',bank:'На счёт',transfer:'Перевод',other:'Другое'})[p.method] || p.method)}</td><td>${esc(p.note || '—')}</td><td><button type="button" class="button subtle compact" data-edit-payment="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Платежей пока нет','Добавь объект, затем записывай авансы и окончательные расчёты.');
-  $('paymentsTable').querySelectorAll('tr[data-finance-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.financeId) === String(financeSelectedIds.payments)));
+  $('paymentsTable').innerHTML = payments.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Объект</th><th>Операция</th><th>Сумма</th><th>Способ</th><th>Комментарий</th><th>Действия</th></tr></thead><tbody>${payments.map(p => `<tr class="record-row${String(p.id) === String(financeSelectedIds.payments) ? ' is-selected' : ''}" data-finance-kind="payment" data-finance-id="${p.id}" tabindex="0" aria-current="${String(p.id) === String(financeSelectedIds.payments)}" aria-label="Открыть финансовую карточку платежа: ${esc(p.project_title || "без объекта")}"><td>${esc(p.payment_date)}</td><td>${esc(p.project_title)}</td><td>${p.payment_type === 'refund' ? '<span class="pill lost">Возврат</span>' : '<span class="pill won">Поступление</span>'}</td><td>${p.payment_type === 'refund' ? '−' : '+'}${fmt(p.amount_rub)}</td><td>${esc(({cash:'Наличные',bank:'На счёт',transfer:'Перевод',other:'Другое'})[p.method] || p.method)}</td><td>${esc(p.note || '—')}</td><td><button type="button" class="button subtle compact" data-edit-payment="${p.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Платежей пока нет','Добавь объект, затем записывай авансы и окончательные расчёты.');
+  $('paymentsTable').querySelectorAll('tr[data-finance-kind]').forEach(row => { const selected = String(row.dataset.financeId) === String(financeSelectedIds.payments); row.classList.toggle('is-selected', selected); row.setAttribute('aria-current', selected ? 'true' : 'false'); });
   renderFinanceDetailPanel('payment', selectedPayment);
   financeRecordCaches.expenses = expenses;
   const selectedExpense = expenses.find(item => String(item.id) === String(financeSelectedIds.expenses)) || expenses[0] || null;
   financeSelectedIds.expenses = selectedExpense?.id ?? null;
-  $('expensesTable').innerHTML = expenses.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Расход</th><th>Объект</th><th>Категория</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${expenses.map(e => `<tr class="record-row${String(e.id) === String(financeSelectedIds.expenses) ? ' is-selected' : ''}" data-finance-kind="expense" data-finance-id="${e.id}"><td>${esc(e.expense_date)}</td><td>${esc(e.description)}</td><td>${esc(e.project_title || 'Общий')}</td><td>${esc(expenseLabels[e.category] || e.category)}</td><td>${fmt(e.amount_rub)}</td><td><span class="pill ${e.is_paid ? 'won' : 'estimate'}">${e.is_paid ? 'Оплачено' : 'Запланировано'}</span></td><td><button type="button" class="button subtle compact" data-edit-expense="${e.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Расходов пока нет','Записывай материалы, рабочих, транспорт и другие расходы.');
-  $('expensesTable').querySelectorAll('tr[data-finance-kind]').forEach(row => row.classList.toggle('is-selected', String(row.dataset.financeId) === String(financeSelectedIds.expenses)));
+  $('expensesTable').innerHTML = expenses.length ? `<table class="data-table"><thead><tr><th>Дата</th><th>Расход</th><th>Объект</th><th>Категория</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr></thead><tbody>${expenses.map(e => `<tr class="record-row${String(e.id) === String(financeSelectedIds.expenses) ? ' is-selected' : ''}" data-finance-kind="expense" data-finance-id="${e.id}" tabindex="0" aria-current="${String(e.id) === String(financeSelectedIds.expenses)}" aria-label="Открыть финансовую карточку расхода: ${esc(e.description)}"><td>${esc(e.expense_date)}</td><td>${esc(e.description)}</td><td>${esc(e.project_title || 'Общий')}</td><td>${esc(expenseLabels[e.category] || e.category)}</td><td>${fmt(e.amount_rub)}</td><td><span class="pill ${e.is_paid ? 'won' : 'estimate'}">${e.is_paid ? 'Оплачено' : 'Запланировано'}</span></td><td><button type="button" class="button subtle compact" data-edit-expense="${e.id}">Изменить</button></td></tr>`).join('')}</tbody></table>` : empty('Расходов пока нет','Записывай материалы, рабочих, транспорт и другие расходы.');
+  $('expensesTable').querySelectorAll('tr[data-finance-kind]').forEach(row => { const selected = String(row.dataset.financeId) === String(financeSelectedIds.expenses); row.classList.toggle('is-selected', selected); row.setAttribute('aria-current', selected ? 'true' : 'false'); });
   renderFinanceDetailPanel('expense', selectedExpense);
   await refreshProjects();
 }
@@ -1514,42 +2054,6 @@ function piUpdateErrorBadge() {
 piUpdateErrorBadge();
 async function exportCsv(kind) { try { const r = await window.crm.exportDataCsv(kind); if (!r.canceled) toast(`Экспорт завершён: строк ${r.count}.`); } catch (e) { toast(e.message, true); } }
 // Primary navigation is registered near showView() before widget initialization.
-const commandPalette = $('commandPaletteDialog');
-const commandSearch = $('commandPaletteSearch');
-$('openCommandPaletteBtn')?.addEventListener('click', openCommandPalette);
-function openCommandPalette() {
-  if (!commandPalette) return;
-  commandPalette.showModal();
-  commandSearch.value = '';
-  filterCommandPalette('');
-  requestAnimationFrame(() => commandSearch.focus());
-}
-function filterCommandPalette(query) {
-  const q = String(query || '').trim().toLocaleLowerCase('ru-RU');
-  let firstFound = false;
-  document.querySelectorAll('.command-item').forEach(item => {
-    const visible = !q || item.textContent.toLocaleLowerCase('ru-RU').includes(q);
-    item.hidden = !visible;
-    const firstMatch = visible && !firstFound;
-    item.classList.toggle('command-first-match', firstMatch);
-    if (firstMatch) firstFound = true;
-  });
-}
-commandSearch?.addEventListener('input', () => filterCommandPalette(commandSearch.value));
-commandPalette?.addEventListener('click', event => {
-  const item = event.target.closest('[data-command-view]');
-  if (!item) return;
-  commandPalette.close();
-  showView(item.dataset.commandView);
-});
-document.addEventListener('keydown', event => {
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-    event.preventDefault();
-    if (commandPalette?.open) commandPalette.close(); else openCommandPalette();
-  }
-  if (event.key === 'Escape' && commandPalette?.open) commandPalette.close();
-});
-document.querySelectorAll('[data-plan-action]').forEach(button => button.addEventListener('click', () => { const plan = button.dataset.planAction; const labels = { subscription: 'Подписка', lifetime: 'Покупка навсегда', pro: 'Профессиональный тариф' }; toast(`${labels[plan] || 'Тариф'}: оформление ещё не подключено. Никаких списаний не выполняется.`); }));
 document.addEventListener('click', e => {
   const goto = e.target.closest('[data-goto]'); if (goto) showView(goto.dataset.goto);
   const close = e.target.closest('[data-close]'); if (close) { if (close.dataset.close === 'projectDialog') pendingProjectPlan = null; closeDialog(close.dataset.close); }
@@ -2588,9 +3092,6 @@ initializeStartupGate()
   })
   .finally(() => {
     hideStartupSplash();
-    window.setTimeout(() => {
-      if (startupUnlocked) maybeStartNavGuide();
-    }, 650);
   });
 // PI does not query business data until the startup PIN gate has been passed.
 setInterval(() => { if (startupUnlocked) refreshPiCoach().catch(() => {}); }, 5 * 60 * 1000);
