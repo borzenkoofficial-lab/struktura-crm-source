@@ -2,9 +2,8 @@
 
 ## Source of truth
 
-- The canonical production branch is `main`.
-- During consolidation review, the only release candidate is PR #70 from `fix/installed-dashboard-grid-regression`. Do not use older parallel branches as a base.
-- After PR #70 is merged, work only from the updated `main`. New work must use a short-lived branch created directly from `main` and a pull request back to `main`.
+- The canonical and only production source of truth is `main` (СКОЛ CRM 1.28.0).
+- Start every task from the latest `main`. New work must use a short-lived branch created directly from `main` and a pull request back to `main`.
 - Do not create duplicate `installer-build/*`, `test/*`, `ui/*`, or `redesign/*` branches for the same interface. Never promote an old branch over a newer canonical commit.
 - Before changing code, inspect this file, `README.md`, `package.json`, the current branch and the latest commit. Confirm that the branch is based on `main`.
 
@@ -32,6 +31,17 @@
 - Never delete, reset, replace or migrate a user's SQLite database without a tested backup and rollback path.
 - Preserve the distinction between customer-confirmed budget, calculated revenue, cost and estimated profit. Never substitute one for another.
 - Do not add fabricated demo values to dashboards or reports; metrics must come from actual local records.
+
+## Unmerged feature proposals
+
+The following open proposals are **not part of main** and must not be treated as installed product functionality:
+
+- PR #61 — AnyModel AI integration / search provider change.
+- PR #62 — direct EIS procurement search connector.
+- PR #68 — restore client linkage on lead creation and editing.
+- PR #69 — stricter SQLite backup/restore schema validation.
+
+These proposals were developed against older branch histories. Do not merge their branches wholesale or use them as a base. Re-audit each against current `main`, port only the required feature/fix, preserve current UI and data contracts, then run focused tests plus the full verification suite. Older 1.14–1.16 PRs are historical proposals, not a current release base.
 
 ## Required verification
 
