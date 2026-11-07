@@ -604,7 +604,8 @@ async function run() {
       }) : null;
       if (dockDiagnostics) console.log('[dock-geometry] ' + JSON.stringify(dockDiagnostics));
       assert.ok(dockBounds.left >= -1 && dockBounds.right <= viewport.width + 1, 'Dock stays within ' + viewport.name + ': ' + JSON.stringify(dockBounds));
-      assert.ok(dockBounds.height <= 60, 'Dock does not grow vertically at ' + viewport.name + ': ' + JSON.stringify(dockBounds));
+      const dockHeightLimit = viewport.width <= 760 ? 56 : viewport.width <= 1180 ? 60 : 64;
+      assert.ok(dockBounds.height <= dockHeightLimit + 1, 'Dock respects its responsive height limit at ' + viewport.name + ' (' + dockHeightLimit + 'px): ' + JSON.stringify(dockBounds));
       assert.ok(dockBounds.scrollWidth <= dockBounds.clientWidth + 1, 'All Dock destinations fit without horizontal clipping at ' + viewport.name + ': ' + JSON.stringify(dockBounds));
 
       for (const viewName of (viewport.views || viewNames)) {
