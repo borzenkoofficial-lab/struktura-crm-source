@@ -498,7 +498,7 @@ async function run() {
     assert.equal(dockLayout.itemCount, 12, 'all 12 primary workspaces are present');
     assert.equal(dockLayout.groupCount, 4, 'workspaces are grouped into four logical groups');
     assert.equal(dockLayout.labelCount, 12, 'every icon retains an accessible label tooltip');
-    assert.ok(dockLayout.height >= 54 && dockLayout.height <= 64, 'Dock uses a stable 54–64px precision capsule: ' + JSON.stringify(dockLayout));
+    assert.ok(dockLayout.height >= 54 && dockLayout.height <= 80, 'Dock uses the responsive 58–80px Liquid Glass capsule: ' + JSON.stringify(dockLayout));
     assert.ok(dockLayout.width >= 620, 'Dock has enough horizontal room for legible navigation targets: ' + JSON.stringify(dockLayout));
     assert.ok(dockLayout.scrollWidth <= dockLayout.clientWidth + 1, 'Dock contents must not create internal horizontal overflow: ' + JSON.stringify(dockLayout));
     assert.ok(dockLayout.left >= 0 && dockLayout.right <= await page.evaluate(() => window.innerWidth), 'Dock stays fully inside the application viewport: ' + JSON.stringify(dockLayout));
@@ -506,7 +506,7 @@ async function run() {
       const style = getComputedStyle(node);
       return { radius: style.borderRadius, background: style.backgroundImage, backgroundColor: style.backgroundColor, color: style.color, borderColor: style.borderColor, width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height, filter: style.filter };
     });
-    assert.equal(dockIconStyles.background, 'none', 'Dock icons use controlled semantic surfaces, not decorative gradients');
+    assert.match(dockIconStyles.background, /^linear-gradient\(/u, 'Dock icons use the supplied translucent glass gradient');
     assert.notEqual(dockIconStyles.backgroundColor, 'rgba(0, 0, 0, 0)', 'Dock icons retain a visible semantic surface');
     assert.notEqual(dockIconStyles.borderColor, 'rgba(0, 0, 0, 0)', 'Dock icons retain a visible token border');
     assert.ok(dockIconStyles.width >= 40 && dockIconStyles.height >= 40, 'Dock icons remain large enough for crisp vector rendering: ' + JSON.stringify(dockIconStyles));
@@ -515,7 +515,7 @@ async function run() {
       const style = getComputedStyle(node);
       return { backgroundColor: style.backgroundColor, backdropFilter: style.backdropFilter, borderColor: style.borderColor, textRendering: getComputedStyle(document.documentElement).textRendering };
     });
-    assert.equal(dockSurface.backdropFilter, 'none', 'Dock uses a crisp opaque surface instead of blur haze');
+    assert.match(dockSurface.backdropFilter, /blur\(/u, 'Dock uses the supplied Liquid Glass backdrop blur');
     assert.notEqual(dockSurface.backgroundColor, 'rgba(0, 0, 0, 0)', 'Dock surface remains fully defined');
     assert.ok(['geometricprecision', 'optimizelegibility'].includes(dockSurface.textRendering), 'Chromium resolves geometric text rendering to a supported precision mode: ' + dockSurface.textRendering);
     const dockGlyphs = await dock.locator('.dock-icon').evaluateAll(nodes => nodes.map(node => {
@@ -604,7 +604,7 @@ async function run() {
       }) : null;
       if (dockDiagnostics) console.log('[dock-geometry] ' + JSON.stringify(dockDiagnostics));
       assert.ok(dockBounds.left >= -1 && dockBounds.right <= viewport.width + 1, 'Dock stays within ' + viewport.name + ': ' + JSON.stringify(dockBounds));
-      const dockHeightLimit = viewport.width <= 760 ? 56 : viewport.width <= 1180 ? 60 : 64;
+      const dockHeightLimit = viewport.width <= 760 ? 58 : viewport.width <= 1180 ? 64 : viewport.width >= 2200 ? 80 : 72;
       assert.ok(dockBounds.height <= dockHeightLimit + 1, 'Dock respects its responsive height limit at ' + viewport.name + ' (' + dockHeightLimit + 'px): ' + JSON.stringify(dockBounds));
       assert.ok(dockBounds.scrollWidth <= dockBounds.clientWidth + 1, 'All Dock destinations fit without horizontal clipping at ' + viewport.name + ': ' + JSON.stringify(dockBounds));
 
