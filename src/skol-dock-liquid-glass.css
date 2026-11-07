@@ -478,3 +478,12 @@ html[data-theme="light"] #skolDock .dock-notifications-trigger:focus-visible {
     bottom: 4px !important;
   }
 }
+
+/* On 4K-class windows, cap the workspace scroll viewport above the 80px Dock. */
+@media (min-width: 2200px) {
+  .main {
+    max-height: calc(100vh - 84px) !important;
+    max-height: calc(100dvh - 84px) !important;
+    overflow-y: auto !important;
+  }
+}
