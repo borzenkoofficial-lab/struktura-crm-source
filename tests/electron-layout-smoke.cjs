@@ -374,7 +374,7 @@ async function run() {
     assert.equal(await page.evaluate(() => localStorage.getItem('skol-theme-preference-v1')), 'dark', 'theme choice persists in the local profile');
     await themeButton.click();
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
-    assert.equal(await themeButton.getAttribute('aria-pressed'), 'false', 'dark theme state is exposed accessibly');
+    assert.equal(await themeButton.getAttribute('aria-pressed'), 'true', 'light theme state is exposed accessibly');
 
     // Exercise dashboard period controls and the new refresh pending/recovery state.
     const weekPeriod = page.locator('[data-dashboard-period="week"]');
