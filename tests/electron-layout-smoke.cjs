@@ -357,22 +357,23 @@ async function run() {
       return !splash || splash.classList.contains('is-hidden');
     }, null, { timeout: 15000 });
     await page.waitForTimeout(750);
-    // Exercise both real theme states in the isolated Electron profile.
+    // Fresh profiles must start in the requested white-and-lime light theme.
+    // Exercise the persisted switch into dark and back to light in the real Electron window.
     const themeButton = page.locator('#themeToggleBtn');
-    assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark', 'new isolated profiles start in the dark theme');
+    assert.equal(await page.locator('html').getAttribute('data-theme'), 'light', 'new isolated profiles start in the white-and-lime light theme');
+    const lightBackground = await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor);
+    assert.equal(await page.locator('#theme-light-stylesheet').evaluate(node => node.disabled), false, 'light colourway stylesheet is enabled');
+    assert.equal(await page.locator('#theme-dark-stylesheet').evaluate(node => node.disabled), true, 'dark colourway stylesheet is disabled');
+    await themeButton.click();
+    await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
     const darkBackground = await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor);
     assert.equal(await page.locator('#theme-dark-stylesheet').evaluate(node => node.disabled), false, 'dark colourway stylesheet is enabled');
     assert.equal(await page.locator('#theme-light-stylesheet').evaluate(node => node.disabled), true, 'light colourway stylesheet is disabled');
+    assert.notEqual(lightBackground, darkBackground, 'light and dark themes must change the actual application surface');
+    assert.equal(await themeButton.getAttribute('aria-pressed'), 'false', 'dark theme state is exposed accessibly');
+    assert.equal(await page.evaluate(() => localStorage.getItem('skol-theme-preference-v1')), 'dark', 'theme choice persists in the local profile');
     await themeButton.click();
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
-    const lightBackground = await page.locator('body').evaluate(node => getComputedStyle(node).backgroundColor);
-    assert.equal(await page.locator('#theme-dark-stylesheet').evaluate(node => node.disabled), true, 'dark colourway stylesheet is disabled');
-    assert.equal(await page.locator('#theme-light-stylesheet').evaluate(node => node.disabled), false, 'light colourway stylesheet is enabled');
-    assert.notEqual(lightBackground, darkBackground, 'light and dark themes must change the actual application surface');
-    assert.equal(await themeButton.getAttribute('aria-pressed'), 'true', 'light theme state is exposed accessibly');
-    assert.equal(await page.evaluate(() => localStorage.getItem('skol-theme-preference-v1')), 'light', 'theme choice persists in the local profile');
-    await themeButton.click();
-    await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
     assert.equal(await themeButton.getAttribute('aria-pressed'), 'false', 'dark theme state is exposed accessibly');
 
     // Exercise dashboard period controls and the new refresh pending/recovery state.
