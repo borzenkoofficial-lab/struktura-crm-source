@@ -25,8 +25,7 @@ test('SKOL installer keeps assisted NSIS and the established Windows identity', 
 });
 
 test('Liquid Glass installer includes a branded welcome page and three navigable feature slides', () => {
-  assert.match(nsis, /!macro customWelcomePage[\s\S]*?MUI_PAGE_WELCOME[\s\S]*?!macroend/);
-  assert.match(nsis, /!macro customPageAfterChangeDir[\s\S]*?Page custom SKOLFeaturePageCreate[\s\S]*?!macroend/);
+  assert.match(nsis, /!macro customWelcomePage[\\s\\S]*?MUI_PAGE_WELCOME[\\s\\S]*?Page custom SKOLFeaturePageCreate[\\s\\S]*?!macroend/);
   assert.match(nsis, /SKOLSlideRender/);
   assert.match(nsis, /Управление объектами/);
   assert.match(nsis, /Сметы и производство/);
