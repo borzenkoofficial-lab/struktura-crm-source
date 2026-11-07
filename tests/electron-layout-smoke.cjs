@@ -540,6 +540,25 @@ async function run() {
     const afterHover = await hoverTarget.boundingBox();
     assert.ok(afterHover.width > beforeHover.width * 1.05, 'hover magnifies the dock icon and its hit target');
     assert.equal(await label.evaluate(node => getComputedStyle(node).visibility), 'visible', 'hover reveals the destination label');
+
+    const tooltipSurface = await label.evaluate(node => {
+      const style = getComputedStyle(node);
+      const rect = node.getBoundingClientRect();
+      return {
+        width: rect.width,
+        height: rect.height,
+        scrollWidth: node.scrollWidth,
+        clientWidth: node.clientWidth,
+        backgroundColor: style.backgroundColor,
+        color: style.color,
+        whiteSpace: style.whiteSpace
+      };
+    });
+    assert.ok(tooltipSurface.width > 30 && tooltipSurface.height > 10, 'Dock tooltip expands to fit its label instead of collapsing to a dot: ' + JSON.stringify(tooltipSurface));
+    assert.ok(tooltipSurface.clientWidth >= tooltipSurface.scrollWidth - 1, 'Dock tooltip text remains inside its background: ' + JSON.stringify(tooltipSurface));
+    assert.notEqual(tooltipSurface.backgroundColor, 'rgba(0, 0, 0, 0)', 'Dock tooltip retains a visible background surface');
+    assert.notEqual(tooltipSurface.color, 'rgba(0, 0, 0, 0)', 'Dock tooltip retains a visible text color');
+
     await page.screenshot({ path: path.join(outputDir, 'dock-hover.png'), animations: 'disabled' });
     await page.keyboard.press('Tab');
     await page.keyboard.press('Escape');
