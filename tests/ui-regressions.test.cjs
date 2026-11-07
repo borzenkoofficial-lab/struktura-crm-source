@@ -1064,8 +1064,11 @@ test('Dock interaction layer exposes command search, contextual actions and pers
 
 test('shared layout hardening keeps content inside cards, forms, tables and dialogs', () => {
   const links = [...html.matchAll(/<link rel="stylesheet" href="([^"]+\.css)"/g)].map(match => match[1]);
-  assert.equal(links.at(-2), 'ui-layout-hardening.css', 'the shared geometry layer loads after both themes');
-  assert.equal(links.at(-1), 'struktura-design-system.css', 'the semantic design-system layer loads after shared geometry hardening');
+  const geometryIndex = links.indexOf('ui-layout-hardening.css');
+  const designSystemIndex = links.indexOf('struktura-design-system.css');
+  const dockOverrideIndex = links.indexOf('skol-dock-liquid-glass.css');
+  assert.ok(geometryIndex >= 0 && designSystemIndex > geometryIndex, 'the semantic design system loads after shared geometry hardening');
+  assert.equal(dockOverrideIndex, designSystemIndex + 1, 'the Liquid Glass Dock override loads immediately after the design system');
   assert.ok(layoutCss.includes('.main'));
   assert.ok(layoutCss.includes('min-width: 0'));
   assert.match(layoutCss, /\.stat-card > strong[\s\S]*?white-space: normal/);
